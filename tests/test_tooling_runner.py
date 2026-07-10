@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from anchor_mvp.tooling import OpenCodeExecutor, ToolPolicy
 
 
@@ -29,3 +32,15 @@ def test_missing_opencode_returns_auditable_failure_without_api_call(tmp_path):
 
     assert result.exit_code == 127
     assert result.error_codes == ("opencode_not_installed",)
+
+
+def test_windows_uses_the_launchable_npm_cmd_shim(tmp_path):
+    if os.name != "nt":
+        return
+    command = OpenCodeExecutor().command(
+        sample_id="shim",
+        prompt="No call",
+        workspace=tmp_path,
+    )
+
+    assert Path(command[0]).suffix.casefold() == ".cmd"

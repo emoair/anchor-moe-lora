@@ -104,6 +104,8 @@ class GoldRecord:
     tool_trace: tuple[ToolTraceEntry, ...]
     changed_files: tuple[FileChange, ...]
     task_bundle_sha256: str
+    agent_stdout_sha256: str | None
+    agent_stderr_sha256: str | None
     skill_provenance: tuple[SkillProvenance, ...] = ()
     public_outcome: PublicOutcome | None = None
     rejected_events: int = 0

@@ -1,7 +1,11 @@
 import json
 
 from anchor_mvp.tooling import ToolPolicy
-from anchor_mvp.tooling.trace import classify_error_text, parse_opencode_jsonl
+from anchor_mvp.tooling.trace import (
+    classify_error_metadata,
+    classify_error_text,
+    parse_opencode_jsonl,
+)
 
 
 def test_event_reducer_keeps_safe_command_metadata_and_drops_model_text():
@@ -45,3 +49,19 @@ def test_400_and_499_are_classified_without_persisting_raw_error():
     )
 
     assert codes == ("invalid_url", "client_cancelled", "rate_limited")
+
+
+def test_structural_error_metadata_is_classified_without_messages():
+    stdout = json.dumps(
+        {
+            "type": "error",
+            "error": {"name": "APIError", "statusCode": 403, "message": "discard me"},
+        }
+    )
+
+    codes = classify_error_metadata(stdout, "")
+
+    assert "agent_error_event" in codes
+    assert "agent_apierror" in codes
+    assert "forbidden" in codes
+    assert all("discard" not in code for code in codes)

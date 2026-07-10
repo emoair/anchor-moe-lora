@@ -12,7 +12,7 @@ from .config import AGENT_ID, DEFAULT_MODEL, PROVIDER_ID
 from .models import AgentExecution, ToolTraceEntry
 from .policy import ToolPolicy
 from .trace import (
-    classify_error_text,
+    classify_error_metadata,
     digest_text,
     parse_opencode_jsonl,
     parse_public_outcome,
@@ -63,8 +63,15 @@ class OpenCodeExecutor:
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
 
+    def _resolved_executable(self) -> str | None:
+        if os.name == "nt" and not Path(self.executable).suffix:
+            command_shim = shutil.which(f"{self.executable}.cmd")
+            if command_shim:
+                return command_shim
+        return shutil.which(self.executable)
+
     def available(self) -> bool:
-        return shutil.which(self.executable) is not None
+        return self._resolved_executable() is not None
 
     def _environment(self, config_path: Path) -> dict[str, str]:
         runtime_root = config_path.parent / "runtime"
@@ -94,8 +101,9 @@ class OpenCodeExecutor:
         return environment
 
     def command(self, *, sample_id: str, prompt: str, workspace: Path) -> list[str]:
+        executable = self._resolved_executable() or self.executable
         return [
-            self.executable,
+            executable,
             "run",
             "--format",
             "json",
@@ -151,7 +159,7 @@ class OpenCodeExecutor:
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
         public_outcome = parse_public_outcome(stdout)
-        errors = list(classify_error_text(stdout + "\n" + stderr))
+        errors = list(classify_error_metadata(stdout, stderr))
         # OpenCode persists sessions by default. Its XDG roots are redirected
         # above and removed after event reduction so hidden reasoning/session
         # bodies cannot become training artifacts.

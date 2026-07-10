@@ -93,6 +93,8 @@ class ToolingHarness:
             tool_trace=trace,
             changed_files=changes,
             task_bundle_sha256=digest_text(sample.prompt),
+            agent_stdout_sha256=execution.stdout_sha256,
+            agent_stderr_sha256=execution.stderr_sha256,
             skill_provenance=sample.skill_provenance,
             public_outcome=execution.public_outcome,
             rejected_events=execution.rejected_events,

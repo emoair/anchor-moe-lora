@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Iterator
 
 from .models import PublicDecisionStep, PublicOutcome, ToolTraceEntry
@@ -24,6 +25,55 @@ def classify_error_text(value: str) -> tuple[str, ...]:
     if "invalid authentication" in lowered or "status code: 401" in lowered or "http 401" in lowered:
         codes.append("authentication_failed")
     return tuple(codes)
+
+
+_SAFE_ERROR_TOKEN = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
+
+
+def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
+    """Classify failures without retaining messages, model text, or tool contents."""
+
+    codes = list(classify_error_text(stdout + "\n" + stderr))
+    status_names = {"status", "statuscode", "httpstatus", "http_status"}
+    code_names = {"code", "name", "errorcode", "error_code"}
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        for item in _walk_dicts(event):
+            if str(item.get("type", "")).casefold() == "error":
+                codes.append("agent_error_event")
+            for key, value in item.items():
+                name = str(key).casefold()
+                if name in status_names:
+                    try:
+                        status = int(value)
+                    except (TypeError, ValueError):
+                        continue
+                    if status == 400:
+                        codes.append("invalid_request")
+                    elif status == 401:
+                        codes.append("authentication_failed")
+                    elif status == 403:
+                        codes.append("forbidden")
+                    elif status == 404:
+                        codes.append("endpoint_or_model_not_found")
+                    elif status in {408, 499}:
+                        codes.append("client_cancelled")
+                    elif status == 429:
+                        codes.append("rate_limited")
+                    elif 500 <= status <= 599:
+                        codes.append("upstream_server_error")
+                elif (
+                    name in code_names
+                    and isinstance(value, str)
+                    and _SAFE_ERROR_TOKEN.fullmatch(value)
+                ):
+                    codes.append(f"agent_{value.casefold()}")
+    if stderr.strip():
+        codes.append("agent_stderr_present")
+    return tuple(dict.fromkeys(codes))
 
 
 def _walk_dicts(value: Any) -> Iterator[dict[str, Any]]:
