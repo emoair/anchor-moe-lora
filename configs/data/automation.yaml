@@ -20,9 +20,9 @@ stage_seed_counts: 1,2,4,32
 min_success_rate: 1.0
 max_duplicate_rate: 0.0
 max_safety_violations: 0
-max_failures: 20
-max_requests: 200
-max_output_tokens_total: 3200000
+max_failures: 200
+max_requests: 1200
+max_output_tokens_total: 20000000
 
 timeout_seconds: 600
 wall_clock_deadline_seconds: 900

@@ -96,11 +96,11 @@
   },
   "scale_gate": {
     "required_datasets": {
-      "planner": "data/live_smoke/data_plan.jsonl",
-      "tool_policy": "data/live_smoke/data_tool_policy.jsonl",
-      "frontend_gen": "data/live_smoke/data_frontend.jsonl",
-      "frontend_review": "data/live_smoke/data_review.jsonl",
-      "security_gate": "data/live_smoke/data_security.jsonl"
+      "planner": "data/automated_v2/data_plan.jsonl",
+      "tool_policy": "data/automated_v2/data_tool_policy.jsonl",
+      "frontend_gen": "data/automated_v2/data_frontend.jsonl",
+      "frontend_review": "data/automated_v2/data_review.jsonl",
+      "security_gate": "data/automated_v2/data_security.jsonl"
     },
     "base_artifact": {
       "repo_id": "google/gemma-4-12B",

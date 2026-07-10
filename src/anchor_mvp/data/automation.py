@@ -52,6 +52,12 @@ def _int_tuple(value: Any, *, name: str) -> tuple[int, ...]:
         raise ValueError(f"{name} must contain integers") from error
 
 
+def chargeable_failure_count(errors: Sequence[str]) -> int:
+    """Count originating failures without charging dependency cascades."""
+
+    return sum("UpstreamDependencyError" not in error for error in errors)
+
+
 @dataclass(frozen=True)
 class AutomationConfig:
     sop_dir: Path
@@ -391,7 +397,12 @@ class AutomationRunner:
 
             elapsed = max(0.000001, time.monotonic() - started)
             self._sync_usage()
-            self.status["budgets"]["failures_used"] += len(report.errors)
+            # One rejected upstream sample can legitimately suppress several
+            # downstream tasks. Charge only the originating generation/validation
+            # error so a dependency cascade cannot exhaust the unattended budget.
+            self.status["budgets"]["failures_used"] += chargeable_failure_count(
+                report.errors
+            )
             if report.rate_limited:
                 self._set_cooldown(report.retry_after_seconds)
                 if not wait_for_cooldown:

@@ -94,6 +94,28 @@ overhead depends on framework, sequence length, batch size, and PEFT method.
 Therefore a successful 6.7 GB weight load is not itself a passing 12 GiB
 training or serving gate.
 
+### Measured Windows NF4 smoke on 2026-07-11
+
+The real `frontend_gen`, rank-16, `q_proj`/`v_proj`, sequence-128, one-sample,
+one-step smoke passed every preflight gate and loaded successfully. It ran from
+02:09:56 to 03:32:54 Asia/Shanghai before being stopped by the operator because
+no `global_step=1`, finite loss, or adapter directory had been produced after
+about 83 minutes. This is an incomplete run, not a successful step and not an
+OOM result.
+
+During sustained compute the RTX 3080 Ti stayed at 99-100% utilization and about
+74 C. Observed GPU allocation was roughly 11.95-12.07 GiB, leaving only about
+21-140 MiB free at the tightest points. Host available memory recovered after
+load and remained roughly 12.5-13.4 GiB. Termination released GPU use to below
+1 GiB without destabilizing the system.
+
+Consequences: the native-Windows online bitsandbytes NF4 route fails the
+throughput/promotion gate even though it can load. Do not multiply this profile
+to eight steps or six adapters. The next real training attempt must first use a
+faster WSL2/Linux kernel path or a verified, reloadable pre-quantized
+Transformers/PEFT checkpoint, then repeat the same one-step gate and record loss,
+peak memory, adapter save, and adapter reload evidence.
+
 ## vLLM compatibility
 
 Use vLLM **0.23.0 or newer** for this 12B Unified architecture and adapter route.
@@ -132,7 +154,7 @@ Promote from one phase to the next only when all checks pass:
    recorded.
 3. **Serving gate:** vLLM loads the same base-derived quantization plus one
    adapter and completes one 512-1024-token-context request without OOM.
-4. **DAG gate:** three sequential adapter stages complete with only one active
+4. **DAG gate:** five sequential adapter stages complete with only one active
    adapter and one request in flight.
 5. **Scale gate:** only after the above may data concurrency increase. Training
    and serving stay stopped during high-concurrency distillation.

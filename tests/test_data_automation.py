@@ -15,6 +15,7 @@ from anchor_mvp.data.automation import (  # noqa: E402
     AutomationConfig,
     AutomationRunner,
     _build_teachers,
+    chargeable_failure_count,
     evaluate_gate,
     evaluate_heldout_scale_gate,
 )
@@ -151,6 +152,16 @@ def test_failure_budget_stops_at_configured_limit(tmp_path: Path) -> None:
     runner.status["budgets"]["failures_used"] = 2
 
     assert runner._budget_exhausted() == "failure_budget"
+
+
+def test_dependency_cascades_are_not_charged_as_independent_failures() -> None:
+    errors = [
+        "frontend:seed-a: DataValidationError: invalid code",
+        "review:seed-a: UpstreamDependencyError: frontend row required",
+        "security:seed-a: UpstreamDependencyError: review row required",
+    ]
+
+    assert chargeable_failure_count(errors) == 1
 
 
 def test_client_deadline_has_distinct_persisted_classification(tmp_path: Path) -> None:
