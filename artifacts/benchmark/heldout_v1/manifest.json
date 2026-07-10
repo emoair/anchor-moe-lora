@@ -1,0 +1,46 @@
+{
+  "canonical_cases_sha256": "a6ee7374b17303a04b775489086ff1c5739d466cd2868e409efc49a2caa13767",
+  "case_count": 6,
+  "case_families_sha256": [
+    "14544d8bad2063a24450862f67619038cde4e7613d905099506fc3116920ac97",
+    "9dbb5218cf6ed6bfa67b695f01a967911e83a814da8441b86c3a03754956f949",
+    "c2defc7ffe1412a1efefc8bb43b5fc0c251180d61f3ce0d9420b57a01fe8f35f",
+    "c4597eda734ee6688d777b69fe096c142bbbfb328985c6c9d09aa963334e0963",
+    "d73236bb15c6a3acd91dd43320c7790eb8dcf859b81e906ec50ee6344e106de6",
+    "e6553b418f2135d4d65ab2069f2ab817c2899bb0c4f4d5d94d33152ba9c76c91"
+  ],
+  "case_file_sha256": "89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655",
+  "case_ids_sha256": [
+    "6f9cbbc8e220302de3ec1782fe5366edf030b330696a397bd62ac325ad32e30c",
+    "8bfbe1b0ad22897e5bd4704b8b139ca1ad1fefc8a12dc1bb8543e2681240a49c",
+    "2dfcb26e682fdbaf823b9c30b726be0eca9df9969d95bab4384fa20d05929e34",
+    "b0a4316f458684c255cc43b4711cd9b4dffad044e5f921cc47788951bbbdad8b",
+    "48e984cda067af4704c9a1d075b04ca62aa442d2750a1ed417cc0a8b5e7811d4",
+    "677245f07094e9b140773ab406c6d7661b613455393b2d7307afbfbfd7ee6b6d"
+  ],
+  "fixture_tree_sha256": {
+    "static-html": "3af7bb1d3a2f4d2f681122ff7e73c66211e5ab1cec868060b0b2e64e63e291a2"
+  },
+  "namespace": "anchor-heldout-2026q3-v1",
+  "rules": {
+    "active_security_payloads": "forbidden_inert_labels_only",
+    "frozen_before_bulk_training": true,
+    "matched_stages": [
+      "planner",
+      "tool_policy",
+      "frontend",
+      "review",
+      "security"
+    ],
+    "model_tool_policy_is_authority": false,
+    "primary_baselines": [
+      "base_matched_calls",
+      "mixed_matched_calls",
+      "c_pipeline"
+    ],
+    "training_data_access": "local_leak_checker_only"
+  },
+  "schema_version": "anchor.heldout-manifest.v1",
+  "seed_namespace": "anchor-ho-2026q3-v1",
+  "split": "heldout"
+}

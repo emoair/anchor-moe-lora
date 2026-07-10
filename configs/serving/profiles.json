@@ -1,0 +1,41 @@
+{
+  "profiles": {
+    "3080ti-safe": {
+      "purpose": "First boot and correctness smoke on RTX 3080 Ti 12GB",
+      "max_model_len": 1024,
+      "allowed_max_model_len": [1024, 2048],
+      "max_num_seqs": 1,
+      "max_loras": 1,
+      "max_cpu_loras": 4,
+      "max_lora_rank": 16,
+      "enforce_eager": true,
+      "enable_prefix_caching": false,
+      "enable_chunked_prefill": false,
+      "language_model_only": true,
+      "speculative_decoding": false,
+      "kv_cache_dtype": "auto"
+    },
+    "throughput": {
+      "purpose": "Opt-in only after the safe-profile smoke gate passes",
+      "max_model_len": 2048,
+      "allowed_max_model_len": [1024, 2048],
+      "max_num_seqs": 1,
+      "max_loras": 1,
+      "max_cpu_loras": 4,
+      "max_lora_rank": 16,
+      "enforce_eager": false,
+      "enable_prefix_caching": true,
+      "enable_chunked_prefill": true,
+      "language_model_only": true,
+      "speculative_decoding": false,
+      "kv_cache_dtype": "auto",
+      "gate": [
+        "safe profile boots without OOM",
+        "1024 and 2048 token smoke requests complete",
+        "all four adapters load and one full DAG completes",
+        "post-request VRAM headroom is recorded",
+        "latency and output parity are accepted"
+      ]
+    }
+  }
+}

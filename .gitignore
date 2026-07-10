@@ -1,0 +1,39 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Teacher outputs and runtime state are private experiment artifacts.
+data/**/*.jsonl
+data/**/automation/
+examples/data/automation-generated/
+examples/data/generated/
+
+# Keep only the immutable held-out manifest needed to verify the public fixture set.
+artifacts/*
+!artifacts/benchmark/
+artifacts/benchmark/*
+!artifacts/benchmark/heldout_v1/
+artifacts/benchmark/heldout_v1/*
+!artifacts/benchmark/heldout_v1/manifest.json
+!artifacts/benchmark/heldout_v1/manifest.json.sha256
+runs/
+models/
+
+# Never publish model/adaptor binaries, credentials, or local logs.
+*.safetensors
+*.gguf
+*.ckpt
+*.pt
+*.pth
+*.pem
+*.p12
+*.key
+id_ed25519*
+*.log

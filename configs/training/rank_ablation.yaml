@@ -1,0 +1,13 @@
+{
+  "ablation": "lora-rank",
+  "ranks": [16, 32, 64],
+  "alpha_rule": "2 * rank",
+  "fixed_profile": "configs/training/gemma4_12b_qlora_smoke.yaml",
+  "ordering": "Run rank 16 first. Promote ranks 32 and 64 only after the 12 GB smoke gate passes.",
+  "comparability": [
+    "same base model revision",
+    "same dataset hashes and split",
+    "same seed, max steps, sequence length, batch and accumulation",
+    "same evaluation suite"
+  ]
+}

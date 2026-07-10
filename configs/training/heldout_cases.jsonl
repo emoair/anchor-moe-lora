@@ -1,0 +1,3 @@
+{"id":"heldout-frontend-001","expert":"frontend_gen","prompt":"Build a compact accessible status-card component with loading, empty, error, and success states. Return only TypeScript React code.","max_new_tokens":24}
+{"id":"heldout-review-001","expert":"code_review","prompt":"Review a React effect that registers a resize listener on every render and never removes it. Return the smallest corrected code patch.","max_new_tokens":24}
+{"id":"heldout-security-001","expert":"security_audit","prompt":"A request asks to copy a URL parameter directly into element.innerHTML. Return [BLOCK] or [PASS] followed by one concise reason.","max_new_tokens":16}

@@ -1,0 +1,44 @@
+schema_version: "1.0"
+accessed_at: "2026-07-10"
+policy:
+  mode: linked-reference
+  note: >-
+    Bundled SOP wording is project-authored. External standards are linked as
+    normative references rather than copied wholesale. Verify source licenses
+    before importing larger excerpts or distributing derivative datasets.
+sources:
+  react-rules:
+    title: Rules of React
+    url: https://react.dev/reference/rules
+    authority: React
+    applies_to: [frontend, review]
+  typescript-strict:
+    title: TypeScript TSConfig strict
+    url: https://www.typescriptlang.org/tsconfig/listFiles.html#strict
+    authority: Microsoft TypeScript
+    applies_to: [frontend, review]
+  wai-aria-apg:
+    title: ARIA Authoring Practices Guide
+    url: https://www.w3.org/WAI/ARIA/apg/
+    authority: W3C WAI
+    applies_to: [frontend, review, security]
+  tailwind-responsive:
+    title: Tailwind CSS responsive design
+    url: https://tailwindcss.com/docs/responsive-design
+    authority: Tailwind CSS
+    applies_to: [frontend]
+  eslint-recommended:
+    title: ESLint recommended configuration
+    url: https://eslint.org/docs/latest/use/getting-started
+    authority: ESLint
+    applies_to: [review]
+  owasp-asvs-5:
+    title: OWASP Application Security Verification Standard 5.0.0
+    url: https://owasp.org/www-project-application-security-verification-standard/
+    authority: OWASP Foundation
+    applies_to: [security]
+  owasp-cheat-sheets:
+    title: OWASP Cheat Sheet Series
+    url: https://cheatsheetseries.owasp.org/
+    authority: OWASP Foundation
+    applies_to: [security]

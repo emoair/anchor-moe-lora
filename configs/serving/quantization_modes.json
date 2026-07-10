@@ -1,0 +1,17 @@
+{
+  "modes": {
+    "bitsandbytes": {
+      "purpose": "Default low-memory path using in-flight 4-bit loading of the pinned local base",
+      "quantization": "bitsandbytes",
+      "load_format": "bitsandbytes",
+      "requires_prequantized_checkpoint": false
+    },
+    "compressed-tensors": {
+      "purpose": "Optimized path after a compatible W4A16 checkpoint is independently verified",
+      "quantization": "compressed-tensors",
+      "load_format": "auto",
+      "requires_prequantized_checkpoint": true
+    }
+  },
+  "independent_from_execution_profile": true
+}

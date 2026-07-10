@@ -1,0 +1,6 @@
+# Fast offline-friendly settings. Invoke with --dry-run.
+seed_count: 3
+concurrency: 3
+sop_dir: skills
+output_dir: examples/data/generated
+tasks: plan,tool_policy,frontend,review,security

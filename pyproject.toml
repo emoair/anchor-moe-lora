@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anchor-mvp"
+version = "0.1.0"
+description = "Task-routed LoRA expert pipeline research scaffold"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+teacher = ["httpx>=0.28"]
+training = [
+  "accelerate>=1.0",
+  "bitsandbytes>=0.48.2",
+  "datasets>=4.0",
+  "pyarrow>=21,<22",
+  "peft>=0.19",
+  "protobuf>=5",
+  "safetensors>=0.7",
+  "sentencepiece>=0.2",
+  "transformers>=5.10.1,<6",
+  "trl>=1.0",
+]
+download = ["huggingface-hub>=0.16"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+anchor-data = "anchor_mvp.data.cli:main"
+anchor-train = "anchor_mvp.training.cli:main"
+anchor-benchmark = "anchor_mvp.benchmark.cli:main"
+anchor-heldout = "anchor_mvp.benchmark.heldout_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]
+testpaths = ["tests"]

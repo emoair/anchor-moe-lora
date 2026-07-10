@@ -1,0 +1,26 @@
+# Anchor-MVP data pipeline defaults. Keep API keys out of this file.
+# Official Kimi Code defaults (verified 2026-07-10).
+protocol: anthropic
+base_url: https://api.kimi.com/coding/
+fallback_base_url: https://api.kimi.com/coding/v1
+model: kimi-for-coding
+api_key_env: KIMI_API_KEY
+anthropic_version: 2023-06-01
+user_agent: anchor-mvp/0.1
+seed_count: 1000
+concurrency: 4
+max_requests: 4100
+max_tokens: 4096
+max_output_tokens_total: 12500000
+timeout_seconds: 600
+max_retries: 1
+wall_clock_deadline_seconds: 900
+thinking_enabled: true
+thinking_effort: medium
+thinking_budget_tokens: 1024
+stream_openai: true
+# Kimi compatibility is safer without this optional OpenAI field unless a probe confirms it.
+stream_options_include_usage: false
+sop_dir: skills
+output_dir: data
+tasks: plan,tool_policy,frontend,review,security

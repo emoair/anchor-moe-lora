@@ -1,0 +1,33 @@
+{
+  "base_url": "http://127.0.0.1:8000/v1",
+  "api_key_env": "ANCHOR_VLLM_API_KEY",
+  "canonical_base_model": "google/gemma-4-12B",
+  "canonical_revision": "56820d7d8cbe8e47975a53325439ed272e91cff2",
+  "served_model_path": "models/google-gemma-4-12B-base",
+  "default_quantization": "bitsandbytes",
+  "default_load_format": "bitsandbytes",
+  "optimized_quantized_model": "REPLACE_WITH_VERIFIED_W4A16_COMPRESSED_TENSORS_PATH",
+  "quantization_config": "configs/serving/quantization_modes.json",
+  "runtime": "WSL2 Ubuntu-22.04",
+  "gpu": "RTX 3080 Ti 12GB",
+  "default_profile": "3080ti-safe",
+  "profile_config": "configs/serving/profiles.json",
+  "gpu_memory_utilization": 0.88,
+  "adapters": {
+    "frontend": "lora-frontend-gen",
+    "review": "lora-code-review",
+    "security": "lora-security-audit",
+    "mixed": "lora-mixed-all"
+  },
+  "request": {
+    "timeout_seconds": 120,
+    "max_attempts": 3,
+    "retry_backoff_seconds": 0.25
+  },
+  "pipeline": {
+    "timeout_seconds": 120,
+    "max_attempts": 2,
+    "max_tokens_per_stage": 1024,
+    "temperature": 0.0
+  }
+}

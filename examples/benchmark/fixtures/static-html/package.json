@@ -1,0 +1,8 @@
+{
+  "name": "anchor-heldout-static-html-validator",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/validate.mjs build",
+    "test": "node scripts/validate.mjs test"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "baselines": [
+    {
+      "name": "a_base",
+      "group": "A",
+      "workflow": "single",
+      "prompt_style": "direct",
+      "model": "base-model",
+      "max_tokens_per_call": 1024,
+      "notes": "Bare base, one direct call."
+    },
+    {
+      "name": "b_mixed",
+      "group": "B",
+      "workflow": "single",
+      "prompt_style": "direct",
+      "model": "lora-mixed-all",
+      "max_tokens_per_call": 1024,
+      "notes": "Single mixed adapter, one direct call."
+    },
+    {
+      "name": "c_pipeline",
+      "group": "C",
+      "workflow": "pipeline",
+      "stage_models": {
+        "frontend": "lora-frontend-gen",
+        "review": "lora-code-review",
+        "security": "lora-security-audit"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Three task adapters in an application DAG."
+    },
+    {
+      "name": "base_matched_calls",
+      "group": "FAIR_CALLS",
+      "workflow": "pipeline",
+      "stage_models": {
+        "frontend": "base-model",
+        "review": "base-model",
+        "security": "base-model"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Same three prompts and call count as C, using only the base model."
+    },
+    {
+      "name": "mixed_matched_calls",
+      "group": "FAIR_CALLS",
+      "workflow": "pipeline",
+      "stage_models": {
+        "frontend": "lora-mixed-all",
+        "review": "lora-mixed-all",
+        "security": "lora-mixed-all"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Same three prompts, call count, and token caps as C, using the mixed adapter at every stage."
+    },
+    {
+      "name": "base_matched_tokens",
+      "group": "FAIR_TOKENS",
+      "workflow": "single",
+      "prompt_style": "direct",
+      "model": "base-model",
+      "max_tokens_per_call": 3072,
+      "matched_tokens_to": "c_pipeline",
+      "notes": "One base call capped to C's observed completion-token count per case."
+    },
+    {
+      "name": "base_composite",
+      "group": "FAIR_COMPOSITE",
+      "workflow": "single",
+      "prompt_style": "composite",
+      "model": "base-model",
+      "max_tokens_per_call": 3072,
+      "matched_tokens_to": "c_pipeline",
+      "notes": "One base call explicitly asked to implement, review, and audit."
+    }
+  ]
+}

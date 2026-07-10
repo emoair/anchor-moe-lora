@@ -1,0 +1,73 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "kimi-code/kimi-for-coding",
+  "default_agent": "anchor-gold",
+  "share": "disabled",
+  "lsp": false,
+  "provider": {
+    "kimi-code": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Kimi Code (official OpenAI-compatible endpoint)",
+      "options": {
+        "baseURL": "https://api.kimi.com/coding/v1",
+        "apiKey": "{env:KIMI_CODE_API_KEY}"
+      },
+      "models": {
+        "kimi-for-coding": {
+          "name": "Kimi for Coding",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        }
+      }
+    }
+  },
+  "permission": {
+    "*": "deny",
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "external_directory": "deny",
+    "task": "deny",
+    "skill": "deny",
+    "webfetch": "deny",
+    "websearch": "deny",
+    "lsp": "deny",
+    "bash": {
+      "*": "deny",
+      "npm run build --if-present": "allow",
+      "npm run test --if-present": "allow",
+      "npm run lint --if-present": "allow"
+    }
+  },
+  "agent": {
+    "anchor-gold": {
+      "description": "Isolated coding task with a fail-closed tool policy",
+      "mode": "primary",
+      "steps": 8,
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "edit": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "external_directory": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "lsp": "deny",
+        "bash": {
+          "*": "deny",
+          "npm run build --if-present": "allow",
+          "npm run test --if-present": "allow",
+          "npm run lint --if-present": "allow"
+        }
+      }
+    }
+  }
+}

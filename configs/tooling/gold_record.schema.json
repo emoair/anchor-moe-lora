@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/tool-gold-v1.json",
+  "title": "Anchor MVP canonical tool-validation gold record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "sample_id",
+    "backend",
+    "success",
+    "workspace_id",
+    "max_iterations",
+    "timeout_seconds",
+    "agent_exit_code",
+    "timed_out",
+    "duration_ms",
+    "validations",
+    "tool_trace",
+    "changed_files",
+    "rejected_events",
+    "error_codes"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.tool-gold.v1"},
+    "sample_id": {"type": "string", "minLength": 1},
+    "backend": {"type": "string"},
+    "success": {"type": "boolean"},
+    "workspace_id": {"type": "string"},
+    "max_iterations": {"type": "integer", "minimum": 1},
+    "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "agent_exit_code": {"type": "integer"},
+    "timed_out": {"type": "boolean"},
+    "duration_ms": {"type": "number", "minimum": 0},
+    "validations": {"type": "array"},
+    "tool_trace": {"type": "array"},
+    "changed_files": {"type": "array"},
+    "rejected_events": {"type": "integer", "minimum": 0},
+    "error_codes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

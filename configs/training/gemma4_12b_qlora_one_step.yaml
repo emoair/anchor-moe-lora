@@ -1,0 +1,34 @@
+{
+  "extends": "gemma4_12b_qlora_smoke.yaml",
+  "overrides": {
+    "experiment": "anchor-mvp-one-sample-one-step-gate",
+    "training": {
+      "max_seq_length": 128,
+      "max_steps": 1,
+      "per_device_train_batch_size": 1,
+      "gradient_accumulation_steps": 1,
+      "logging_steps": 1,
+      "save_steps": 1,
+      "save_total_limit": 1,
+      "report_to": "none"
+    },
+    "adapters": {
+      "frontend_gen": {
+        "datasets": ["data/live_smoke/data_frontend.jsonl"]
+      },
+      "code_review": {
+        "datasets": ["data/live_smoke/data_review.jsonl"]
+      },
+      "security_audit": {
+        "datasets": ["data/live_smoke/data_security.jsonl"]
+      },
+      "mixed_all": {
+        "datasets": [
+          "data/live_smoke/data_frontend.jsonl",
+          "data/live_smoke/data_review.jsonl",
+          "data/live_smoke/data_security.jsonl"
+        ]
+      }
+    }
+  }
+}

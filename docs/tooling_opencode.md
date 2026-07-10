@@ -1,0 +1,95 @@
+# OpenCode 工具验证黄金层
+
+## 结论
+
+真实工具调用可做，而且适合成为蒸馏数据的“黄金验证层”，但不应把整段 OpenCode 会话或隐藏思维链直接并入训练集。本实现让每个样本进入独立目录，只允许读写当前项目及三个确定的 npm 验证命令，并把最终结果压成不含提示词、模型正文、隐藏思维链、命令输出和密钥的 canonical JSONL。
+
+截至 2026-07-10，本机只读检查结果：
+
+- Windows：Node `v24.16.0`、npm `11.16.0` 可用；`opencode` 未安装。
+- WSL：已注册 `Ubuntu-22.04`；未检测到 Linux 版 `opencode`/`node`，`npm` 只解析到 Windows 挂载路径。此前 WSL 状态检查还出现过 mirrored networking 的 `0x8007054f`，因此在修复 WSL 网络前，原生 Windows npm 路线更容易先做单样本验证。
+- 本轮没有安装 OpenCode，没有调用 Kimi API，也没有读取、写入或回显 API key。
+
+## 官方能力核验
+
+- OpenCode 官方 CLI 支持非交互 `opencode run ... --format json`；JSON 模式输出 raw JSON events，也支持 `opencode export [sessionID] --sanitize` 导出脱敏会话。黄金层使用前者，只保留安全元数据；不会保存会话正文。[OpenCode CLI](https://dev.opencode.ai/docs/cli/)
+- OpenCode 自定义 provider 对 `/v1/chat/completions` 应使用 `@ai-sdk/openai-compatible`，并通过 `options.baseURL`、环境变量形式的 `apiKey` 配置。[OpenCode Providers](https://opencode.ai/docs/providers)
+- OpenCode 的 agent `steps` 是最大 agentic 迭代数；旧的 `maxSteps` 已弃用。权限支持默认拒绝、工具级规则和 bash 命令精确白名单。[OpenCode Agents](https://opencode.ai/docs/agents/)
+- OpenCode 可将 `share` 设为 `disabled`，并用环境变量禁用默认插件、Claude Code 配置继承和 LSP 自动下载。[OpenCode Config](https://dev.opencode.ai/docs/config), [OpenCode CLI environment](https://dev.opencode.ai/docs/cli/)
+- Kimi Code 的 OpenAI-compatible Base URL 是 `https://api.kimi.com/coding/v1`，模型 ID 是 `kimi-for-coding`。[Kimi Code Overview](https://www.kimi.com/code/docs/en/)
+- Kimi 官方明确要求第三方工具保持真实身份标识，篡改 User-Agent 可能导致权益暂停。因此 OpenCode 路线必须使用真实 OpenCode/CLI 身份，不能伪装成 Claude Code。只有实际使用 Claude Code 客户端时，Claude Code 请求头才是真实身份。[Kimi Code Overview](https://www.kimi.com/code/docs/en/)
+
+## 安全边界
+
+配置文件：`configs/tooling/opencode_kimi.example.json`；生成代码：`src/anchor_mvp/tooling/`。
+
+默认策略如下：
+
+- 每个样本复制到 `sample-id--随机后缀` 独立目录；输入中的符号链接直接拒绝，避免路径逃逸。
+- 允许 `read/edit/glob/grep/list/bash`，拒绝 `external_directory/task/skill/webfetch/websearch/lsp`。
+- bash 默认拒绝，只允许：`npm run build --if-present`、`npm run test --if-present`、`npm run lint --if-present`。
+- OpenCode agent 最多 8 次迭代，外层进程默认 900 秒超时，单个验证命令默认 300 秒超时。Windows 超时会终止 OpenCode 进程树。
+- 会话分享关闭；默认插件、Claude Code 配置继承、模型目录拉取和 LSP 下载关闭。OpenCode 的 XDG config/data/cache 全部重定向到样本内临时目录，事件归约完成后删除，避免持久化原始会话和隐藏思维链。
+- key 只允许从进程环境变量 `KIMI_CODE_API_KEY` 读取。配置及 gold 文件中不出现 key，也不设置自定义 User-Agent/header。
+- `package.json` 中没有对应脚本时结果记为 `SKIP`，不会把 npm 的 `--if-present` 零退出码误报为真实通过。默认要求 `build` 必须存在且通过；可按样本要求 `test`、`lint` 也必须通过。
+
+注意：这是一层强约束和审计，不是容器级恶意代码沙箱。npm 脚本本身可执行项目代码。对不可信仓库做真跑时，应再叠加无凭据容器/VM、网络隔离、只读依赖缓存和 CPU/内存限制。
+
+## 审计与 canonical gold JSONL
+
+`anchor.tool-gold.v1` 每行按 key 排序、紧凑 JSON 编码，样本按 `sample_id` 排序并原子写入。记录：
+
+- workspace ID、backend、成功状态、timeout、最大迭代、agent 退出码；
+- build/test/lint 是否存在、退出码、耗时、输出 SHA-256；
+- tool trace 的工具名、白名单命令、退出码、耗时；
+- 非白名单命令只保留 SHA-256，不保存原命令；
+- agent 修改文件的相对路径及修改前后 SHA-256；
+- 结构化错误码，如 `invalid_url`、`client_cancelled`、`rate_limited`。
+
+明确不保存：API key、完整环境变量、prompt、模型回复、thinking block、任意工具输出、源文件内容。OpenCode stdout/stderr 只在进程内完成归约，gold 中仅保存摘要哈希。
+
+## 400 / 499 处理
+
+- 400 `invalid_url`：Kimi 工具错误通常是模型把描述性文字当 URL，或缺少协议。本层默认禁用 `webfetch/websearch`；Kimi Base URL 还会在启动前经过严格 HTTPS URL 校验，含空格、缺 scheme、query/fragment 的地址直接拒绝，不发送请求。
+- 499 `context canceled`：这是客户端取消、网络中断或 wrapper timeout，不应当算服务端模型失败。runner 将进程树终止并记录 `timed_out=true`、`wrapper_timeout`；若事件文本中出现 499/context canceled，另记 `client_cancelled`。
+- 不要对 499 无限重试；应先区分人工取消、外层超时和 WSL 网络异常。对 429 才按额度窗口退避。
+
+## 离线验证
+
+```powershell
+py -3.10 scripts/tooling/run_mock.py
+py -3.10 -m pytest tests -k tooling -q
+```
+
+mock 会创建隔离样本、修改一个文件、真实执行本机 npm build/test/lint 空载脚本，并生成 `artifacts/tooling/mock_gold.jsonl`。它不会启动 OpenCode 或调用 Kimi。
+
+## 安装前检查与 dry-run
+
+OpenCode 官方 Windows 文档支持 npm 安装并更推荐 WSL。当前未安装，先运行：
+
+```powershell
+scripts/tooling/check_opencode.ps1
+```
+
+该脚本只检查路径、版本、npm registry/prefix，并打印官方安装命令，不安装。若要让 npm 仅解析包元数据且不执行 package scripts：
+
+```powershell
+scripts/tooling/check_opencode.ps1 -RunNpmDryRun
+```
+
+它等价于 `npm install -g opencode-ai --dry-run --ignore-scripts`；仍可能访问 npm registry，但不会全局安装。只有用户明确授权后，才执行官方安装命令 `npm install -g opencode-ai`。[OpenCode Install](https://opencode.ai/en/docs)
+
+## 单样本 live 入口
+
+先审查 source、prompt 和 policy。未带确认参数时只做 dry-run 检查：
+
+```powershell
+py -3.10 scripts/tooling/run_live.py `
+  --sample-id frontend-0001 `
+  --source C:\path\to\audited-sample `
+  --prompt-file C:\path\to\prompt.txt
+```
+
+真跑前，用进程级临时环境变量提供 key；不要写入 `.env`、JSON、命令行参数或 shell 历史。确认后增加 `--confirm-live`。入口一次只允许一个样本，避免误把额度瞬间打满；并行度由更外层调度器控制，每个并发任务仍必须使用独立目录。建议黄金工具验证先保持最多 8 并发，只有纯 API 蒸馏才考虑更高并发，并对 429/499 分别处理。
+
+若确实要保留 OpenCode 原始会话用于人工取证，可单独运行官方 `opencode export <sessionID> --sanitize`，但导出文件不是训练集 gold，也不得进入自动蒸馏管线。

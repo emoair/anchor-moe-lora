@@ -1,0 +1,17 @@
+# Offline gate/ramp E2E. Invoke only with --dry-run.
+sop_dir: skills
+output_dir: examples/data/automation-generated
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+concurrency_stages: 1,2,4,8
+stage_seed_counts: 1,2,3,4
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 0
+max_requests: 40
+max_output_tokens_total: 100000
+cooldown_seconds: 2
+cooldown_poll_seconds: 1

@@ -1,0 +1,49 @@
+{
+  "baselines": [
+    {
+      "name": "base_matched_calls",
+      "group": "A_Q4_BASE",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "stage_models": {
+        "planner": "gemma4-12b-base-q4",
+        "tool_policy": "gemma4-12b-base-q4",
+        "frontend": "gemma4-12b-base-q4",
+        "review": "gemma4-12b-base-q4",
+        "security": "gemma4-12b-base-q4"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Native Q4 base through the matched five-stage workflow. Index baseline = 100."
+    },
+    {
+      "name": "mixed_matched_calls",
+      "group": "B_Q4_MIXED_LORA",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "stage_models": {
+        "planner": "lora-mixed-all",
+        "tool_policy": "lora-mixed-all",
+        "frontend": "lora-mixed-all",
+        "review": "lora-mixed-all",
+        "security": "lora-mixed-all"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "One mixed-all LoRA reused for all five matched stages."
+    },
+    {
+      "name": "c_pipeline",
+      "group": "C_Q4_TASK_ROUTED_LORA",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "stage_models": {
+        "planner": "lora-planner",
+        "tool_policy": "lora-tool-policy",
+        "frontend": "lora-frontend-gen",
+        "review": "lora-frontend-review",
+        "security": "lora-final-security"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Five task-specific LoRAs selected by an application router; not a neural MoE."
+    }
+  ]
+}
