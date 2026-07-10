@@ -24,7 +24,7 @@ try {
         --config $Config `
         --adapter $Adapter `
         --rank $Rank `
-        --execute 2>&1 | Tee-Object -FilePath $LogPath -Append
+        --execute
     if ($LASTEXITCODE -ne 0) {
         throw "training exited with code $LASTEXITCODE"
     }
