@@ -14,6 +14,7 @@ from .models import BenchmarkCase, load_cases_jsonl
 MANIFEST_SCHEMA = "anchor.heldout-manifest.v1"
 LEAK_AUDIT_SCHEMA = "anchor.leak-audit.v1"
 PRIMARY_BASELINES = ("base_matched_calls", "mixed_matched_calls", "c_pipeline")
+BUDGET_MATCHED_BASELINE = "d_budget_matched_pipeline"
 PRIMARY_STAGES = ("planner", "tool_policy", "frontend", "review", "security")
 _ACTIVE_PAYLOAD = re.compile(
     r"<\s*script\b|javascript\s*:|on(?:error|load|click)\s*=|"
@@ -470,6 +471,31 @@ def validate_primary_specs(
         raise HeldoutGateError("B must reuse one mixed LoRA at all five stages")
     if len(set(routed_arm.stage_models.values())) != len(PRIMARY_STAGES):
         raise HeldoutGateError("C must route five distinct specialist LoRAs")
+    budget_arm = by_name.get(BUDGET_MATCHED_BASELINE)
+    if budget_arm is not None:
+        controls = primary + [budget_arm]
+        if any(spec.workflow != "pipeline" for spec in controls):
+            raise HeldoutGateError("D must use the matched five-stage workflow")
+        if len({spec.max_tokens_per_call for spec in controls}) != 1:
+            raise HeldoutGateError("D must share the primary per-stage token cap")
+        if any(set(spec.stage_models) != set(PRIMARY_STAGES) for spec in controls):
+            raise HeldoutGateError("D must use the same five stage names")
+        if len({spec.model for spec in controls}) != 1 or len(
+            {spec.q4_artifact_sha256 for spec in controls}
+        ) != 1:
+            raise HeldoutGateError("D must use the identical frozen Q4 base")
+        if len(set(budget_arm.stage_models.values())) != len(PRIMARY_STAGES):
+            raise HeldoutGateError("D must route five distinct budget specialists")
+        if set(budget_arm.stage_adapter_ranks) != set(PRIMARY_STAGES):
+            raise HeldoutGateError("D must declare one rank for every stage")
+        if sum(budget_arm.stage_adapter_ranks.values()) != 16:
+            raise HeldoutGateError("D specialist ranks must sum to the mixed rank 16")
+        if (
+            budget_arm.adapter_trainable_parameters is None
+            or budget_arm.adapter_trainable_parameters
+            != mixed_arm.adapter_trainable_parameters
+        ):
+            raise HeldoutGateError("B and D must have exactly matched trainable parameters")
 
 
 _APPROVED_TOOL_LABELS = {

@@ -4,13 +4,14 @@
   "model": {
     "id": "${ANCHOR_BASE_MODEL_ID:-google/gemma-4-12B}",
     "revision": "${ANCHOR_BASE_MODEL_REVISION:-56820d7d8cbe8e47975a53325439ed272e91cff2}",
-    "local_path": "models/google-gemma-4-12B-base",
+    "local_path": "models/google-gemma-4-12B-bnb-nf4",
     "processor_id": "${ANCHOR_PROCESSOR_ID:-google/gemma-4-12B-it}",
     "processor_revision": "${ANCHOR_PROCESSOR_REVISION:-main}",
     "family": "gemma-4-12b-unified",
     "architecture": "multimodal_lm",
     "training_format": "transformers_or_peft_4bit",
-    "load_strategy": "${ANCHOR_MODEL_LOAD_STRATEGY:-bnb_nf4_online}",
+    "load_strategy": "${ANCHOR_MODEL_LOAD_STRATEGY:-prequantized_peft_4bit}",
+    "attention_implementation": "sdpa",
     "trust_remote_code": false
   },
   "quantization": {
@@ -37,6 +38,10 @@
     "per_device_train_batch_size": 1,
     "gradient_accumulation_steps": 4,
     "gradient_checkpointing": true,
+    "allow_tf32": true,
+    "loss_logits": "active_labels_only",
+    "minimum_backward_free_vram_mib": 512,
+    "empty_cache_after_probe": true,
     "learning_rate": 0.0002,
     "warmup_ratio": 0.03,
     "lr_scheduler_type": "constant_with_warmup",
@@ -110,6 +115,12 @@
       "weight_file": "model.safetensors",
       "bytes": 23919549408,
       "sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a"
+    },
+    "training_artifact": {
+      "format": "transformers-bitsandbytes-nf4",
+      "local_path": "models/google-gemma-4-12B-bnb-nf4",
+      "manifest": "models/google-gemma-4-12B-bnb-nf4/anchor_quantization_manifest.json",
+      "model_footprint_bytes": 7503924322
     },
     "minimum_free_vram_gib": 10.5,
     "minimum_free_host_memory_gib": 12.0,

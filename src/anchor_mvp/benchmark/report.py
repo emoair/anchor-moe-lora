@@ -16,6 +16,7 @@ from .models import BenchmarkRecord, load_records_jsonl
 
 
 PRIMARY_ORDER = ("base_matched_calls", "mixed_matched_calls", "c_pipeline")
+BUDGET_MATCHED_ORDER = ("mixed_matched_calls", "d_budget_matched_pipeline")
 AUXILIARY_ORDER = ("a_base", "b_mixed")
 NA = "N/A"
 
@@ -232,6 +233,7 @@ def _render_summary(
             "| A `base_matched_calls` | Native Gemma 4 12B Q4 | No LoRA; base handles all five stages | 5 | Deterministic local allowlist |",
             "| B `mixed_matched_calls` | Same Q4 base | One `mixed-all` LoRA reused at every stage | 5 | Deterministic local allowlist |",
             "| C `c_pipeline` | Same Q4 base | Five task-specific LoRAs selected by application routing | 5 | Deterministic local allowlist |",
+            "| D `d_budget_matched_pipeline` | Same Q4 base | Five smaller routed LoRAs whose total trainable parameters equal B | 5 | Deterministic local allowlist |",
             "",
             "Model `APPROVE/BLOCK/ESCALATE` output is scored but never grants tool permission. "
             "The C arm is a task-routed adapter pipeline, not a learned neural MoE.",
@@ -241,6 +243,17 @@ def _render_summary(
         ]
     )
     lines.extend(_normalized_primary_table(metrics))
+    if all(name in metrics for name in BUDGET_MATCHED_ORDER):
+        lines.extend(
+            [
+                "",
+                "### Equal adapter-parameter budget: B versus D",
+                "",
+                "B and D have the same materialized trainable parameter count. B puts the whole budget in one mixed-data adapter; D partitions it across five routed specialists.",
+                "",
+            ]
+        )
+        lines.extend(_markdown_table(metrics, list(BUDGET_MATCHED_ORDER)))
     lines.extend(["", "## Auxiliary and secondary baselines", ""])
     secondary = [name for name in order if name not in PRIMARY_ORDER]
     lines.extend(_markdown_table(metrics, secondary))
@@ -471,6 +484,7 @@ def _color(name: str) -> str:
         "base_matched_calls": "#2563eb",
         "mixed_matched_calls": "#d97706",
         "c_pipeline": "#059669",
+        "d_budget_matched_pipeline": "#7c3aed",
         "a_base": "#64748b",
         "b_mixed": "#94a3b8",
     }.get(name, "#7c3aed")

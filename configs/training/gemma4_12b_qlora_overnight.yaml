@@ -1,0 +1,23 @@
+{
+  "extends": "gemma4_12b_qlora_smoke.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-3080ti-lowmem-candidate",
+    "training": {
+      "max_seq_length": 64,
+      "max_steps": 128,
+      "per_device_train_batch_size": 1,
+      "gradient_accumulation_steps": 4,
+      "gradient_checkpointing": true,
+      "allow_tf32": true,
+      "minimum_backward_free_vram_mib": 256,
+      "learning_rate": 0.0002,
+      "warmup_ratio": 0.03,
+      "lr_scheduler_type": "constant_with_warmup",
+      "optim": "paged_adamw_8bit",
+      "logging_steps": 1,
+      "save_steps": 16,
+      "save_total_limit": 2,
+      "report_to": "none"
+    }
+  }
+}

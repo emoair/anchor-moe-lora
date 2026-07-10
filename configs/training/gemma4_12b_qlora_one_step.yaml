@@ -3,7 +3,8 @@
   "overrides": {
     "experiment": "anchor-moe-lora-one-sample-one-step-gate",
     "training": {
-      "max_seq_length": 128,
+      "max_seq_length": 64,
+      "minimum_backward_free_vram_mib": 256,
       "max_steps": 1,
       "per_device_train_batch_size": 1,
       "gradient_accumulation_steps": 1,

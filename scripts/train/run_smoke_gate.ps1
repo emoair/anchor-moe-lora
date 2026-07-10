@@ -10,6 +10,8 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $Config = Join-Path $ProjectRoot "configs/training/gemma4_12b_qlora_one_step.yaml"
 $env:PYTHONPATH = Join-Path $ProjectRoot "src"
+$PreviousAllocatorConf = $env:PYTORCH_CUDA_ALLOC_CONF
+$env:PYTORCH_CUDA_ALLOC_CONF = "garbage_collection_threshold:0.8,max_split_size_mb:128"
 
 if (-not $Python) {
     if ($env:ANCHOR_TRAIN_PYTHON -and (Test-Path $env:ANCHOR_TRAIN_PYTHON)) {
@@ -32,8 +34,16 @@ if ($Execute) {
     $Arguments += "--dry-run"
 }
 
-& $Python @Arguments
-$Code = $LASTEXITCODE
+try {
+    & $Python @Arguments
+    $Code = $LASTEXITCODE
+} finally {
+    if ($null -eq $PreviousAllocatorConf) {
+        Remove-Item Env:PYTORCH_CUDA_ALLOC_CONF -ErrorAction SilentlyContinue
+    } else {
+        $env:PYTORCH_CUDA_ALLOC_CONF = $PreviousAllocatorConf
+    }
+}
 if ($Code -ne 0) {
     Write-Error "smoke-gate child process failed with native exit code $Code"
     exit 1

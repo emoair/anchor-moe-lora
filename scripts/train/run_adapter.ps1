@@ -3,7 +3,7 @@ param(
     [ValidateSet("planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate", "mixed_all")]
     [string]$Adapter,
 
-    [ValidateSet(16, 32, 64)]
+    [ValidateSet(2, 3, 4, 16, 32, 64)]
     [int]$Rank = 16,
 
     [switch]$Execute,

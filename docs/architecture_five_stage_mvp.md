@@ -6,8 +6,8 @@ The MVP route is strictly ordered per seed:
 
 All adapters use the same frozen and identically serialized Q4/NF4 base. The model
 revision, quantization settings, tokenizer, local artifact digest, stage order, and
-per-stage token cap are experiment invariants across A/B/C. Initial LoRA rank is at
-most 16. A new domain coder is valid only when its paired domain reviewer is
+per-stage token cap are experiment invariants across A/B/C/D. Full-capacity LoRA rank
+is 16 for the first experiment. A new domain coder is valid only when its paired domain reviewer is
 registered and evaluated in the same change.
 
 | Stage | Input | Output | Failure behavior |
@@ -29,11 +29,18 @@ locally by `anchor-inert-tool-proposals-v1`, contain no executable arguments or
 URLs, and persist `executed: false`. Existing successful three-stage live rows are
 recognized by seed provenance and are never rewritten during five-stage resume.
 
-For benchmarks, the primary fair comparison is five matched stages: A uses the
-base model at every stage, B uses the same mixed adapter at every stage, and C uses
-the five specialist adapters. A is the absolute reference and index 100. Single-call
-A/B results remain auxiliary only; changing the serialized Q4 artifact invalidates
-the primary comparison.
+For benchmarks, the fair comparison uses five matched stages:
+
+- A uses the Q4 base at every stage and is index 100.
+- B reuses one mixed-data rank-16 LoRA at all stages (10,387,456 trainable parameters).
+- C routes five full-capacity rank-16 specialists (51,937,280 stored trainable parameters).
+- D routes five smaller specialists with ranks `3/3/4/3/3`; their rank sum and
+  materialized trainable parameter count exactly match B.
+
+C measures the maximum-capacity routed architecture. B versus D isolates routing and
+task separation under an equal adapter-parameter budget. The D allocation is frozen
+before held-out evaluation. Single-call A/B results remain auxiliary only; changing
+the serialized Q4 artifact invalidates the comparison.
 
 ## Two-call live smoke
 

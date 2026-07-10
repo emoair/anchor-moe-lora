@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from anchor_mvp.training.runtime import (  # noqa: E402
     _JsonlMapDataset,
     _capture_probes,
+    _prepare_gemma4_for_kbit_training,
     _run_one_step_smoke,
 )
 
@@ -64,12 +65,14 @@ class TinyTrainingModel(torch.nn.Module):
         super().__init__()
         self.lora_weight = torch.nn.Parameter(torch.tensor(0.25))
         self.config = SimpleNamespace(use_cache=False)
+        self.forward_kwargs: dict[str, object] = {}
 
     @property
     def device(self) -> torch.device:
         return self.lora_weight.device
 
-    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, **_kwargs):
+    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, **kwargs):
+        self.forward_kwargs = kwargs
         target = labels[labels != -100].float().mean()
         prediction = self.lora_weight * input_ids.float().mean()
         return SimpleNamespace(loss=(prediction - target).square())
@@ -112,6 +115,17 @@ class TinyProbeModel(torch.nn.Module):
 
     def generate(self, **_kwargs):  # pragma: no cover - must never be reached
         raise AssertionError("logits-only smoke evidence must not call generate")
+
+
+class TinyKbitModel(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.embed_tokens = torch.nn.Embedding(8, 4, dtype=torch.bfloat16)
+        self.input_layernorm = torch.nn.LayerNorm(4, dtype=torch.bfloat16)
+        self.gc_kwargs = None
+
+    def gradient_checkpointing_enable(self, **kwargs):
+        self.gc_kwargs = kwargs
 
 
 def test_jsonl_map_dataset_indexes_only_requested_record(tmp_path: Path) -> None:
@@ -161,9 +175,26 @@ def test_one_step_smoke_uses_small_direct_optimizer_loop() -> None:
             "gradient_accumulation_steps": 1,
             "max_seq_length": 128,
             "learning_rate": 0.01,
+            "loss_logits": "active_labels_only",
+            "minimum_backward_free_vram_mib": 512,
         },
         torch,
     )
     assert step == 1
     assert torch.isfinite(torch.tensor(loss))
     assert not torch.equal(before, model.lora_weight.detach())
+    assert "logits_to_keep" in model.forward_kwargs
+    assert "shift_labels" in model.forward_kwargs
+
+
+def test_gemma4_kbit_prepare_preserves_frozen_embedding_bf16():
+    model = TinyKbitModel()
+
+    detail = _prepare_gemma4_for_kbit_training(model, torch)
+
+    assert model.embed_tokens.weight.dtype == torch.bfloat16
+    assert model.input_layernorm.weight.dtype == torch.float32
+    assert model.input_layernorm.bias.dtype == torch.float32
+    assert all(not parameter.requires_grad for parameter in model.parameters())
+    assert model.gc_kwargs == {"gradient_checkpointing_kwargs": {"use_reentrant": False}}
+    assert detail["preserved_bf16_parameters"] == model.embed_tokens.weight.numel()

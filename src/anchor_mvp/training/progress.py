@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Mapping
+from uuid import uuid4
 
 
 def _now() -> str:
@@ -20,6 +21,7 @@ class TrainingProgress:
         self.status_path = self.state_dir / "status.json"
         self.events_path = self.state_dir / "events.jsonl"
         self.sequence = 0
+        self.run_id = uuid4().hex
 
     def emit(
         self,
@@ -35,6 +37,7 @@ class TrainingProgress:
         event: dict[str, Any] = {
             "schema_version": "anchor.training-progress.v1",
             "sequence": self.sequence,
+            "run_id": self.run_id,
             "time": _now(),
             "phase": str(phase),
             "state": str(state),
@@ -51,4 +54,3 @@ class TrainingProgress:
         temporary.replace(self.status_path)
         print(encoded, flush=True)
         return event
-

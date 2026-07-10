@@ -85,8 +85,23 @@ def test_mock_primary_arms_are_exactly_five_stage_matched():
     assert all(record.evaluation["model_tool_policy_was_executed"] is False for record in records)
 
 
-def test_live_primary_gate_requires_real_q4_artifact_digest():
+def test_live_primary_gate_accepts_exported_q4_artifact_digest():
     specs = load_specs(ROOT / "configs" / "benchmark" / "heldout_q4_v1.json")
 
-    with pytest.raises(HeldoutGateError, match="generated Q4 artifact SHA-256"):
-        validate_primary_specs(specs, require_verified_q4=True)
+    validate_primary_specs(specs, require_verified_q4=True)
+    assert {spec.q4_artifact_sha256 for spec in specs} == {
+        "96ebac04f4d2c64d4b21142bb6e05d94656c3c7fb243fdbd43c4b4457eca0156"
+    }
+
+
+def test_budget_matched_routed_arm_exactly_matches_mixed_parameter_count():
+    specs = load_specs(ROOT / "configs" / "benchmark" / "heldout_q4_budget_v1.json")
+
+    validate_primary_specs(specs, require_verified_q4=True)
+    by_name = {spec.name: spec for spec in specs}
+    mixed = by_name["mixed_matched_calls"]
+    budget = by_name["d_budget_matched_pipeline"]
+    full = by_name["c_pipeline"]
+    assert budget.adapter_trainable_parameters == mixed.adapter_trainable_parameters
+    assert sum(budget.stage_adapter_ranks.values()) == 16
+    assert full.adapter_trainable_parameters == 5 * mixed.adapter_trainable_parameters

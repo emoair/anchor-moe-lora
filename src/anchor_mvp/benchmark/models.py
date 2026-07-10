@@ -75,6 +75,8 @@ class BaselineSpec:
     stage_models: dict[str, str] = field(default_factory=dict)
     max_tokens_per_call: int = 1024
     matched_tokens_to: str | None = None
+    adapter_trainable_parameters: int | None = None
+    stage_adapter_ranks: dict[str, int] = field(default_factory=dict)
     notes: str = ""
 
     @classmethod
@@ -95,6 +97,15 @@ class BaselineSpec:
             stage_models={str(k): str(v) for k, v in payload.get("stage_models", {}).items()},
             max_tokens_per_call=int(payload.get("max_tokens_per_call", 1024)),
             matched_tokens_to=payload.get("matched_tokens_to"),
+            adapter_trainable_parameters=(
+                int(payload["adapter_trainable_parameters"])
+                if payload.get("adapter_trainable_parameters") is not None
+                else None
+            ),
+            stage_adapter_ranks={
+                str(key): int(value)
+                for key, value in payload.get("stage_adapter_ranks", {}).items()
+            },
             notes=str(payload.get("notes", "")),
         )
 

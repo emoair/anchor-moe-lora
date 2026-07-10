@@ -102,8 +102,10 @@ def test_dry_run_never_imports_runtime_or_requires_dataset(monkeypatch, tmp_path
     assert manifest["mode"] == "dry-run"
     assert manifest["base_model"] == "google/gemma-4-12B"
     assert manifest["base_model_revision"] == "56820d7d8cbe8e47975a53325439ed272e91cff2"
-    assert manifest["training_precision"]["base_weights"].startswith("4-bit NF4")
-    assert manifest["training_precision"]["load_strategy"] == "bnb_nf4_online"
+    assert manifest["training_precision"]["base_weights"] == (
+        "training-compatible prequantized 4-bit checkpoint (frozen)"
+    )
+    assert manifest["training_precision"]["load_strategy"] == "prequantized_peft_4bit"
     assert manifest["training_profile"]["max_steps"] == 8
     # The resumable live corpus may exist in a developer checkout but is untracked on CI.
     # Dry-run must remain valid in both states and must not import the heavy runtime.
@@ -203,7 +205,7 @@ def test_one_step_smoke_gate_dry_run_records_profile_without_runtime(
     manifest = json.loads(output.read_text(encoding="utf-8"))
     assert manifest["stage"] == "smoke-gate"
     assert manifest["training_profile"]["max_steps"] == 1
-    assert manifest["training_profile"]["max_seq_length"] == 128
+    assert manifest["training_profile"]["max_seq_length"] == 64
     assert manifest["smoke_gate"] == {
         "executed": False,
         "ready": True,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import math
@@ -151,6 +152,21 @@ def _make_text_collator(processor: Any, max_length: int):
     return collate
 
 
+def _cuda_memory_detail(torch: Any, device: Any) -> dict[str, int]:
+    if getattr(device, "type", "cpu") != "cuda" or not torch.cuda.is_available():
+        return {}
+    free_bytes, total_bytes = torch.cuda.mem_get_info(device)
+    return {
+        "free_mib": int(free_bytes // (1024 * 1024)),
+        "total_mib": int(total_bytes // (1024 * 1024)),
+        "allocated_mib": int(torch.cuda.memory_allocated(device) // (1024 * 1024)),
+        "reserved_mib": int(torch.cuda.memory_reserved(device) // (1024 * 1024)),
+        "peak_allocated_mib": int(
+            torch.cuda.max_memory_allocated(device) // (1024 * 1024)
+        ),
+    }
+
+
 def _assert_trainable_scope(model: Any, torch: Any) -> int:
     trainable = 0
     unexpected: list[str] = []
@@ -169,6 +185,40 @@ def _assert_trainable_scope(model: Any, torch: Any) -> int:
         preview = ", ".join(unexpected[:8])
         raise RuntimeError(f"base freeze invariant failed; unexpected trainable parameters: {preview}")
     return trainable
+
+
+def _prepare_gemma4_for_kbit_training(model: Any, torch: Any) -> dict[str, int]:
+    """Freeze the base without PEFT's blanket BF16-to-FP32 cast.
+
+    PEFT's generic helper promotes every non-Params4bit tensor to FP32. Gemma 4's
+    large frozen embedding then consumes roughly two extra GiB. For this BF16
+    experiment, only normalization parameters need the FP32 stability promotion;
+    frozen embeddings and the tied LM head remain in their original BF16 dtype.
+    """
+
+    frozen_parameters = 0
+    norm_parameters_fp32 = 0
+    preserved_bf16_parameters = 0
+    for name, parameter in model.named_parameters():
+        parameter.requires_grad = False
+        frozen_parameters += parameter.numel()
+        if (
+            "norm" in name.casefold()
+            and parameter.dtype in {torch.float16, torch.bfloat16}
+            and parameter.__class__.__name__ != "Params4bit"
+        ):
+            parameter.data = parameter.data.to(torch.float32)
+            norm_parameters_fp32 += parameter.numel()
+        elif parameter.dtype == torch.bfloat16:
+            preserved_bf16_parameters += parameter.numel()
+    model.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
+    return {
+        "frozen_parameters": int(frozen_parameters),
+        "norm_parameters_fp32": int(norm_parameters_fp32),
+        "preserved_bf16_parameters": int(preserved_bf16_parameters),
+    }
 
 
 def _capture_probes(
@@ -305,14 +355,39 @@ def _run_one_step_smoke(
     device_type = getattr(device, "type", "cuda")
     if reporter:
         reporter.emit("step_forward", "started", step=1)
+    model_inputs = dict(batch)
+    if training.get("loss_logits") == "active_labels_only":
+        labels = model_inputs["labels"]
+        shifted = torch.nn.functional.pad(labels, (0, 1), value=-100)[..., 1:]
+        active_positions = torch.nonzero(
+            (shifted != -100).any(dim=0), as_tuple=False
+        ).flatten()
+        if active_positions.numel() == 0:
+            raise RuntimeError("smoke-gate sample has no supervised tokens")
+        model_inputs["logits_to_keep"] = active_positions
+        model_inputs["shift_labels"] = shifted.index_select(-1, active_positions)
     with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-        output = model(**batch, use_cache=False)
+        output = model(**model_inputs, use_cache=False)
         loss = output.loss
     loss_value = float(loss.detach().float().cpu().item())
     if not math.isfinite(loss_value):
         raise RuntimeError(f"smoke-gate produced non-finite loss: {loss_value}")
+    memory_detail = _cuda_memory_detail(torch, device)
     if reporter:
-        reporter.emit("step_forward", "completed", step=1, loss=loss_value)
+        reporter.emit(
+            "step_forward",
+            "completed",
+            step=1,
+            loss=loss_value,
+            detail=memory_detail,
+        )
+    minimum_free_mib = int(training.get("minimum_backward_free_vram_mib", 0))
+    if memory_detail and memory_detail["free_mib"] < minimum_free_mib:
+        raise RuntimeError(
+            "insufficient lossless VRAM headroom before backward: "
+            f"free_mib={memory_detail['free_mib']} required_mib={minimum_free_mib}"
+        )
+    if reporter:
         reporter.emit("step_backward", "started", step=1, loss=loss_value)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
@@ -346,7 +421,6 @@ def _train_adapter_impl(
         LoraConfig,
         PeftModel,
         get_peft_model,
-        prepare_model_for_kbit_training,
     )
     from transformers import (  # type: ignore[import-not-found]
         AutoModelForMultimodalLM,
@@ -360,6 +434,15 @@ def _train_adapter_impl(
         raise RuntimeError("CUDA is required; refusing to train a 12B QLoRA job on CPU")
     if not torch.cuda.is_bf16_supported():
         raise RuntimeError("the selected profile requires CUDA BF16 support")
+    allow_tf32 = bool(config["training"].get("allow_tf32", False))
+    torch.backends.cuda.matmul.allow_tf32 = allow_tf32
+    torch.backends.cudnn.allow_tf32 = allow_tf32
+    torch.set_float32_matmul_precision("high" if allow_tf32 else "highest")
+    reporter.emit(
+        "cuda_math",
+        "configured",
+        detail={"allow_tf32": allow_tf32, "primary_compute_dtype": "bfloat16"},
+    )
 
     minimum_gib = float(config["guardrails"].get("minimum_gpu_memory_gib", 11.0))
     total_gib = torch.cuda.get_device_properties(0).total_memory / 1024**3
@@ -395,6 +478,7 @@ def _train_adapter_impl(
     reporter.emit("processor_load", "completed")
     model_load_args: dict[str, Any] = {
         "dtype": torch.bfloat16,
+        "attn_implementation": config["model"].get("attention_implementation", "sdpa"),
         # Keep placement honest: do not silently make the 12 GB run appear to
         # fit through CPU/disk offload and then compare its latency as a GPU run.
         "device_map": {"": 0},
@@ -406,7 +490,10 @@ def _train_adapter_impl(
             bnb_4bit_use_double_quant=quant["double_quant"],
             bnb_4bit_quant_type=quant["quant_type"],
             bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_quant_storage=torch.bfloat16,
+            bnb_4bit_quant_storage={
+                "uint8": torch.uint8,
+                "bfloat16": torch.bfloat16,
+            }[str(quant["quant_storage_dtype"])],
         )
     reporter.emit(
         "model_load",
@@ -425,10 +512,19 @@ def _train_adapter_impl(
             "a PEFT-compatible prequantized 4-bit checkpoint"
         )
     model.config.use_cache = False
-    model = prepare_model_for_kbit_training(
-        model,
-        use_gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
+    reporter.emit("kbit_prepare", "started")
+    preparation = _prepare_gemma4_for_kbit_training(model, torch)
+    reporter.emit(
+        "kbit_prepare",
+        "completed",
+        detail={**preparation, **_cuda_memory_detail(torch, model.device)},
+    )
+    gc.collect()
+    torch.cuda.empty_cache()
+    reporter.emit(
+        "post_load_cleanup",
+        "completed",
+        detail=_cuda_memory_detail(torch, model.device),
     )
 
     lora = config["lora"]
@@ -462,8 +558,27 @@ def _train_adapter_impl(
             model, processor, smoke_heldout_cases, torch
         )
         reporter.emit("pre_probe", "completed")
+        if training := config.get("training"):
+            if training.get("empty_cache_after_probe") is True and torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
+                reporter.emit(
+                    "memory_cleanup",
+                    "completed",
+                    detail=_cuda_memory_detail(torch, model.device),
+                )
 
     training = config["training"]
+    # Model loading and WDDM allocator cleanup may temporarily reserve more
+    # memory than the steady-state training step. Promotion evidence must use
+    # the train/save/reload window, not stale loader high-water marks.
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats(0)
+        reporter.emit(
+            "training_peak_reset",
+            "completed",
+            detail=_cuda_memory_detail(torch, model.device),
+        )
     trainer: Any | None = None
     if smoke_heldout_cases is not None:
         # This path must stay independent of the Arrow/TRL stack: it is the
@@ -573,7 +688,10 @@ def _train_adapter_impl(
                 del trainer
             base_model = model.unload()
             reloaded_model = PeftModel.from_pretrained(
-                base_model, str(output_dir), is_trainable=False
+                base_model,
+                str(output_dir),
+                is_trainable=False,
+                autocast_adapter_dtype=False,
             )
             reloaded_public, reloaded_logits = _capture_probes(
                 reloaded_model, processor, smoke_heldout_cases, torch

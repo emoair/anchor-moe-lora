@@ -46,11 +46,16 @@ python -m pytest
 To reproduce it without modifying `base`, run
 `scripts/environment/bootstrap_windows.ps1` from PowerShell.
 
-The verified machine is an RTX 3080 Ti with 12 GiB VRAM. The one-step safety gate
-uses sequence length 128 and requires 12 GiB of free host RAM before model load.
-Real 12B QLoRA starts at sequence length 256, batch size 1, rank 16 and eight steps. Rank 32/64, longer
-contexts, and larger batches are gated by measured peak VRAM; they are not assumed
-to fit.
+The training path has been exercised on one RTX 3080 Ti with 12 GiB VRAM over an
+OCuLink PCIe 4.0 x4 connection. A real rank-16 update completed forward, backward,
+paged 8-bit optimizer step, adapter save, and adapter reload against the persistent
+NF4 checkpoint. This is a resource-constrained feasibility result, not a claim that
+the hardware or resulting model quality is optimal.
+
+The verified low-memory profile uses sequence length 64, batch size 1, frozen NF4
+base weights, BF16 primary compute, and TF32 for eligible FP32 matrix multiplies.
+Normalization parameters remain FP32. Rank 32/64, longer contexts, and larger
+batches are gated by measured peak VRAM; they are not assumed to fit.
 
 ## Safe first run
 
@@ -104,9 +109,10 @@ google/gemma-4-12B
 revision 56820d7d8cbe8e47975a53325439ed272e91cff2
 ```
 
-Google currently publishes a ready-made Q4/W4A16 checkpoint for the `-it` model,
-not the unaligned base. The base snapshot is therefore downloaded once and quantized
-to NF4 while loading for QLoRA; a W4A16 deployment copy can be produced separately.
+The pinned base snapshot is exported once to a reloadable Transformers/bitsandbytes
+NF4 training checkpoint. Subsequent jobs load that persistent Q4 artifact directly,
+avoiding repeated online quantization and the associated host-memory and PCIe cost.
+A W4A16 deployment copy remains a separate inference artifact.
 
 Validate one adapter without downloading or training:
 

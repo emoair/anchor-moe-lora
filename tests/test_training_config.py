@@ -26,12 +26,18 @@ def test_checked_in_config_is_safe_for_12gb_smoke() -> None:
     config = load_training_config(CONFIG)
     assert config["model"]["id"] == "google/gemma-4-12B"
     assert config["model"]["revision"] == "56820d7d8cbe8e47975a53325439ed272e91cff2"
-    assert config["model"]["load_strategy"] == "bnb_nf4_online"
+    assert config["model"]["load_strategy"] == "prequantized_peft_4bit"
+    assert config["model"]["local_path"].endswith("google-gemma-4-12B-bnb-nf4")
     assert config["quantization"]["quant_type"] == "nf4"
     assert config["quantization"]["double_quant"] is True
+    assert config["quantization"]["quant_storage_dtype"] == "bfloat16"
     assert config["quantization"]["freeze_base_model"] is True
+    assert config["model"]["attention_implementation"] == "sdpa"
     assert config["training"]["per_device_train_batch_size"] == 1
+    assert config["training"]["allow_tf32"] is True
     assert config["training"]["max_seq_length"] <= 512
+    assert config["training"]["loss_logits"] == "active_labels_only"
+    assert config["training"]["minimum_backward_free_vram_mib"] == 512
     assert config["scale_gate"]["minimum_free_host_memory_gib"] == 12.0
     assert set(config["adapters"]) == {
         "planner",
@@ -112,7 +118,8 @@ def test_one_step_profile_inherits_base_identity_and_overrides_only_smoke_limits
     assert profile["model"]["id"] == "google/gemma-4-12B"
     assert profile["model"]["revision"] == "56820d7d8cbe8e47975a53325439ed272e91cff2"
     assert profile["training"]["max_steps"] == 1
-    assert profile["training"]["max_seq_length"] == 128
+    assert profile["training"]["max_seq_length"] == 64
+    assert profile["training"]["minimum_backward_free_vram_mib"] == 256
     assert profile["training"]["gradient_accumulation_steps"] == 1
     assert profile["adapters"]["frontend_gen"]["datasets"] == [
         "data/live_smoke/data_frontend.jsonl"

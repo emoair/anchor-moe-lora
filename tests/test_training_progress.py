@@ -19,6 +19,8 @@ def test_progress_is_atomic_append_only_and_content_free(tmp_path):
     assert status["phase"] == "optimizer_step"
     assert status["step"] == 1
     assert status["loss"] == 1.25
+    assert status["run_id"] == reporter.run_id
+    assert {event["run_id"] for event in events} == {reporter.run_id}
     assert [event["sequence"] for event in events] == [1, 2]
     serialized = reporter.events_path.read_text(encoding="utf-8")
     assert "messages" not in serialized

@@ -19,7 +19,7 @@ ALLOWED_ADAPTERS = (
     "mixed_all",
 )
 SPECIALIST_ADAPTERS = ALLOWED_ADAPTERS[:-1]
-ALLOWED_RANKS = (16, 32, 64)
+ALLOWED_RANKS = (2, 3, 4, 16, 32, 64)
 _INFERENCE_ONLY_SERIALIZATION_MARKERS = ("-gguf", ".gguf", "-w4a16-ct")
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
 
@@ -145,6 +145,8 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         raise ConfigError(
             "model.load_strategy must be 'bnb_nf4_online' or 'prequantized_peft_4bit'"
         )
+    if model.get("attention_implementation") != "sdpa":
+        raise ConfigError("model.attention_implementation must remain 'sdpa'")
     processor_id = model.get("processor_id")
     if not isinstance(processor_id, str) or not processor_id.strip():
         raise ConfigError("model.processor_id must be a non-empty string")
@@ -184,10 +186,22 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     _positive_int(training.get("max_steps"), "training.max_steps")
     if training.get("gradient_checkpointing") is not True:
         raise ConfigError("training.gradient_checkpointing must remain enabled")
+    if training.get("allow_tf32") is not True:
+        raise ConfigError("training.allow_tf32 must remain enabled on Ampere")
     if training.get("per_device_train_batch_size") != 1:
         raise ConfigError("the checked-in 12 GB safety profile requires batch size 1")
     if max_seq_length > 512:
         raise ConfigError("12 GB safety profile caps max_seq_length at 512")
+    if training.get("loss_logits") != "active_labels_only":
+        raise ConfigError("training.loss_logits must remain 'active_labels_only'")
+    if training.get("empty_cache_after_probe") is not True:
+        raise ConfigError("training.empty_cache_after_probe must remain enabled")
+    minimum_backward_free = _positive_int(
+        training.get("minimum_backward_free_vram_mib"),
+        "training.minimum_backward_free_vram_mib",
+    )
+    if minimum_backward_free < 256:
+        raise ConfigError("training.minimum_backward_free_vram_mib must be at least 256")
 
     adapters = _mapping(config, "adapters")
     missing = set(ALLOWED_ADAPTERS) - set(adapters)

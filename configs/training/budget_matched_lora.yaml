@@ -1,0 +1,33 @@
+schema_version: anchor.adapter-budget.v1
+base_contract_id: gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1
+target_modules: [q_proj, v_proj]
+parameter_count_method: materialized_trainable_parameters
+parameters_per_rank: 649216
+reference_mixed:
+  adapter: mixed_all
+  rank: 16
+  expected_trainable_parameters: 10387456
+full_routed:
+  ranks:
+    planner: 16
+    tool_policy: 16
+    frontend_gen: 16
+    frontend_review: 16
+    security_gate: 16
+  rank_sum: 80
+  expected_trainable_parameters: 51937280
+budget_matched_routed:
+  allocation_policy: fixed_before_heldout_evaluation
+  rationale: Give the code generator one extra rank; keep the other four roles symmetric.
+  ranks:
+    planner: 3
+    tool_policy: 3
+    frontend_gen: 4
+    frontend_review: 3
+    security_gate: 3
+  rank_sum: 16
+  expected_trainable_parameters: 10387456
+invariants:
+  - budget_matched_routed.rank_sum == reference_mixed.rank
+  - budget_matched_routed.expected_trainable_parameters == reference_mixed.expected_trainable_parameters
+  - all arms use the same frozen Q4 base, target modules, data split, stage order, and token caps
