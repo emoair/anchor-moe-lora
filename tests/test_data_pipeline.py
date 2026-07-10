@@ -19,6 +19,7 @@ from anchor_mvp.data.pipeline import (  # noqa: E402
     _normalize_frontend_payload,
 )
 from anchor_mvp.data.prompts import task_prompt  # noqa: E402
+from anchor_mvp.data.prompts import seed_prompt  # noqa: E402
 from anchor_mvp.data.schema import SeedDemand  # noqa: E402
 from anchor_mvp.data.sops import load_sop  # noqa: E402
 from anchor_mvp.data.teacher import MockTeacher  # noqa: E402
@@ -185,6 +186,16 @@ def test_seed_generation_deduplicates(tmp_path: Path) -> None:
     seeds = asyncio.run(pipeline.generate_seeds(5))
     assert len(seeds) == 5
     assert len({seed.seed_id for seed in seeds}) == 5
+
+
+def test_seed_prompt_uses_deterministic_stratified_variants() -> None:
+    _, first = seed_prompt(0)
+    _, second = seed_prompt(1)
+
+    assert "SEED_VARIANT: 00" in first
+    assert "SEED_VARIANT: 01" in second
+    assert "REQUIRED_VARIATION_BRIEF" in first
+    assert first != second
 
 
 class _UnsafeSeedTeacher(MockTeacher):

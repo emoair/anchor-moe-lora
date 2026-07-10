@@ -11,7 +11,12 @@ from typing import Mapping, Protocol
 from .config import AGENT_ID, DEFAULT_MODEL, PROVIDER_ID
 from .models import AgentExecution, ToolTraceEntry
 from .policy import ToolPolicy
-from .trace import classify_error_text, digest_text, parse_opencode_jsonl
+from .trace import (
+    classify_error_text,
+    digest_text,
+    parse_opencode_jsonl,
+    parse_public_outcome,
+)
 
 
 class AgentExecutor(Protocol):
@@ -145,6 +150,7 @@ class OpenCodeExecutor:
             stdout, stderr = process.communicate()
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
+        public_outcome = parse_public_outcome(stdout)
         errors = list(classify_error_text(stdout + "\n" + stderr))
         # OpenCode persists sessions by default. Its XDG roots are redirected
         # above and removed after event reduction so hidden reasoning/session
@@ -161,6 +167,7 @@ class OpenCodeExecutor:
             stderr_sha256=digest_text(stderr),
             rejected_events=rejected,
             error_codes=tuple(dict.fromkeys(errors)),
+            public_outcome=public_outcome,
         )
 
 
@@ -176,11 +183,13 @@ class MockAgentExecutor:
         commands: tuple[str, ...] = (),
         exit_code: int = 0,
         timed_out: bool = False,
+        public_outcome=None,
     ) -> None:
         self.file_updates = dict(file_updates or {})
         self.commands = commands
         self.exit_code = exit_code
         self.timed_out = timed_out
+        self.public_outcome = public_outcome
 
     def run(
         self,
@@ -235,4 +244,5 @@ class MockAgentExecutor:
             trace=tuple(trace),
             rejected_events=rejected,
             error_codes=errors,
+            public_outcome=self.public_outcome,
         )

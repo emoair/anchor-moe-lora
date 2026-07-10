@@ -12,6 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from anchor_mvp.tooling import (  # noqa: E402
     OpenCodeExecutor,
     SampleSpec,
+    SkillSourceRegistry,
     ToolPolicy,
     ToolingHarness,
     write_gold_jsonl,
@@ -23,6 +24,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-id", required=True)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--prompt-file", type=Path, required=True)
+    parser.add_argument(
+        "--skill",
+        action="append",
+        required=True,
+        help="Audited source id from configs/data/skill_sources.yaml; repeat as needed",
+    )
+    parser.add_argument(
+        "--skill-registry",
+        type=Path,
+        default=PROJECT_ROOT / "configs" / "data" / "skill_sources.yaml",
+    )
     parser.add_argument(
         "--workspace-root",
         type=Path,
@@ -66,9 +78,17 @@ def main() -> int:
         max_iterations=args.max_iterations,
         timeout_seconds=args.timeout_seconds,
     )
-    prompt = args.prompt_file.read_text(encoding="utf-8")
+    task = args.prompt_file.read_text(encoding="utf-8")
+    registry = SkillSourceRegistry(PROJECT_ROOT, args.skill_registry)
+    prompt, skill_provenance = registry.compose_execution_prompt(task, tuple(args.skill))
     record = ToolingHarness(args.workspace_root, executor, policy=policy).run_sample(
-        SampleSpec(args.sample_id, prompt, args.source, tuple(args.required))
+        SampleSpec(
+            args.sample_id,
+            prompt,
+            args.source,
+            tuple(args.required),
+            skill_provenance,
+        )
     )
     write_gold_jsonl([record], args.output)
     print(args.output)

@@ -14,7 +14,26 @@ Instead provide a short decision_trace: externally auditable checks, concrete ev
 from the supplied input, and the resulting action. Each entry must contain exactly
 check, evidence, and action. Keep every field concise."""
 
-PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v4"
+PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v5"
+
+SEED_VARIANTS = (
+    "operations dashboard; filter or acknowledge one local alert; dense status layout; stale and empty data",
+    "multi-field form; validate one dependent field; compact card layout; invalid and partially complete input",
+    "schedule or timeline; move one local item; split-pane layout; overlaps and timezone labels",
+    "catalog or inventory; search and select one item; responsive list-detail layout; zero results and long labels",
+    "education quiz; answer and review one question; step layout; skipped answers and reduced-motion mode",
+    "healthcare tracker; record one local measurement; calm summary layout; out-of-range and missing values",
+    "finance calculator without transactions; adjust one assumption; comparison layout; negative and huge values",
+    "developer settings panel; toggle one bounded preference; grouped controls; unsaved and conflicting states",
+    "media or document organizer using placeholders; reorder one item; grid layout; missing thumbnail and long title",
+    "local moderation queue; classify one inert item; keyboard-first table; ambiguous and already-reviewed states",
+    "local analytics visualization; change one dimension; chart-plus-summary layout; zero, sparse, and overflow data",
+    "internationalized utility; switch locale or reading direction; RTL-aware layout; long translations and plural forms",
+    "performance-oriented long list; expand one row; virtualized-looking local layout without packages; empty and large sets",
+    "offline/error recovery component; retry one simulated operation; status layout; timeout, cancellation, and success",
+    "defensive prompt-injection display case; treat instruction-like text only as inert content; review panel; ambiguous intent",
+    "quirky creative tool; manipulate one local parameter; unusual but usable layout; reset, bounds, and keyboard control",
+)
 
 
 def template_sha256(task_type: TaskType) -> str:
@@ -26,13 +45,19 @@ def seed_prompt(index: int) -> tuple[str, str]:
         "You create diverse, lawful website requirements for supervised training. "
         "Never include executable exploit code, credentials, malware, mining code, or active payloads."
     )
+    variant_id = index % len(SEED_VARIANTS)
+    variant = SEED_VARIANTS[variant_id]
     user = f"""ANCHOR_TASK: seed
 SEED_INDEX: {index}
+SEED_VARIANT: {variant_id:02d}
+REQUIRED_VARIATION_BRIEF: {variant}
 Create one bounded single-file frontend component request. Vary product, layout,
 accessibility needs, and edge cases. Scope it to one critical user interaction,
 local placeholder data, and at most three small UI components. Do not require a
 backend, authentication, payment, upload, realtime service, multi-page routing,
 external API, package manifest, or repository scaffold.
+Follow the required variation brief rather than defaulting to a generic accessibility
+card. Use a concise canonical category and include `variant-{variant_id:02d}` in tags.
 Some requests may mention prompt-injection resistance or security review only at a
 defensive, descriptive level. Use inert placeholders instead of payload strings.
 Return JSON with title, request, category, and tags."""

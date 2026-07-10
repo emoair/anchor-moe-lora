@@ -1,0 +1,10 @@
+{
+  "name": "sidex-fixture-v0-status-list",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "lint": "node scripts/lint.mjs"
+  }
+}

@@ -7,20 +7,30 @@ from .models import (
     AgentExecution,
     FileChange,
     GoldRecord,
+    PublicDecisionStep,
+    PublicOutcome,
     SampleSpec,
+    SkillProvenance,
     ToolTraceEntry,
     ValidationResult,
 )
 from .policy import ToolPolicy
 from .runner import MockAgentExecutor, OpenCodeExecutor
+from .skills import AuditedSkill, SkillSourceError, SkillSourceRegistry
 
 __all__ = [
     "AgentExecution",
     "FileChange",
     "GoldRecord",
+    "PublicDecisionStep",
+    "PublicOutcome",
     "MockAgentExecutor",
     "OpenCodeExecutor",
     "SampleSpec",
+    "SkillProvenance",
+    "SkillSourceError",
+    "SkillSourceRegistry",
+    "AuditedSkill",
     "ToolPolicy",
     "ToolTraceEntry",
     "ToolingHarness",

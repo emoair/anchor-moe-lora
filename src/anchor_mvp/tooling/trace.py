@@ -4,7 +4,7 @@ import hashlib
 import json
 from typing import Any, Iterator
 
-from .models import ToolTraceEntry
+from .models import PublicDecisionStep, PublicOutcome, ToolTraceEntry
 from .policy import ToolPolicy
 
 
@@ -36,6 +36,86 @@ def _walk_dicts(value: Any) -> Iterator[dict[str, Any]]:
             yield from _walk_dicts(child)
 
 
+def _walk_strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for child in value.values():
+            yield from _walk_strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_strings(child)
+
+
+def _json_candidate(value: str) -> dict[str, Any] | None:
+    text = value.strip()
+    if text.startswith("```json") and text.endswith("```"):
+        text = text[7:-3].strip()
+    if not (text.startswith("{") and text.endswith("}")):
+        return None
+    try:
+        loaded = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def parse_public_outcome(stdout: str) -> PublicOutcome | None:
+    """Extract only the explicit public work summary from OpenCode events.
+
+    Arbitrary assistant text and reasoning blocks are ignored. The accepted object
+    has a narrow schema and bounded public evidence fields.
+    """
+
+    accepted: PublicOutcome | None = None
+    forbidden = {"thinking", "reasoning", "chain_of_thought", "cot"}
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        for value in _walk_strings(event):
+            candidate = _json_candidate(value)
+            if not candidate or candidate.get("schema_version") != "anchor.public-outcome.v1":
+                continue
+            if forbidden.intersection(str(key).casefold() for key in candidate):
+                continue
+            status = candidate.get("status")
+            trace = candidate.get("decision_trace")
+            repairs = candidate.get("repair_summaries")
+            summary = candidate.get("final_summary")
+            if status not in {"completed", "blocked", "partial"}:
+                continue
+            if not isinstance(trace, list) or not 1 <= len(trace) <= 8:
+                continue
+            steps: list[PublicDecisionStep] = []
+            valid = True
+            for item in trace:
+                if not isinstance(item, dict):
+                    valid = False
+                    break
+                fields = tuple(
+                    str(item.get(name, "")).strip()
+                    for name in ("check", "evidence", "action")
+                )
+                if not all(fields) or any(len(field) > 600 for field in fields):
+                    valid = False
+                    break
+                steps.append(PublicDecisionStep(*fields))
+            if not valid or not isinstance(repairs, list) or len(repairs) > 8:
+                continue
+            clean_repairs = tuple(str(item).strip() for item in repairs)
+            if any(not item or len(item) > 600 for item in clean_repairs):
+                continue
+            if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 1000:
+                continue
+            accepted = PublicOutcome(
+                status=status,
+                decision_trace=tuple(steps),
+                repair_summaries=clean_repairs,
+                final_summary=summary.strip(),
+            )
+    return accepted
 def _first_string(mapping: dict[str, Any], names: tuple[str, ...]) -> str | None:
     for name in names:
         value = mapping.get(name)

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .manifest import checkpoint_metadata, write_json
+from .progress import TrainingProgress
 
 
 class _JsonlMapDataset:
@@ -271,6 +272,7 @@ def _run_one_step_smoke(
     record: Mapping[str, Any],
     training: Mapping[str, Any],
     torch: Any,
+    reporter: TrainingProgress | None = None,
 ) -> tuple[int, float]:
     """Run the smoke update without importing Trainer, TRL, Datasets, or Arrow."""
 
@@ -280,10 +282,15 @@ def _run_one_step_smoke(
         raise RuntimeError("smoke-gate runtime requires gradient_accumulation_steps=1")
 
     trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
-    optimizer = torch.optim.AdamW(
-        trainable,
-        lr=float(training["learning_rate"]),
-    )
+    optimizer_name = str(training.get("optim", "adamw_torch"))
+    if optimizer_name == "paged_adamw_8bit":
+        from bitsandbytes.optim import PagedAdamW8bit  # type: ignore[import-not-found]
+
+        optimizer = PagedAdamW8bit(trainable, lr=float(training["learning_rate"]))
+    else:
+        optimizer = torch.optim.AdamW(trainable, lr=float(training["learning_rate"]))
+    if reporter:
+        reporter.emit("optimizer", "initialized", detail={"name": optimizer_name})
     collator = _make_text_collator(processor, int(training["max_seq_length"]))
     batch = collator([record])
     device = model.device
@@ -296,22 +303,32 @@ def _run_one_step_smoke(
     model.config.use_cache = False
     optimizer.zero_grad(set_to_none=True)
     device_type = getattr(device, "type", "cuda")
+    if reporter:
+        reporter.emit("step_forward", "started", step=1)
     with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
         output = model(**batch, use_cache=False)
         loss = output.loss
     loss_value = float(loss.detach().float().cpu().item())
     if not math.isfinite(loss_value):
         raise RuntimeError(f"smoke-gate produced non-finite loss: {loss_value}")
+    if reporter:
+        reporter.emit("step_forward", "completed", step=1, loss=loss_value)
+        reporter.emit("step_backward", "started", step=1, loss=loss_value)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
+    if reporter:
+        reporter.emit("step_backward", "completed", step=1, loss=loss_value)
+        reporter.emit("optimizer_step", "started", step=1, loss=loss_value)
     optimizer.step()
     if torch.cuda.is_available():
         torch.cuda.synchronize()
+    if reporter:
+        reporter.emit("optimizer_step", "completed", step=1, loss=loss_value)
     del batch, loss, output, optimizer
     return 1, loss_value
 
 
-def train_adapter(
+def _train_adapter_impl(
     config: Mapping[str, Any],
     *,
     dataset_paths: Sequence[Path],
@@ -319,9 +336,11 @@ def train_adapter(
     allow_model_download: bool,
     manifest: Mapping[str, Any],
     smoke_heldout_cases: Sequence[Mapping[str, Any]] | None = None,
+    reporter: TrainingProgress,
 ) -> dict[str, Any]:
     """Run one adapter SFT job. This is the only function that imports ML stacks."""
 
+    reporter.emit("runtime_imports", "started")
     import torch
     from peft import (  # type: ignore[import-not-found]
         LoraConfig,
@@ -333,7 +352,9 @@ def train_adapter(
         AutoModelForMultimodalLM,
         AutoProcessor,
         BitsAndBytesConfig,
+        TrainerCallback,
     )
+    reporter.emit("runtime_imports", "completed")
 
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required; refusing to train a 12B QLoRA job on CPU")
@@ -367,9 +388,11 @@ def train_adapter(
     processor_args = dict(common_load_args)
     processor_args["revision"] = config["model"].get("processor_revision")
     processor_args = {key: value for key, value in processor_args.items() if value is not None}
+    reporter.emit("processor_load", "started")
     processor = AutoProcessor.from_pretrained(
         config["model"]["processor_id"], **processor_args
     )
+    reporter.emit("processor_load", "completed")
     model_load_args: dict[str, Any] = {
         "dtype": torch.bfloat16,
         # Keep placement honest: do not silently make the 12 GB run appear to
@@ -385,10 +408,16 @@ def train_adapter(
             bnb_4bit_compute_dtype=torch.bfloat16,
             bnb_4bit_quant_storage=torch.bfloat16,
         )
+    reporter.emit(
+        "model_load",
+        "started",
+        detail={"strategy": str(load_strategy), "source": "local" if local_model_path.is_dir() else "hub"},
+    )
     model = AutoModelForMultimodalLM.from_pretrained(
         model_source,
         **model_load_args,
     )
+    reporter.emit("model_load", "completed")
     if not getattr(model, "is_loaded_in_4bit", False):
         raise RuntimeError(
             "loaded checkpoint is not a training-compatible bitsandbytes 4-bit model; "
@@ -414,17 +443,25 @@ def train_adapter(
     # still supported for reproducible target-module ablations.
     if lora.get("target_modules"):
         lora_kwargs["target_modules"] = lora["target_modules"]
+    reporter.emit("lora_attach", "started")
     model = get_peft_model(model, LoraConfig(**lora_kwargs))
     trainable_parameters = _assert_trainable_scope(model, torch)
+    reporter.emit(
+        "lora_attach",
+        "completed",
+        detail={"trainable_parameters": int(trainable_parameters)},
+    )
 
     pre_public: list[dict[str, Any]] = []
     pre_logits: dict[str, Any] = {}
     if smoke_heldout_cases is not None:
         if not smoke_heldout_cases:
             raise RuntimeError("smoke-gate needs at least one held-out case for the selected expert")
+        reporter.emit("pre_probe", "started")
         pre_public, pre_logits = _capture_probes(
             model, processor, smoke_heldout_cases, torch
         )
+        reporter.emit("pre_probe", "completed")
 
     training = config["training"]
     trainer: Any | None = None
@@ -435,7 +472,7 @@ def train_adapter(
         if len(dataset) < 1:
             raise RuntimeError("smoke-gate dataset has no records")
         global_step, train_loss = _run_one_step_smoke(
-            model, processor, dataset[0], training, torch
+            model, processor, dataset[0], training, torch, reporter
         )
     else:
         # The full training route retains TRL for now. It is never imported by
@@ -470,30 +507,52 @@ def train_adapter(
             dataset_kwargs={"skip_prepare_dataset": True},
             seed=training["seed"],
         )
+        class _ProgressCallback(TrainerCallback):
+            def on_log(self, args: Any, state: Any, control: Any, logs: Any = None, **kwargs: Any) -> None:
+                values = logs if isinstance(logs, Mapping) else {}
+                raw_loss = values.get("loss")
+                loss = float(raw_loss) if isinstance(raw_loss, (int, float)) else None
+                reporter.emit("trainer_log", "running", step=int(state.global_step), loss=loss)
+
+            def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
+                reporter.emit("trainer_step", "completed", step=int(state.global_step))
+
         trainer = SFTTrainer(
             model=model,
             args=args,
             train_dataset=dataset,
             data_collator=_make_text_collator(processor, training["max_seq_length"]),
             processing_class=processor,
+            callbacks=[_ProgressCallback()],
         )
+        reporter.emit("trainer", "started", step=0)
         result = trainer.train()
         global_step = int(trainer.state.global_step)
         train_loss = result.metrics.get("train_loss")
+        reporter.emit(
+            "trainer",
+            "completed",
+            step=global_step,
+            loss=float(train_loss) if isinstance(train_loss, (int, float)) else None,
+        )
     post_public: list[dict[str, Any]] = []
     post_logits: dict[str, Any] = {}
     if smoke_heldout_cases is not None:
+        reporter.emit("post_probe", "started", step=global_step, loss=train_loss)
         post_public, post_logits = _capture_probes(
             model, processor, smoke_heldout_cases, torch
         )
+        reporter.emit("post_probe", "completed", step=global_step, loss=train_loss)
     peak_allocated_gib = torch.cuda.max_memory_allocated(0) / 1024**3
     peak_reserved_gib = torch.cuda.max_memory_reserved(0) / 1024**3
+    reporter.emit("adapter_save", "started", step=global_step, loss=train_loss)
     output_dir.mkdir(parents=True, exist_ok=True)
     if trainer is None:
         model.save_pretrained(str(output_dir))
     else:
         trainer.save_model(str(output_dir))
     processor.save_pretrained(str(output_dir / "processor"))
+    reporter.emit("adapter_save", "completed", step=global_step, loss=train_loss)
 
     smoke_evidence: dict[str, Any] | None = None
     if smoke_heldout_cases is not None:
@@ -509,6 +568,7 @@ def train_adapter(
         reloaded_public: list[dict[str, Any]] = []
         reload_comparison: list[dict[str, Any]] = []
         try:
+            reporter.emit("adapter_reload", "started", step=global_step, loss=train_loss)
             if trainer is not None:
                 del trainer
             base_model = model.unload()
@@ -521,8 +581,16 @@ def train_adapter(
             reload_comparison = _compare_probes(
                 post_public, post_logits, reloaded_public, reloaded_logits, torch
             )
+            reporter.emit("adapter_reload", "completed", step=global_step, loss=train_loss)
         except Exception as exc:  # evidence must survive a reload failure
             reload_error = f"{type(exc).__name__}: {exc}"
+            reporter.emit(
+                "adapter_reload",
+                "failed",
+                step=global_step,
+                loss=train_loss,
+                detail={"error_type": type(exc).__name__},
+            )
 
         checks = {
             "one_sample_one_step": global_step == 1 and len(dataset) == 1,
@@ -576,3 +644,42 @@ def train_adapter(
     if smoke_evidence is not None:
         response["smoke_gate"] = smoke_evidence
     return response
+
+
+def train_adapter(
+    config: Mapping[str, Any],
+    *,
+    dataset_paths: Sequence[Path],
+    output_dir: Path,
+    allow_model_download: bool,
+    manifest: Mapping[str, Any],
+    smoke_heldout_cases: Sequence[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run one adapter job with phase-level progress that survives failures."""
+
+    reporter = TrainingProgress(output_dir)
+    reporter.emit("runtime", "started")
+    try:
+        result = _train_adapter_impl(
+            config,
+            dataset_paths=dataset_paths,
+            output_dir=output_dir,
+            allow_model_download=allow_model_download,
+            manifest=manifest,
+            smoke_heldout_cases=smoke_heldout_cases,
+            reporter=reporter,
+        )
+    except BaseException as exc:
+        reporter.emit("runtime", "failed", detail={"error_type": type(exc).__name__})
+        raise
+    reporter.emit(
+        "runtime",
+        "completed",
+        step=int(result.get("global_step", 0)),
+        loss=(
+            float(result["train_loss"])
+            if isinstance(result.get("train_loss"), (int, float))
+            else None
+        ),
+    )
+    return result

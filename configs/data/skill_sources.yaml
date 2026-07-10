@@ -1,0 +1,69 @@
+schema_version: anchor.skill-sources.v1
+policy:
+  stars_are_discovery_only: true
+  require_pinned_commit: true
+  require_file_sha256: true
+  deterministic_tool_policy_is_authoritative: true
+  hidden_reasoning_forbidden: true
+sources:
+  - id: github-awesome-copilot-premium-frontend-ui
+    repository: https://github.com/github/awesome-copilot
+    commit: 30472ecf0fe34cc561df958c08501ecc5ca80ea4
+    retrieved_at: '2026-07-11'
+    license: MIT
+    license_path: third_party/skills/github-awesome-copilot/LICENSE
+    license_sha256: e32449d23085399adc1222f7a17408b730550258e51627c153cb108ca9955823
+    attribution: GitHub awesome-copilot; skill author metadata credits Utkarsh Patrikar.
+    stages: [frontend_gen]
+    audit_status: approved-with-runtime-constraints
+    files:
+      - path: third_party/skills/github-awesome-copilot/premium-frontend-ui/SKILL.md
+        sha256: b7edf35b33931d15ea0c1d271f3c05d469e2b6923ed4df1c955d4da86287d9fb
+        inject: true
+  - id: github-awesome-copilot-review-and-refactor
+    repository: https://github.com/github/awesome-copilot
+    commit: 30472ecf0fe34cc561df958c08501ecc5ca80ea4
+    retrieved_at: '2026-07-11'
+    license: MIT
+    license_path: third_party/skills/github-awesome-copilot/LICENSE
+    license_sha256: e32449d23085399adc1222f7a17408b730550258e51627c153cb108ca9955823
+    attribution: GitHub awesome-copilot contributors.
+    stages: [frontend_review]
+    audit_status: approved-with-runtime-constraints
+    files:
+      - path: third_party/skills/github-awesome-copilot/review-and-refactor/SKILL.md
+        sha256: 95b48ed4b137777ddc87b77cb0873ed7f485141a517825e71af1a984cf5a6cd6
+        inject: true
+  - id: github-awesome-copilot-security-review
+    repository: https://github.com/github/awesome-copilot
+    commit: 30472ecf0fe34cc561df958c08501ecc5ca80ea4
+    retrieved_at: '2026-07-11'
+    license: MIT
+    license_path: third_party/skills/github-awesome-copilot/LICENSE
+    license_sha256: e32449d23085399adc1222f7a17408b730550258e51627c153cb108ca9955823
+    attribution: GitHub awesome-copilot contributors.
+    stages: [tool_policy, security_gate]
+    audit_status: approved-for-synthetic-fixtures-only
+    audit_note: Never point this skill at a real checkout containing credentials; fixtures use inert placeholders. Referenced auxiliary files are intentionally not bundled or available to the agent.
+    files:
+      - path: third_party/skills/github-awesome-copilot/security-review/SKILL.md
+        sha256: 002392d88637b89e4cbc409a0531834970937f3b57c0b448a17e04b5ca6d356c
+        inject: true
+  - id: anthropic-skills-frontend-design
+    repository: https://github.com/anthropics/skills
+    commit: 9d2f1ae187231d8199c64b5b762e1bdf2244733d
+    retrieved_at: '2026-07-11'
+    license: Apache-2.0
+    license_path: third_party/skills/anthropic-skills/frontend-design/LICENSE.txt
+    license_sha256: eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549
+    attribution: Anthropic frontend-design skill.
+    stages: [frontend_gen]
+    audit_status: approved-with-runtime-constraints
+    files:
+      - path: third_party/skills/anthropic-skills/frontend-design/SKILL.md
+        sha256: 35c43b9d10c2388dbb228047ad028c989a14033750812125f351c85aa42c7a4a
+        inject: true
+deferred_sources:
+  - repository: https://github.com/vercel-labs/agent-skills
+    commit: f8a72b9603728bb92a217a879b7e62e43ad76c81
+    reason: Individual files declare MIT, but the audited checkout did not contain the complete root license text; do not copy or inject until attribution terms are complete.

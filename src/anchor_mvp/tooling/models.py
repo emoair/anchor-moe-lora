@@ -7,6 +7,32 @@ from typing import Literal
 
 SCHEMA_VERSION = "anchor.tool-gold.v1"
 ValidationStatus = Literal["PASS", "FAIL", "SKIP", "TIMEOUT"]
+PublicOutcomeStatus = Literal["completed", "blocked", "partial"]
+
+
+@dataclass(frozen=True)
+class SkillProvenance:
+    source_id: str
+    repository: str
+    commit: str
+    license: str
+    bundle_sha256: str
+
+
+@dataclass(frozen=True)
+class PublicDecisionStep:
+    check: str
+    evidence: str
+    action: str
+
+
+@dataclass(frozen=True)
+class PublicOutcome:
+    status: PublicOutcomeStatus
+    decision_trace: tuple[PublicDecisionStep, ...]
+    repair_summaries: tuple[str, ...]
+    final_summary: str
+    schema_version: str = "anchor.public-outcome.v1"
 
 
 @dataclass(frozen=True)
@@ -15,6 +41,7 @@ class SampleSpec:
     prompt: str
     source_dir: Path
     required_validations: tuple[str, ...] = ("build",)
+    skill_provenance: tuple[SkillProvenance, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -59,6 +86,7 @@ class AgentExecution:
     stderr_sha256: str | None = None
     rejected_events: int = 0
     error_codes: tuple[str, ...] = ()
+    public_outcome: PublicOutcome | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +103,9 @@ class GoldRecord:
     validations: tuple[ValidationResult, ...]
     tool_trace: tuple[ToolTraceEntry, ...]
     changed_files: tuple[FileChange, ...]
+    task_bundle_sha256: str
+    skill_provenance: tuple[SkillProvenance, ...] = ()
+    public_outcome: PublicOutcome | None = None
     rejected_events: int = 0
     error_codes: tuple[str, ...] = ()
     schema_version: str = field(default=SCHEMA_VERSION, init=False)

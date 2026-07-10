@@ -8,6 +8,7 @@ from .policy import ToolPolicy
 from .runner import AgentExecutor
 from .validation import run_validations
 from .workspace import WorkspaceManager, diff_snapshots, snapshot_files
+from .trace import digest_text
 
 
 class ToolingHarness:
@@ -91,6 +92,9 @@ class ToolingHarness:
             validations=validations,
             tool_trace=trace,
             changed_files=changes,
+            task_bundle_sha256=digest_text(sample.prompt),
+            skill_provenance=sample.skill_provenance,
+            public_outcome=execution.public_outcome,
             rejected_events=execution.rejected_events,
             error_codes=errors,
         )

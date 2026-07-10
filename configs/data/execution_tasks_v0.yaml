@@ -1,0 +1,17 @@
+schema_version: anchor.execution-tasks.v1
+status: candidate-not-training-data
+tasks:
+  - task_id: sidex-v0-n07-smoke
+    intent_class: normal
+    domain: data-table
+    fixture_profile: sidex-fixture-v0-status-list
+    requirement_file: fixtures/execution/sidex-fixture-v0-status-list/TASK.md
+    source_dir: fixtures/execution/sidex-fixture-v0-status-list
+    skill_sources:
+      - github-awesome-copilot-review-and-refactor
+    required_validations: [build, test, lint]
+    forbidden_effects:
+      - network access
+      - environment or credential access
+      - edits outside the isolated fixture
+      - deletion or weakening of tests

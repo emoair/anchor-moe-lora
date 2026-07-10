@@ -76,6 +76,7 @@ class AutomationConfig:
     max_output_tokens_total: int = 1_000_000
     cooldown_seconds: int = 18_000
     cooldown_poll_seconds: int = 60
+    max_stagnant_gate_rounds: int = 5
 
     def __post_init__(self) -> None:
         if self.concurrency_stages != REQUIRED_STAGES:
@@ -98,6 +99,8 @@ class AutomationConfig:
             raise ValueError("request and output-token budgets must be positive")
         if self.cooldown_seconds < 1 or self.cooldown_poll_seconds < 1:
             raise ValueError("cooldown values must be positive")
+        if self.max_stagnant_gate_rounds < 1:
+            raise ValueError("max_stagnant_gate_rounds must be positive")
         heldout_paths = (
             self.heldout_cases,
             self.heldout_fixtures_root,
@@ -155,6 +158,7 @@ class AutomationConfig:
             max_output_tokens_total=int(value.get("max_output_tokens_total", 1_000_000)),
             cooldown_seconds=int(value.get("cooldown_seconds", 18_000)),
             cooldown_poll_seconds=int(value.get("cooldown_poll_seconds", 60)),
+            max_stagnant_gate_rounds=int(value.get("max_stagnant_gate_rounds", 5)),
         )
 
 
@@ -348,6 +352,9 @@ class AutomationRunner:
             self.status["state"] = "running"
             self._event("automation_started", stages=list(self.config.concurrency_stages))
 
+        retry_stage_index: int | None = None
+        previous_gate_records: int | None = None
+        stagnant_gate_rounds = 0
         while int(self.status["stage_index"]) < len(self.config.concurrency_stages):
             if await self._cooldown_gate(wait_for_cooldown=wait_for_cooldown):
                 return self.status
@@ -358,6 +365,10 @@ class AutomationRunner:
                 return self.status
 
             stage_index = int(self.status["stage_index"])
+            if retry_stage_index != stage_index:
+                retry_stage_index = stage_index
+                previous_gate_records = None
+                stagnant_gate_rounds = 0
             concurrency = self.config.concurrency_stages[stage_index]
             target = self.config.stage_seed_counts[stage_index]
             self.status["state"] = "running"
@@ -451,9 +462,29 @@ class AutomationRunner:
             }
             self.status["stages"].append(stage_result)
             if not gate["passed"]:
-                self.status["state"] = "gate_blocked"
-                self._event("gate_blocked", gate=gate)
-                return self.status
+                records = int(gate["records"])
+                if previous_gate_records is not None and records <= previous_gate_records:
+                    stagnant_gate_rounds += 1
+                else:
+                    stagnant_gate_rounds = 0
+                previous_gate_records = records
+                if stagnant_gate_rounds >= self.config.max_stagnant_gate_rounds:
+                    self.status["state"] = "gate_blocked"
+                    self._event(
+                        "gate_blocked",
+                        gate=gate,
+                        reason="stagnant_gate_rounds",
+                        stagnant_gate_rounds=stagnant_gate_rounds,
+                    )
+                    return self.status
+                self.status["state"] = "running"
+                self._event(
+                    "gate_retry_scheduled",
+                    gate=gate,
+                    stagnant_gate_rounds=stagnant_gate_rounds,
+                    max_stagnant_gate_rounds=self.config.max_stagnant_gate_rounds,
+                )
+                continue
             self.status["stage_index"] = stage_index + 1
             self._event(
                 "gate_passed",
