@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("frontend_gen", "code_review", "security_audit", "mixed_all")]
+    [ValidateSet("planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate", "mixed_all")]
     [string]$Adapter,
 
     [ValidateSet(16, 32, 64)]

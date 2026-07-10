@@ -1,4 +1,4 @@
-"""Schema and validation for distilled Anchor-MVP records."""
+"""Schema and validation for distilled Anchor-MoE-LoRA records."""
 
 from __future__ import annotations
 

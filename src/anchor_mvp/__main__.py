@@ -1,4 +1,4 @@
-"""Small dispatcher for the three Anchor-MVP subsystems."""
+"""Small dispatcher for the Anchor-MoE-LoRA subsystems."""
 
 from __future__ import annotations
 
@@ -24,4 +24,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

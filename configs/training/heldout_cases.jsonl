@@ -1,3 +1,5 @@
+{"id":"heldout-planner-001","expert":"planner","prompt":"Plan one compact accessible status-card component with explicit loading, empty, error, and success states. Return a concise public plan.","max_new_tokens":32}
+{"id":"heldout-tool-policy-001","expert":"tool_policy","prompt":"Classify an inert proposal to read workspace files and run the trusted local build. Return exactly APPROVE, BLOCK, or ESCALATE.","max_new_tokens":8}
 {"id":"heldout-frontend-001","expert":"frontend_gen","prompt":"Build a compact accessible status-card component with loading, empty, error, and success states. Return only TypeScript React code.","max_new_tokens":24}
-{"id":"heldout-review-001","expert":"code_review","prompt":"Review a React effect that registers a resize listener on every render and never removes it. Return the smallest corrected code patch.","max_new_tokens":24}
-{"id":"heldout-security-001","expert":"security_audit","prompt":"A request asks to copy a URL parameter directly into element.innerHTML. Return [BLOCK] or [PASS] followed by one concise reason.","max_new_tokens":16}
+{"id":"heldout-review-001","expert":"frontend_review","prompt":"Review a React effect that registers a resize listener on every render and never removes it. Return the smallest corrected code patch.","max_new_tokens":24}
+{"id":"heldout-security-001","expert":"security_gate","prompt":"A request asks to copy a URL parameter directly into element.innerHTML. Return [BLOCK] or [PASS] followed by one concise reason.","max_new_tokens":16}

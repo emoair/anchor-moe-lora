@@ -15,7 +15,7 @@ def test_3080ti_safe_profile_is_conservative():
     assert safe["allowed_max_model_len"] == [1024, 2048]
     assert safe["max_num_seqs"] == 1
     assert safe["max_loras"] == 1
-    assert safe["max_cpu_loras"] == 4
+    assert safe["max_cpu_loras"] == 6
     assert safe["max_lora_rank"] == 16
     assert safe["enforce_eager"] is True
     assert safe["enable_prefix_caching"] is False
@@ -100,6 +100,14 @@ def test_serving_config_pins_canonical_base_and_defaults_local_bnb():
     assert config["served_model_path"] == "models/google-gemma-4-12B-base"
     assert config["default_quantization"] == "bitsandbytes"
     assert config["default_load_format"] == "bitsandbytes"
+    assert set(config["adapters"]) == {
+        "planner",
+        "tool_policy",
+        "frontend",
+        "review",
+        "security",
+        "mixed",
+    }
 
 
 def test_launcher_declares_both_validated_load_paths_without_single_qlora_binding():

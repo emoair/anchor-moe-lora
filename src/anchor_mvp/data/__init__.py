@@ -1,4 +1,4 @@
-"""Defensive, SOP-injected distillation pipeline for Anchor-MVP."""
+"""Defensive, SOP-injected distillation pipeline for Anchor-MoE-LoRA."""
 
 from .mutator import MutationManifest, MutationUnavailableError, mutate_frontend_code
 from .pipeline import DistillationPipeline, PipelineReport, UpstreamDependencyError

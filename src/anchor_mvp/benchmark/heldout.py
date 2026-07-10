@@ -429,18 +429,47 @@ def apply_review_mutation(code: str, mutation: Mapping[str, str]) -> tuple[str, 
     }
 
 
-def validate_primary_specs(specs: Iterable[Any]) -> None:
+def validate_primary_specs(
+    specs: Iterable[Any], *, require_verified_q4: bool = False
+) -> None:
     by_name = {spec.name: spec for spec in specs}
     missing = [name for name in PRIMARY_BASELINES if name not in by_name]
     if missing:
         raise HeldoutGateError("all three primary Q4 arms are required")
     primary = [by_name[name] for name in PRIMARY_BASELINES]
     if any(spec.workflow != "pipeline" for spec in primary):
-        raise HeldoutGateError("primary Q4 arms must use the matched three-stage workflow")
+        raise HeldoutGateError("primary Q4 arms must use the matched five-stage workflow")
     if len({spec.max_tokens_per_call for spec in primary}) != 1:
         raise HeldoutGateError("primary Q4 arms must share per-stage token caps")
     if any(set(spec.stage_models) != set(PRIMARY_STAGES) for spec in primary):
         raise HeldoutGateError("primary Q4 arms require the same five stage names")
+    common_models = {spec.model for spec in primary}
+    if None in common_models or len(common_models) != 1:
+        raise HeldoutGateError("primary Q4 arms must name one identical base model")
+    contract_ids = {spec.base_contract_id for spec in primary}
+    if "" in contract_ids or len(contract_ids) != 1:
+        raise HeldoutGateError("primary Q4 arms must share one non-empty base contract id")
+    source_digests = {spec.base_source_sha256 for spec in primary}
+    if len(source_digests) != 1 or not re.fullmatch(r"[0-9a-f]{64}", next(iter(source_digests))):
+        raise HeldoutGateError("primary Q4 arms must share one valid base source SHA-256")
+    q4_digests = {spec.q4_artifact_sha256 for spec in primary}
+    if len(q4_digests) != 1:
+        raise HeldoutGateError("primary Q4 arms must share one Q4 artifact SHA-256")
+    q4_digest = next(iter(q4_digests))
+    if q4_digest is not None and not re.fullmatch(r"[0-9a-f]{64}", q4_digest):
+        raise HeldoutGateError("Q4 artifact SHA-256 must be 64 lowercase hex characters")
+    if require_verified_q4 and q4_digest is None:
+        raise HeldoutGateError(
+            "live benchmark requires a generated Q4 artifact SHA-256; mock-only specs may leave it null"
+        )
+    common_model = next(iter(common_models))
+    base_arm, mixed_arm, routed_arm = primary
+    if set(base_arm.stage_models.values()) != {common_model}:
+        raise HeldoutGateError("A must use the common Q4 base at all five stages")
+    if len(set(mixed_arm.stage_models.values())) != 1:
+        raise HeldoutGateError("B must reuse one mixed LoRA at all five stages")
+    if len(set(routed_arm.stage_models.values())) != len(PRIMARY_STAGES):
+        raise HeldoutGateError("C must route five distinct specialist LoRAs")
 
 
 _APPROVED_TOOL_LABELS = {

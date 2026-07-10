@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "experiment": "anchor-mvp-task-lora-moe",
+  "experiment": "anchor-moe-lora-task-routed",
   "model": {
     "id": "${ANCHOR_BASE_MODEL_ID:-google/gemma-4-12B}",
     "revision": "${ANCHOR_BASE_MODEL_REVISION:-56820d7d8cbe8e47975a53325439ed272e91cff2}",
@@ -48,25 +48,41 @@
     "seed": 20260710
   },
   "adapters": {
+    "planner": {
+      "datasets": ["data/automated_v2/data_plan.jsonl"],
+      "expected_experts": ["planner"]
+    },
+    "tool_policy": {
+      "datasets": ["data/automated_v2/data_tool_policy.jsonl"],
+      "expected_experts": ["tool_policy"]
+    },
     "frontend_gen": {
-      "datasets": ["data/data_frontend.jsonl"],
+      "datasets": ["data/automated_v2/data_frontend.jsonl"],
       "expected_experts": ["frontend_gen"]
     },
-    "code_review": {
-      "datasets": ["data/data_review.jsonl"],
-      "expected_experts": ["code_review"]
+    "frontend_review": {
+      "datasets": ["data/automated_v2/data_review.jsonl"],
+      "expected_experts": ["frontend_review"]
     },
-    "security_audit": {
-      "datasets": ["data/data_security.jsonl"],
-      "expected_experts": ["security_audit"]
+    "security_gate": {
+      "datasets": ["data/automated_v2/data_security.jsonl"],
+      "expected_experts": ["security_gate"]
     },
     "mixed_all": {
       "datasets": [
-        "data/data_frontend.jsonl",
-        "data/data_review.jsonl",
-        "data/data_security.jsonl"
+        "data/automated_v2/data_plan.jsonl",
+        "data/automated_v2/data_tool_policy.jsonl",
+        "data/automated_v2/data_frontend.jsonl",
+        "data/automated_v2/data_review.jsonl",
+        "data/automated_v2/data_security.jsonl"
       ],
-      "expected_experts": ["frontend_gen", "code_review", "security_audit"]
+      "expected_experts": [
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate"
+      ]
     }
   },
   "paths": {
@@ -80,9 +96,11 @@
   },
   "scale_gate": {
     "required_datasets": {
+      "planner": "data/live_smoke/data_plan.jsonl",
+      "tool_policy": "data/live_smoke/data_tool_policy.jsonl",
       "frontend_gen": "data/live_smoke/data_frontend.jsonl",
-      "code_review": "data/live_smoke/data_review.jsonl",
-      "security_audit": "data/live_smoke/data_security.jsonl"
+      "frontend_review": "data/live_smoke/data_review.jsonl",
+      "security_gate": "data/live_smoke/data_security.jsonl"
     },
     "base_artifact": {
       "repo_id": "google/gemma-4-12B",

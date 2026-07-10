@@ -14,9 +14,11 @@
   "profile_config": "configs/serving/profiles.json",
   "gpu_memory_utilization": 0.88,
   "adapters": {
+    "planner": "lora-planner",
+    "tool_policy": "lora-tool-policy",
     "frontend": "lora-frontend-gen",
-    "review": "lora-code-review",
-    "security": "lora-security-audit",
+    "review": "lora-frontend-review",
+    "security": "lora-final-security",
     "mixed": "lora-mixed-all"
   },
   "request": {

@@ -1,9 +1,14 @@
-# Anchor-MVP
+# Anchor-MoE-LoRA
 
-Anchor-MVP is a runnable research scaffold for **task-routed LoRA experts** on one
+Anchor-MoE-LoRA is a runnable research scaffold for **task-routed LoRA experts** on one
 frozen base model. It routes planning, tool-policy advice, frontend generation,
 paired frontend review, and a final defensive security gate through an observable
 application-level DAG.
+
+The repository and distribution name are `anchor-moe-lora`. The Python import
+package remains `anchor_mvp`, and the existing local Conda environment and checkout
+directory remain `anchor-mvp`, so resumable runs and installed entry points are not
+invalidated by the public rename.
 
 This is not a neural Mixture-of-Experts layer. The claim under test is whether
 specialized adapters plus explicit routing beat a mixed adapter **under matched
@@ -19,7 +24,7 @@ call, token, and wall-time budgets**.
 - Canonical JSONL, public `decision_trace`, provenance hashes, cleaning and dedupe.
 - Kimi Code Anthropic-first/OpenAI-fallback client, honest client identity, secret
   redaction, request/token budgets, probe mode and deterministic offline mock.
-- Gemma 4 12B base QLoRA configs for three experts plus a mixed baseline.
+- Gemma 4 12B base QLoRA configs for five specialists plus a mixed baseline.
 - NF4 online quantization and compatible pre-quantized PEFT loading; inference-only
   GGUF and W4A16 artifacts are explicitly rejected by the trainer.
 - vLLM/OpenAI-compatible client, `frontend -> review -> security` DAG, fail-closed
@@ -66,7 +71,7 @@ Remove-Item Env:KIMI_API_KEY
 ```
 
 The stable model ID is `kimi-for-coding`. Kimi's documentation requires the caller
-to retain its real User-Agent; this project identifies as `anchor-mvp/0.1` and does
+to retain its real User-Agent; this project identifies as `anchor-moe-lora/0.1` and does
 not impersonate Claude Code. Thinking is explicitly enabled/configured so the probe
 can verify that the coding model path is selected. Hidden reasoning is discarded;
 only short, auditable decision artifacts enter the dataset.
@@ -83,7 +88,7 @@ reasoning deltas; JSONL remains atomic after the complete response. Optional
 
 After the mock and one-seed gates pass, unattended distillation is available through
 `scripts/data/start_automation.ps1`. It ramps concurrency only through 1, 2, 4, and 8,
-persists 429 five-hour cooldowns, enforces request/token/failure budgets, and exposes
+persists provider cooldowns, enforces request/token/failure budgets, and exposes
 atomic status plus append-only events. Every configured scale step also rechecks the
 frozen held-out corpus against all five current training JSONLs and five SOPs; any
 collision blocks the concurrency upgrade. Tool policy and security use independent
@@ -116,6 +121,14 @@ Use `--execute --allow-model-download` only after the dataset exists and the dry
 manifest reports a ready environment. See [training details](docs/training.md).
 
 ## Serving and benchmark
+
+The primary A/B/C comparison has one non-negotiable controlled-variable contract:
+all arms load the exact same locally serialized Q4/NF4 base artifact (same model
+revision, quantization settings, tokenizer, and artifact digest), execute the same
+five ordered stages with the same per-stage token caps, and differ only in adapter
+assignment. A uses no adapter, B reuses one mixed adapter, and C routes five specialist
+adapters. Reports show A's absolute metrics and normalize A to index `100`; B/C are
+reported as deltas and ratios against A. A different Q4 artifact invalidates the run.
 
 Official vLLM is Linux-only; the real server entry uses the installed WSL2 Ubuntu.
 Start with the 3080 Ti safe profile: 1-2K context, one sequence, one active adapter,

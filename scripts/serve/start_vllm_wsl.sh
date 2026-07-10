@@ -4,6 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "$script_dir/../.." && pwd)"
 base_model="$project_root/models/google-gemma-4-12B-base"
+planner_adapter=""
+tool_policy_adapter=""
 frontend_adapter=""
 review_adapter=""
 security_adapter=""
@@ -20,6 +22,8 @@ print_command="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base-model) base_model="$2"; shift 2 ;;
+    --planner-adapter) planner_adapter="$2"; shift 2 ;;
+    --tool-policy-adapter) tool_policy_adapter="$2"; shift 2 ;;
     --frontend-adapter) frontend_adapter="$2"; shift 2 ;;
     --review-adapter) review_adapter="$2"; shift 2 ;;
     --security-adapter) security_adapter="$2"; shift 2 ;;
@@ -81,7 +85,7 @@ if [[ "$max_model_len" != "1024" && "$max_model_len" != "2048" ]]; then
   exit 2
 fi
 
-for name in base_model frontend_adapter review_adapter security_adapter mixed_adapter; do
+for name in base_model planner_adapter tool_policy_adapter frontend_adapter review_adapter security_adapter mixed_adapter; do
   if [[ -z "${!name}" ]]; then
     echo "Missing required argument: ${name}" >&2
     exit 2
@@ -92,10 +96,10 @@ vllm_args=(
   serve "$base_model"
   --host 127.0.0.1
   --port "$port"
-  --served-model-name base-model
+  --served-model-name gemma4-12b-base-q4
   --enable-lora
   --max-loras 1
-  --max-cpu-loras 4
+  --max-cpu-loras 6
   --max-lora-rank 16
   --max-model-len "$max_model_len"
   --max-num-seqs 1
@@ -103,9 +107,11 @@ vllm_args=(
   --kv-cache-dtype auto
   --language-model-only
   --lora-modules
+  "lora-planner=$planner_adapter"
+  "lora-tool-policy=$tool_policy_adapter"
   "lora-frontend-gen=$frontend_adapter"
-  "lora-code-review=$review_adapter"
-  "lora-security-audit=$security_adapter"
+  "lora-frontend-review=$review_adapter"
+  "lora-final-security=$security_adapter"
   "lora-mixed-all=$mixed_adapter"
 )
 vllm_args+=("${profile_args[@]}")

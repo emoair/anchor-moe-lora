@@ -145,6 +145,14 @@ def test_request_budget_stops_before_gate_upgrade(tmp_path: Path) -> None:
     assert events[-1] == "budget_exhausted"
 
 
+def test_failure_budget_stops_at_configured_limit(tmp_path: Path) -> None:
+    settings = config(tmp_path, max_failures=2)
+    runner = AutomationRunner(config=settings, teacher=MockTeacher())
+    runner.status["budgets"]["failures_used"] = 2
+
+    assert runner._budget_exhausted() == "failure_budget"
+
+
 def test_client_deadline_has_distinct_persisted_classification(tmp_path: Path) -> None:
     settings = config(tmp_path, max_failures=2)
     teacher = _DeadlineTeacher()

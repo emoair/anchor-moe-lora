@@ -1,4 +1,4 @@
-# Anchor-MVP 训练子系统
+# Anchor-MoE-LoRA 训练子系统
 
 本子系统把 Gemma 4 12B Unified 当作共享冻结基座，分别训练三个任务 LoRA 和一个混合对照 LoRA。默认命令只做 dry-run，不下载模型，也不启动训练。
 
@@ -54,16 +54,18 @@ RTX 3080 Ti 12 GB 可以尝试 12B 的保守 QLoRA smoke，但余量很窄。官
 }
 ```
 
-`expert` 只能是 `frontend_gen`、`code_review`、`security_audit`。可审计方法记录在结构化 `decision_trace`，而不是不可验证的隐藏思维链字段。安全样本的最后一个 assistant target 必须且只能包含 `[BLOCK]` 或 `[PASS]` 之一，并与 `output.decision` 一致。验证器还检查消息角色、空内容、重复 ID、任务 output 和 provenance。`mixed_all` 不创造第四种 expert 标签，只把三份经过校验的数据合并加载。
+主实验的 `expert` 为 `planner`、`tool_policy`、`frontend_gen`、`frontend_review`、`security_gate`。旧的 `code_review` / `security_audit` 只为恢复早期成功样本而可读，不再是新训练配置的专家名。可审计方法记录在结构化 `decision_trace`，而不是不可验证的隐藏思维链字段。安全样本的最后一个 assistant target 必须且只能包含 `[BLOCK]` 或 `[PASS]` 之一，并与 `output.decision` 一致。验证器还检查消息角色、空内容、重复 ID、任务 output 和 provenance。`mixed_all` 不创造第六种 expert 标签，只把五份经过校验的数据合并加载。
 
 默认路径：
 
 | Adapter | Dataset |
 | --- | --- |
-| `frontend_gen` | `data/data_frontend.jsonl` |
-| `code_review` | `data/data_review.jsonl` |
-| `security_audit` | `data/data_security.jsonl` |
-| `mixed_all` | 上述三份文件 |
+| `planner` | `data/automated_v2/data_plan.jsonl` |
+| `tool_policy` | `data/automated_v2/data_tool_policy.jsonl` |
+| `frontend_gen` | `data/automated_v2/data_frontend.jsonl` |
+| `frontend_review` | `data/automated_v2/data_review.jsonl` |
+| `security_gate` | `data/automated_v2/data_security.jsonl` |
+| `mixed_all` | 上述五份文件 |
 
 ## 环境与 dry-run
 
@@ -185,7 +187,7 @@ smoke 证据只做一次无 KV cache 的前向并读取最后一个位置的 nex
 .\scripts\train\run_rank_ablation.ps1 -Adapter frontend_gen
 ```
 
-默认仍只是三档 dry-run。真实消融必须显式加 `-Execute`。比较 16/32/64 时，模型 revision、数据哈希、seed、step 数、序列长度、batch 和评测集必须保持不变。三个专属 adapter 与 `mixed_all` 必须使用相同 rank 才能做 B/C 组公平对比。
+默认仍只是三档 dry-run。真实消融必须显式加 `-Execute`。比较 16/32/64 时，模型 revision、数据哈希、seed、step 数、序列长度、batch 和评测集必须保持不变。五个专属 adapter 与 `mixed_all` 必须使用相同 rank 才能做 B/C 组公平对比。
 
 ## 已知风险
 

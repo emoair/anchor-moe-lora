@@ -93,6 +93,7 @@ async def _run_live(args: argparse.Namespace) -> None:
         sample_vram=not args.no_vram,
         backend_label="vllm-heldout",
         manifest_sha256=manifest_digest,
+        require_verified_q4=True,
     ).run_suite(load_specs(args.specs), load_cases_jsonl(args.cases))
     if not args.output or not args.metrics:
         raise HeldoutGateError("run requires --output and --metrics")

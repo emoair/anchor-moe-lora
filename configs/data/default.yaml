@@ -1,4 +1,4 @@
-# Anchor-MVP data pipeline defaults. Keep API keys out of this file.
+# Anchor-MoE-LoRA data pipeline defaults. Keep API keys out of this file.
 # Official Kimi Code defaults (verified 2026-07-10).
 protocol: anthropic
 base_url: https://api.kimi.com/coding/
@@ -6,7 +6,7 @@ fallback_base_url: https://api.kimi.com/coding/v1
 model: kimi-for-coding
 api_key_env: KIMI_API_KEY
 anthropic_version: 2023-06-01
-user_agent: anchor-mvp/0.1
+user_agent: anchor-moe-lora/0.1
 seed_count: 1000
 concurrency: 4
 max_requests: 4100

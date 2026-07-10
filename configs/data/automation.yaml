@@ -6,7 +6,7 @@ fallback_base_url: https://api.kimi.com/coding/
 model: kimi-for-coding
 api_key_env: KIMI_API_KEY
 anthropic_version: 2023-06-01
-user_agent: anchor-mvp/0.1
+user_agent: anchor-moe-lora/0.1
 
 sop_dir: skills
 output_dir: data/automated_v2
@@ -40,6 +40,7 @@ thinking_budget_tokens: 1024
 stream_openai: true
 stream_options_include_usage: false
 
-# Kimi documents a rolling five-hour frequency window.
+# Current run uses the operator-observed remaining window. A repeated limit response
+# persists another cooldown instead of busy-looping or discarding completed rows.
 cooldown_seconds: 7200
 cooldown_poll_seconds: 60

@@ -1,6 +1,10 @@
 param(
     [string]$BaseModel = "",
     [Parameter(Mandatory = $true)]
+    [string]$PlannerAdapter,
+    [Parameter(Mandatory = $true)]
+    [string]$ToolPolicyAdapter,
+    [Parameter(Mandatory = $true)]
     [string]$FrontendAdapter,
     [Parameter(Mandatory = $true)]
     [string]$ReviewAdapter,
@@ -58,6 +62,8 @@ function Convert-ToWslPath([string]$Path) {
 }
 
 $BashScript = Convert-ToWslPath (Join-Path $PSScriptRoot "start_vllm_wsl.sh")
+$PlannerWsl = Convert-ToWslPath $PlannerAdapter
+$ToolPolicyWsl = Convert-ToWslPath $ToolPolicyAdapter
 $FrontendWsl = Convert-ToWslPath $FrontendAdapter
 $ReviewWsl = Convert-ToWslPath $ReviewAdapter
 $SecurityWsl = Convert-ToWslPath $SecurityAdapter
@@ -72,6 +78,8 @@ if (Test-Path -LiteralPath $BaseModel) {
 $BashArgs = @(
     $BashScript,
     "--base-model", $BaseModelWsl,
+    "--planner-adapter", $PlannerWsl,
+    "--tool-policy-adapter", $ToolPolicyWsl,
     "--frontend-adapter", $FrontendWsl,
     "--review-adapter", $ReviewWsl,
     "--security-adapter", $SecurityWsl,

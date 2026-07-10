@@ -5,6 +5,9 @@
       "group": "A_Q4_BASE",
       "workflow": "pipeline",
       "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": null,
       "stage_models": {
         "planner": "gemma4-12b-base-q4",
         "tool_policy": "gemma4-12b-base-q4",
@@ -20,6 +23,9 @@
       "group": "B_Q4_MIXED_LORA",
       "workflow": "pipeline",
       "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": null,
       "stage_models": {
         "planner": "lora-mixed-all",
         "tool_policy": "lora-mixed-all",
@@ -35,6 +41,9 @@
       "group": "C_Q4_TASK_ROUTED_LORA",
       "workflow": "pipeline",
       "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": null,
       "stage_models": {
         "planner": "lora-planner",
         "tool_policy": "lora-tool-policy",

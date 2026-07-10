@@ -1,4 +1,4 @@
-"""QLoRA training utilities for Anchor-MVP.
+"""QLoRA training utilities for Anchor-MoE-LoRA.
 
 The package intentionally keeps configuration validation and dry runs free of
 heavy ML imports.  Importing :mod:`anchor_mvp.training` never downloads a model.

@@ -11,7 +11,13 @@ from .manifest import sha256_file
 from .schema import DatasetValidationError, iter_jsonl, validate_jsonl
 
 
-REQUIRED_EXPERTS = ("frontend_gen", "code_review", "security_audit")
+REQUIRED_EXPERTS = (
+    "planner",
+    "tool_policy",
+    "frontend_gen",
+    "frontend_review",
+    "security_gate",
+)
 
 
 def _gate(passed: bool, **evidence: Any) -> dict[str, Any]:
@@ -226,7 +232,7 @@ def build_preflight_report(
         and free_host_memory >= minimum_free_host
     )
     gates = {
-        "three_live_datasets_present": _gate(datasets["complete"], reports=datasets["reports"]),
+        "five_live_datasets_present": _gate(datasets["complete"], reports=datasets["reports"]),
         "canonical_schema_valid": _gate(datasets["schemas_valid"]),
         "real_teacher_samples": _gate(datasets["all_records_live"]),
         "assistant_targets_nonempty": _gate(datasets["assistant_targets_nonempty"]),

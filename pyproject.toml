@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "anchor-mvp"
+name = "anchor-moe-lora"
 version = "0.1.0"
-description = "Task-routed LoRA expert pipeline research scaffold"
+description = "Anchor-MoE-LoRA task-routed adapter research scaffold"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -27,7 +27,7 @@ training = [
   "trl>=1.0",
 ]
 download = ["huggingface-hub>=0.16"]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.14"]
 
 [project.scripts]
 anchor-data = "anchor_mvp.data.cli:main"

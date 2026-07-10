@@ -1,7 +1,8 @@
-# Anchor-MVP data distillation pipeline
+# Anchor-MoE-LoRA data distillation pipeline
 
-This subsystem builds three SOP-injected corpora (`frontend_gen`, `code_review`,
-and `security_audit`) through a configurable teacher endpoint. It is asynchronous,
+This subsystem builds five SOP-injected corpora (`planner`, `tool_policy`,
+`frontend_gen`, `frontend_review`, and `security_gate`) through a configurable
+teacher endpoint. It is asynchronous,
 append-only, deduplicated, resumable, and runnable offline with a deterministic mock.
 
 It deliberately does **not** collect hidden chain-of-thought. `decision_trace` contains
@@ -50,20 +51,20 @@ Every `data_*.jsonl` row has the integration fields expected by the trainer:
 }
 ```
 
-For `security_audit`, the assistant message is exactly one token-like label:
+For `security_gate`, the assistant message is exactly one token-like label:
 `[BLOCK]` or `[PASS]`. Findings and defensive rationale remain in `output`; this keeps
 the trainer's classification target unambiguous.
 
 Expert inputs are task-real, not requirement-only placeholders:
 
 - `frontend_gen`: user content is the requirement; assistant content is complete code.
-- `code_review`: the pipeline loads the same-seed successful frontend record and applies
+- `frontend_review`: the pipeline loads the same-seed successful frontend record and applies
   one deterministic benign-only mutation locally. The preferred mutation removes one
   literal `aria-label`; allowlisted fallbacks degrade a semantic `main` or `h1` while
   preserving balanced JSX/text. The canonical user turn is `REQUIREMENT`, `CANDIDATE
   CODE`, and `KNOWN_BENIGN_DEFECT`; the teacher returns only decision trace plus complete
   repaired `output.code`. A teacher-emitted `input` object is rejected.
-- `security_audit`: the pipeline loads the same-seed successful review `output.code` as
+- `security_gate`: the pipeline loads the same-seed successful review `output.code` as
   canonical `reviewed_code`. The user turn is `REQUIREMENT` plus `REVIEWED CODE`; the
   teacher returns only decision trace and BLOCK/PASS output and must not echo code or an
   input object. The assistant remains exactly `[BLOCK]` or `[PASS]`.
@@ -86,7 +87,7 @@ The checked-in defaults follow the Kimi Code documentation: Anthropic-compatible
 fallback base `https://api.kimi.com/coding/v1`, and model ID `kimi-for-coding`.
 Anthropic requests use the standard `content-type`, `x-api-key`, and
 `anthropic-version: 2023-06-01` headers. The client identifies itself honestly as
-`anchor-mvp/0.1`; it does not impersonate Claude Code.
+`anchor-moe-lora/0.1`; it does not impersonate Claude Code.
 
 Kimi's release notes state that K2.7 Code takes effect only with Thinking enabled.
 Consequently the default config sets `thinking_enabled: true` and
@@ -215,16 +216,24 @@ current `data_plan`, `data_tool_policy`, `data_frontend`, `data_review`, and
 `heldout_leakage_gate` event record only the manifest/audit hashes, PASS/FAIL, counts,
 threshold, and hashed collision metadata—never training or held-out text.
 
-`data/automated/automation/status.json` is atomically replaced with current stage,
+`data/automated_v2/automation/status.json` is atomically replaced with current stage,
 budgets, cooldown, throughput, ETA, and latest gate. `events.jsonl` is append-only and
 records stage starts, held-out leakage results, budget stops, client deadlines,
 cooldowns, and completion. Dataset JSONL remains append-only; restarting skips completed
 seed/expert pairs.
 
 HTTP 429 uses short `Retry-After`/exponential retries in the client. Exhausted rate
-limits persist a cooldown of at least five hours (or a longer server `Retry-After`) in
+limits persist the configured cooldown floor (or a longer server `Retry-After`) in
 `status.json`. The visible runner can remain alive with `--wait-cooldown`, or exit with
 state `cooldown` and resume later without repeating completed samples.
+
+Kimi Code does not document a remaining-quota HTTP endpoint. Operators should use the
+[Kimi Code Console](https://www.kimi.com/code/console) or the official CLI
+[`/usage` command](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/slash-commands.html).
+Do not call the Moonshot/Open Platform balance API with a Kimi Code key: it is a
+different product, key namespace, and Base URL. Automation therefore classifies the
+documented Code API error messages and persists state, rather than inventing a quota
+probe or assuming Open Platform `X-RateLimit-*` headers exist on Kimi Code.
 
 Offline automation E2E, which does not use a key or network:
 

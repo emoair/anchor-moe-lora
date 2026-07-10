@@ -16,7 +16,7 @@ from .schema import DatasetValidationError, validate_jsonl
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Anchor-MVP Gemma 4 12B QLoRA trainer")
+    parser = argparse.ArgumentParser(description="Anchor-MoE-LoRA Gemma 4 12B QLoRA trainer")
     parser.add_argument(
         "stage",
         nargs="?",

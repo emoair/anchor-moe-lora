@@ -1,4 +1,4 @@
-"""Command-line entry point for the Anchor-MVP data subsystem."""
+"""Command-line entry point for the Anchor-MoE-LoRA data subsystem."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def _as_bool(value: Any) -> bool:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Anchor-MVP defensive data distillation")
+    parser = argparse.ArgumentParser(description="Anchor-MoE-LoRA defensive data distillation")
     parser.add_argument("command", nargs="?", choices=("run", "seeds", "probe"), default="run")
     parser.add_argument("--config", type=Path, help="flat YAML or JSON config; never put secrets here")
     parser.add_argument("--dry-run", action="store_true", help="use the deterministic offline mock teacher")
@@ -130,7 +130,7 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
         ),
         api_key_env=str(_setting(args, config, "api_key_env", "KIMI_API_KEY")),
         anthropic_version=str(_setting(args, config, "anthropic_version", "2023-06-01")),
-        user_agent=str(_setting(args, config, "user_agent", "anchor-mvp/0.1")),
+        user_agent=str(_setting(args, config, "user_agent", "anchor-moe-lora/0.1")),
         max_requests=int(_setting(args, config, "max_requests", 4100)),
         max_output_tokens_total=int(
             _setting(args, config, "max_output_tokens_total", 12_500_000)

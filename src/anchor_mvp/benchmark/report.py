@@ -189,7 +189,7 @@ def _render_summary(
     generated = datetime.now(timezone.utc).isoformat()
 
     lines = [
-        "# Anchor-MVP benchmark report",
+        "# Anchor-MoE-LoRA benchmark report",
         "",
         "> **Structural proxy warning:** the legacy marker score retained for diagnostics is "
         "not true Pass@1. Only `build_pass_at_1` backed by isolated build/test execution is "
@@ -422,11 +422,11 @@ def _render_svg(metrics: dict[str, dict[str, Any]], order: list[str]) -> str:
     chart_width = 650
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
-        "<title>Anchor-MVP auditable benchmark comparison</title>",
+        "<title>Anchor-MoE-LoRA auditable benchmark comparison</title>",
         "<desc>Structural proxy, valid-security rates, operational block rates, latency, tokens, VRAM, and errors. Missing values are marked N/A.</desc>",
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         '<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#1f2937}.title{font-size:20px;font-weight:700}.panel{font-size:14px;font-weight:700}.label{font-size:12px}.value{font-size:12px;font-variant-numeric:tabular-nums}.note{font-size:12px;fill:#991b1b}</style>',
-        '<text x="24" y="30" class="title">Anchor-MVP benchmark comparison</text>',
+        '<text x="24" y="30" class="title">Anchor-MoE-LoRA benchmark comparison</text>',
         '<text x="24" y="52" class="note">Structural proxy != true Pass@1; no build/browser execution is implied.</text>',
         '<text x="24" y="70" class="note">Valid-security TPR/FPR are separate from operational block rates.</text>',
     ]
@@ -545,7 +545,7 @@ def _md(value: str) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate an auditable Anchor-MVP report")
+    parser = argparse.ArgumentParser(description="Generate an auditable Anchor-MoE-LoRA report")
     parser.add_argument("--records", required=True, help="Benchmark record JSONL")
     parser.add_argument("--metrics", required=True, help="Aggregate metrics JSON to reconcile")
     parser.add_argument("--output-dir", required=True, help="Report destination")

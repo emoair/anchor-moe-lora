@@ -33,6 +33,14 @@ def test_checked_in_config_is_safe_for_12gb_smoke() -> None:
     assert config["training"]["per_device_train_batch_size"] == 1
     assert config["training"]["max_seq_length"] <= 512
     assert config["scale_gate"]["minimum_free_host_memory_gib"] == 12.0
+    assert set(config["adapters"]) == {
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate",
+        "mixed_all",
+    }
 
 
 @pytest.mark.parametrize("rank", [16, 32, 64])

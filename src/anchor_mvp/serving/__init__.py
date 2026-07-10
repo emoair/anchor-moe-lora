@@ -7,7 +7,9 @@ from .pipeline import (
     PipelineRouter,
     StageArtifact,
     StageStatus,
+    deterministic_tool_policy,
     parse_security_decision,
+    parse_tool_policy_decision,
 )
 from .types import (
     BackendError,
@@ -35,5 +37,7 @@ __all__ = [
     "StageArtifact",
     "StageStatus",
     "TokenUsage",
+    "deterministic_tool_policy",
     "parse_security_decision",
+    "parse_tool_policy_decision",
 ]

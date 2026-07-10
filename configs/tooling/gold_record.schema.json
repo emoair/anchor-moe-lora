@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anchor-mvp.local/schemas/tool-gold-v1.json",
-  "title": "Anchor MVP canonical tool-validation gold record",
+  "$id": "https://anchor-moe-lora.local/schemas/tool-gold-v1.json",
+  "title": "Anchor-MoE-LoRA canonical tool-validation gold record",
   "type": "object",
   "required": [
     "schema_version",

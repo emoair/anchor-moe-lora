@@ -331,7 +331,7 @@ class AutomationRunner:
             return "request_budget"
         if budgets["output_tokens_used"] >= self.config.max_output_tokens_total:
             return "output_token_budget"
-        if budgets["failures_used"] > self.config.max_failures:
+        if budgets["failures_used"] > 0 and budgets["failures_used"] >= self.config.max_failures:
             return "failure_budget"
         return None
 
@@ -724,7 +724,7 @@ def _build_teacher(
         fallback_protocol=str(value.get("fallback_protocol", "openai")),  # type: ignore[arg-type]
         api_key_env=str(value.get("api_key_env", "KIMI_API_KEY")),
         anthropic_version=str(value.get("anthropic_version", "2023-06-01")),
-        user_agent=str(value.get("user_agent", "anchor-mvp/0.1")),
+        user_agent=str(value.get("user_agent", "anchor-moe-lora/0.1")),
         timeout_seconds=float(value.get("timeout_seconds", 600)),
         max_retries=int(value.get("max_retries", 1)),
         wall_clock_deadline_seconds=float(value.get("wall_clock_deadline_seconds", 900)),
@@ -765,7 +765,7 @@ def _build_teachers(value: Mapping[str, Any], *, dry_run: bool) -> dict[str, Tea
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Gated unattended Anchor-MVP distillation")
+    parser = argparse.ArgumentParser(description="Gated unattended Anchor-MoE-LoRA distillation")
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--dry-run", action="store_true", help="run the deterministic mock E2E")
     parser.add_argument(

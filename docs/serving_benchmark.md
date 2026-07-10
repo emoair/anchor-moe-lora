@@ -2,7 +2,9 @@
 
 ## What this is
 
-The `frontend -> review -> security` path is an application-level task DAG. The
+The primary `planner -> tool_policy -> frontend -> review -> security` path is an
+application-level task DAG. The legacy `PipelineRouter.run` three-stage method remains
+available only for compatibility; new routed experiments use `run_five_stage`. The
 router changes the OpenAI-compatible request's `model` field so vLLM selects a
 loaded LoRA adapter for that call. It is **not** a learned token router, sparse
 neural MoE, or simultaneous expert activation inside the transformer.
@@ -23,13 +25,15 @@ inside the existing WSL2 Ubuntu 22.04 environment. The Bash script is the real
 entrypoint; the PowerShell wrapper only converts Windows paths and invokes it.
 See the official [vLLM GPU installation page](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/).
 
-The wrapper registers four adapters at startup and binds to localhost:
+The wrapper registers five specialists plus the mixed control at startup and binds to localhost:
 
 ```powershell
 .\scripts\serve\start_vllm.ps1 `
+  -PlannerAdapter "D:\anchor\lora-planner" `
+  -ToolPolicyAdapter "D:\anchor\lora-tool-policy" `
   -FrontendAdapter "D:\anchor\lora-frontend-gen" `
-  -ReviewAdapter "D:\anchor\lora-code-review" `
-  -SecurityAdapter "D:\anchor\lora-security-audit" `
+  -ReviewAdapter "D:\anchor\lora-frontend-review" `
+  -SecurityAdapter "D:\anchor\lora-final-security" `
   -MixedAdapter "D:\anchor\lora-mixed-all" `
   -Profile 3080ti-safe `
   -Quantization bitsandbytes `
@@ -57,7 +61,7 @@ move. Serving therefore has two explicit weight-loading paths:
 
 vLLM officially documents BitsAndBytes in-flight quantization for its server and
 per-request LoRA serving through `--lora-modules`. The launcher composes those
-supported surfaces and registers all four adapters. It intentionally does not set
+supported surfaces and registers all six adapters. It intentionally does not set
 a single `qlora_adapter_name_or_path`, which would bind loading to one adapter and
 conflict with this experiment's multi-adapter routing. Only revisit that if the
 exact installed vLLM release explicitly requires it during a real smoke. See
@@ -90,7 +94,7 @@ deliberately accepts LoRA ranks up to 16 only.
 | Setting | `3080ti-safe` (default) | `throughput` (gated) |
 | --- | --- | --- |
 | model length | 1024 initially; 2048 allowed as a separate smoke | 2048 |
-| sequences / active LoRAs / CPU LoRAs | 1 / 1 / 4 | 1 / 1 / 4 |
+| sequences / active LoRAs / CPU LoRAs | 1 / 1 / 6 | 1 / 1 / 6 |
 | maximum LoRA rank | 16 | 16 |
 | execution | `--enforce-eager` | CUDA graphs allowed by removing eager enforcement |
 | prefix cache | explicitly off | explicitly on |
@@ -100,7 +104,7 @@ deliberately accepts LoRA ranks up to 16 only.
 | KV-cache dtype | `auto` | `auto` |
 
 Do not switch to `throughput` until the safe profile boots without OOM, both
-1024- and 2048-token smoke requests complete, all four adapters load, a complete
+1024- and 2048-token smoke requests complete, all six adapters load, a complete
 DAG succeeds, and post-request VRAM headroom and output parity are recorded. The
 throughput profile enables prefix caching and chunked prefill and permits CUDA
 graph capture, so it is a measured optimization gate rather than the default.
@@ -120,7 +124,7 @@ health readiness and after the longest smoke request from a second terminal:
 # Start vLLM in the first terminal, then wait for /health in a second terminal.
 Invoke-RestMethod http://127.0.0.1:8000/health
 .\scripts\serve\probe_vram.ps1 -Label post_start
-# Run one 1024/2048-token request and one complete three-stage DAG.
+# Run one 1024/2048-token request and one complete five-stage DAG.
 .\scripts\serve\probe_vram.ps1 -Label post_request
 ```
 
@@ -145,13 +149,18 @@ from anchor_mvp.serving import (
 
 client = OpenAICompatibleClient(ClientConfig(base_url="http://127.0.0.1:8000/v1"))
 router = PipelineRouter(client, PipelineConfig(adapters=AdapterSelection(
-    base="base-model",
+    base="gemma4-12b-base-q4",
+    planner="lora-planner",
+    tool_policy="lora-tool-policy",
     frontend="lora-frontend-gen",
-    review="lora-code-review",
-    security="lora-security-audit",
+    review="lora-frontend-review",
+    security="lora-final-security",
     mixed="lora-mixed-all",
 )))
-result = asyncio.run(router.run("Build an accessible product landing page."))
+result = asyncio.run(router.run_five_stage(
+    "Build an accessible product landing page.",
+    tool_proposal_labels=("INERT_TOOL_READ_WORKSPACE", "INERT_TOOL_NPM_BUILD"),
+))
 ```
 
 The client depends on the OpenAI-compatible HTTP surface, not on vLLM Python

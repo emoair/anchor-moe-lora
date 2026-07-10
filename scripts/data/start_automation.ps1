@@ -24,10 +24,9 @@ if (-not $NoWaitCooldown) {
     $arguments += "--wait-cooldown"
 }
 
-Write-Host "Anchor-MVP unattended distillation"
+Write-Host "Anchor-MoE-LoRA unattended distillation"
 Write-Host "Config: $Config"
 Write-Host "Status: data output directory / automation / status.json"
 Write-Host "The visible process remains active across persisted rate-limit cooldowns."
 & python @arguments
 exit $LASTEXITCODE
-

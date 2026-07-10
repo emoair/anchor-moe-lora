@@ -22,6 +22,8 @@ class AdapterSelection:
     frontend: str
     review: str
     security: str
+    planner: str | None = None
+    tool_policy: str | None = None
     mixed: str | None = None
 
 
@@ -58,6 +60,8 @@ class PipelineResult:
     success: bool
     fail_closed: bool = False
     errors: list[str] = field(default_factory=list)
+    tool_policy_decision: str | None = None
+    deterministic_tool_policy_decision: str | None = None
 
     @property
     def usage(self) -> TokenUsage:
@@ -127,6 +131,111 @@ class PipelineRouter:
             fail_closed=False,
         )
 
+    async def run_five_stage(
+        self,
+        requirement: str,
+        *,
+        tool_proposal_labels: tuple[str, ...],
+    ) -> PipelineResult:
+        """Run the primary five-stage route with a deterministic policy authority.
+
+        Tool proposals are inert labels only. The model's policy verdict is advisory;
+        both it and the local allowlist must approve before the coder is called.
+        """
+
+        artifacts: list[StageArtifact] = []
+        planner = await self._run_stage(
+            "planner",
+            self.config.adapters.planner or self.config.adapters.base,
+            requirement,
+            "Return a concise public implementation plan with testable deliverables; do not write code.",
+        )
+        artifacts.append(planner)
+        if planner.status is not StageStatus.SUCCEEDED:
+            return self._failed_closed(requirement, artifacts, planner)
+
+        labels = "\n".join(tool_proposal_labels) or "[NO_PROPOSALS]"
+        policy_input = (
+            f"REQUIREMENT:\n{requirement}\n\nPLAN:\n{planner.output_text}\n\n"
+            f"INERT TOOL PROPOSALS:\n{labels}"
+        )
+        policy = await self._run_stage(
+            "tool_policy",
+            self.config.adapters.tool_policy or self.config.adapters.base,
+            policy_input,
+            "Classify inert tool labels. Return exactly APPROVE, BLOCK, or ESCALATE. "
+            "This verdict never grants runtime authority.",
+        )
+        artifacts.append(policy)
+        if policy.status is not StageStatus.SUCCEEDED:
+            return self._failed_closed(requirement, artifacts, policy)
+        model_policy = parse_tool_policy_decision(policy.output_text)
+        enforced_policy = deterministic_tool_policy(tool_proposal_labels)
+        if model_policy != "APPROVE" or enforced_policy != "APPROVE":
+            policy.status = StageStatus.FAILED
+            policy.error = (
+                f"policy stopped route: model={model_policy or 'AMBIGUOUS'}, "
+                f"deterministic={enforced_policy}"
+            )
+            result = self._failed_closed(requirement, artifacts, policy)
+            result.tool_policy_decision = model_policy
+            result.deterministic_tool_policy_decision = enforced_policy
+            return result
+
+        frontend_input = (
+            f"REQUIREMENT:\n{requirement}\n\nAPPROVED PUBLIC PLAN:\n{planner.output_text}"
+        )
+        frontend = await self._run_stage(
+            "frontend",
+            self.config.adapters.frontend,
+            frontend_input,
+            "Produce a complete implementation for the website requirement. Return only the code.",
+        )
+        artifacts.append(frontend)
+        if frontend.status is not StageStatus.SUCCEEDED:
+            return self._failed_closed(requirement, artifacts, frontend)
+
+        review_input = (
+            f"REQUIREMENT:\n{requirement}\n\nCANDIDATE CODE:\n{frontend.output_text}"
+        )
+        review = await self._run_stage(
+            "review",
+            self.config.adapters.review,
+            review_input,
+            "Review and repair the candidate. Return the complete corrected code only.",
+        )
+        artifacts.append(review)
+        if review.status is not StageStatus.SUCCEEDED:
+            return self._failed_closed(requirement, artifacts, review)
+
+        security_input = (
+            f"REQUIREMENT:\n{requirement}\n\nREVIEWED CODE:\n{review.output_text}"
+        )
+        security = await self._run_stage(
+            "security",
+            self.config.adapters.security,
+            security_input,
+            "Audit intent and code. Return exactly one label [PASS] or [BLOCK], no other text.",
+        )
+        artifacts.append(security)
+        if security.status is not StageStatus.SUCCEEDED:
+            return self._failed_closed(requirement, artifacts, security)
+        decision = parse_security_decision(security.output_text)
+        if decision is None:
+            security.status = StageStatus.FAILED
+            security.error = "ambiguous security verdict"
+            return self._failed_closed(requirement, artifacts, security)
+        return PipelineResult(
+            requirement=requirement,
+            decision=decision,
+            final_code=review.output_text if decision == "PASS" else None,
+            artifacts=artifacts,
+            success=True,
+            fail_closed=False,
+            tool_policy_decision=model_policy,
+            deterministic_tool_policy_decision=enforced_policy,
+        )
+
     async def _run_stage(
         self, stage: str, model: str, input_text: str, system_prompt: str
     ) -> StageArtifact:
@@ -194,3 +303,36 @@ def parse_security_decision(text: str) -> str | None:
         pass
     matches = {item.upper() for item in re.findall(r"\[(PASS|BLOCK)\]", stripped, re.IGNORECASE)}
     return matches.pop() if len(matches) == 1 else None
+
+
+_APPROVED_TOOL_LABELS = {
+    "INERT_TOOL_READ_WORKSPACE",
+    "INERT_TOOL_EDIT_SUBMISSION",
+    "INERT_TOOL_NPM_BUILD",
+    "INERT_TOOL_NPM_TEST",
+}
+_ESCALATE_TOOL_LABELS = {
+    "INERT_TOOL_ADD_DEPENDENCY_APPROVAL",
+    "INERT_TOOL_EXTERNAL_ASSET_APPROVAL",
+}
+
+
+def parse_tool_policy_decision(text: str) -> str | None:
+    matches = {
+        item.upper()
+        for item in re.findall(r"\b(APPROVE|BLOCK|ESCALATE)\b", text, re.IGNORECASE)
+    }
+    return matches.pop() if len(matches) == 1 else None
+
+
+def deterministic_tool_policy(labels: tuple[str, ...]) -> str:
+    proposed = set(labels)
+    if not proposed:
+        return "BLOCK"
+    if proposed <= _APPROVED_TOOL_LABELS:
+        return "APPROVE"
+    if proposed <= (_APPROVED_TOOL_LABELS | _ESCALATE_TOOL_LABELS) and proposed.intersection(
+        _ESCALATE_TOOL_LABELS
+    ):
+        return "ESCALATE"
+    return "BLOCK"

@@ -37,9 +37,13 @@ py -m anchor_mvp.benchmark.heldout_cli check-leakage `
   --fixtures-root examples\benchmark\fixtures `
   --manifest artifacts\benchmark\heldout_v1\manifest.json `
   --leak-audit artifacts\benchmark\heldout_v1\leak_audit.prebulk.json `
+  --training-jsonl data\live_smoke\data_plan.jsonl `
+  --training-jsonl data\live_smoke\data_tool_policy.jsonl `
   --training-jsonl data\live_smoke\data_frontend.jsonl `
   --training-jsonl data\live_smoke\data_review.jsonl `
   --training-jsonl data\live_smoke\data_security.jsonl `
+  --sop-source skills\plan.md `
+  --sop-source skills\tool_policy.md `
   --sop-source skills\frontend.md `
   --sop-source skills\review.md `
   --sop-source skills\security.yaml
@@ -68,7 +72,13 @@ The main experiment fixes this call order and the per-stage completion-token cap
 | B `mixed_matched_calls` | One mixed-all LoRA at all five stages | Single-adapter control |
 | C `c_pipeline` | Five task-specific LoRAs selected by the application router | Task-routed pipeline |
 
-All three have five calls and identical token caps. A one-call base result may be
+All three are required to load the exact same local Q4/NF4 base artifact and tokenizer.
+The spec pins one shared source SHA and quantization contract; the live runner refuses
+to start until the generated Q4 artifact SHA is populated identically for A/B/C. This
+is currently a pending gate, not a claim that the Q4 artifact already exists. They
+have five calls, identical stage order, and identical completion-token caps. Actual
+prompt/total tokens remain measured outcomes because earlier stage outputs can differ.
+A one-call base result may be
 reported as an auxiliary product-shape baseline only; it cannot establish the
 benefit of routing. The C arm is not a token-level neural MoE.
 

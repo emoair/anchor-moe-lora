@@ -64,6 +64,10 @@ class MockBackend:
     def _default_response(request: CompletionRequest) -> str:
         model = request.model.lower()
         user_text = request.messages[-1].content if request.messages else ""
+        if "tool-policy" in model or "tool_policy" in model:
+            return "APPROVE"
+        if "planner" in model:
+            return "Plan: implement the bounded component, then validate accessibility and behavior."
         if "security" in model:
             decision = "BLOCK" if "<malicious>" in user_text.lower() else "PASS"
             return json.dumps({"decision": decision, "reason": "mock policy"})
@@ -72,4 +76,3 @@ class MockBackend:
         if "frontend" in model:
             return "<!doctype html><html><body>draft</body></html>"
         return "<!doctype html><html><body>base</body></html>"
-

@@ -27,14 +27,21 @@ from .runner import BenchmarkRunner
 class HeldoutBenchmarkRunner(BenchmarkRunner):
     """Five-stage held-out runner with a non-authoritative model policy stage."""
 
-    def __init__(self, *args: Any, manifest_sha256: str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        manifest_sha256: str,
+        require_verified_q4: bool = False,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.manifest_sha256 = manifest_sha256
+        self.require_verified_q4 = require_verified_q4
 
     async def run_suite(
         self, specs: list[BaselineSpec], cases: list[BenchmarkCase]
     ) -> list[BenchmarkRecord]:
-        validate_primary_specs(specs)
+        validate_primary_specs(specs, require_verified_q4=self.require_verified_q4)
         return await super().run_suite(specs, cases)
 
     async def _run_pipeline(

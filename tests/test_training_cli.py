@@ -105,7 +105,11 @@ def test_dry_run_never_imports_runtime_or_requires_dataset(monkeypatch, tmp_path
     assert manifest["training_precision"]["base_weights"].startswith("4-bit NF4")
     assert manifest["training_precision"]["load_strategy"] == "bnb_nf4_online"
     assert manifest["training_profile"]["max_steps"] == 8
-    assert manifest["datasets"][0]["exists"] is False
+    # The resumable live corpus may exist in a developer checkout but is untracked on CI.
+    # Dry-run must remain valid in both states and must not import the heavy runtime.
+    assert isinstance(manifest["datasets"][0]["exists"], bool)
+    if manifest["datasets"][0]["exists"]:
+        assert manifest["datasets"][0]["ok"] is True
 
 
 def test_preflight_writes_blocked_manifest_without_importing_runtime(

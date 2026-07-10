@@ -69,6 +69,9 @@ class BaselineSpec:
     workflow: Workflow
     prompt_style: PromptStyle = "direct"
     model: str | None = None
+    base_contract_id: str = ""
+    base_source_sha256: str = ""
+    q4_artifact_sha256: str | None = None
     stage_models: dict[str, str] = field(default_factory=dict)
     max_tokens_per_call: int = 1024
     matched_tokens_to: str | None = None
@@ -82,6 +85,13 @@ class BaselineSpec:
             workflow=payload["workflow"],
             prompt_style=payload.get("prompt_style", "direct"),
             model=payload.get("model"),
+            base_contract_id=str(payload.get("base_contract_id", "")),
+            base_source_sha256=str(payload.get("base_source_sha256", "")),
+            q4_artifact_sha256=(
+                str(payload["q4_artifact_sha256"])
+                if payload.get("q4_artifact_sha256") is not None
+                else None
+            ),
             stage_models={str(k): str(v) for k, v in payload.get("stage_models", {}).items()},
             max_tokens_per_call=int(payload.get("max_tokens_per_call", 1024)),
             matched_tokens_to=payload.get("matched_tokens_to"),

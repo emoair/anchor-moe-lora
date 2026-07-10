@@ -13,6 +13,7 @@ from anchor_mvp.benchmark import (
     verify_heldout_manifest,
 )
 from anchor_mvp.benchmark.heldout_mock import heldout_mock_handler
+from anchor_mvp.benchmark.heldout import validate_primary_specs
 from anchor_mvp.serving import MockBackend
 
 
@@ -82,3 +83,10 @@ def test_mock_primary_arms_are_exactly_five_stage_matched():
     assert all(record.tool_policy_decision == "APPROVE" for record in records)
     assert all(record.deterministic_tool_policy_decision == "APPROVE" for record in records)
     assert all(record.evaluation["model_tool_policy_was_executed"] is False for record in records)
+
+
+def test_live_primary_gate_requires_real_q4_artifact_digest():
+    specs = load_specs(ROOT / "configs" / "benchmark" / "heldout_q4_v1.json")
+
+    with pytest.raises(HeldoutGateError, match="generated Q4 artifact SHA-256"):
+        validate_primary_specs(specs, require_verified_q4=True)

@@ -82,7 +82,7 @@ def test_anthropic_request_uses_verified_headers(monkeypatch) -> None:
     assert captured["headers"]["x-api-key"] == "secret-for-test"
     assert captured["headers"]["anthropic-version"] == "2023-06-01"
     assert captured["headers"]["content-type"] == "application/json"
-    assert captured["headers"]["user-agent"] == "anchor-mvp/0.1"
+    assert captured["headers"]["user-agent"] == "anchor-moe-lora/0.1"
     assert captured["body"]["model"] == "kimi-for-coding"
     assert captured["body"]["thinking"] == {"type": "enabled", "budget_tokens": 1024}
     assert "temperature" not in captured["body"]

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("frontend_gen", "code_review", "security_audit")]
+    [ValidateSet("planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate")]
     [string]$Adapter = "frontend_gen",
     [switch]$Execute,
     [switch]$AllowModelDownload,

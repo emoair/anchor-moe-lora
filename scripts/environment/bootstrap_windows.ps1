@@ -27,14 +27,13 @@ if ($LASTEXITCODE -ne 0) { throw "Could not install CUDA PyTorch" }
     "transformers>=5.10.1,<6" "peft>=0.19" trl datasets accelerate `
     bitsandbytes==0.48.2 sentencepiece safetensors pyyaml httpx `
     "pydantic>=2,<3" protobuf pytest
-if ($LASTEXITCODE -ne 0) { throw "Could not install Anchor-MVP dependencies" }
+if ($LASTEXITCODE -ne 0) { throw "Could not install Anchor-MoE-LoRA dependencies" }
 
 & $PythonExe -m pip install --disable-pip-version-check -e $ProjectRoot
-if ($LASTEXITCODE -ne 0) { throw "Could not install Anchor-MVP editable package" }
+if ($LASTEXITCODE -ne 0) { throw "Could not install Anchor-MoE-LoRA editable package" }
 
 & $PythonExe -m pytest $ProjectRoot
-if ($LASTEXITCODE -ne 0) { throw "Anchor-MVP tests failed" }
+if ($LASTEXITCODE -ne 0) { throw "Anchor-MoE-LoRA tests failed" }
 
 Write-Host "Environment ready: $EnvironmentName"
 Write-Host "Python: $PythonExe"
-

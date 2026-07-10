@@ -17,6 +17,8 @@ def _config(**overrides):
             frontend="lora-frontend-gen",
             review="lora-code-review",
             security="lora-security-audit",
+            planner="lora-planner",
+            tool_policy="lora-tool-policy",
         ),
         "timeout_seconds": 1.0,
         "max_attempts": 2,
@@ -57,6 +59,48 @@ def test_pipeline_retries_then_succeeds():
     assert result.artifacts[0].attempts == 2
     assert result.artifacts[0].backend_attempts == 2
     assert backend.call_counts["lora-frontend-gen"] == 2
+
+
+def test_five_stage_pipeline_uses_specialists_and_local_policy_authority():
+    backend = MockBackend()
+    result = asyncio.run(
+        PipelineRouter(backend, _config()).run_five_stage(
+            "Build a page",
+            tool_proposal_labels=("INERT_TOOL_READ_WORKSPACE", "INERT_TOOL_NPM_BUILD"),
+        )
+    )
+
+    assert result.success is True
+    assert result.tool_policy_decision == "APPROVE"
+    assert result.deterministic_tool_policy_decision == "APPROVE"
+    assert [request.model for request in backend.requests] == [
+        "lora-planner",
+        "lora-tool-policy",
+        "lora-frontend-gen",
+        "lora-code-review",
+        "lora-security-audit",
+    ]
+    assert [artifact.stage for artifact in result.artifacts] == [
+        "planner",
+        "tool_policy",
+        "frontend",
+        "review",
+        "security",
+    ]
+
+
+def test_five_stage_pipeline_blocks_unknown_tool_before_coder():
+    backend = MockBackend()
+    result = asyncio.run(
+        PipelineRouter(backend, _config()).run_five_stage(
+            "Build a page",
+            tool_proposal_labels=("INERT_TOOL_UNKNOWN_SIDE_EFFECT",),
+        )
+    )
+
+    assert result.fail_closed is True
+    assert result.deterministic_tool_policy_decision == "BLOCK"
+    assert backend.call_counts["lora-frontend-gen"] == 0
 
 
 def test_pipeline_fails_closed_and_stops_downstream():

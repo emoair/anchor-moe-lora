@@ -6,7 +6,7 @@
       "allowed_max_model_len": [1024, 2048],
       "max_num_seqs": 1,
       "max_loras": 1,
-      "max_cpu_loras": 4,
+      "max_cpu_loras": 6,
       "max_lora_rank": 16,
       "enforce_eager": true,
       "enable_prefix_caching": false,
@@ -21,7 +21,7 @@
       "allowed_max_model_len": [1024, 2048],
       "max_num_seqs": 1,
       "max_loras": 1,
-      "max_cpu_loras": 4,
+      "max_cpu_loras": 6,
       "max_lora_rank": 16,
       "enforce_eager": false,
       "enable_prefix_caching": true,
@@ -32,7 +32,7 @@
       "gate": [
         "safe profile boots without OOM",
         "1024 and 2048 token smoke requests complete",
-        "all four adapters load and one full DAG completes",
+        "all six adapters load and one full five-stage DAG completes",
         "post-request VRAM headroom is recorded",
         "latency and output parity are accepted"
       ]

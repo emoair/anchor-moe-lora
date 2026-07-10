@@ -14,7 +14,7 @@ from .runner import BenchmarkRunner
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Anchor-MVP serving benchmarks")
+    parser = argparse.ArgumentParser(description="Run Anchor-MoE-LoRA serving benchmarks")
     parser.add_argument("--specs", required=True, help="Benchmark JSON configuration")
     parser.add_argument("--cases", required=True, help="Input cases in JSONL format")
     parser.add_argument("--output", required=True, help="Output record JSONL")

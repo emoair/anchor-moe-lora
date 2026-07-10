@@ -1,12 +1,14 @@
-# Five-stage routed-adapter MVP
+# Anchor-MoE-LoRA five-stage routed-adapter MVP
 
 The MVP route is strictly ordered per seed:
 
 `planner -> tool_policy -> frontend_gen -> frontend_review -> security_gate`
 
-All adapters use the same frozen and identically serialized Q4/NF4 base. Initial
-LoRA rank is at most 16. A new domain coder is valid only when its paired domain
-reviewer is registered and evaluated in the same change.
+All adapters use the same frozen and identically serialized Q4/NF4 base. The model
+revision, quantization settings, tokenizer, local artifact digest, stage order, and
+per-stage token cap are experiment invariants across A/B/C. Initial LoRA rank is at
+most 16. A new domain coder is valid only when its paired domain reviewer is
+registered and evaluated in the same change.
 
 | Stage | Input | Output | Failure behavior |
 | --- | --- | --- | --- |
@@ -29,7 +31,9 @@ recognized by seed provenance and are never rewritten during five-stage resume.
 
 For benchmarks, the primary fair comparison is five matched stages: A uses the
 base model at every stage, B uses the same mixed adapter at every stage, and C uses
-the five specialist adapters. Single-call A/B results remain auxiliary only.
+the five specialist adapters. A is the absolute reference and index 100. Single-call
+A/B results remain auxiliary only; changing the serialized Q4 artifact invalidates
+the primary comparison.
 
 ## Two-call live smoke
 
@@ -48,4 +52,3 @@ python -m anchor_mvp data --config configs/data/default.yaml `
 
 Expected requests: one `plan`, then one `tool_policy`. If either fails validation,
 the second/downstream dataset is not promoted and no bulk concurrency is enabled.
-

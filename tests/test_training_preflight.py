@@ -21,9 +21,18 @@ CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_smoke.yaml"
 
 
 def canonical_record(expert: str, identifier: str, *, live: bool = True) -> dict:
-    if expert == "security_audit":
+    if expert == "security_gate":
         assistant = "[BLOCK]"
         output = {"decision": "BLOCK", "rationale": "Untrusted HTML reaches a DOM sink."}
+    elif expert == "tool_policy":
+        assistant = "APPROVE"
+        output = {"decision": "APPROVE", "rationale": "Only inert local labels are proposed."}
+    elif expert == "planner":
+        output = {
+            "summary": "Produce one bounded component.",
+            "steps": [{"id": "p1", "goal": "Implement", "deliverable": "Component"}],
+        }
+        assistant = json.dumps(output)
     else:
         assistant = "export const value = 1;"
         output = {"code": assistant}
@@ -70,9 +79,11 @@ def fixture_config(tmp_path: Path, *, omit: str | None = None, live: bool = True
     config = copy.deepcopy(load_training_config(CONFIG))
     config["paths"]["project_root"] = "."
     mapping = {
+        "planner": "data/live_smoke/data_plan.jsonl",
+        "tool_policy": "data/live_smoke/data_tool_policy.jsonl",
         "frontend_gen": "data/live_smoke/data_frontend.jsonl",
-        "code_review": "data/live_smoke/data_review.jsonl",
-        "security_audit": "data/live_smoke/data_security.jsonl",
+        "frontend_review": "data/live_smoke/data_review.jsonl",
+        "security_gate": "data/live_smoke/data_security.jsonl",
     }
     config["scale_gate"]["required_datasets"] = mapping
     for expert, relative in mapping.items():
@@ -141,16 +152,16 @@ def test_preflight_passes_complete_live_canonical_fixture(tmp_path: Path) -> Non
     config = fixture_config(tmp_path)
     report, cases = build_preflight_report(config, tmp_path, ready_dependencies())
     assert report["passed"] is True
-    assert len(cases) == 3
+    assert len(cases) == 5
     assert all(gate["passed"] for gate in report["gates"].values())
     assert report["base"]["checksum_source"] == "verified-download-manifest"
 
 
 def test_preflight_blocks_when_any_expert_file_is_missing(tmp_path: Path) -> None:
-    config = fixture_config(tmp_path, omit="security_audit")
+    config = fixture_config(tmp_path, omit="security_gate")
     report, _ = build_preflight_report(config, tmp_path, ready_dependencies())
     assert report["passed"] is False
-    assert report["gates"]["three_live_datasets_present"]["passed"] is False
+    assert report["gates"]["five_live_datasets_present"]["passed"] is False
     assert report["gates"]["canonical_schema_valid"]["passed"] is False
 
 

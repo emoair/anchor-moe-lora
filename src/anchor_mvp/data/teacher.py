@@ -110,7 +110,7 @@ class CompatibleTeacher:
     fallback_base_url: str = "https://api.kimi.com/coding/v1"
     api_key_env: str = "KIMI_API_KEY"
     anthropic_version: str = "2023-06-01"
-    user_agent: str = "anchor-mvp/0.1"
+    user_agent: str = "anchor-moe-lora/0.1"
     timeout_seconds: float = 600.0
     max_retries: int = 1
     temperature: float = 0.2

@@ -11,11 +11,14 @@ from typing import Any, Mapping
 
 
 ALLOWED_ADAPTERS = (
+    "planner",
+    "tool_policy",
     "frontend_gen",
-    "code_review",
-    "security_audit",
+    "frontend_review",
+    "security_gate",
     "mixed_all",
 )
+SPECIALIST_ADAPTERS = ALLOWED_ADAPTERS[:-1]
 ALLOWED_RANKS = (16, 32, 64)
 _INFERENCE_ONLY_SERIALIZATION_MARKERS = ("-gguf", ".gguf", "-w4a16-ct")
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
@@ -199,8 +202,8 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         if not isinstance(datasets, list) or not datasets or not all(isinstance(p, str) and p for p in datasets):
             raise ConfigError(f"adapters.{name}.datasets must be a non-empty list of paths")
     mixed = adapters["mixed_all"]["datasets"]
-    if len(mixed) < 3:
-        raise ConfigError("mixed_all must combine all three expert datasets")
+    if len(mixed) < len(SPECIALIST_ADAPTERS):
+        raise ConfigError("mixed_all must combine all five specialist datasets")
 
     guardrails = _mapping(config, "guardrails")
     if guardrails.get("reject_deployment_artifacts_for_training") is not True:
@@ -208,8 +211,8 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
 
     scale_gate = _mapping(config, "scale_gate")
     required_datasets = _mapping(scale_gate, "required_datasets")
-    if set(required_datasets) != {"frontend_gen", "code_review", "security_audit"}:
-        raise ConfigError("scale_gate.required_datasets must name all three experts")
+    if set(required_datasets) != set(SPECIALIST_ADAPTERS):
+        raise ConfigError("scale_gate.required_datasets must name all five specialists")
     for expert, path in required_datasets.items():
         if not isinstance(path, str) or not path.strip():
             raise ConfigError(f"scale_gate.required_datasets.{expert} must be a path")
