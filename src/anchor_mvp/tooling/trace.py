@@ -44,6 +44,13 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
         for item in _walk_dicts(event):
             if str(item.get("type", "")).casefold() == "error":
                 codes.append("agent_error_event")
+            item_codes = {
+                str(value).casefold()
+                for key, value in item.items()
+                if str(key).casefold() in code_names
+                and isinstance(value, str)
+                and _SAFE_ERROR_TOKEN.fullmatch(value)
+            }
             for key, value in item.items():
                 name = str(key).casefold()
                 if name in status_names:
@@ -52,7 +59,9 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
                     except (TypeError, ValueError):
                         continue
                     if status == 400:
-                        codes.append("invalid_request")
+                        codes.append(
+                            "invalid_url" if "invalid_url" in item_codes else "invalid_request"
+                        )
                     elif status == 401:
                         codes.append("authentication_failed")
                     elif status == 403:
@@ -70,7 +79,11 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
                     and isinstance(value, str)
                     and _SAFE_ERROR_TOKEN.fullmatch(value)
                 ):
-                    codes.append(f"agent_{value.casefold()}")
+                    normalized = value.casefold()
+                    if normalized == "invalid_url":
+                        codes.append("invalid_url")
+                    else:
+                        codes.append(f"agent_{normalized}")
     if stderr.strip():
         codes.append("agent_stderr_present")
     return tuple(dict.fromkeys(codes))

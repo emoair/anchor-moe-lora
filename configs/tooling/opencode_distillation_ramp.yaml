@@ -1,0 +1,11 @@
+schema_version: anchor.opencode-live-batch.v1
+candidate_manifest: configs/tooling/execution_candidates_p0.yaml
+split_policy: configs/tooling/execution_split_policy_v1.yaml
+skill_registry: configs/data/skill_sources.yaml
+workspace_root: runs/tooling-live
+gold_output: artifacts/tooling/live_gold.jsonl
+concurrency_stages: [1, 2, 4, 8]
+samples_per_stage: [1, 2, 4, 8]
+minimum_stage_success_rate: 0.8
+max_iterations: 8
+timeout_seconds: 900

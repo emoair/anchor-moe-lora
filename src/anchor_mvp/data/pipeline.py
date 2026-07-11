@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .cleaning import (
+    build_inert_security_fixture,
     contains_active_payload,
     extract_frontend_payload,
     extract_json_object,
@@ -16,7 +17,7 @@ from .cleaning import (
 )
 from .mutator import mutate_frontend_code
 from .prompts import seed_prompt, task_prompt, template_sha256
-from .proposals import generate_inert_tool_proposals
+from .proposals import deterministic_tool_policy_oracle, generate_inert_tool_proposals
 from .schema import DistilledRecord, SeedDemand, TASK_TYPES, TaskType, normalized_text, stable_id
 from .sops import load_sop_directory
 from .storage import JsonlStore, SeedStore, completed_seed_ids
@@ -168,6 +169,7 @@ class DistillationPipeline:
         *,
         seed_count: int,
         tasks: Iterable[TaskType] = TASK_TYPES,
+        excluded_seed_ids: Iterable[str] = (),
     ) -> PipelineReport:
         requested = tuple(tasks)
         unknown = set(requested).difference(TASK_TYPES)
@@ -175,6 +177,7 @@ class DistillationPipeline:
             raise ValueError(f"unknown tasks: {', '.join(sorted(unknown))}")
         # User ordering cannot bypass same-seed dependencies.
         selected = tuple(task for task in TASK_TYPES if task in requested)
+        excluded = frozenset(str(seed_id) for seed_id in excluded_seed_ids)
         seeds = await self.generate_seeds(seed_count)
         written: dict[str, int] = {}
         skipped: dict[str, int] = {}
@@ -185,7 +188,11 @@ class DistillationPipeline:
         for task_type in selected:
             store = JsonlStore(self.output_dir / f"data_{task_type}.jsonl")
             completed = completed_seed_ids(store.records)
-            pending = [(index, seed) for index, seed in enumerate(seeds) if seed.seed_id not in completed]
+            pending = [
+                (index, seed)
+                for index, seed in enumerate(seeds)
+                if seed.seed_id not in completed and seed.seed_id not in excluded
+            ]
             skipped[task_type] = len(seeds) - len(pending)
 
             async def distill(index: int, original_seed: SeedDemand) -> DistilledRecord:
@@ -193,9 +200,11 @@ class DistillationPipeline:
                 task_input: dict[str, Any] | None = None
                 provenance_extra: dict[str, object] | None = None
                 known_benign_defect: str | None = None
+                authoritative_output: dict[str, Any] | None = None
                 if task_type == "tool_policy":
                     plan_source = self._upstream_record("plan", seed.seed_id)
                     proposals, proposal_manifest = generate_inert_tool_proposals(seed, index)
+                    authoritative_output, oracle_manifest = deterministic_tool_policy_oracle(proposals)
                     task_input = {
                         "plan": dict(plan_source["output"]),
                         "tool_proposals": proposals,
@@ -203,6 +212,7 @@ class DistillationPipeline:
                     provenance_extra = {
                         "source_plan_record_id": str(plan_source["id"]),
                         "tool_proposals": proposal_manifest,
+                        "label_oracle": oracle_manifest,
                     }
                 elif task_type == "frontend":
                     plan_source = self._upstream_record("plan", seed.seed_id)
@@ -232,8 +242,19 @@ class DistillationPipeline:
                     }
                 elif task_type == "security":
                     source = self._upstream_record("review", seed.seed_id)
-                    task_input = {"reviewed_code": str(source["output"]["code"])}
-                    provenance_extra = {"source_review_record_id": str(source["id"])}
+                    reviewed_code, authoritative_output, fixture_manifest = build_inert_security_fixture(
+                        str(source["output"]["code"]), index
+                    )
+                    task_input = {"reviewed_code": reviewed_code}
+                    provenance_extra = {
+                        "source_review_record_id": str(source["id"]),
+                        "security_fixture": fixture_manifest,
+                        "label_oracle": {
+                            "oracle": "anchor-security-fixture-gold-v1",
+                            "decision": authoritative_output["decision"],
+                            "sha256": fixture_manifest["gold_sha256"],
+                        },
+                    }
                 system, user = task_prompt(
                     task_type,
                     seed,
@@ -249,6 +270,16 @@ class DistillationPipeline:
                     provenance_extra["payload_extraction"] = extraction
                 else:
                     payload = extract_json_object(raw_response)
+                if authoritative_output is not None:
+                    payload["output"] = authoritative_output
+                    decision = str(authoritative_output["decision"])
+                    payload["decision_trace"] = [
+                        {
+                            "check": "deterministic label oracle",
+                            "evidence": "The inert fixture or proposal manifest defines the gold class.",
+                            "action": f"Emit {decision} without executing or reconstructing payloads.",
+                        }
+                    ]
                 if task_type == "frontend":
                     normalization = _normalize_frontend_payload(payload)
                     provenance_extra["payload_normalization"] = normalization

@@ -23,6 +23,10 @@ max_safety_violations: 0
 max_failures: 200
 max_requests: 1200
 max_output_tokens_total: 20000000
+# Change this operator-controlled identifier only after the provider quota resets.
+# The previous epoch is archived while the durable failure ledger is retained.
+quota_epoch_id: kimi-2026-07-11-reset-1
+max_failure_retries: 2
 max_stagnant_gate_rounds: 5
 
 timeout_seconds: 600

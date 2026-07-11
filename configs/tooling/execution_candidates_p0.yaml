@@ -1,0 +1,51 @@
+schema_version: anchor.execution-candidates.v1
+status: candidate-not-training-data
+tasks:
+  - &candidate
+    task_id: sidex-p0-001-accessible-empty-state
+    source_dir: fixtures/execution/sidex-fixture-v0-status-list
+    task: Add an accessible empty-state rendering path to the status list, preserve existing behavior, and validate the implementation.
+    skill_sources: [github-awesome-copilot-review-and-refactor]
+    required_validations: [build, test, lint]
+  - <<: *candidate
+    task_id: sidex-p0-002-stable-status-sort
+    task: Add a stable status sorting helper with deterministic handling of equal priorities, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-003-unknown-status-fallback
+    task: Add a safe visible fallback for unknown status values without hiding data, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-004-status-count-summary
+    task: Add a derived status count summary without mutating caller-owned input, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-005-case-insensitive-filter
+    task: Add a case-insensitive status filter with explicit empty-query behavior, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-006-keyboard-focus-order
+    task: Improve the generated list markup so interactive rows have a deterministic keyboard focus order, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-007-semantic-list-markup
+    task: Improve the generated output with semantic list markup and accessible status labels, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-008-nonmutating-normalization
+    task: Add non-mutating normalization for surrounding whitespace in display labels, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-009-deterministic-row-ids
+    task: Add deterministic collision-resistant row identifiers derived only from public row fields, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-010-limit-visible-rows
+    task: Add an optional validated maximum visible row count with a safe default, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-011-group-by-status
+    task: Add a non-mutating grouping helper for status values with deterministic group ordering, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-012-duplicate-id-defense
+    task: Detect duplicate item identifiers and render a deterministic safe fallback instead of ambiguous markup, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-013-escaped-display-labels
+    task: Ensure all caller-supplied display labels are safely escaped before markup generation, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-014-filter-result-metadata
+    task: Add public result-count metadata after filtering without exposing internal state, preserve existing behavior, and validate it.
+  - <<: *candidate
+    task_id: sidex-p0-015-input-shape-guard
+    task: Add a fail-closed input shape guard with a concise public error, preserve valid input behavior, and validate it.

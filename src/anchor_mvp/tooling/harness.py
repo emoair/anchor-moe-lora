@@ -71,11 +71,17 @@ class ToolingHarness:
             item.status == "PASS" for item in validations if item.script_present
         )
         errors = tuple(dict.fromkeys(execution.error_codes + validation_errors))
+        if execution.public_outcome is None:
+            errors = tuple(dict.fromkeys(errors + ("public_outcome_missing",)))
+        elif execution.public_outcome.status != "completed":
+            errors = tuple(dict.fromkeys(errors + ("public_outcome_not_completed",)))
         success = (
             execution.exit_code == 0
             and not execution.timed_out
             and execution.rejected_events == 0
             and not errors
+            and execution.public_outcome is not None
+            and execution.public_outcome.status == "completed"
             and required_passed
             and present_validations_passed
         )

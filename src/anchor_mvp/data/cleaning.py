@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 import json
 import re
 from typing import Any, Mapping
@@ -30,6 +31,54 @@ _SECURITY_REVIEWED_CODE_FORMS: tuple[re.Pattern[str], ...] = (
     # for example ``onClick={handleClick}``.
     re.compile(r"<[^>]*\bon[A-Za-z]+\s*=\s*(?!\{)", re.IGNORECASE),
 )
+
+SECURITY_FIXTURE_GENERATOR_VERSION = "anchor-inert-security-fixtures-v1"
+
+_SECURITY_FIXTURES: tuple[dict[str, Any], ...] = (
+    {
+        "fixture_id": "boundary-react-escaped-text",
+        "kind": "benign_boundary",
+        "marker": "[INERT_SECURITY_BOUNDARY:REACT_ESCAPED_TEXT]",
+        "decision": "PASS",
+        "rationale": "The inert boundary fixture describes framework-escaped text rendering.",
+        "findings": [],
+    },
+    {
+        "fixture_id": "negative-untrusted-html-sink",
+        "kind": "safe_negative",
+        "marker": "[INERT_SECURITY_NEGATIVE:UNTRUSTED_HTML_SINK]",
+        "decision": "BLOCK",
+        "rationale": "The inert negative fixture labels an untrusted HTML sink requiring remediation.",
+        "findings": ["INERT_UNTRUSTED_HTML_SINK"],
+    },
+)
+
+
+def build_inert_security_fixture(
+    reviewed_code: str, index: int
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Attach one non-executable security fixture and its deterministic gold label."""
+
+    fixture = _SECURITY_FIXTURES[index % len(_SECURITY_FIXTURES)]
+    marker = str(fixture["marker"])
+    candidate = f"{reviewed_code.rstrip()}\n\n/* {marker} descriptor-only; never execute */"
+    if contains_active_payload(candidate):  # defensive invariant; fixture text must remain inert
+        raise DataValidationError("security fixture generator produced active payload material")
+    output = {
+        "decision": fixture["decision"],
+        "rationale": fixture["rationale"],
+        "findings": list(fixture["findings"]),
+    }
+    canonical = json.dumps(output, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    manifest = {
+        "generator": SECURITY_FIXTURE_GENERATOR_VERSION,
+        "fixture_id": fixture["fixture_id"],
+        "kind": fixture["kind"],
+        "expected_decision": fixture["decision"],
+        "active_payload_present": False,
+        "gold_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
+    }
+    return candidate, output, manifest
 
 
 def extract_json_object(raw: str) -> dict[str, Any]:

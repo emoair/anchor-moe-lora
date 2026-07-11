@@ -13,5 +13,7 @@ max_safety_violations: 0
 max_failures: 0
 max_requests: 40
 max_output_tokens_total: 100000
+quota_epoch_id: offline-mock-v1
+max_failure_retries: 2
 cooldown_seconds: 2
 cooldown_poll_seconds: 1

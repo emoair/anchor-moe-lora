@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -35,8 +37,12 @@ from .teacher import (
 )
 
 
-AUTOMATION_SCHEMA_VERSION = "1.0"
+AUTOMATION_SCHEMA_VERSION = "2.0"
+LEGACY_AUTOMATION_SCHEMA_VERSION = "1.0"
 REQUIRED_STAGES = (1, 2, 4, 8)
+NON_CHARGEABLE_FAILURE_CLASSES = frozenset(
+    {"BudgetExceeded", "ClientDeadlineExceeded", "RateLimitError", "UpstreamDependencyError"}
+)
 
 
 def _int_tuple(value: Any, *, name: str) -> tuple[int, ...]:
@@ -74,6 +80,8 @@ class AutomationConfig:
     max_failures: int = 8
     max_requests: int = 200
     max_output_tokens_total: int = 1_000_000
+    quota_epoch_id: str = "default"
+    max_failure_retries: int = 2
     cooldown_seconds: int = 18_000
     cooldown_poll_seconds: int = 60
     max_stagnant_gate_rounds: int = 5
@@ -97,6 +105,10 @@ class AutomationConfig:
             raise ValueError("failure and safety budgets cannot be negative")
         if self.max_requests < 1 or self.max_output_tokens_total < 1:
             raise ValueError("request and output-token budgets must be positive")
+        if not self.quota_epoch_id.strip():
+            raise ValueError("quota_epoch_id cannot be empty")
+        if self.max_failure_retries < 0:
+            raise ValueError("max_failure_retries cannot be negative")
         if self.cooldown_seconds < 1 or self.cooldown_poll_seconds < 1:
             raise ValueError("cooldown values must be positive")
         if self.max_stagnant_gate_rounds < 1:
@@ -156,6 +168,8 @@ class AutomationConfig:
             max_failures=int(value.get("max_failures", 8)),
             max_requests=int(value.get("max_requests", 200)),
             max_output_tokens_total=int(value.get("max_output_tokens_total", 1_000_000)),
+            quota_epoch_id=str(value.get("quota_epoch_id", "default")),
+            max_failure_retries=int(value.get("max_failure_retries", 2)),
             cooldown_seconds=int(value.get("cooldown_seconds", 18_000)),
             cooldown_poll_seconds=int(value.get("cooldown_poll_seconds", 60)),
             max_stagnant_gate_rounds=int(value.get("max_stagnant_gate_rounds", 5)),
@@ -215,6 +229,37 @@ def _iso(value: datetime | None = None) -> str:
     return (value or _now()).isoformat()
 
 
+def _new_quota_epoch(config: AutomationConfig) -> dict[str, Any]:
+    return {
+        "epoch_id": config.quota_epoch_id,
+        "started_at": _iso(),
+        "requests_used": 0,
+        "output_tokens_used": 0,
+        "failures_used": 0,
+        "charged_failure_keys": [],
+        "max_requests": config.max_requests,
+        "max_output_tokens_total": config.max_output_tokens_total,
+        "max_failures": config.max_failures,
+    }
+
+
+def _failure_identity(error: str) -> tuple[str, str, str] | None:
+    """Return the stable seed/task/error-class identity emitted by the pipeline."""
+
+    parts = [part.strip() for part in error.split(":", 3)]
+    if len(parts) < 3 or not all(parts[:3]):
+        return None
+    task, seed_id, error_class = parts[:3]
+    return seed_id, task, error_class
+
+
+def _failure_key(seed_id: str, task: str, error_class: str) -> str:
+    encoded = json.dumps(
+        [seed_id, task, error_class], ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 class AutomationRunner:
     def __init__(
         self,
@@ -224,10 +269,12 @@ class AutomationRunner:
         teachers: Mapping[str, Teacher] | None = None,
     ) -> None:
         self.config = config
+        self._pending_status_events: list[tuple[str, dict[str, Any]]] = []
         self.status = self._load_status()
-        remaining_requests = config.max_requests - int(self.status["budgets"]["requests_used"])
+        epoch = self.status["quota_epoch"]
+        remaining_requests = config.max_requests - int(epoch["requests_used"])
         remaining_tokens = config.max_output_tokens_total - int(
-            self.status["budgets"]["output_tokens_used"]
+            epoch["output_tokens_used"]
         )
         if teachers is None:
             if teacher is None:
@@ -254,17 +301,44 @@ class AutomationRunner:
         }
         self._usage_baseline = self._aggregate_usage()
         self.events = JsonlStore(config.events_path)
+        for event_type, data in self._pending_status_events:
+            self._event(event_type, **data)
 
     def _load_status(self) -> dict[str, Any]:
         path = self.config.status_path
         if path.exists():
             status = json.loads(path.read_text(encoding="utf-8"))
-            if status.get("schema_version") != AUTOMATION_SCHEMA_VERSION:
+            schema_version = status.get("schema_version")
+            if schema_version == LEGACY_AUTOMATION_SCHEMA_VERSION:
+                return self._migrate_legacy_status(status)
+            if schema_version != AUTOMATION_SCHEMA_VERSION:
                 raise ValueError("unsupported automation status schema")
-            budgets = status.setdefault("budgets", {})
-            budgets["max_requests"] = self.config.max_requests
-            budgets["max_output_tokens_total"] = self.config.max_output_tokens_total
-            budgets["max_failures"] = self.config.max_failures
+            self._normalize_v2_status(status)
+            epoch = status["quota_epoch"]
+            if str(epoch.get("epoch_id")) != self.config.quota_epoch_id:
+                archived = deepcopy(epoch)
+                archived["closed_at"] = _iso()
+                archived["close_reason"] = "quota_epoch_changed"
+                status["quota_history"].append(archived)
+                previous_epoch_id = str(epoch.get("epoch_id", "unknown"))
+                status["quota_epoch"] = _new_quota_epoch(self.config)
+                status["cooldown_until"] = None
+                if status.get("state") != "complete":
+                    status["state"] = "running"
+                self._pending_status_events.append(
+                    (
+                        "quota_epoch_started",
+                        {
+                            "previous_epoch_id": previous_epoch_id,
+                            "quota_epoch_id": self.config.quota_epoch_id,
+                            "reason": "configured_epoch_changed",
+                        },
+                    )
+                )
+            else:
+                epoch["max_requests"] = self.config.max_requests
+                epoch["max_output_tokens_total"] = self.config.max_output_tokens_total
+                epoch["max_failures"] = self.config.max_failures
             return status
         return {
             "schema_version": AUTOMATION_SCHEMA_VERSION,
@@ -278,13 +352,13 @@ class AutomationRunner:
             "updated_at": _iso(),
             "completed_at": None,
             "event_sequence": 0,
-            "budgets": {
-                "requests_used": 0,
-                "output_tokens_used": 0,
-                "failures_used": 0,
-                "max_requests": self.config.max_requests,
-                "max_output_tokens_total": self.config.max_output_tokens_total,
-                "max_failures": self.config.max_failures,
+            "quota_epoch": _new_quota_epoch(self.config),
+            "quota_history": [],
+            "audit_ledger": {
+                "requests_total": 0,
+                "output_tokens_total": 0,
+                "failure_observations_total": 0,
+                "failure_entries": {},
             },
             "stages": [],
             "metrics": {
@@ -296,6 +370,65 @@ class AutomationRunner:
             "last_gate": None,
             "heldout_gate": None,
         }
+
+    def _normalize_v2_status(self, status: dict[str, Any]) -> None:
+        status.setdefault("quota_history", [])
+        ledger = status.setdefault("audit_ledger", {})
+        ledger.setdefault("requests_total", 0)
+        ledger.setdefault("output_tokens_total", 0)
+        ledger.setdefault("failure_observations_total", 0)
+        ledger.setdefault("failure_entries", {})
+        epoch = status.setdefault("quota_epoch", _new_quota_epoch(self.config))
+        epoch.setdefault("charged_failure_keys", [])
+        epoch.setdefault("requests_used", 0)
+        epoch.setdefault("output_tokens_used", 0)
+        epoch.setdefault("failures_used", len(epoch["charged_failure_keys"]))
+
+    def _migrate_legacy_status(self, legacy: dict[str, Any]) -> dict[str, Any]:
+        status = deepcopy(legacy)
+        old_budgets = deepcopy(status.pop("budgets", {}))
+        migrated_at = _iso()
+        old_budgets.update(
+            {
+                "epoch_id": "legacy-v1",
+                "started_at": status.get("started_at"),
+                "closed_at": migrated_at,
+                "close_reason": "schema_v1_migration",
+                "charged_failure_keys": [],
+            }
+        )
+        status["schema_version"] = AUTOMATION_SCHEMA_VERSION
+        status["quota_epoch"] = _new_quota_epoch(self.config)
+        status["quota_history"] = [old_budgets]
+        status["audit_ledger"] = {
+            "requests_total": int(old_budgets.get("requests_used", 0)),
+            "output_tokens_total": int(old_budgets.get("output_tokens_used", 0)),
+            "failure_observations_total": int(old_budgets.get("failures_used", 0)),
+            "failure_entries": {},
+            "legacy_unkeyed_failures": int(old_budgets.get("failures_used", 0)),
+        }
+        status.setdefault("migration_history", []).append(
+            {
+                "from_schema": LEGACY_AUTOMATION_SCHEMA_VERSION,
+                "to_schema": AUTOMATION_SCHEMA_VERSION,
+                "migrated_at": migrated_at,
+                "legacy_status": deepcopy(legacy),
+            }
+        )
+        status["cooldown_until"] = None
+        if status.get("state") != "complete":
+            status["state"] = "running"
+        self._pending_status_events.append(
+            (
+                "status_migrated",
+                {
+                    "from_schema": LEGACY_AUTOMATION_SCHEMA_VERSION,
+                    "to_schema": AUTOMATION_SCHEMA_VERSION,
+                    "quota_epoch_id": self.config.quota_epoch_id,
+                },
+            )
+        )
+        return status
 
     def _save_status(self) -> None:
         self.status["updated_at"] = _iso()
@@ -323,9 +456,12 @@ class AutomationRunner:
         current = self._aggregate_usage()
         requests_delta = max(0, current["requests"] - self._usage_baseline["requests"])
         tokens_delta = max(0, current["output_tokens"] - self._usage_baseline["output_tokens"])
-        budgets = self.status["budgets"]
-        budgets["requests_used"] += requests_delta
-        budgets["output_tokens_used"] += tokens_delta
+        epoch = self.status["quota_epoch"]
+        epoch["requests_used"] += requests_delta
+        epoch["output_tokens_used"] += tokens_delta
+        ledger = self.status["audit_ledger"]
+        ledger["requests_total"] += requests_delta
+        ledger["output_tokens_total"] += tokens_delta
         self._usage_baseline = current
 
     def _aggregate_usage(self) -> dict[str, int]:
@@ -336,14 +472,88 @@ class AutomationRunner:
         }
 
     def _budget_exhausted(self) -> str | None:
-        budgets = self.status["budgets"]
-        if budgets["requests_used"] >= self.config.max_requests:
+        epoch = self.status["quota_epoch"]
+        if epoch["requests_used"] >= self.config.max_requests:
             return "request_budget"
-        if budgets["output_tokens_used"] >= self.config.max_output_tokens_total:
+        if epoch["output_tokens_used"] >= self.config.max_output_tokens_total:
             return "output_token_budget"
-        if budgets["failures_used"] > 0 and budgets["failures_used"] >= self.config.max_failures:
+        if epoch["failures_used"] > 0 and epoch["failures_used"] >= self.config.max_failures:
             return "failure_budget"
         return None
+
+    def _record_report_failures(self, errors: Sequence[str]) -> int:
+        """Audit failures and charge each stable identity once per quota epoch."""
+
+        ledger = self.status["audit_ledger"]
+        entries: dict[str, dict[str, Any]] = ledger["failure_entries"]
+        epoch = self.status["quota_epoch"]
+        charged = set(str(key) for key in epoch["charged_failure_keys"])
+        new_charges = 0
+        seen_this_report: set[str] = set()
+        quarantine_events: list[dict[str, Any]] = []
+        for error in errors:
+            identity = _failure_identity(error)
+            if identity is None:
+                continue
+            seed_id, task, error_class = identity
+            if error_class in NON_CHARGEABLE_FAILURE_CLASSES:
+                continue
+            key = _failure_key(seed_id, task, error_class)
+            if key in seen_this_report:
+                continue
+            seen_this_report.add(key)
+            now = _iso()
+            entry = entries.setdefault(
+                key,
+                {
+                    "seed_id": seed_id,
+                    "task": task,
+                    "error_class": error_class,
+                    "attempts_total": 0,
+                    "first_seen_at": now,
+                    "last_seen_at": now,
+                    "quarantined": False,
+                    "quarantined_at": None,
+                },
+            )
+            entry["attempts_total"] = int(entry["attempts_total"]) + 1
+            entry["last_seen_at"] = now
+            ledger["failure_observations_total"] += 1
+            if key not in charged:
+                charged.add(key)
+                new_charges += 1
+            if (
+                not entry["quarantined"]
+                and int(entry["attempts_total"]) > self.config.max_failure_retries
+            ):
+                entry["quarantined"] = True
+                entry["quarantined_at"] = now
+                entry["quarantine_reason"] = "retry_limit_exceeded"
+                quarantine_events.append(
+                    {
+                        "failure_key": key,
+                        "seed_id": seed_id,
+                        "task": task,
+                        "error_class": error_class,
+                        "attempts_total": entry["attempts_total"],
+                        "max_failure_retries": self.config.max_failure_retries,
+                    }
+                )
+        epoch["charged_failure_keys"] = sorted(charged)
+        epoch["failures_used"] = len(charged)
+        for event in quarantine_events:
+            self._event("failure_quarantined", **event)
+        return new_charges
+
+    def _quarantined_seed_ids_for_task(self, task_type: str) -> frozenset[str]:
+        task_index = TASK_TYPES.index(task_type)  # type: ignore[arg-type]
+        blocked_tasks = set(TASK_TYPES[: task_index + 1])
+        entries = self.status["audit_ledger"]["failure_entries"].values()
+        return frozenset(
+            str(entry["seed_id"])
+            for entry in entries
+            if entry.get("quarantined") and entry.get("task") in blocked_tasks
+        )
 
     async def run(self, *, wait_for_cooldown: bool = False) -> dict[str, Any]:
         if self.status["state"] == "complete":
@@ -385,7 +595,6 @@ class AutomationRunner:
                 continue
             except ClientDeadlineExceeded as error:
                 self._sync_usage()
-                self.status["budgets"]["failures_used"] += 1
                 self.status["state"] = "client_deadline"
                 self.status["last_client_deadline"] = {
                     "worker": "seed",
@@ -401,19 +610,17 @@ class AutomationRunner:
                 return self.status
             except (BudgetExceeded, RuntimeError, ValueError, OSError) as error:
                 self._sync_usage()
-                self.status["budgets"]["failures_used"] += 1
+                worker = str(self.status.get("current_worker") or "seed")
+                self._record_report_failures(
+                    [f"{worker}:__stage__: {type(error).__name__}: {error}"]
+                )
                 self.status["state"] = "failed"
                 self._event("stage_failed", error_type=type(error).__name__, message=str(error)[:240])
                 return self.status
 
             elapsed = max(0.000001, time.monotonic() - started)
             self._sync_usage()
-            # One rejected upstream sample can legitimately suppress several
-            # downstream tasks. Charge only the originating generation/validation
-            # error so a dependency cascade cannot exhaust the unattended budget.
-            self.status["budgets"]["failures_used"] += chargeable_failure_count(
-                report.errors
-            )
+            self._record_report_failures(report.errors)
             if report.rate_limited:
                 self._set_cooldown(report.retry_after_seconds)
                 if not wait_for_cooldown:
@@ -527,7 +734,12 @@ class AutomationRunner:
                 output_dir=self.config.output_dir,
                 concurrency=concurrency,
             )
-            report = await worker_pipeline.run(seed_count=seed_target, tasks=[task_type])
+            excluded_seed_ids = self._quarantined_seed_ids_for_task(task_type)
+            report = await worker_pipeline.run(
+                seed_count=seed_target,
+                tasks=[task_type],
+                excluded_seed_ids=excluded_seed_ids,
+            )
             written.update(report.written_by_task)
             skipped.update(report.skipped_by_task)
             errors.extend(report.errors)
@@ -543,6 +755,7 @@ class AutomationRunner:
                 errors=len(report.errors),
                 rate_limited=report.rate_limited,
                 client_deadline=report.client_deadline,
+                quarantined_skipped=len(excluded_seed_ids),
             )
             if rate_limited or client_deadline:
                 break
@@ -581,7 +794,6 @@ class AutomationRunner:
         until = _now() + timedelta(seconds=seconds)
         self.status["state"] = "cooldown"
         self.status["cooldown_until"] = _iso(until)
-        self.status["budgets"]["failures_used"] += 1
         self._event(
             "rate_limit_cooldown",
             retry_after_seconds=retry_after_seconds,

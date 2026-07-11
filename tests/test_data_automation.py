@@ -56,7 +56,8 @@ def test_mock_automation_ramps_gates_and_resumes(tmp_path: Path) -> None:
     assert status["metrics"]["records"] == 20
     assert status["metrics"]["throughput_records_per_second"] > 0
     assert status["metrics"]["eta_seconds"] == 0
-    assert status["budgets"]["requests_used"] <= 40
+    assert status["quota_epoch"]["requests_used"] <= 40
+    assert status["audit_ledger"]["requests_total"] == status["quota_epoch"]["requests_used"]
     assert settings.status_path.is_file()
 
     experts = {
@@ -140,7 +141,7 @@ def test_request_budget_stops_before_gate_upgrade(tmp_path: Path) -> None:
     status = asyncio.run(AutomationRunner(config=settings, teacher=MockTeacher()).run())
     assert status["state"] == "budget_exhausted"
     assert status["stage_index"] == 0
-    assert status["budgets"]["requests_used"] == 1
+    assert status["quota_epoch"]["requests_used"] == 1
     events = [json.loads(line)["type"] for line in settings.events_path.read_text(encoding="utf-8").splitlines()]
     assert "gate_passed" not in events
     assert events[-1] == "budget_exhausted"
@@ -149,7 +150,7 @@ def test_request_budget_stops_before_gate_upgrade(tmp_path: Path) -> None:
 def test_failure_budget_stops_at_configured_limit(tmp_path: Path) -> None:
     settings = config(tmp_path, max_failures=2)
     runner = AutomationRunner(config=settings, teacher=MockTeacher())
-    runner.status["budgets"]["failures_used"] = 2
+    runner.status["quota_epoch"]["failures_used"] = 2
 
     assert runner._budget_exhausted() == "failure_budget"
 
@@ -162,6 +163,87 @@ def test_dependency_cascades_are_not_charged_as_independent_failures() -> None:
     ]
 
     assert chargeable_failure_count(errors) == 1
+
+
+def test_failure_identity_is_charged_once_and_quarantined_after_bounded_retries(
+    tmp_path: Path,
+) -> None:
+    settings = config(tmp_path, max_failures=10, max_failure_retries=2)
+    runner = AutomationRunner(config=settings, teacher=MockTeacher())
+    error = "frontend:seed-a: ValueError: invalid code"
+    cascade = "review:seed-a: UpstreamDependencyError: frontend row required"
+
+    runner._record_report_failures([error, error, cascade])
+    runner._record_report_failures([error, cascade])
+    runner._record_report_failures([error, cascade])
+
+    epoch = runner.status["quota_epoch"]
+    entries = list(runner.status["audit_ledger"]["failure_entries"].values())
+    assert epoch["failures_used"] == 1
+    assert len(epoch["charged_failure_keys"]) == 1
+    assert runner.status["audit_ledger"]["failure_observations_total"] == 3
+    assert len(entries) == 1
+    assert entries[0]["attempts_total"] == 3
+    assert entries[0]["quarantined"] is True
+    assert runner._quarantined_seed_ids_for_task("plan") == frozenset()
+    assert runner._quarantined_seed_ids_for_task("tool_policy") == frozenset()
+    assert runner._quarantined_seed_ids_for_task("frontend") == frozenset({"seed-a"})
+    assert runner._quarantined_seed_ids_for_task("security") == frozenset({"seed-a"})
+
+
+def test_schema_v1_budget_exhaustion_migrates_without_erasing_history(tmp_path: Path) -> None:
+    settings = config(tmp_path, quota_epoch_id="reset-window-2")
+    template = AutomationRunner(config=settings, teacher=MockTeacher()).status
+    legacy = dict(template)
+    legacy["schema_version"] = "1.0"
+    legacy["state"] = "budget_exhausted"
+    legacy["budgets"] = {
+        "requests_used": 1200,
+        "output_tokens_used": 456_000,
+        "failures_used": 276,
+        "max_requests": 1200,
+        "max_output_tokens_total": 20_000_000,
+        "max_failures": 200,
+    }
+    legacy.pop("quota_epoch")
+    legacy.pop("quota_history")
+    legacy.pop("audit_ledger")
+    settings.status_path.parent.mkdir(parents=True)
+    settings.status_path.write_text(json.dumps(legacy), encoding="utf-8")
+
+    migrated = AutomationRunner(config=settings, teacher=MockTeacher()).status
+
+    assert migrated["schema_version"] == "2.0"
+    assert migrated["state"] == "running"
+    assert migrated["quota_epoch"]["epoch_id"] == "reset-window-2"
+    assert migrated["quota_epoch"]["requests_used"] == 0
+    assert migrated["quota_epoch"]["failures_used"] == 0
+    assert migrated["quota_history"][0]["failures_used"] == 276
+    assert migrated["audit_ledger"]["requests_total"] == 1200
+    assert migrated["audit_ledger"]["legacy_unkeyed_failures"] == 276
+    assert migrated["migration_history"][0]["legacy_status"]["budgets"]["failures_used"] == 276
+
+
+def test_new_quota_epoch_resets_window_but_retains_durable_failure_ledger(
+    tmp_path: Path,
+) -> None:
+    first_settings = config(tmp_path, quota_epoch_id="window-1", max_failures=10)
+    first = AutomationRunner(config=first_settings, teacher=MockTeacher())
+    first.status["quota_epoch"]["requests_used"] = 9
+    first.status["audit_ledger"]["requests_total"] = 9
+    first._record_report_failures(["plan:seed-a: ValueError: invalid plan"])
+    first._save_status()
+
+    second_settings = config(tmp_path, quota_epoch_id="window-2", max_failures=10)
+    second = AutomationRunner(config=second_settings, teacher=MockTeacher())
+
+    assert second.status["quota_epoch"]["epoch_id"] == "window-2"
+    assert second.status["quota_epoch"]["requests_used"] == 0
+    assert second.status["quota_epoch"]["failures_used"] == 0
+    assert second.status["quota_history"][-1]["epoch_id"] == "window-1"
+    assert second.status["quota_history"][-1]["requests_used"] == 9
+    assert second.status["audit_ledger"]["requests_total"] == 9
+    assert len(second.status["audit_ledger"]["failure_entries"]) == 1
 
 
 def test_client_deadline_has_distinct_persisted_classification(tmp_path: Path) -> None:

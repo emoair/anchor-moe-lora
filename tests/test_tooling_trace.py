@@ -65,3 +65,23 @@ def test_structural_error_metadata_is_classified_without_messages():
     assert "agent_apierror" in codes
     assert "forbidden" in codes
     assert all("discard" not in code for code in codes)
+
+
+def test_structural_invalid_url_400_is_not_mislabeled_as_generic_request_failure():
+    stdout = json.dumps(
+        {"type": "error", "error": {"code": "invalid_url", "status": 400}}
+    )
+
+    codes = classify_error_metadata(stdout, "")
+
+    assert "invalid_url" in codes
+    assert "invalid_request" not in codes
+
+
+def test_http_499_is_client_cancellation_not_upstream_server_failure():
+    stdout = json.dumps({"type": "error", "error": {"status": 499}})
+
+    codes = classify_error_metadata(stdout, "")
+
+    assert "client_cancelled" in codes
+    assert "upstream_server_error" not in codes

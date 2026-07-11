@@ -17,6 +17,11 @@
     "validations",
     "tool_trace",
     "changed_files",
+    "task_bundle_sha256",
+    "agent_stdout_sha256",
+    "agent_stderr_sha256",
+    "skill_provenance",
+    "public_outcome",
     "rejected_events",
     "error_codes"
   ],
@@ -34,6 +39,19 @@
     "validations": {"type": "array"},
     "tool_trace": {"type": "array"},
     "changed_files": {"type": "array"},
+    "task_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "agent_stdout_sha256": {"type": ["string", "null"]},
+    "agent_stderr_sha256": {"type": ["string", "null"]},
+    "skill_provenance": {"type": "array"},
+    "public_outcome": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["schema_version", "status", "decision_trace", "repair_summaries", "final_summary"]
+        }
+      ]
+    },
     "rejected_events": {"type": "integer", "minimum": 0},
     "error_codes": {"type": "array", "items": {"type": "string"}}
   },

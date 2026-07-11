@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from anchor_mvp.data.cleaning import (  # noqa: E402
+    build_inert_security_fixture,
     extract_frontend_payload,
     extract_json_object,
     sanitize_security_seed,
@@ -103,6 +104,51 @@ def test_hidden_reasoning_fields_are_rejected() -> None:
             generation_params={},
             template_sha256="abc",
         )
+
+
+@pytest.mark.parametrize(
+    "hidden_key",
+    ["reasoning", "reasoning_content", "thinking", "thinking-details", "cot", "chain_of_thought"],
+)
+def test_hidden_reasoning_fields_are_rejected_recursively(hidden_key: str) -> None:
+    payload = {
+        "decision_trace": [{"check": "input", "evidence": "request", "action": "implement"}],
+        "output": {"language": "tsx", "code": "export default 1", "metadata": {hidden_key: "x"}},
+    }
+    with pytest.raises(DataValidationError, match="hidden reasoning"):
+        DistilledRecord.from_teacher_payload(
+            payload=payload,
+            task_type="frontend",
+            seed=SeedDemand("seed-1", "title", "request"),
+            sop=load_sop(ROOT / "skills" / "frontend.md"),
+            teacher_model="mock",
+            teacher_base_url="mock://local",
+            teacher_protocol="mock",
+            generation_params={},
+            template_sha256="abc",
+        )
+
+
+def test_every_domain_rejects_non_allowlisted_output_keys() -> None:
+    from anchor_mvp.data.schema import validate_output
+
+    valid = {
+        "plan": {"summary": "s", "steps": [{"id": "P1", "goal": "g", "deliverable": "d"}], "constraints": []},
+        "tool_policy": {"decision": "APPROVE", "rationale": "bounded", "proposal_labels": []},
+        "frontend": {"language": "tsx", "code": "export default 1"},
+        "review": {"language": "tsx", "summary": "fixed", "code": "export default 2"},
+        "security": {"decision": "PASS", "rationale": "safe", "findings": []},
+    }
+    for task_type, output in valid.items():
+        with pytest.raises(DataValidationError, match="non-allowlisted"):
+            validate_output(task_type, {**output, "extra": "forbidden"})  # type: ignore[arg-type]
+
+
+def test_inert_security_fixtures_are_balanced_and_have_gold_labels() -> None:
+    generated = [build_inert_security_fixture("export const Safe = () => <main />", index) for index in range(4)]
+    assert [output["decision"] for _, output, _ in generated] == ["PASS", "BLOCK", "PASS", "BLOCK"]
+    assert all(not manifest["active_payload_present"] for _, _, manifest in generated)
+    assert all("<script" not in code.casefold() and "javascript:" not in code.casefold() for code, _, _ in generated)
 
 
 def _review_record(candidate: str, fixed: str = "export const Fixed = () => <main>Ready</main>"):

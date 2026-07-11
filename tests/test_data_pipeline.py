@@ -18,6 +18,10 @@ from anchor_mvp.data.pipeline import (  # noqa: E402
     _ensure_frontend_public_trace,
     _normalize_frontend_payload,
 )
+from anchor_mvp.data.proposals import (  # noqa: E402
+    deterministic_tool_policy_oracle,
+    generate_inert_tool_proposals,
+)
 from anchor_mvp.data.prompts import task_prompt  # noqa: E402
 from anchor_mvp.data.prompts import seed_prompt  # noqa: E402
 from anchor_mvp.data.schema import SeedDemand  # noqa: E402
@@ -74,6 +78,10 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
             assert all(record["messages"][-1]["content"] in {"APPROVE", "BLOCK", "ESCALATE"} for record in records)
             assert all(record["provenance"]["source_plan_record_id"] in plan_ids for record in records)
             assert all(record["provenance"]["tool_proposals"]["executed"] is False for record in records)
+            assert [record["output"]["decision"] for record in records] == [
+                "APPROVE", "ESCALATE", "BLOCK", "APPROVE"
+            ]
+            assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
             assert all(
                 not any(
                     str(value).startswith(("http://", "https://"))
@@ -126,6 +134,11 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
                 record["input"]["reviewed_code"] in record["messages"][0]["content"]
                 for record in records
             )
+            assert [record["output"]["decision"] for record in records] == [
+                "PASS", "BLOCK", "PASS", "BLOCK"
+            ]
+            assert all(record["provenance"]["security_fixture"]["active_payload_present"] is False for record in records)
+            assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
             review_ids = {
                 json.loads(line)["id"]
                 for line in (tmp_path / "data_review.jsonl").read_text(encoding="utf-8").splitlines()
@@ -186,6 +199,45 @@ def test_seed_generation_deduplicates(tmp_path: Path) -> None:
     seeds = asyncio.run(pipeline.generate_seeds(5))
     assert len(seeds) == 5
     assert len({seed.seed_id for seed in seeds}) == 5
+
+
+def test_quarantined_seed_is_excluded_before_teacher_task_call(tmp_path: Path) -> None:
+    class CountingTeacher(MockTeacher):
+        def __init__(self) -> None:
+            self.plan_calls = 0
+
+        async def complete(self, *, system: str, user: str) -> str:
+            if "ANCHOR_TASK: plan" in user:
+                self.plan_calls += 1
+            return await super().complete(system=system, user=user)
+
+    teacher = CountingTeacher()
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=1,
+    )
+    seed = asyncio.run(pipeline.generate_seeds(1))[0]
+    report = asyncio.run(
+        pipeline.run(seed_count=1, tasks=["plan"], excluded_seed_ids=[seed.seed_id])
+    )
+
+    assert teacher.plan_calls == 0
+    assert report.written_by_task["plan"] == 0
+    assert report.skipped_by_task["plan"] == 1
+    assert report.errors == ()
+
+
+def test_tool_policy_oracle_covers_all_decisions_deterministically() -> None:
+    seed = SeedDemand("seed-oracle", "title", "Build a local dashboard")
+    results = []
+    for index in range(3):
+        proposals, _ = generate_inert_tool_proposals(seed, index)
+        output, manifest = deterministic_tool_policy_oracle(proposals)
+        results.append(output["decision"])
+        assert manifest["decision"] == output["decision"]
+    assert results == ["APPROVE", "ESCALATE", "BLOCK"]
 
 
 def test_seed_prompt_uses_deterministic_stratified_variants() -> None:

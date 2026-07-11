@@ -16,7 +16,9 @@ class SkillProvenance:
     repository: str
     commit: str
     license: str
+    license_sha256: str
     bundle_sha256: str
+    instruction_audit_sha256: str
 
 
 @dataclass(frozen=True)

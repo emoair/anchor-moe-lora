@@ -44,27 +44,28 @@ The corpus is a candidate, not a finished training set:
 - executable frontend checks, review-repair verification, deterministic policy
   labels, semantic deduplication, and balanced-label gates are not yet enforced.
 
-Do not spend the reset teacher quota until the failure ledger and quality gates below
-are fixed.
+Offline P0 hardening now separates quota epochs from the durable attempt ledger,
+deduplicates and quarantines repeated failures, applies deterministic Tool Policy and
+Security gold labels, rejects nested hidden-reasoning fields, and adds OpenCode batch,
+Skill provenance, append-only gold, and execution-heldout gates. All offline tests
+pass. This does not yet prove a successful live OpenCode execution sample.
+
+Spend the reset quota only on a single confirmed execution smoke first. API bulk
+distillation remains blocked until executable frontend/review gates and the live
+OpenCode promotion sequence pass.
 
 ## Prioritized work
 
 ### P0: unblock trustworthy data
 
-1. Separate per-quota-window budgets from the durable attempt ledger. Quarantine
-   repeated `(seed, task, error-class)` failures instead of charging them forever.
-2. Add inert, deterministic security negative/boundary fixtures and enforce minimum
-   PASS/BLOCK coverage without persisting active payloads.
-3. Validate tool-policy teacher labels against a deterministic oracle and cover
-   APPROVE, BLOCK, and ESCALATE.
-4. Apply strict per-domain output allowlists and recursively reject hidden-reasoning
-   keys before persistence.
-5. Add TSX parse/typecheck/build checks, review mutation-repair verification, trace
+1. Run one OpenCode plus audited external-Skill live execution sample and require a
+   validated public outcome, isolated workspace, tests, and append-only gold record.
+2. Promote only through the checked-in `1 -> 2 -> 4 -> 8` ramp after each stage meets
+   its success-rate and leakage gates.
+3. Add TSX parse/typecheck/build checks, review mutation-repair verification, trace
    grounding, semantic deduplication, and category/label balance gates.
-6. Freeze a separate OpenCode execution held-out set and scan tasks, fixtures, SOP
-   bundles, seeds, and training rows for leakage.
-7. Produce 3-6 successful single-task OpenCode plus audited external-Skill fixtures
-   before scaling execution distillation through concurrency 1, 2, 4, and 8.
+4. Produce 3-6 successful independent OpenCode fixtures before treating execution
+   data as trainable, even if the first single-sample smoke passes.
 
 ### P0: finish controlled training
 

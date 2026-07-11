@@ -27,6 +27,14 @@ EXPERT_BY_TASK: dict[TaskType, str] = {
     "security": "security_gate",
 }
 
+OUTPUT_KEYS_BY_TASK: dict[TaskType, frozenset[str]] = {
+    "plan": frozenset({"summary", "steps", "constraints"}),
+    "tool_policy": frozenset({"decision", "rationale", "proposal_labels"}),
+    "frontend": frozenset({"language", "code"}),
+    "review": frozenset({"language", "summary", "code"}),
+    "security": frozenset({"decision", "rationale", "findings"}),
+}
+
 
 class DataValidationError(ValueError):
     """Raised when generated data does not satisfy the public schema."""
@@ -43,6 +51,27 @@ def utc_now() -> str:
 
 def normalized_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().casefold()
+
+
+def reject_hidden_reasoning_keys(value: Any, *, path: str = "payload") -> None:
+    """Reject hidden-reasoning fields at any nesting depth in teacher data."""
+
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).casefold())
+            if (
+                normalized == "cot"
+                or "chainofthought" in normalized
+                or normalized.startswith("reasoning")
+                or normalized.startswith("thinking")
+            ):
+                raise DataValidationError(
+                    f"hidden reasoning field is forbidden at {path}.{key}; use decision_trace"
+                )
+            reject_hidden_reasoning_keys(item, path=f"{path}.{key}")
+    elif isinstance(value, (list, tuple)):
+        for index, item in enumerate(value):
+            reject_hidden_reasoning_keys(item, path=f"{path}[{index}]")
 
 
 @dataclass(frozen=True)
@@ -158,9 +187,7 @@ class DistilledRecord:
     ) -> "DistilledRecord":
         if task_type not in TASK_TYPES:
             raise DataValidationError(f"unsupported task type: {task_type}")
-        forbidden_keys = {"thinking", "chain_of_thought", "cot", "reasoning"}
-        if forbidden_keys.intersection(str(key).casefold() for key in payload):
-            raise DataValidationError("hidden reasoning fields are forbidden; use decision_trace")
+        reject_hidden_reasoning_keys(payload)
         raw_trace = payload.get("decision_trace")
         if not isinstance(raw_trace, list) or not raw_trace:
             raise DataValidationError("decision_trace must be a non-empty list")
@@ -221,6 +248,11 @@ class DistilledRecord:
 
 
 def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
+    unexpected = set(output).difference(OUTPUT_KEYS_BY_TASK[task_type])
+    if unexpected:
+        raise DataValidationError(
+            f"{task_type} output contains non-allowlisted keys: {', '.join(sorted(unexpected))}"
+        )
     if task_type == "plan":
         if not isinstance(output.get("summary"), str) or not str(output["summary"]).strip():
             raise DataValidationError("plan output requires a concise summary")
@@ -240,6 +272,13 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
             not isinstance(item, str) or not item.strip() for item in constraints
         ):
             raise DataValidationError("plan output constraints must be concise strings")
+        for index, step in enumerate(steps):
+            extras = set(step).difference({"id", "goal", "deliverable"})
+            if extras:
+                raise DataValidationError(
+                    f"plan output steps[{index}] contains non-allowlisted keys: "
+                    f"{', '.join(sorted(extras))}"
+                )
     elif task_type == "tool_policy":
         decision = output.get("decision")
         if decision not in ("APPROVE", "BLOCK", "ESCALATE"):
@@ -263,6 +302,11 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
             raise DataValidationError("security output decision must be BLOCK or PASS")
         if not isinstance(output.get("rationale"), str) or not str(output["rationale"]).strip():
             raise DataValidationError("security output requires a concise rationale")
+        findings = output.get("findings", [])
+        if not isinstance(findings, list) or any(
+            not isinstance(item, str) or not item.strip() for item in findings
+        ):
+            raise DataValidationError("security output findings must be inert label strings")
 
 
 def canonical_input(

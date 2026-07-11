@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 from pathlib import Path
+import re
 from typing import Any, Mapping
+from urllib.parse import urlparse
 
 import yaml
 
@@ -12,6 +15,28 @@ from .models import SkillProvenance
 
 class SkillSourceError(ValueError):
     """Raised when a vendored Skill no longer matches its audited source record."""
+
+
+INSTRUCTION_AUDIT_VERSION = "anchor.skill-instruction-audit.v1"
+_MALICIOUS_INSTRUCTION_RULES = {
+    "instruction_override": re.compile(
+        r"\b(ignore|disregard|override)\b.{0,48}\b(previous|prior|system|developer)\b",
+        re.IGNORECASE,
+    ),
+    "secret_exfiltration": re.compile(
+        r"\b(read|print|reveal|send|upload|exfiltrat\w*)\b.{0,80}"
+        r"\b(api[_ -]?key|credential\w*|secret\w*|private[_ -]?key|\.env)\b",
+        re.IGNORECASE,
+    ),
+    "external_command": re.compile(
+        r"(?:^|[\s`])(?:curl|wget|invoke-webrequest)\s+", re.IGNORECASE | re.MULTILINE
+    ),
+    "safety_bypass": re.compile(
+        r"\b(disable|bypass|remove|weaken)\b.{0,64}"
+        r"\b(safety|security|policy|guardrail|tests?)\b",
+        re.IGNORECASE,
+    ),
+}
 
 
 def _sha256(path: Path) -> str:
@@ -28,6 +53,27 @@ def _mapping(value: object, label: str) -> Mapping[str, Any]:
 class AuditedSkill:
     provenance: SkillProvenance
     content: str
+
+
+def audit_skill_instructions(content: str) -> tuple[tuple[str, ...], str]:
+    """Return rule identifiers and a content-bound audit receipt.
+
+    The receipt proves which bytes and scanner version were checked without copying
+    potentially hostile instructions into gold records or logs.
+    """
+
+    findings = tuple(
+        rule for rule, pattern in _MALICIOUS_INSTRUCTION_RULES.items() if pattern.search(content)
+    )
+    report = {
+        "schema_version": INSTRUCTION_AUDIT_VERSION,
+        "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+        "findings": findings,
+    }
+    receipt = hashlib.sha256(
+        json.dumps(report, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return findings, receipt
 
 
 class SkillSourceRegistry:
@@ -68,34 +114,53 @@ class SkillSourceRegistry:
         commit = str(source.get("commit", "")).strip().lower()
         if len(commit) != 40 or any(char not in "0123456789abcdef" for char in commit):
             raise SkillSourceError(f"{source_id}: commit must be a full SHA-1")
+        repository = str(source.get("repository", "")).strip()
+        parsed_repository = urlparse(repository)
+        if parsed_repository.scheme != "https" or not parsed_repository.netloc:
+            raise SkillSourceError(f"{source_id}: repository must be a literal HTTPS URL")
+        license_id = str(source.get("license", "")).strip()
+        if not license_id:
+            raise SkillSourceError(f"{source_id}: SPDX license identifier is required")
         license_path = self._local_path(source.get("license_path", ""))
         expected_license_hash = str(source.get("license_sha256", "")).strip().lower()
-        if not license_path.is_file() or _sha256(license_path) != expected_license_hash:
+        if len(expected_license_hash) != 64 or (
+            not license_path.is_file() or _sha256(license_path) != expected_license_hash
+        ):
             raise SkillSourceError(f"{source_id}: license file is missing or changed")
         raw_files = source.get("files")
         if not isinstance(raw_files, list) or not raw_files:
             raise SkillSourceError(f"{source_id}: files must be non-empty")
         injected: list[tuple[str, str, str]] = []
-        all_hashes: list[str] = []
+        all_hashes: list[tuple[str, str]] = []
         for index, value in enumerate(raw_files):
             item = _mapping(value, f"{source_id}.files[{index}]")
             path = self._local_path(item.get("path", ""))
             expected = str(item.get("sha256", "")).strip().lower()
             if len(expected) != 64 or not path.is_file() or _sha256(path) != expected:
                 raise SkillSourceError(f"{source_id}: vendored file is missing or changed: {path}")
-            all_hashes.append(expected)
+            relative = path.relative_to(self.project_root).as_posix()
+            all_hashes.append((relative, expected))
             if item.get("inject") is True:
-                relative = path.relative_to(self.project_root).as_posix()
                 injected.append((relative, expected, path.read_text(encoding="utf-8")))
         if not injected:
             raise SkillSourceError(f"{source_id}: no files are approved for injection")
-        bundle_material = "\n".join(all_hashes).encode("ascii")
+        combined_content = "\n\n".join(text for _, _, text in injected)
+        findings, audit_receipt = audit_skill_instructions(combined_content)
+        if findings:
+            raise SkillSourceError(
+                f"{source_id}: malicious instruction audit failed: {','.join(findings)}"
+            )
+        bundle_material = "\n".join(
+            f"{path}:{digest}" for path, digest in all_hashes
+        ).encode("utf-8")
         provenance = SkillProvenance(
             source_id=source_id,
-            repository=str(source.get("repository", "")),
+            repository=repository,
             commit=commit,
-            license=str(source.get("license", "")),
+            license=license_id,
+            license_sha256=expected_license_hash,
             bundle_sha256=hashlib.sha256(bundle_material).hexdigest(),
+            instruction_audit_sha256=audit_receipt,
         )
         blocks = [
             f"FILE: {path}\nSHA256: {digest}\n{text.strip()}"

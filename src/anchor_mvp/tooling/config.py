@@ -20,10 +20,17 @@ def validate_base_url(value: str) -> str:
         or any(char.isspace() for char in value)
         or parsed.scheme != "https"
         or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.hostname != "api.kimi.com"
+        or parsed.port not in {None, 443}
         or parsed.query
         or parsed.fragment
     ):
-        raise ValueError("base URL must be a literal HTTPS URL without whitespace/query/fragment")
+        raise ValueError(
+            "base URL must be a literal official Kimi HTTPS URL without credentials, "
+            "whitespace, query, or fragment"
+        )
     return value.rstrip("/")
 
 

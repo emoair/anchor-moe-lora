@@ -1,0 +1,14 @@
+schema_version: anchor.execution-split-policy.v1
+candidate_inputs:
+  - configs/tooling/execution_candidates_p0.yaml
+heldout_inputs:
+  - path: configs/benchmark/heldout_cases_v1.jsonl
+    sha256: 89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655
+    role: execution-heldout-prompts-and-labels
+  - path: artifacts/benchmark/heldout_v1/manifest.json
+    sha256: 1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c
+    role: frozen-heldout-proof
+rules:
+  candidate_must_not_equal_heldout_requirement: true
+  candidate_must_not_reference_heldout_identifiers: true
+  heldout_inputs_forbidden_in_training: true

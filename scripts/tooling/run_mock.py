@@ -11,6 +11,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from anchor_mvp.tooling import (  # noqa: E402
     MockAgentExecutor,
+    PublicDecisionStep,
+    PublicOutcome,
     SampleSpec,
     ToolingHarness,
     write_gold_jsonl,
@@ -52,7 +54,21 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
-    executor = MockAgentExecutor(file_updates={"src/generated.js": "export const ok = true;\n"})
+    executor = MockAgentExecutor(
+        file_updates={"src/generated.js": "export const ok = true;\n"},
+        public_outcome=PublicOutcome(
+            status="completed",
+            decision_trace=(
+                PublicDecisionStep(
+                    check="Offline fixture validation",
+                    evidence="Mock update completed and local scripts were available",
+                    action="Kept the isolated fixture change",
+                ),
+            ),
+            repair_summaries=(),
+            final_summary="Offline mock completed.",
+        ),
+    )
     record = ToolingHarness(args.workspace_root / "samples", executor).run_sample(
         SampleSpec("mock-001", "Create a minimal module", source, ("build", "test", "lint"))
     )

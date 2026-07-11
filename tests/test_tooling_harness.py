@@ -2,10 +2,20 @@ import json
 
 from anchor_mvp.tooling import (
     MockAgentExecutor,
+    PublicDecisionStep,
+    PublicOutcome,
     SampleSpec,
     ToolingHarness,
     canonical_json,
     write_gold_jsonl,
+)
+
+
+OUTCOME = PublicOutcome(
+    status="completed",
+    decision_trace=(PublicDecisionStep("validation", "offline fixture", "kept patch"),),
+    repair_summaries=(),
+    final_summary="Offline fixture passed.",
 )
 
 
@@ -33,7 +43,10 @@ def test_harness_isolates_sample_runs_validations_and_hashes_changes(tmp_path):
     _make_project(source)
     harness = ToolingHarness(
         tmp_path / "runs",
-        MockAgentExecutor(file_updates={"index.js": "export const value = 2;\n"}),
+        MockAgentExecutor(
+            file_updates={"index.js": "export const value = 2;\n"},
+            public_outcome=OUTCOME,
+        ),
     )
 
     record = harness.run_sample(
@@ -60,7 +73,9 @@ def test_missing_required_script_fails_closed_and_jsonl_is_canonical(tmp_path):
     (source / "package.json").write_text(
         json.dumps({"name": "no-build", "scripts": {}}), encoding="utf-8"
     )
-    record = ToolingHarness(tmp_path / "runs", MockAgentExecutor()).run_sample(
+    record = ToolingHarness(
+        tmp_path / "runs", MockAgentExecutor(public_outcome=OUTCOME)
+    ).run_sample(
         SampleSpec("b", "Do nothing", source)
     )
 
@@ -77,7 +92,9 @@ def test_missing_required_script_fails_closed_and_jsonl_is_canonical(tmp_path):
 def test_rejected_mock_command_marks_record_failed(tmp_path):
     source = tmp_path / "source"
     _make_project(source)
-    executor = MockAgentExecutor(commands=("npm install bad-package",))
+    executor = MockAgentExecutor(
+        commands=("npm install bad-package",), public_outcome=OUTCOME
+    )
 
     record = ToolingHarness(tmp_path / "runs", executor).run_sample(
         SampleSpec("unsafe", "Try unsafe command", source)
@@ -87,3 +104,15 @@ def test_rejected_mock_command_marks_record_failed(tmp_path):
     assert record.rejected_events == 1
     assert record.tool_trace[0].command is None
     assert record.tool_trace[0].command_sha256 is not None
+
+
+def test_public_outcome_is_a_required_success_gate(tmp_path):
+    source = tmp_path / "source"
+    _make_project(source)
+
+    record = ToolingHarness(tmp_path / "runs", MockAgentExecutor()).run_sample(
+        SampleSpec("missing-outcome", "Do nothing", source)
+    )
+
+    assert record.success is False
+    assert "public_outcome_missing" in record.error_codes
