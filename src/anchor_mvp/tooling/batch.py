@@ -210,6 +210,18 @@ class BatchStageResult:
     passed_gate: bool
 
 
+def batch_run_succeeded(
+    stages: Sequence[BatchStageResult], requested_stages: int
+) -> bool:
+    """Judge only the explicitly requested stage slice, never the full configured ramp."""
+
+    return (
+        requested_stages >= 1
+        and len(stages) == requested_stages
+        and all(stage.passed_gate for stage in stages)
+    )
+
+
 def _isolated_failure_record(
     sample: SampleSpec, executor: AgentExecutor, policy: ToolPolicy
 ) -> GoldRecord:
@@ -240,11 +252,18 @@ def run_live_batch(
     samples: Sequence[SampleSpec],
     config: LiveBatchConfig,
     executor: AgentExecutor,
+    max_stages: int = 1,
     on_stage: Callable[[tuple[GoldRecord, ...]], None] | None = None,
 ) -> tuple[BatchStageResult, ...]:
     """Run isolated stages; one sample exception never aborts its siblings."""
 
-    required_count = sum(config.samples_per_stage)
+    if not 1 <= max_stages <= len(config.concurrency_stages):
+        raise ValueError(
+            f"max_stages must be between 1 and {len(config.concurrency_stages)}"
+        )
+    selected_concurrency = config.concurrency_stages[:max_stages]
+    selected_sample_counts = config.samples_per_stage[:max_stages]
+    required_count = sum(selected_sample_counts)
     if len(samples) < required_count:
         raise ValueError(f"batch needs {required_count} candidates, found {len(samples)}")
     policy = ToolPolicy(
@@ -254,7 +273,7 @@ def run_live_batch(
     harness = ToolingHarness(config.workspace_root, executor, policy=policy)
     stages: list[BatchStageResult] = []
     offset = 0
-    for concurrency, count in zip(config.concurrency_stages, config.samples_per_stage):
+    for concurrency, count in zip(selected_concurrency, selected_sample_counts):
         stage_samples = samples[offset : offset + count]
         offset += count
         completed: list[GoldRecord] = []

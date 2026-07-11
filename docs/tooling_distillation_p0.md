@@ -33,10 +33,12 @@ held-out file by SHA-256. Batch preflight rejects a changed held-out file, an un
 candidate manifest, overlapping paths, reused held-out identifiers, or an exact held-out
 requirement copied into a candidate prompt.
 
-The checked-in P0 candidate pool contains 15 isolated tasks. The ramp consumes fresh
-tasks in stages of 1, 2, 4, and 8 concurrent sessions. A stage that misses its success
-gate stops the ramp; a single sample exception is reduced to a content-free failure
-record and does not cancel sibling samples.
+The checked-in P0 candidate pool contains 15 isolated tasks. The ramp can consume fresh
+tasks in stages of 1, 2, 4, and 8 concurrent sessions, but the live CLI and batch runner
+both default to **one stage only**. Operators must explicitly pass `--max-stages 2`, `3`,
+or `4` after inspecting earlier gold; `--confirm-live` alone can never run the full ramp.
+A stage that misses its success gate stops the requested slice; a single sample exception
+is reduced to a content-free failure record and does not cancel sibling samples.
 
 ## Append-only gold
 
@@ -67,6 +69,9 @@ OpenCode or call Kimi unless `--confirm-live` is explicitly added.
 py -3.10 scripts/tooling/run_live.py `
   --batch-config configs/tooling/opencode_distillation_ramp.yaml
 ```
+
+After reviewing the first-stage record, a deliberate two-stage live run would require
+both `--confirm-live` and `--max-stages 2`. Omitting `--max-stages` remains capped at one.
 
 Offline regression tests:
 

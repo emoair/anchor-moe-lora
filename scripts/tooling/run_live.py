@@ -16,6 +16,7 @@ from anchor_mvp.tooling import (  # noqa: E402
     SkillSourceRegistry,
     ToolPolicy,
     ToolingHarness,
+    batch_run_succeeded,
     load_candidate_samples,
     merge_gold_jsonl,
     run_live_batch,
@@ -29,6 +30,16 @@ def parse_args() -> argparse.Namespace:
         "--batch-config",
         type=Path,
         help="Audited 1->2->4->8 batch configuration; mutually exclusive with single mode",
+    )
+    parser.add_argument(
+        "--max-stages",
+        type=int,
+        choices=(1, 2, 3, 4),
+        default=1,
+        help=(
+            "Maximum ramp stages to run. Defaults to the single-concurrency gate; "
+            "use 2, 3, or 4 only after reviewing prior-stage gold."
+        ),
     )
     parser.add_argument("--sample-id")
     parser.add_argument("--source", type=Path)
@@ -87,6 +98,11 @@ def main() -> int:
             print("DRY RUN: batch, Skills, hashes, and held-out separation validated.")
             print(f"candidate_count={len(samples)}")
             print(f"concurrency_ramp={','.join(map(str, config.concurrency_stages))}")
+            print(f"requested_stages={args.max_stages}")
+            print(
+                "planned_concurrency="
+                + ",".join(map(str, config.concurrency_stages[: args.max_stages]))
+            )
             print(f"opencode_available={executor.available()}")
             print(f"api_key_present={bool(os.environ.get('KIMI_CODE_API_KEY'))}")
             return 0
@@ -97,6 +113,7 @@ def main() -> int:
             samples=samples,
             config=config,
             executor=executor,
+            max_stages=args.max_stages,
             on_stage=lambda records: merge_gold_jsonl(records, config.gold_output),
         )
         for stage in stages:
@@ -105,7 +122,7 @@ def main() -> int:
                 f"passed={stage.passed_gate}"
             )
         print(config.gold_output)
-        return 0 if len(stages) == 4 and all(stage.passed_gate for stage in stages) else 1
+        return 0 if batch_run_succeeded(stages, args.max_stages) else 1
 
     if not all((args.sample_id, args.source, args.prompt_file, args.skill)):
         print(

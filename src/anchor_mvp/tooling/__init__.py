@@ -4,6 +4,7 @@ from .config import build_opencode_config, write_opencode_config
 from .batch import (
     BatchStageResult,
     LiveBatchConfig,
+    batch_run_succeeded,
     load_candidate_samples,
     merge_stage_into_gold,
     run_live_batch,
@@ -34,6 +35,7 @@ from .skills import (
 __all__ = [
     "AgentExecution",
     "BatchStageResult",
+    "batch_run_succeeded",
     "FileChange",
     "GoldRecord",
     "PublicDecisionStep",
