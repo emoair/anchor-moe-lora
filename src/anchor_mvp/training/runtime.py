@@ -593,11 +593,14 @@ def _train_adapter_impl(
         # The full training route retains TRL for now. It is never imported by
         # smoke-gate, so a low-memory machine is screened before Arrow tables
         # or the Trainer stack can be initialized.
-        from datasets import load_dataset  # type: ignore[import-not-found]
         from trl import SFTConfig, SFTTrainer  # type: ignore[import-not-found]
 
-        data_files = [str(path) for path in dataset_paths]
-        dataset = load_dataset("json", data_files=data_files, split="train")
+        # Domain records intentionally carry different structured input/output
+        # payloads. Arrow attempts to unify those nested schemas for mixed_all
+        # even though training consumes only the common messages field. The
+        # lightweight map dataset preserves each canonical record and lets the
+        # collator project exactly the fields used by SFT.
+        dataset = _JsonlMapDataset(dataset_paths)
         output_dir.mkdir(parents=True, exist_ok=True)
         args = SFTConfig(
             output_dir=str(output_dir),
