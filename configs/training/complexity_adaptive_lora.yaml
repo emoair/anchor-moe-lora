@@ -1,0 +1,51 @@
+schema_version: anchor.complexity-adaptive-budget.v1
+status: planned_after_formal_v1
+reference_arm: D
+base_contract_id: gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1
+target_modules: [q_proj, v_proj]
+rank_menu: [2, 3, 4, 6, 8, 16]
+complexity_prior:
+  highest: [frontend_gen]
+  high: [frontend_review]
+  medium: [planner]
+  low: [tool_policy, security_gate]
+budget_ladder:
+  - total_rank_cap: 12
+    seed_allocation:
+      planner: 2
+      tool_policy: 2
+      frontend_gen: 4
+      frontend_review: 2
+      security_gate: 2
+  - total_rank_cap: 14
+    seed_allocation:
+      planner: 2
+      tool_policy: 2
+      frontend_gen: 4
+      frontend_review: 4
+      security_gate: 2
+  - total_rank_cap: 16
+    seed_allocation:
+      planner: 3
+      tool_policy: 2
+      frontend_gen: 6
+      frontend_review: 3
+      security_gate: 2
+selection:
+  data_split: calibration_only
+  heldout_access: forbidden_until_allocation_frozen
+  objective_order:
+    - satisfy_non_inferiority
+    - minimize_materialized_parameters
+    - minimize_latency_and_peak_vram
+    - maximize_aggregate_quality
+  non_inferiority_against_D:
+    pass_at_1_absolute_drop_max: 0.01
+    security_tpr_absolute_drop_max: 0.01
+    security_fpr_absolute_increase_max: 0.01
+    tool_policy_accuracy_absolute_drop_max: 0.01
+invariants:
+  - same frozen Q4 base and tokenizer as A/B/C/D
+  - same training snapshot, optimizer, seed, sequence length, and sample exposure as D
+  - rank allocation is frozen before held-out evaluation
+  - report every attempted allocation, not only the winning allocation

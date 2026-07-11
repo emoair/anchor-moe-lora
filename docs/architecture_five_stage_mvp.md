@@ -6,7 +6,7 @@ The MVP route is strictly ordered per seed:
 
 All adapters use the same frozen and identically serialized Q4/NF4 base. The model
 revision, quantization settings, tokenizer, local artifact digest, stage order, and
-per-stage token cap are experiment invariants across A/B/C/D. Full-capacity LoRA rank
+per-stage token cap are experiment invariants across A/B/C/D/E. Full-capacity LoRA rank
 is 16 for the first experiment. A new domain coder is valid only when its paired domain reviewer is
 registered and evaluated in the same change.
 
@@ -36,11 +36,29 @@ For benchmarks, the fair comparison uses five matched stages:
 - C routes five full-capacity rank-16 specialists (51,937,280 stored trainable parameters).
 - D routes five smaller specialists with ranks `3/3/4/3/3`; their rank sum and
   materialized trainable parameter count exactly match B.
+- E is a complexity-adaptive routed arm. It searches a calibration-only rank ladder,
+  gives more capacity to generation/review than short policy decisions, and chooses
+  the smallest total rank that remains non-inferior to the frozen D baseline.
 
 C measures the maximum-capacity routed architecture. B versus D isolates routing and
 task separation under an equal adapter-parameter budget. The D allocation is frozen
 before held-out evaluation. Single-call A/B results remain auxiliary only; changing
 the serialized Q4 artifact invalidates the comparison.
+
+E is a later Pareto experiment, not part of `formal-v1`. Its initial complexity prior
+is `frontend_gen >= frontend_review >= planner >= tool_policy/security_gate`. Candidate
+allocations and the selection rule live in
+`configs/training/complexity_adaptive_lora.yaml`. Rank selection may use only a
+separate calibration split; the frozen held-out benchmark must never influence the
+chosen ranks. The optimization objective is lexicographic:
+
+1. satisfy per-domain non-inferiority constraints against D;
+2. minimize total materialized adapter parameters;
+3. minimize routed latency and peak VRAM;
+4. maximize aggregate task quality only after the first three constraints tie.
+
+This makes E a test of whether task-aware capacity allocation can move the
+size/performance Pareto frontier, rather than another unconstrained larger model.
 
 ## Two-call live smoke
 
