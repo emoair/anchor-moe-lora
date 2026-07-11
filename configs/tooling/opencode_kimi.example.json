@@ -18,6 +18,11 @@
           "limit": {
             "context": 262144,
             "output": 32768
+          },
+          "variants": {
+            "thinking": {
+              "reasoningEffort": "high"
+            }
           }
         }
       }

@@ -1,4 +1,5 @@
 import json
+from hashlib import sha256
 
 from anchor_mvp.tooling import (
     MockAgentExecutor,
@@ -7,7 +8,7 @@ from anchor_mvp.tooling import (
     SampleSpec,
     ToolingHarness,
     canonical_json,
-    write_gold_jsonl,
+    write_attempts_jsonl,
 )
 
 
@@ -82,11 +83,25 @@ def test_missing_required_script_fails_closed_and_jsonl_is_canonical(tmp_path):
     assert record.success is False
     assert record.validations[0].name == "build"
     assert record.validations[0].status == "SKIP"
-    output = write_gold_jsonl([record], tmp_path / "gold.jsonl")
+    output = write_attempts_jsonl([record], tmp_path / "attempts.jsonl")
     line = output.read_text(encoding="utf-8").strip()
     assert line == canonical_json(record)
     assert "prompt" not in line
     assert "thinking" not in line
+
+
+def test_change_required_task_fails_when_agent_makes_no_change(tmp_path):
+    source = tmp_path / "source"
+    _make_project(source)
+    record = ToolingHarness(
+        tmp_path / "runs", MockAgentExecutor(public_outcome=OUTCOME)
+    ).run_sample(
+        SampleSpec("no-op", "Change index.js", source, requires_changes=True)
+    )
+
+    assert record.success is False
+    assert record.changed_files == ()
+    assert "no_changes" in record.error_codes
 
 
 def test_rejected_mock_command_marks_record_failed(tmp_path):
@@ -116,3 +131,36 @@ def test_public_outcome_is_a_required_success_gate(tmp_path):
 
     assert record.success is False
     assert "public_outcome_missing" in record.error_codes
+
+
+def test_protected_acceptance_files_cannot_be_rewritten_to_self_certify(tmp_path):
+    source = tmp_path / "source"
+    _make_project(source)
+    package = source / "package.json"
+    expected = sha256(package.read_bytes()).hexdigest()
+    weakened = json.dumps(
+        {
+            "name": "weakened-fixture",
+            "scripts": {
+                "build": 'node -e "process.exit(0)"',
+                "test": 'node -e "process.exit(0)"',
+                "lint": 'node -e "process.exit(0)"',
+            },
+        }
+    )
+    record = ToolingHarness(
+        tmp_path / "runs",
+        MockAgentExecutor(file_updates={"package.json": weakened}, public_outcome=OUTCOME),
+    ).run_sample(
+        SampleSpec(
+            "protected-contract",
+            "Implement the task",
+            source,
+            ("build", "test", "lint"),
+            protected_files=(("package.json", expected),),
+        )
+    )
+
+    assert all(result.status == "PASS" for result in record.validations)
+    assert record.success is False
+    assert "protected_fixture_modified" in record.error_codes

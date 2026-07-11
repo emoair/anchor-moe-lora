@@ -18,7 +18,7 @@ from anchor_mvp.tooling import (  # noqa: E402
     ToolingHarness,
     batch_run_succeeded,
     load_candidate_samples,
-    merge_gold_jsonl,
+    persist_attempts_and_gold,
     run_live_batch,
     verify_execution_split,
 )
@@ -62,7 +62,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "artifacts" / "tooling" / "live_gold.jsonl",
+        default=PROJECT_ROOT
+        / "artifacts"
+        / "tooling"
+        / "live_gold.accepted.jsonl",
+    )
+    parser.add_argument(
+        "--attempts-output",
+        type=Path,
+        default=PROJECT_ROOT / "artifacts" / "tooling" / "live_attempts.jsonl",
+        help="Append-only audit ledger; failed attempts never enter --output",
     )
     parser.add_argument("--required", nargs="*", default=["build"])
     parser.add_argument("--max-iterations", type=int, default=8)
@@ -114,7 +123,11 @@ def main() -> int:
             config=config,
             executor=executor,
             max_stages=args.max_stages,
-            on_stage=lambda records: merge_gold_jsonl(records, config.gold_output),
+            on_stage=lambda records: persist_attempts_and_gold(
+                records,
+                attempts_path=config.attempts_output,
+                gold_path=config.gold_output,
+            ),
         )
         for stage in stages:
             print(
@@ -161,7 +174,9 @@ def main() -> int:
             skill_provenance,
         )
     )
-    merge_gold_jsonl([record], args.output)
+    persist_attempts_and_gold(
+        [record], attempts_path=args.attempts_output, gold_path=args.output
+    )
     print(args.output)
     return 0 if record.success else 1
 

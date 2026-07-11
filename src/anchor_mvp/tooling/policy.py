@@ -6,6 +6,7 @@ import re
 
 
 _SHELL_META = re.compile(r"[\r\n;&|<>`$()]")
+_TOOL_ALIASES = {"write": "edit", "patch": "edit"}
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,9 @@ class ToolPolicy:
         return normalized
 
     def is_tool_allowed(self, tool: str) -> bool:
-        return tool.lower() in self.allowed_tools
+        normalized = tool.lower()
+        normalized = _TOOL_ALIASES.get(normalized, normalized)
+        return normalized in self.allowed_tools
 
     def is_command_allowed(self, command: str) -> bool:
         normalized = self.normalize_command(command)

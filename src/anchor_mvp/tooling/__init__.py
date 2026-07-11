@@ -10,7 +10,15 @@ from .batch import (
     run_live_batch,
     verify_execution_split,
 )
-from .gold import canonical_json, merge_gold_jsonl, write_gold_jsonl
+from .gold import (
+    canonical_json,
+    is_accepted_gold_record,
+    merge_attempts_jsonl,
+    merge_gold_jsonl,
+    persist_attempts_and_gold,
+    write_attempts_jsonl,
+    write_gold_jsonl,
+)
 from .harness import ToolingHarness
 from .models import (
     AgentExecution,
@@ -55,11 +63,15 @@ __all__ = [
     "build_opencode_config",
     "audit_skill_instructions",
     "canonical_json",
+    "is_accepted_gold_record",
+    "merge_attempts_jsonl",
     "merge_gold_jsonl",
     "load_candidate_samples",
     "merge_stage_into_gold",
     "run_live_batch",
+    "persist_attempts_and_gold",
     "verify_execution_split",
     "write_gold_jsonl",
+    "write_attempts_jsonl",
     "write_opencode_config",
 ]

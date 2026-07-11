@@ -11,11 +11,10 @@ import yaml
 
 from .gold import merge_gold_jsonl
 from .harness import ToolingHarness
-from .models import GoldRecord, SampleSpec
+from .models import GoldRecord, SampleSpec, sample_contract_sha256
 from .policy import ToolPolicy
 from .runner import AgentExecutor
 from .skills import SkillSourceRegistry
-from .trace import digest_text
 
 
 RAMP_STAGES = (1, 2, 4, 8)
@@ -37,6 +36,28 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _load_protected_files(
+    source: Path, value: object, *, label: str
+) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, Mapping) or not value:
+        raise ValueError(f"{label} must pin at least one fixture file")
+    protected: list[tuple[str, str]] = []
+    for raw_path, raw_digest in value.items():
+        relative = Path(str(raw_path))
+        if relative.is_absolute():
+            raise ValueError(f"{label} paths must be fixture-relative")
+        path = (source / relative).resolve()
+        try:
+            normalized = path.relative_to(source).as_posix()
+        except ValueError as exc:
+            raise ValueError(f"{label} path escapes fixture: {relative}") from exc
+        expected = str(raw_digest).casefold()
+        if len(expected) != 64 or not path.is_file() or _sha256(path) != expected:
+            raise ValueError(f"protected fixture hash mismatch: {path}")
+        protected.append((normalized, expected))
+    return tuple(sorted(protected))
+
+
 @dataclass(frozen=True)
 class LiveBatchConfig:
     candidate_manifest: Path
@@ -44,6 +65,7 @@ class LiveBatchConfig:
     skill_registry: Path
     workspace_root: Path
     gold_output: Path
+    attempts_output: Path | None = None
     concurrency_stages: tuple[int, ...] = RAMP_STAGES
     samples_per_stage: tuple[int, ...] = RAMP_STAGES
     minimum_stage_success_rate: float = 1.0
@@ -77,12 +99,19 @@ class LiveBatchConfig:
         success_rate = float(loaded.get("minimum_stage_success_rate", 1.0))
         if not 0.0 <= success_rate <= 1.0:
             raise ValueError("minimum_stage_success_rate must be between 0 and 1")
+        if not isinstance(loaded.get("attempts_output"), str) or not str(
+            loaded["attempts_output"]
+        ).strip():
+            raise ValueError("attempts_output must be a project-relative path")
         return cls(
             candidate_manifest=_project_path(root, loaded.get("candidate_manifest"), "candidate_manifest"),
             split_policy=_project_path(root, loaded.get("split_policy"), "split_policy"),
             skill_registry=_project_path(root, loaded.get("skill_registry"), "skill_registry"),
             workspace_root=_project_path(root, loaded.get("workspace_root"), "workspace_root"),
             gold_output=_project_path(root, loaded.get("gold_output"), "gold_output"),
+            attempts_output=_project_path(
+                root, loaded.get("attempts_output"), "attempts_output"
+            ),
             concurrency_stages=concurrency,
             samples_per_stage=samples,
             minimum_stage_success_rate=success_rate,
@@ -182,11 +211,21 @@ def load_candidate_samples(
         if not source.is_dir():
             raise ValueError(f"candidate source directory is missing: {source}")
         prompt = str(value.get("task", "")).strip()
-        if not prompt and value.get("requirement_file"):
+        requirement_relative: str | None = None
+        if value.get("requirement_file"):
             requirement = _project_path(
                 root, value.get("requirement_file"), f"tasks[{index}].requirement_file"
             )
-            prompt = requirement.read_text(encoding="utf-8").strip()
+            try:
+                requirement_relative = requirement.relative_to(source).as_posix()
+            except ValueError as exc:
+                raise ValueError(
+                    f"candidate requirement must be inside its fixture: {sample_id}"
+                ) from exc
+            requirement_prompt = requirement.read_text(encoding="utf-8").strip()
+            if prompt and " ".join(prompt.split()) != " ".join(requirement_prompt.split()):
+                raise ValueError(f"candidate task disagrees with fixture requirement: {sample_id}")
+            prompt = requirement_prompt
         if not prompt:
             raise ValueError(f"candidate task is empty: {sample_id}")
         normalized = " ".join(prompt.casefold().split())
@@ -199,7 +238,36 @@ def load_candidate_samples(
         required = tuple(str(item) for item in value.get("required_validations", ["build"]))
         if not required or any(item not in {"build", "test", "lint"} for item in required):
             raise ValueError(f"invalid required validations: {sample_id}")
-        samples.append(SampleSpec(sample_id, composed, source, required, provenance))
+        protected = _load_protected_files(
+            source, value.get("protected_files"), label=f"tasks[{index}].protected_files"
+        )
+        input_files = _load_protected_files(
+            source, value.get("input_files"), label=f"tasks[{index}].input_files"
+        )
+        protected_paths = {path for path, _ in protected}
+        if protected_paths.intersection(path for path, _ in input_files):
+            raise ValueError(f"candidate input and protected paths overlap: {sample_id}")
+        if "package.json" not in protected_paths:
+            raise ValueError(f"candidate must protect package.json: {sample_id}")
+        if requirement_relative is not None and requirement_relative not in protected_paths:
+            raise ValueError(f"candidate must protect its requirement file: {sample_id}")
+        if "test" in required and not any(path.startswith("test/") for path in protected_paths):
+            raise ValueError(f"candidate must protect at least one test file: {sample_id}")
+        requires_changes = value.get("requires_changes", False)
+        if not isinstance(requires_changes, bool):
+            raise ValueError(f"candidate requires_changes must be boolean: {sample_id}")
+        samples.append(
+            SampleSpec(
+                sample_id,
+                composed,
+                source,
+                required,
+                provenance,
+                protected,
+                input_files,
+                requires_changes,
+            )
+        )
     return tuple(samples)
 
 
@@ -238,7 +306,7 @@ def _isolated_failure_record(
         validations=(),
         tool_trace=(),
         changed_files=(),
-        task_bundle_sha256=digest_text(sample.prompt),
+        task_bundle_sha256=sample_contract_sha256(sample),
         agent_stdout_sha256=None,
         agent_stderr_sha256=None,
         skill_provenance=sample.skill_provenance,

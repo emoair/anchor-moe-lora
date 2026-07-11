@@ -43,6 +43,47 @@ def test_event_reducer_keeps_safe_command_metadata_and_drops_model_text():
     assert "private chain" not in json.dumps([item.__dict__ for item in trace])
 
 
+def test_opencode_1_17_nested_tool_use_schema_is_reduced():
+    stdout = json.dumps(
+        {
+            "type": "tool_use",
+            "timestamp": 1234,
+            "sessionID": "discarded-session-id",
+            "part": {
+                "type": "tool",
+                "tool": "edit",
+                "state": {"status": "completed", "input": {"filePath": "src/a.js"}},
+            },
+        }
+    )
+
+    trace, rejected = parse_opencode_jsonl(stdout, ToolPolicy())
+
+    assert rejected == 0
+    assert len(trace) == 1
+    assert trace[0].tool == "edit"
+    assert trace[0].status == "completed"
+    assert "session" not in json.dumps(trace[0].__dict__)
+
+
+def test_opencode_write_tool_is_accepted_as_edit_permission_alias():
+    stdout = json.dumps(
+        {
+            "type": "tool_use",
+            "part": {
+                "type": "tool",
+                "tool": "write",
+                "state": {"status": "completed", "input": {"filePath": "src/a.js"}},
+            },
+        }
+    )
+
+    trace, rejected = parse_opencode_jsonl(stdout, ToolPolicy())
+
+    assert rejected == 0
+    assert trace[0].tool == "write"
+
+
 def test_400_and_499_are_classified_without_persisting_raw_error():
     codes = classify_error_text(
         '(invalid_url) missing scheme; HTTP 499 context canceled; status code: 429'

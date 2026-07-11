@@ -37,7 +37,9 @@
 
 ## 审计与 canonical gold JSONL
 
-`anchor.tool-gold.v1` 每行按 key 排序、紧凑 JSON 编码，样本按 `sample_id` 排序并原子写入。记录：
+执行记录分为两层：`live_attempts.jsonl` 全量保留成功、失败和部分执行，
+`live_gold.accepted.jsonl` 只保留 `success=true` 且公开结果状态为 `completed` 的可接受记录。
+两者每行都按 key 排序并紧凑 JSON 编码，写入采用原子替换。记录：
 
 - workspace ID、backend、成功状态、timeout、最大迭代、agent 退出码；
 - build/test/lint 是否存在、退出码、耗时、输出 SHA-256；
@@ -47,6 +49,15 @@
 - 结构化错误码，如 `invalid_url`、`client_cancelled`、`rate_limited`。
 
 明确不保存：API key、完整环境变量、prompt、模型回复、thinking block、任意工具输出、源文件内容。OpenCode stdout/stderr 只在进程内完成归约，gold 中仅保存摘要哈希。
+
+修改型任务必须在候选清单中显式设置 `requires_changes: true`；若 agent 没有产生
+文件差异，attempt 会记录 `no_changes`，且不会进入 accepted gold。失败 attempt 不会
+占用 accepted gold 的 `sample_id`，因此修复后的成功重试仍可入库。
+
+旧版 `live_gold.jsonl` 可能混有失败 attempt。运行
+`scripts/tooling/migrate_legacy_tool_gold.py` 默认只预览分类；只有显式增加 `--confirm`
+才会创建新的 attempts/accepted 迁移文件。脚本不会删除或覆盖旧文件，迁移后的路径
+切换必须由操作者另行确认。
 
 ## 400 / 499 处理
 

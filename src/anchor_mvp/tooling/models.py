@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+import hashlib
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -44,6 +46,27 @@ class SampleSpec:
     source_dir: Path
     required_validations: tuple[str, ...] = ("build",)
     skill_provenance: tuple[SkillProvenance, ...] = ()
+    protected_files: tuple[tuple[str, str], ...] = ()
+    input_files: tuple[tuple[str, str], ...] = ()
+    requires_changes: bool = False
+
+
+def sample_contract_sha256(sample: SampleSpec) -> str:
+    """Bind the public task to its immutable local acceptance files."""
+
+    if not sample.protected_files and not sample.input_files:
+        return hashlib.sha256(sample.prompt.encode("utf-8")).hexdigest()
+    payload = json.dumps(
+        {
+            "prompt": sample.prompt,
+            "input_files": list(sample.input_files),
+            "protected_files": list(sample.protected_files),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)

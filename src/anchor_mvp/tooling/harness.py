@@ -3,12 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import write_opencode_config
-from .models import GoldRecord, SampleSpec, ToolTraceEntry
+from .models import GoldRecord, SampleSpec, ToolTraceEntry, sample_contract_sha256
 from .policy import ToolPolicy
 from .runner import AgentExecutor
 from .validation import run_validations
 from .workspace import WorkspaceManager, diff_snapshots, snapshot_files
-from .trace import digest_text
 
 
 class ToolingHarness:
@@ -27,6 +26,13 @@ class ToolingHarness:
         workspace = self.workspaces.prepare(sample.sample_id, sample.source_dir)
         config_path = write_opencode_config(workspace / ".anchor" / "opencode.json", self.policy)
         before = snapshot_files(workspace)
+        expected_protected = dict(sample.protected_files)
+        expected_contract = dict(sample.protected_files + sample.input_files)
+        preflight_contract_errors = (
+            ("fixture_contract_hash_mismatch",)
+            if any(before.get(path) != digest for path, digest in expected_contract.items())
+            else ()
+        )
         execution = self.executor.run(
             sample_id=sample.sample_id,
             prompt=sample.prompt,
@@ -36,6 +42,11 @@ class ToolingHarness:
         )
         after_agent = snapshot_files(workspace)
         changes = diff_snapshots(before, after_agent)
+        protected_change_errors = (
+            ("protected_fixture_modified",)
+            if any(change.path in expected_protected for change in changes)
+            else ()
+        )
         try:
             validations, validation_trace = run_validations(workspace, self.policy)
             validation_errors: tuple[str, ...] = ()
@@ -70,7 +81,16 @@ class ToolingHarness:
         present_validations_passed = all(
             item.status == "PASS" for item in validations if item.script_present
         )
-        errors = tuple(dict.fromkeys(execution.error_codes + validation_errors))
+        errors = tuple(
+            dict.fromkeys(
+                execution.error_codes
+                + validation_errors
+                + preflight_contract_errors
+                + protected_change_errors
+            )
+        )
+        if sample.requires_changes and not changes:
+            errors = tuple(dict.fromkeys(errors + ("no_changes",)))
         if execution.public_outcome is None:
             errors = tuple(dict.fromkeys(errors + ("public_outcome_missing",)))
         elif execution.public_outcome.status != "completed":
@@ -98,7 +118,7 @@ class ToolingHarness:
             validations=validations,
             tool_trace=trace,
             changed_files=changes,
-            task_bundle_sha256=digest_text(sample.prompt),
+            task_bundle_sha256=sample_contract_sha256(sample),
             agent_stdout_sha256=execution.stdout_sha256,
             agent_stderr_sha256=execution.stderr_sha256,
             skill_provenance=sample.skill_provenance,

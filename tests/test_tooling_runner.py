@@ -44,3 +44,14 @@ def test_windows_uses_the_launchable_npm_cmd_shim(tmp_path):
     )
 
     assert Path(command[0]).suffix.casefold() == ".cmd"
+
+
+def test_command_pins_audited_thinking_variant_without_printing_reasoning(tmp_path):
+    command = OpenCodeExecutor(executable="opencode").command(
+        sample_id="thinking",
+        prompt="No call",
+        workspace=tmp_path,
+    )
+
+    assert command[command.index("--variant") + 1] == "thinking"
+    assert "--thinking" not in command

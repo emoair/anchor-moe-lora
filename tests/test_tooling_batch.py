@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import shutil
+import subprocess
 
 import pytest
 import yaml
@@ -39,8 +41,66 @@ def test_checked_in_batch_preflight_has_strict_ramp_and_no_heldout_collision():
     )
 
     assert config.concurrency_stages == (1, 2, 4, 8)
-    assert len(samples) == 15
-    assert len({sample.sample_id for sample in samples}) == 15
+    assert config.attempts_output == ROOT / "artifacts/tooling/live_attempts.jsonl"
+    assert len(samples) == 1
+    assert samples[0].sample_id == "sidex-p0-001-stable-status-sort"
+    assert samples[0].requires_changes is True
+    assert "Stable status-list sorting" in samples[0].prompt
+    assert {path for path, _ in samples[0].protected_files} == {
+        "TASK.md",
+        "package.json",
+        "scripts/build.mjs",
+        "scripts/lint.mjs",
+        "test/status-list.test.js",
+    }
+    assert {path for path, _ in samples[0].input_files} == {"src/status-list.js"}
+
+
+def test_stage_one_fixture_rejects_bug_and_accepts_the_required_repair(tmp_path):
+    source = ROOT / "fixtures/execution/sidex-fixture-v0-status-list"
+    fixture = tmp_path / "fixture"
+    shutil.copytree(source, fixture)
+    npm = shutil.which("npm")
+    assert npm is not None
+
+    initial = subprocess.run(
+        [npm, "run", "test"],
+        cwd=fixture,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert initial.returncode != 0
+    assert "sorts numeric priority ascending without mutation" in initial.stdout
+
+    (fixture / "src/status-list.js").write_text(
+        """export function sortStatusRows(rows, direction) {
+  if (direction !== "asc" && direction !== "desc") {
+    throw new TypeError("direction must be asc or desc");
+  }
+  const sign = direction === "asc" ? 1 : -1;
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) =>
+      sign * (Number(left.row.priority) - Number(right.row.priority)) ||
+      left.index - right.index
+    )
+    .map(({ row }) => row);
+}
+""",
+        encoding="utf-8",
+    )
+    for script in ("build", "test", "lint"):
+        result = subprocess.run(
+            [npm, "run", script],
+            cwd=fixture,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_split_policy_rejects_changed_heldout_input(tmp_path):

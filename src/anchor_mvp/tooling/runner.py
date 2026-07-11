@@ -8,7 +8,7 @@ import subprocess
 import time
 from typing import Mapping, Protocol
 
-from .config import AGENT_ID, DEFAULT_MODEL, PROVIDER_ID
+from .config import AGENT_ID, DEFAULT_MODEL, DEFAULT_VARIANT, PROVIDER_ID
 from .models import AgentExecution, ToolTraceEntry
 from .policy import ToolPolicy
 from .trace import (
@@ -111,6 +111,8 @@ class OpenCodeExecutor:
             f"{PROVIDER_ID}/{DEFAULT_MODEL}",
             "--agent",
             AGENT_ID,
+            "--variant",
+            DEFAULT_VARIANT,
             "--dir",
             str(workspace),
             "--title",

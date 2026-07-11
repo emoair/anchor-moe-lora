@@ -56,3 +56,22 @@ def test_rejects_hidden_reasoning_and_unbounded_trace():
 
     assert parse_public_outcome(_event(hidden)) is None
     assert parse_public_outcome(_event(too_many)) is None
+
+
+def test_never_extracts_public_outcome_from_reasoning_event():
+    payload = json.dumps(
+        {
+            "schema_version": "anchor.public-outcome.v1",
+            "status": "completed",
+            "decision_trace": [
+                {"check": "private", "evidence": "private", "action": "private"}
+            ],
+            "repair_summaries": [],
+            "final_summary": "must not persist",
+        }
+    )
+    event = json.dumps(
+        {"type": "reasoning", "part": {"type": "reasoning", "text": payload}}
+    )
+
+    assert parse_public_outcome(event) is None

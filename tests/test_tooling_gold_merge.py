@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -8,7 +9,9 @@ from anchor_mvp.tooling import (
     PublicOutcome,
     SampleSpec,
     ToolingHarness,
+    canonical_json,
     merge_gold_jsonl,
+    persist_attempts_and_gold,
 )
 
 
@@ -58,3 +61,59 @@ def test_merge_refuses_to_overwrite_existing_sample(tmp_path):
 
     with pytest.raises(ValueError, match="refusing to overwrite"):
         merge_gold_jsonl([changed], output)
+
+
+def test_failed_attempt_is_quarantined_and_does_not_reserve_gold_sample_id(tmp_path):
+    accepted = _record(tmp_path, "retry")
+    failed = replace(
+        accepted,
+        success=False,
+        workspace_id="failed-attempt",
+        public_outcome=None,
+        error_codes=("public_outcome_missing",),
+    )
+    attempts = tmp_path / "attempts.jsonl"
+    gold = tmp_path / "gold.jsonl"
+
+    assert persist_attempts_and_gold(
+        [failed], attempts_path=attempts, gold_path=gold
+    ) == ()
+    assert not gold.exists()
+    accepted_records = persist_attempts_and_gold(
+        [accepted], attempts_path=attempts, gold_path=gold
+    )
+
+    assert accepted_records == (accepted,)
+    attempt_rows = [json.loads(line) for line in attempts.read_text(encoding="utf-8").splitlines()]
+    gold_rows = [json.loads(line) for line in gold.read_text(encoding="utf-8").splitlines()]
+    assert [row["success"] for row in attempt_rows] == [False, True]
+    assert [row["sample_id"] for row in gold_rows] == ["retry"]
+
+
+def test_gold_merge_rejects_failed_or_noncompleted_records(tmp_path):
+    accepted = _record(tmp_path, "gate")
+    failed = replace(accepted, success=False)
+    partial = replace(
+        accepted,
+        public_outcome=replace(accepted.public_outcome, status="partial"),
+    )
+
+    with pytest.raises(ValueError, match="non-accepted"):
+        merge_gold_jsonl([failed], tmp_path / "failed.jsonl")
+    with pytest.raises(ValueError, match="non-accepted"):
+        merge_gold_jsonl([partial], tmp_path / "partial.jsonl")
+
+
+def test_existing_legacy_failure_blocks_gold_until_explicit_migration(tmp_path):
+    accepted = _record(tmp_path, "accepted")
+    failed = replace(
+        accepted,
+        sample_id="legacy-failure",
+        success=False,
+        public_outcome=None,
+    )
+    output = tmp_path / "legacy-gold.jsonl"
+    output.write_text(canonical_json(failed) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="migrate it to the attempt ledger"):
+        merge_gold_jsonl([accepted], output)

@@ -188,6 +188,10 @@ deterministic tool policy is final. Never access the network, environment variab
 credentials, external directories, or disable/delete tests. Do not reveal or write
 private chain-of-thought. Work on the task with allowed tools, and expose only concise
 plans, observable actions, validation results, and repair summaries.
+This is a workspace execution task, not a request for advice or a proposed patch. You
+MUST use the available workspace tools to inspect the actual files before deciding. When
+the task requires a code repair, edit the workspace and run the required validation
+commands before the final response. Never claim a tool action that did not occur.
 Only the Skill text embedded below is available. Do not attempt to open auxiliary
 references named by a Skill when they are not embedded in this prompt.
 
@@ -200,6 +204,8 @@ SKILL SOP INPUTS
 COMPLETION CONTRACT
 Make the smallest in-scope implementation, run every available required validation,
 repair failures when possible, and report only claims supported by actual tool results.
+Do not stop at a prose explanation. Emit the final object only after observable workspace
+actions, or use status `blocked` when a real tool or policy boundary prevents execution.
 Your final response MUST be exactly one JSON object with this public schema and no fence:
 {{"schema_version":"anchor.public-outcome.v1","status":"completed|blocked|partial",
 "decision_trace":[{{"check":"short public check","evidence":"observable evidence",

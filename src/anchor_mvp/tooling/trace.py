@@ -99,17 +99,6 @@ def _walk_dicts(value: Any) -> Iterator[dict[str, Any]]:
             yield from _walk_dicts(child)
 
 
-def _walk_strings(value: Any) -> Iterator[str]:
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, dict):
-        for child in value.values():
-            yield from _walk_strings(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _walk_strings(child)
-
-
 def _json_candidate(value: str) -> dict[str, Any] | None:
     text = value.strip()
     if text.startswith("```json") and text.endswith("```"):
@@ -137,7 +126,18 @@ def parse_public_outcome(stdout: str) -> PublicOutcome | None:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        for value in _walk_strings(event):
+        if not isinstance(event, dict) or str(event.get("type", "")).casefold() != "text":
+            continue
+        part = event.get("part")
+        if not isinstance(part, dict) or str(part.get("type", "")).casefold() not in {
+            "",
+            "text",
+        }:
+            continue
+        text = part.get("text")
+        if not isinstance(text, str):
+            continue
+        for value in (text,):
             candidate = _json_candidate(value)
             if not candidate or candidate.get("schema_version") != "anchor.public-outcome.v1":
                 continue

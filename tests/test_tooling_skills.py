@@ -23,6 +23,8 @@ def test_audited_skill_registry_validates_and_composes_public_prompt():
 
     assert "private chain-of-thought" in prompt
     assert "deterministic tool policy is final" in prompt
+    assert "workspace execution task, not a request for advice" in prompt
+    assert "MUST use the available workspace tools" in prompt
     assert "Refactor the fixture" in prompt
     assert provenance[0].commit == "30472ecf0fe34cc561df958c08501ecc5ca80ea4"
     assert provenance[0].license == "MIT"

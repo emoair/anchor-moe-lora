@@ -26,6 +26,10 @@ def test_keyless_kimi_config_matches_checked_in_example():
     assert "headers" not in generated["provider"]["kimi-code"]["options"]
     assert generated["agent"]["anchor-gold"]["steps"] == 8
     assert generated["share"] == "disabled"
+    model = generated["provider"]["kimi-code"]["models"]["kimi-for-coding"]
+    assert model["variants"] == {
+        "thinking": {"reasoningEffort": "high"},
+    }
 
 
 def test_invalid_or_descriptive_urls_are_rejected_before_requests():

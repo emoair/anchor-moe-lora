@@ -9,6 +9,7 @@ from .policy import ToolPolicy
 
 DEFAULT_BASE_URL = "https://api.kimi.com/coding/v1"
 DEFAULT_MODEL = "kimi-for-coding"
+DEFAULT_VARIANT = "thinking"
 PROVIDER_ID = "kimi-code"
 AGENT_ID = "anchor-gold"
 
@@ -68,6 +69,9 @@ def build_opencode_config(
                     model: {
                         "name": "Kimi for Coding",
                         "limit": {"context": 262144, "output": 32768},
+                        "variants": {
+                            DEFAULT_VARIANT: {"reasoningEffort": "high"},
+                        },
                     }
                 },
             }
