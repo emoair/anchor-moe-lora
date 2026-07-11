@@ -168,3 +168,10 @@ Anchor-MoE-LoRA is licensed under the
 available over a network must provide the corresponding source as required by the
 license. Bundled third-party Skills retain their original licenses and attribution;
 see [THIRD_PARTY_SKILLS.md](THIRD_PARTY_SKILLS.md).
+
+## Acknowledgements
+
+This project builds on openly shared Skills, adapter research, model/training stacks,
+and serving tools. Directly vendored assets, research inspiration, and infrastructure
+dependencies are credited separately in [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md),
+with pinned commits and original license locations where applicable.
