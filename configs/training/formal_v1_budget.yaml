@@ -1,0 +1,6 @@
+{
+  "extends": "formal_v1_common.yaml",
+  "overrides": {
+    "paths": {"adapter_dir": "artifacts/formal_v1/D/adapters"}
+  }
+}

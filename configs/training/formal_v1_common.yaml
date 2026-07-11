@@ -1,0 +1,47 @@
+{
+  "extends": "gemma4_12b_qlora_overnight.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v1",
+    "training": {
+      "max_seq_length": 64,
+      "max_steps": 15,
+      "per_device_train_batch_size": 1,
+      "gradient_accumulation_steps": 4,
+      "allow_tf32": true,
+      "minimum_backward_free_vram_mib": 256,
+      "optim": "paged_adamw_8bit",
+      "save_steps": 15,
+      "save_total_limit": 1
+    },
+    "adapters": {
+      "planner": {"datasets": ["artifacts/formal_v1/dataset/data_plan.jsonl"]},
+      "tool_policy": {"datasets": ["artifacts/formal_v1/dataset/data_tool_policy.jsonl"]},
+      "frontend_gen": {"datasets": ["artifacts/formal_v1/dataset/data_frontend.jsonl"]},
+      "frontend_review": {"datasets": ["artifacts/formal_v1/dataset/data_review.jsonl"]},
+      "security_gate": {"datasets": ["artifacts/formal_v1/dataset/data_security.jsonl"]},
+      "mixed_all": {
+        "datasets": [
+          "artifacts/formal_v1/dataset/data_plan.jsonl",
+          "artifacts/formal_v1/dataset/data_tool_policy.jsonl",
+          "artifacts/formal_v1/dataset/data_frontend.jsonl",
+          "artifacts/formal_v1/dataset/data_review.jsonl",
+          "artifacts/formal_v1/dataset/data_security.jsonl"
+        ]
+      }
+    },
+    "paths": {
+      "manifest_dir": "artifacts/formal_v1/manifests",
+      "adapter_dir": "artifacts/formal_v1/C/adapters"
+    },
+    "scale_gate": {
+      "required_datasets": {
+        "planner": "artifacts/formal_v1/dataset/data_plan.jsonl",
+        "tool_policy": "artifacts/formal_v1/dataset/data_tool_policy.jsonl",
+        "frontend_gen": "artifacts/formal_v1/dataset/data_frontend.jsonl",
+        "frontend_review": "artifacts/formal_v1/dataset/data_review.jsonl",
+        "security_gate": "artifacts/formal_v1/dataset/data_security.jsonl"
+      },
+      "required_smoke_gate_manifest": "artifacts/formal_v1/manifests/smoke-gate-frontend_gen-r16.execute.json"
+    }
+  }
+}
