@@ -6,6 +6,7 @@ import gc
 import hashlib
 import json
 import math
+import random
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -60,9 +61,13 @@ class _JsonlMapDataset:
         try:
             record = json.loads(raw.decode("utf-8-sig"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"invalid JSONL record at {path}:{line_number}: {exc}") from exc
+            raise RuntimeError(
+                f"invalid JSONL record at {path}:{line_number}: {exc}"
+            ) from exc
         if not isinstance(record, dict):
-            raise RuntimeError(f"JSONL record at {path}:{line_number} must be an object")
+            raise RuntimeError(
+                f"JSONL record at {path}:{line_number} must be an object"
+            )
         return record
 
 
@@ -81,17 +86,23 @@ def _make_text_collator(processor: Any, max_length: int):
         for example in examples:
             messages = example["messages"]
             if not messages or messages[-1].get("role") != "assistant":
-                raise RuntimeError("completion-only training requires a final assistant message")
+                raise RuntimeError(
+                    "completion-only training requires a final assistant message"
+                )
             assistant_content = messages[-1].get("content")
             if not isinstance(assistant_content, str) or not assistant_content.strip():
-                raise RuntimeError("completion-only training requires non-empty assistant content")
+                raise RuntimeError(
+                    "completion-only training requires non-empty assistant content"
+                )
             full_text = processor.apply_chat_template(
                 messages, add_generation_prompt=False, tokenize=False
             ).strip()
             target_text = assistant_content.strip()
             content_start = full_text.rfind(target_text)
             if content_start < 0:
-                raise RuntimeError("assistant content was not found in the rendered chat template")
+                raise RuntimeError(
+                    "assistant content was not found in the rendered chat template"
+                )
             content_end = content_start + len(target_text)
             encoded = processor.tokenizer(
                 full_text,
@@ -116,7 +127,9 @@ def _make_text_collator(processor: Any, max_length: int):
             selected = prompt + completion
             labels = [-100] * len(prompt) + completion
             if not completion or all(value == -100 for value in labels):
-                raise RuntimeError("assistant-preserving truncation produced no target tokens")
+                raise RuntimeError(
+                    "assistant-preserving truncation produced no target tokens"
+                )
             rows.append((selected, labels))
 
         import torch
@@ -127,7 +140,9 @@ def _make_text_collator(processor: Any, max_length: int):
             raise RuntimeError(f"unsupported tokenizer padding_side={padding_side!r}")
         pad_id = processor.tokenizer.pad_token_id
         if pad_id is None:
-            raise RuntimeError("completion-only collator requires a tokenizer pad token")
+            raise RuntimeError(
+                "completion-only collator requires a tokenizer pad token"
+            )
         padded_ids: list[list[int]] = []
         padded_labels: list[list[int]] = []
         attention_masks: list[list[int]] = []
@@ -183,7 +198,9 @@ def _assert_trainable_scope(model: Any, torch: Any) -> int:
         raise RuntimeError("LoRA attachment produced zero trainable parameters")
     if unexpected:
         preview = ", ".join(unexpected[:8])
-        raise RuntimeError(f"base freeze invariant failed; unexpected trainable parameters: {preview}")
+        raise RuntimeError(
+            f"base freeze invariant failed; unexpected trainable parameters: {preview}"
+        )
     return trainable
 
 
@@ -300,7 +317,9 @@ def _compare_probes(
     for after in after_public:
         identifier = str(after["id"])
         before = before_by_id[identifier]
-        delta = torch.max(torch.abs(after_logits[identifier] - before_logits[identifier])).item()
+        delta = torch.max(
+            torch.abs(after_logits[identifier] - before_logits[identifier])
+        ).item()
         comparisons.append(
             {
                 "id": identifier,
@@ -331,7 +350,154 @@ def _run_one_step_smoke(
     if int(training["gradient_accumulation_steps"]) != 1:
         raise RuntimeError("smoke-gate runtime requires gradient_accumulation_steps=1")
 
-    trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    dataset = [record]
+    result = _run_low_memory_training(
+        model,
+        processor,
+        dataset,
+        training,
+        torch,
+        reporter,
+    )
+    return int(result["global_step"]), float(result["train_loss"])
+
+
+def _sample_schedule(
+    dataset_size: int,
+    *,
+    max_steps: int,
+    gradient_accumulation_steps: int,
+    seed: int,
+) -> list[int]:
+    """Return a deterministic, epoch-shuffled schedule with exact exposure.
+
+    The schedule is deliberately independent of PyTorch/Trainer versions. For
+    the frozen formal datasets, steps * accumulation equals four complete
+    epochs, so every record is exposed exactly four times while epoch order is
+    reproducibly shuffled.
+    """
+
+    if dataset_size < 1:
+        raise RuntimeError("low-memory training dataset has no records")
+    if max_steps < 1 or gradient_accumulation_steps < 1:
+        raise RuntimeError("training steps and gradient accumulation must be positive")
+    required = max_steps * gradient_accumulation_steps
+    rng = random.Random(seed)
+    schedule: list[int] = []
+    while len(schedule) < required:
+        epoch = list(range(dataset_size))
+        rng.shuffle(epoch)
+        schedule.extend(epoch)
+    return schedule[:required]
+
+
+def _schedule_sha256(schedule: Sequence[int]) -> str:
+    encoded = json.dumps(list(schedule), separators=(",", ":")).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _assert_training_peak_within_budget(
+    torch: Any,
+    device: Any,
+    *,
+    maximum_peak_vram_gib: float,
+) -> dict[str, int]:
+    detail = _cuda_memory_detail(torch, device)
+    if not detail:
+        return detail
+    allocated_peak_bytes = int(torch.cuda.max_memory_allocated(device))
+    reserved_peak_bytes = int(torch.cuda.max_memory_reserved(device))
+    peak_bytes = max(allocated_peak_bytes, reserved_peak_bytes)
+    limit_bytes = int(maximum_peak_vram_gib * 1024**3)
+    if peak_bytes > limit_bytes:
+        raise RuntimeError(
+            "formal-v2 hard VRAM gate exceeded: "
+            f"peak_allocated_gib={allocated_peak_bytes / 1024**3:.3f} "
+            f"peak_reserved_gib={reserved_peak_bytes / 1024**3:.3f} "
+            f"limit_gib={maximum_peak_vram_gib:.3f}"
+        )
+    return detail
+
+
+def _save_adapter_safety_checkpoint(
+    model: Any,
+    checkpoint_root: Path,
+    *,
+    step: int,
+    micro_step: int,
+    run_id: str,
+    seed: int,
+    sample_schedule_sha256: str,
+) -> Path:
+    """Atomically publish adapter-only crash salvage for a manual run.
+
+    Optimizer, scheduler, scaler, and RNG state are intentionally not included.
+    Loading this directory is a warm start from LoRA weights, not an exact
+    continuation of the interrupted optimizer trajectory.
+    """
+
+    checkpoint_root.mkdir(parents=True, exist_ok=True)
+    name = f"checkpoint-step-{step:06d}-{run_id[:12]}"
+    destination = checkpoint_root / name
+    temporary = checkpoint_root / f".{name}.tmp"
+    if destination.exists() or temporary.exists():
+        raise RuntimeError(f"refusing to overwrite safety checkpoint: {destination}")
+    temporary.mkdir()
+    model.save_pretrained(str(temporary), safe_serialization=True)
+    write_json(
+        temporary / "safety_checkpoint.json",
+        {
+            "schema_version": "anchor.adapter-safety-checkpoint.v1",
+            "global_step": step,
+            "micro_step": micro_step,
+            "seed": seed,
+            "sample_schedule_sha256": sample_schedule_sha256,
+            "resume_capability": "adapter_weights_warm_start_only",
+            "optimizer_state_saved": False,
+            "scheduler_state_saved": False,
+            "rng_state_saved": False,
+            "continuation_warning": (
+                "Do not claim exact optimizer resume; load the adapter weights and "
+                "restart optimizer, scheduler, and sample scheduling explicitly."
+            ),
+        },
+    )
+    temporary.replace(destination)
+    return destination
+
+
+def _run_low_memory_training(
+    model: Any,
+    processor: Any,
+    dataset: Any,
+    training: Mapping[str, Any],
+    torch: Any,
+    reporter: TrainingProgress | None = None,
+    safety_checkpoint_root: Path | None = None,
+) -> dict[str, Any]:
+    """Train with the proven active-label manual path and bounded VRAM.
+
+    This avoids Trainer/TRL/Arrow allocations, keeps one micro-batch resident,
+    and implements optimizer-step gradient accumulation explicitly.
+    """
+
+    max_steps = int(training["max_steps"])
+    accumulation = int(training["gradient_accumulation_steps"])
+    seed = int(training.get("seed", 0))
+    schedule = _sample_schedule(
+        len(dataset),
+        max_steps=max_steps,
+        gradient_accumulation_steps=accumulation,
+        seed=seed,
+    )
+    schedule_sha256 = _schedule_sha256(schedule)
+    maximum_peak_vram_gib = float(training.get("maximum_training_peak_vram_gib", 9.0))
+    if maximum_peak_vram_gib <= 0:
+        raise RuntimeError("maximum_training_peak_vram_gib must be positive")
+
+    trainable = [
+        parameter for parameter in model.parameters() if parameter.requires_grad
+    ]
     optimizer_name = str(training.get("optim", "adamw_torch"))
     if optimizer_name == "paged_adamw_8bit":
         from bitsandbytes.optim import PagedAdamW8bit  # type: ignore[import-not-found]
@@ -342,65 +508,176 @@ def _run_one_step_smoke(
     if reporter:
         reporter.emit("optimizer", "initialized", detail={"name": optimizer_name})
     collator = _make_text_collator(processor, int(training["max_seq_length"]))
-    batch = collator([record])
     device = model.device
-    batch = {
-        key: value.to(device) if hasattr(value, "to") else value
-        for key, value in batch.items()
-    }
-
     model.train()
     model.config.use_cache = False
-    optimizer.zero_grad(set_to_none=True)
     device_type = getattr(device, "type", "cuda")
-    if reporter:
-        reporter.emit("step_forward", "started", step=1)
-    model_inputs = dict(batch)
-    if training.get("loss_logits") == "active_labels_only":
-        labels = model_inputs["labels"]
-        shifted = torch.nn.functional.pad(labels, (0, 1), value=-100)[..., 1:]
-        active_positions = torch.nonzero(
-            (shifted != -100).any(dim=0), as_tuple=False
-        ).flatten()
-        if active_positions.numel() == 0:
-            raise RuntimeError("smoke-gate sample has no supervised tokens")
-        model_inputs["logits_to_keep"] = active_positions
-        model_inputs["shift_labels"] = shifted.index_select(-1, active_positions)
-    with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-        output = model(**model_inputs, use_cache=False)
-        loss = output.loss
-    loss_value = float(loss.detach().float().cpu().item())
-    if not math.isfinite(loss_value):
-        raise RuntimeError(f"smoke-gate produced non-finite loss: {loss_value}")
-    memory_detail = _cuda_memory_detail(torch, device)
+    warmup_steps = max(
+        0, math.ceil(max_steps * float(training.get("warmup_ratio", 0.0)))
+    )
+    scheduler_name = str(training.get("lr_scheduler_type", "constant_with_warmup"))
+    if scheduler_name != "constant_with_warmup":
+        raise RuntimeError("manual low-memory runtime requires constant_with_warmup")
+
+    def lr_scale(step_index: int) -> float:
+        if warmup_steps and step_index < warmup_steps:
+            return float(step_index + 1) / float(warmup_steps)
+        return 1.0
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_scale)
     if reporter:
         reporter.emit(
-            "step_forward",
+            "manual_trainer",
+            "started",
+            step=0,
+            detail={
+                "engine": "manual_active_labels_v2",
+                "optimizer": optimizer_name,
+                "gradient_accumulation_steps": accumulation,
+                "dataset_records": len(dataset),
+                "sample_exposures": len(schedule),
+                "sample_schedule_sha256": schedule_sha256,
+                "maximum_training_peak_vram_gib": maximum_peak_vram_gib,
+                "checkpoint_resume_capability": "adapter_weights_warm_start_only",
+            },
+        )
+    _assert_training_peak_within_budget(
+        torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+    )
+    step_losses: list[float] = []
+    micro_step = 0
+    for global_step in range(1, max_steps + 1):
+        optimizer.zero_grad(set_to_none=True)
+        accumulated_loss = 0.0
+        for accumulation_index in range(1, accumulation + 1):
+            record = dataset[schedule[micro_step]]
+            micro_step += 1
+            batch = collator([record])
+            batch = {
+                key: value.to(device) if hasattr(value, "to") else value
+                for key, value in batch.items()
+            }
+            model_inputs = dict(batch)
+            labels = model_inputs["labels"]
+            shifted = torch.nn.functional.pad(labels, (0, 1), value=-100)[..., 1:]
+            active_positions = torch.nonzero(
+                (shifted != -100).any(dim=0), as_tuple=False
+            ).flatten()
+            if active_positions.numel() == 0:
+                raise RuntimeError("low-memory sample has no supervised tokens")
+            model_inputs["logits_to_keep"] = active_positions
+            model_inputs["shift_labels"] = shifted.index_select(-1, active_positions)
+            with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+                output = model(**model_inputs, use_cache=False)
+                raw_loss = output.loss
+                scaled_loss = raw_loss / accumulation
+            loss_value = float(raw_loss.detach().float().cpu().item())
+            if not math.isfinite(loss_value):
+                raise RuntimeError(
+                    f"manual low-memory runtime produced non-finite loss: {loss_value}"
+                )
+            accumulated_loss += loss_value
+            scaled_loss.backward()
+            memory_detail = _assert_training_peak_within_budget(
+                torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+            )
+            minimum_free_mib = int(training.get("minimum_backward_free_vram_mib", 0))
+            if memory_detail and memory_detail["free_mib"] < minimum_free_mib:
+                raise RuntimeError(
+                    "insufficient lossless VRAM headroom after micro-backward: "
+                    f"free_mib={memory_detail['free_mib']} required_mib={minimum_free_mib}"
+                )
+            if reporter:
+                reporter.emit(
+                    "micro_step",
+                    "completed",
+                    step=global_step,
+                    loss=loss_value,
+                    detail={"accumulation_index": accumulation_index, **memory_detail},
+                )
+            del batch, model_inputs, output, raw_loss, scaled_loss
+        averaged_loss = accumulated_loss / accumulation
+        torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
+        optimizer.step()
+        scheduler.step()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        memory_detail = _assert_training_peak_within_budget(
+            torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+        )
+        step_losses.append(averaged_loss)
+        if reporter:
+            reporter.emit(
+                "optimizer_step",
+                "completed",
+                step=global_step,
+                loss=averaged_loss,
+                detail={"learning_rate": scheduler.get_last_lr()[0], **memory_detail},
+            )
+        save_steps = int(training.get("save_steps", 0))
+        if (
+            safety_checkpoint_root is not None
+            and save_steps > 0
+            and global_step % save_steps == 0
+        ):
+            run_id = reporter.run_id if reporter is not None else "unreported"
+            if reporter:
+                reporter.emit(
+                    "adapter_safety_checkpoint",
+                    "started",
+                    step=global_step,
+                    loss=averaged_loss,
+                    detail={"resume_capability": "adapter_weights_warm_start_only"},
+                )
+            checkpoint_path = _save_adapter_safety_checkpoint(
+                model,
+                safety_checkpoint_root,
+                step=global_step,
+                micro_step=micro_step,
+                run_id=run_id,
+                seed=seed,
+                sample_schedule_sha256=schedule_sha256,
+            )
+            if reporter:
+                reporter.emit(
+                    "adapter_safety_checkpoint",
+                    "completed",
+                    step=global_step,
+                    loss=averaged_loss,
+                    detail={
+                        "path": str(checkpoint_path),
+                        "resume_capability": "adapter_weights_warm_start_only",
+                        "optimizer_state_saved": False,
+                        "scheduler_state_saved": False,
+                    },
+                )
+    train_loss = sum(step_losses) / len(step_losses)
+    peak_allocated_gib = 0.0
+    peak_reserved_gib = 0.0
+    if getattr(device, "type", "cpu") == "cuda" and torch.cuda.is_available():
+        peak_allocated_gib = torch.cuda.max_memory_allocated(device) / 1024**3
+        peak_reserved_gib = torch.cuda.max_memory_reserved(device) / 1024**3
+    result = {
+        "global_step": max_steps,
+        "train_loss": train_loss,
+        "micro_steps": micro_step,
+        "dataset_records": len(dataset),
+        "sample_exposures": len(schedule),
+        "sample_schedule_sha256": schedule_sha256,
+        "peak_allocated_gib": peak_allocated_gib,
+        "peak_reserved_gib": peak_reserved_gib,
+        "maximum_training_peak_vram_gib": maximum_peak_vram_gib,
+    }
+    if reporter:
+        reporter.emit(
+            "manual_trainer",
             "completed",
-            step=1,
-            loss=loss_value,
-            detail=memory_detail,
+            step=max_steps,
+            loss=train_loss,
+            detail=result,
         )
-    minimum_free_mib = int(training.get("minimum_backward_free_vram_mib", 0))
-    if memory_detail and memory_detail["free_mib"] < minimum_free_mib:
-        raise RuntimeError(
-            "insufficient lossless VRAM headroom before backward: "
-            f"free_mib={memory_detail['free_mib']} required_mib={minimum_free_mib}"
-        )
-    if reporter:
-        reporter.emit("step_backward", "started", step=1, loss=loss_value)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
-    if reporter:
-        reporter.emit("step_backward", "completed", step=1, loss=loss_value)
-        reporter.emit("optimizer_step", "started", step=1, loss=loss_value)
-    optimizer.step()
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-    if reporter:
-        reporter.emit("optimizer_step", "completed", step=1, loss=loss_value)
-    del batch, loss, output, optimizer
-    return 1, loss_value
+    del scheduler, optimizer
+    return result
 
 
 def _train_adapter_impl(
@@ -428,6 +705,7 @@ def _train_adapter_impl(
         BitsAndBytesConfig,
         TrainerCallback,
     )
+
     reporter.emit("runtime_imports", "completed")
 
     if not torch.cuda.is_available():
@@ -467,10 +745,14 @@ def _train_adapter_impl(
         "local_files_only": not allow_model_download,
         "trust_remote_code": bool(config["model"].get("trust_remote_code", False)),
     }
-    common_load_args = {key: value for key, value in common_load_args.items() if value is not None}
+    common_load_args = {
+        key: value for key, value in common_load_args.items() if value is not None
+    }
     processor_args = dict(common_load_args)
     processor_args["revision"] = config["model"].get("processor_revision")
-    processor_args = {key: value for key, value in processor_args.items() if value is not None}
+    processor_args = {
+        key: value for key, value in processor_args.items() if value is not None
+    }
     reporter.emit("processor_load", "started")
     processor = AutoProcessor.from_pretrained(
         config["model"]["processor_id"], **processor_args
@@ -498,7 +780,10 @@ def _train_adapter_impl(
     reporter.emit(
         "model_load",
         "started",
-        detail={"strategy": str(load_strategy), "source": "local" if local_model_path.is_dir() else "hub"},
+        detail={
+            "strategy": str(load_strategy),
+            "source": "local" if local_model_path.is_dir() else "hub",
+        },
     )
     model = AutoModelForMultimodalLM.from_pretrained(
         model_source,
@@ -552,14 +837,19 @@ def _train_adapter_impl(
     pre_logits: dict[str, Any] = {}
     if smoke_heldout_cases is not None:
         if not smoke_heldout_cases:
-            raise RuntimeError("smoke-gate needs at least one held-out case for the selected expert")
+            raise RuntimeError(
+                "smoke-gate needs at least one held-out case for the selected expert"
+            )
         reporter.emit("pre_probe", "started")
         pre_public, pre_logits = _capture_probes(
             model, processor, smoke_heldout_cases, torch
         )
         reporter.emit("pre_probe", "completed")
         if training := config.get("training"):
-            if training.get("empty_cache_after_probe") is True and torch.cuda.is_available():
+            if (
+                training.get("empty_cache_after_probe") is True
+                and torch.cuda.is_available()
+            ):
                 gc.collect()
                 torch.cuda.empty_cache()
                 reporter.emit(
@@ -580,6 +870,7 @@ def _train_adapter_impl(
             detail=_cuda_memory_detail(torch, model.device),
         )
     trainer: Any | None = None
+    manual_training: dict[str, Any] | None = None
     if smoke_heldout_cases is not None:
         # This path must stay independent of the Arrow/TRL stack: it is the
         # resource-safety gate that runs before any full training job.
@@ -589,6 +880,19 @@ def _train_adapter_impl(
         global_step, train_loss = _run_one_step_smoke(
             model, processor, dataset[0], training, torch, reporter
         )
+    elif training.get("runtime_engine") == "manual_active_labels_v2":
+        dataset = _JsonlMapDataset(dataset_paths)
+        manual_training = _run_low_memory_training(
+            model,
+            processor,
+            dataset,
+            training,
+            torch,
+            reporter,
+            safety_checkpoint_root=output_dir / "safety-checkpoints",
+        )
+        global_step = int(manual_training["global_step"])
+        train_loss = float(manual_training["train_loss"])
     else:
         # The full training route retains TRL for now. It is never imported by
         # smoke-gate, so a low-memory machine is screened before Arrow tables
@@ -625,14 +929,26 @@ def _train_adapter_impl(
             dataset_kwargs={"skip_prepare_dataset": True},
             seed=training["seed"],
         )
+
         class _ProgressCallback(TrainerCallback):
-            def on_log(self, args: Any, state: Any, control: Any, logs: Any = None, **kwargs: Any) -> None:
+            def on_log(
+                self,
+                args: Any,
+                state: Any,
+                control: Any,
+                logs: Any = None,
+                **kwargs: Any,
+            ) -> None:
                 values = logs if isinstance(logs, Mapping) else {}
                 raw_loss = values.get("loss")
                 loss = float(raw_loss) if isinstance(raw_loss, (int, float)) else None
-                reporter.emit("trainer_log", "running", step=int(state.global_step), loss=loss)
+                reporter.emit(
+                    "trainer_log", "running", step=int(state.global_step), loss=loss
+                )
 
-            def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
+            def on_step_end(
+                self, args: Any, state: Any, control: Any, **kwargs: Any
+            ) -> None:
                 reporter.emit("trainer_step", "completed", step=int(state.global_step))
 
         trainer = SFTTrainer(
@@ -680,13 +996,16 @@ def _train_adapter_impl(
         adapter_files = [
             path.name
             for path in output_dir.iterdir()
-            if path.name in {"adapter_config.json", "adapter_model.safetensors", "adapter_model.bin"}
+            if path.name
+            in {"adapter_config.json", "adapter_model.safetensors", "adapter_model.bin"}
         ]
         reload_error: str | None = None
         reloaded_public: list[dict[str, Any]] = []
         reload_comparison: list[dict[str, Any]] = []
         try:
-            reporter.emit("adapter_reload", "started", step=global_step, loss=train_loss)
+            reporter.emit(
+                "adapter_reload", "started", step=global_step, loss=train_loss
+            )
             if trainer is not None:
                 del trainer
             base_model = model.unload()
@@ -702,7 +1021,9 @@ def _train_adapter_impl(
             reload_comparison = _compare_probes(
                 post_public, post_logits, reloaded_public, reloaded_logits, torch
             )
-            reporter.emit("adapter_reload", "completed", step=global_step, loss=train_loss)
+            reporter.emit(
+                "adapter_reload", "completed", step=global_step, loss=train_loss
+            )
         except Exception as exc:  # evidence must survive a reload failure
             reload_error = f"{type(exc).__name__}: {exc}"
             reporter.emit(
@@ -715,13 +1036,16 @@ def _train_adapter_impl(
 
         checks = {
             "one_sample_one_step": global_step == 1 and len(dataset) == 1,
-            "loss_finite": isinstance(train_loss, (int, float)) and math.isfinite(train_loss),
+            "loss_finite": isinstance(train_loss, (int, float))
+            and math.isfinite(train_loss),
             "peak_vram_within_device": peak_reserved_gib < total_gib,
             "adapter_saved": "adapter_config.json" in adapter_files
             and any(name.startswith("adapter_model.") for name in adapter_files),
             "adapter_reloaded": reload_error is None
             and bool(reload_comparison)
-            and all(item["max_abs_next_logit_delta"] <= 1e-4 for item in reload_comparison),
+            and all(
+                item["max_abs_next_logit_delta"] <= 1e-4 for item in reload_comparison
+            ),
             # Greedy text may legitimately remain unchanged after one step. The
             # required held-out output difference is measured on the model's
             # next-token distribution, with text change retained as evidence.
@@ -762,6 +1086,8 @@ def _train_adapter_impl(
         "output_dir": str(output_dir),
         "metadata_path": str(metadata_path),
     }
+    if manual_training is not None:
+        response["manual_training"] = manual_training
     if smoke_evidence is not None:
         response["smoke_gate"] = smoke_evidence
     return response

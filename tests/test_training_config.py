@@ -20,6 +20,8 @@ from anchor_mvp.training.config import (  # noqa: E402
 
 CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_smoke.yaml"
 ONE_STEP_CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_one_step.yaml"
+FORMAL_V2_CONFIG = ROOT / "configs" / "training" / "formal_v2_lowmem_common.yaml"
+FORMAL_V2_PROBE = ROOT / "configs" / "training" / "formal_v2_lowmem_probe.yaml"
 
 
 def test_checked_in_config_is_safe_for_12gb_smoke() -> None:
@@ -113,7 +115,9 @@ def test_base_model_and_lora_precision_invariants_cannot_drift() -> None:
         validate_training_config(invalid)
 
 
-def test_one_step_profile_inherits_base_identity_and_overrides_only_smoke_limits() -> None:
+def test_one_step_profile_inherits_base_identity_and_overrides_only_smoke_limits() -> (
+    None
+):
     profile = load_training_config(ONE_STEP_CONFIG)
     assert profile["model"]["id"] == "google/gemma-4-12B"
     assert profile["model"]["revision"] == "56820d7d8cbe8e47975a53325439ed272e91cff2"
@@ -124,3 +128,41 @@ def test_one_step_profile_inherits_base_identity_and_overrides_only_smoke_limits
     assert profile["adapters"]["frontend_gen"]["datasets"] == [
         "data/live_smoke/data_frontend.jsonl"
     ]
+
+
+def test_formal_v2_lowmem_freezes_engine_exposure_and_nine_gib_gate() -> None:
+    profile = load_training_config(FORMAL_V2_CONFIG)
+
+    assert profile["experiment"] == "anchor-moe-lora-formal-v2-lowmem"
+    assert profile["training"]["runtime_engine"] == "manual_active_labels_v2"
+    assert profile["training"]["sample_order"] == "deterministic_epoch_shuffle_v1"
+    assert profile["training"]["maximum_training_peak_vram_gib"] == 9.0
+    assert profile["training"]["max_seq_length"] == 64
+    assert profile["training"]["gradient_accumulation_steps"] == 4
+    assert profile["training"]["optim"] == "paged_adamw_8bit"
+    assert profile["training"]["allow_tf32"] is True
+    assert profile["training"]["seed"] == 20260710
+    assert profile["adapters"]["planner"]["datasets"] == [
+        "artifacts/formal_v1/dataset/data_plan.jsonl"
+    ]
+    assert profile["paths"]["adapter_dir"] == "artifacts/formal_v2/C/adapters"
+
+
+def test_formal_v2_rejects_peak_budget_above_nine_gib() -> None:
+    profile = load_training_config(FORMAL_V2_CONFIG)
+    profile["training"]["maximum_training_peak_vram_gib"] = 9.01
+
+    with pytest.raises(ConfigError, match="maximum_training_peak_vram_gib"):
+        validate_training_config(profile)
+
+
+def test_formal_v2_probe_uses_real_manual_train_branch_for_two_steps() -> None:
+    profile = load_training_config(FORMAL_V2_PROBE)
+
+    assert profile["experiment"] == "anchor-moe-lora-formal-v2-lowmem-gpu-probe"
+    assert profile["training"]["runtime_engine"] == "manual_active_labels_v2"
+    assert profile["training"]["max_steps"] == 2
+    assert profile["training"]["gradient_accumulation_steps"] == 1
+    assert profile["training"]["save_steps"] == 1
+    assert profile["paths"]["manifest_dir"] == "artifacts/formal_v2/probe/manifests"
+    assert profile["paths"]["adapter_dir"] == "artifacts/formal_v2/probe/adapters"

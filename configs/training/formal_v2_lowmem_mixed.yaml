@@ -1,0 +1,7 @@
+{
+  "extends": "formal_v2_lowmem_common.yaml",
+  "overrides": {
+    "training": {"max_steps": 75, "save_steps": 25, "save_total_limit": 3},
+    "paths": {"adapter_dir": "artifacts/formal_v2/B/adapters"}
+  }
+}

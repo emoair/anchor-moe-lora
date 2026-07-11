@@ -180,9 +180,17 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         raise ConfigError("lora.dropout must be in [0, 1)")
 
     training = _mapping(config, "training")
-    max_seq_length = _positive_int(training.get("max_seq_length"), "training.max_seq_length")
-    _positive_int(training.get("per_device_train_batch_size"), "training.per_device_train_batch_size")
-    _positive_int(training.get("gradient_accumulation_steps"), "training.gradient_accumulation_steps")
+    max_seq_length = _positive_int(
+        training.get("max_seq_length"), "training.max_seq_length"
+    )
+    _positive_int(
+        training.get("per_device_train_batch_size"),
+        "training.per_device_train_batch_size",
+    )
+    _positive_int(
+        training.get("gradient_accumulation_steps"),
+        "training.gradient_accumulation_steps",
+    )
     _positive_int(training.get("max_steps"), "training.max_steps")
     if training.get("gradient_checkpointing") is not True:
         raise ConfigError("training.gradient_checkpointing must remain enabled")
@@ -201,20 +209,52 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         "training.minimum_backward_free_vram_mib",
     )
     if minimum_backward_free < 256:
-        raise ConfigError("training.minimum_backward_free_vram_mib must be at least 256")
+        raise ConfigError(
+            "training.minimum_backward_free_vram_mib must be at least 256"
+        )
+    runtime_engine = training.get("runtime_engine", "trainer")
+    if runtime_engine not in {"trainer", "manual_active_labels_v2"}:
+        raise ConfigError(
+            "training.runtime_engine must be 'trainer' or 'manual_active_labels_v2'"
+        )
+    if runtime_engine == "manual_active_labels_v2":
+        if max_seq_length != 64:
+            raise ConfigError("formal-v2 manual runtime requires max_seq_length=64")
+        if training.get("optim") != "paged_adamw_8bit":
+            raise ConfigError("formal-v2 manual runtime requires paged_adamw_8bit")
+        if training.get("lr_scheduler_type") != "constant_with_warmup":
+            raise ConfigError("formal-v2 manual runtime requires constant_with_warmup")
+        if training.get("sample_order") != "deterministic_epoch_shuffle_v1":
+            raise ConfigError(
+                "formal-v2 manual runtime requires deterministic_epoch_shuffle_v1"
+            )
+        maximum_peak = training.get("maximum_training_peak_vram_gib")
+        if not isinstance(maximum_peak, (int, float)) or not 0 < maximum_peak <= 9.0:
+            raise ConfigError(
+                "formal-v2 maximum_training_peak_vram_gib must be in (0, 9.0]"
+            )
+        _positive_int(training.get("save_steps"), "training.save_steps")
 
     adapters = _mapping(config, "adapters")
     missing = set(ALLOWED_ADAPTERS) - set(adapters)
     extra = set(adapters) - set(ALLOWED_ADAPTERS)
     if missing or extra:
-        raise ConfigError(f"adapters must be exactly {ALLOWED_ADAPTERS}; missing={missing}, extra={extra}")
+        raise ConfigError(
+            f"adapters must be exactly {ALLOWED_ADAPTERS}; missing={missing}, extra={extra}"
+        )
     for name in ALLOWED_ADAPTERS:
         entry = adapters[name]
         if not isinstance(entry, Mapping):
             raise ConfigError(f"adapters.{name} must be a mapping")
         datasets = entry.get("datasets")
-        if not isinstance(datasets, list) or not datasets or not all(isinstance(p, str) and p for p in datasets):
-            raise ConfigError(f"adapters.{name}.datasets must be a non-empty list of paths")
+        if (
+            not isinstance(datasets, list)
+            or not datasets
+            or not all(isinstance(p, str) and p for p in datasets)
+        ):
+            raise ConfigError(
+                f"adapters.{name}.datasets must be a non-empty list of paths"
+            )
     mixed = adapters["mixed_all"]["datasets"]
     if len(mixed) < len(SPECIALIST_ADAPTERS):
         raise ConfigError("mixed_all must combine all five specialist datasets")
@@ -231,9 +271,21 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         if not isinstance(path, str) or not path.strip():
             raise ConfigError(f"scale_gate.required_datasets.{expert} must be a path")
     base_artifact = _mapping(scale_gate, "base_artifact")
-    for field in ("repo_id", "revision", "local_path", "download_manifest", "weight_file", "sha256"):
-        if not isinstance(base_artifact.get(field), str) or not base_artifact[field].strip():
-            raise ConfigError(f"scale_gate.base_artifact.{field} must be non-empty text")
+    for field in (
+        "repo_id",
+        "revision",
+        "local_path",
+        "download_manifest",
+        "weight_file",
+        "sha256",
+    ):
+        if (
+            not isinstance(base_artifact.get(field), str)
+            or not base_artifact[field].strip()
+        ):
+            raise ConfigError(
+                f"scale_gate.base_artifact.{field} must be non-empty text"
+            )
     _positive_int(base_artifact.get("bytes"), "scale_gate.base_artifact.bytes")
     minimum_free = scale_gate.get("minimum_free_vram_gib")
     if not isinstance(minimum_free, (int, float)) or minimum_free <= 0:
@@ -252,7 +304,9 @@ def select_adapter(
     """Return an isolated run config for one adapter and optional rank ablation."""
 
     if adapter_name not in ALLOWED_ADAPTERS:
-        raise ConfigError(f"unknown adapter {adapter_name!r}; choose from {ALLOWED_ADAPTERS}")
+        raise ConfigError(
+            f"unknown adapter {adapter_name!r}; choose from {ALLOWED_ADAPTERS}"
+        )
     selected_rank = config["lora"]["rank"] if rank is None else rank
     if selected_rank not in ALLOWED_RANKS:
         raise ConfigError(f"rank must be one of {ALLOWED_RANKS}")

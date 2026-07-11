@@ -1,0 +1,12 @@
+{
+  "extends": "formal_v2_lowmem_common.yaml",
+  "overrides": {
+    "training": {
+      "max_steps": 1,
+      "gradient_accumulation_steps": 1,
+      "save_steps": 1,
+      "save_total_limit": 1
+    },
+    "paths": {"adapter_dir": "artifacts/formal_v2/smoke/adapters"}
+  }
+}

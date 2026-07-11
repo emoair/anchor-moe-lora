@@ -19,7 +19,9 @@ def sha256_file(path: str | Path) -> str:
 
 def config_fingerprint(config: Mapping[str, Any]) -> str:
     public = {key: value for key, value in config.items() if not key.startswith("_")}
-    encoded = json.dumps(public, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    encoded = json.dumps(
+        public, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
@@ -30,7 +32,7 @@ def build_manifest(
     datasets: Sequence[Mapping[str, Any]],
     mode: str,
 ) -> dict[str, Any]:
-    return {
+    manifest = {
         "manifest_version": "1.0",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "mode": mode,
@@ -58,6 +60,7 @@ def build_manifest(
             "dropout": config["lora"]["dropout"],
         },
         "training_profile": {
+            "runtime_engine": config["training"].get("runtime_engine", "trainer"),
             "max_seq_length": config["training"]["max_seq_length"],
             "max_steps": config["training"]["max_steps"],
             "per_device_train_batch_size": config["training"][
@@ -68,18 +71,48 @@ def build_manifest(
             ],
             "gradient_checkpointing": config["training"]["gradient_checkpointing"],
             "seed": config["training"]["seed"],
+            "sample_order": config["training"].get("sample_order"),
+            "maximum_training_peak_vram_gib": config["training"].get(
+                "maximum_training_peak_vram_gib"
+            ),
         },
         "config_sha256": config_fingerprint(config),
         "config_path": config.get("_config_path"),
         "datasets": list(datasets),
         "environment": dict(dependency_report),
     }
+    if config["training"].get("runtime_engine") == "manual_active_labels_v2":
+        records = sum(
+            int(item.get("valid_records", 0))
+            for item in datasets
+            if item.get("exists") is True
+        )
+        exposures = int(config["training"]["max_steps"]) * int(
+            config["training"]["gradient_accumulation_steps"]
+        )
+        manifest["sample_exposure_plan"] = {
+            "order": config["training"]["sample_order"],
+            "dataset_records": records,
+            "sample_exposures": exposures,
+            "complete_epochs": exposures // records if records else None,
+            "balanced_complete_epochs": bool(records and exposures % records == 0),
+        }
+        manifest["safety_checkpoints"] = {
+            "save_steps": int(config["training"]["save_steps"]),
+            "resume_capability": "adapter_weights_warm_start_only",
+            "optimizer_state_saved": False,
+            "scheduler_state_saved": False,
+            "rng_state_saved": False,
+        }
+    return manifest
 
 
 def write_json(path: str | Path, value: Mapping[str, Any]) -> Path:
     output = Path(path).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return output
 
 

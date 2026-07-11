@@ -1,0 +1,16 @@
+{
+  "extends": "formal_v2_lowmem_common.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v2-lowmem-gpu-probe",
+    "training": {
+      "max_steps": 2,
+      "gradient_accumulation_steps": 1,
+      "save_steps": 1,
+      "save_total_limit": 2
+    },
+    "paths": {
+      "manifest_dir": "artifacts/formal_v2/probe/manifests",
+      "adapter_dir": "artifacts/formal_v2/probe/adapters"
+    }
+  }
+}

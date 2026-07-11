@@ -1,0 +1,6 @@
+{
+  "extends": "formal_v2_lowmem_common.yaml",
+  "overrides": {
+    "paths": {"adapter_dir": "artifacts/formal_v2/D/adapters"}
+  }
+}

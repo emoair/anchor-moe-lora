@@ -6,9 +6,8 @@ paired frontend review, and a final defensive security gate through an observabl
 application-level DAG.
 
 The repository and distribution name are `anchor-moe-lora`. The Python import
-package remains `anchor_mvp`, and the existing local Conda environment and checkout
-directory remain `anchor-mvp`, so resumable runs and installed entry points are not
-invalidated by the public rename.
+package remains `anchor_mvp`, while the prepared Conda environment remains
+`anchor-mvp`. The verified local checkout is `D:\LLM\anchor-moe-lora`.
 
 This is not a neural Mixture-of-Experts layer. The claim under test is whether
 specialized adapters plus explicit routing beat a mixed adapter **under matched
@@ -38,7 +37,7 @@ The prepared environment is isolated from Anaconda `base`:
 
 ```powershell
 conda activate anchor-mvp
-cd C:\Users\Air\Documents\Codex\2026-07-10\x-b-x\outputs\anchor-mvp
+cd D:\LLM\anchor-moe-lora
 python -m pip install -e .
 python -m pytest
 ```
@@ -125,6 +124,8 @@ python -m anchor_mvp train `
 
 Use `--execute --allow-model-download` only after the dataset exists and the dry-run
 manifest reports a ready environment. See [training details](docs/training.md).
+The current evidence, interrupted experiments, and remaining work are tracked in
+[project status](docs/PROJECT_STATUS.md).
 
 ## Serving and benchmark
 
@@ -157,3 +158,13 @@ configs/                smoke and experiment configurations
 scripts/                model, training and WSL serving entry points
 tests/                  offline unit and integration tests
 ```
+
+## License
+
+Copyright (C) 2026 emoair.
+
+Anchor-MoE-LoRA is licensed under the
+[GNU Affero General Public License v3.0 or later](LICENSE). Modified versions made
+available over a network must provide the corresponding source as required by the
+license. Bundled third-party Skills retain their original licenses and attribution;
+see [THIRD_PARTY_SKILLS.md](THIRD_PARTY_SKILLS.md).
