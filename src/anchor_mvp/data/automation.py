@@ -25,6 +25,7 @@ from ..benchmark.heldout import (
 from .cleaning import validate_safe_payload
 from .cli import _as_bool, _simple_config
 from .pipeline import DistillationPipeline, PipelineReport
+from .provider import PRESETS, ProviderSelection, provider_spec, select_provider_model
 from .schema import TASK_TYPES
 from .storage import JsonlStore
 from .teacher import (
@@ -215,6 +216,10 @@ class _TrackedTeacher:
             "requests": self.logical_requests,
             "output_tokens": self.logical_output_tokens,
         }
+
+    @property
+    def provider_provenance(self) -> dict[str, Any]:
+        return dict(self.inner.provider_provenance)
 
     @property
     def usage_budget_id(self) -> int:
@@ -963,20 +968,41 @@ def _build_teacher(
     value: Mapping[str, Any],
     *,
     thinking_effort: str,
+    selection: ProviderSelection | None = None,
 ) -> CompatibleTeacher:
-    protocol = str(value.get("protocol", "anthropic"))
-    default_base = (
-        "https://api.kimi.com/coding/"
-        if protocol == "anthropic"
-        else "https://api.kimi.com/coding/v1"
+    if selection is None:
+        spec = provider_spec(value)
+        legacy_model = os.environ.get("KIMI_MODEL_ID") if "provider" not in value else None
+        selection = select_provider_model(
+            spec,
+            requested_model=str(value.get("model") or legacy_model or "") or None,
+            discover=_as_bool(value.get("discover_models", False)),
+            force_model=_as_bool(value.get("force_model", False)),
+            model_index=int(value["model_index"]) if value.get("model_index") is not None else None,
+            timeout_seconds=float(value.get("discovery_timeout_seconds", 20)),
+        )
+    spec = selection.spec
+    configured_fallback = value.get("fallback_protocol")
+    fallback_protocol = (
+        str(configured_fallback)
+        if configured_fallback is not None
+        else "openai" if spec.preset == "kimi-code-anthropic" else None
+    )
+    fallback_base = str(
+        value.get(
+            "fallback_base_url",
+            PRESETS["kimi-code-openai"].base_url
+            if spec.preset == "kimi-code-anthropic"
+            else spec.base_url,
+        )
     )
     return CompatibleTeacher(
-        base_url=str(value.get("base_url", default_base)),
-        fallback_base_url=str(value.get("fallback_base_url", "https://api.kimi.com/coding/v1")),
-        model=str(os.environ.get("KIMI_MODEL_ID") or value.get("model", "kimi-for-coding")),
-        protocol=protocol,  # type: ignore[arg-type]
-        fallback_protocol=str(value.get("fallback_protocol", "openai")),  # type: ignore[arg-type]
-        api_key_env=str(value.get("api_key_env", "KIMI_API_KEY")),
+        base_url=spec.base_url,
+        fallback_base_url=fallback_base,
+        model=selection.model,
+        protocol=spec.protocol,
+        fallback_protocol=fallback_protocol,  # type: ignore[arg-type]
+        api_key_env=spec.api_key_env,
         anthropic_version=str(value.get("anthropic_version", "2023-06-01")),
         user_agent=str(value.get("user_agent", "anchor-moe-lora/0.1")),
         timeout_seconds=float(value.get("timeout_seconds", 600)),
@@ -991,6 +1017,10 @@ def _build_teacher(
         thinking_budget_tokens=int(value.get("thinking_budget_tokens", 4096)),
         stream_openai=_as_bool(value.get("stream_openai", True)),
         stream_options_include_usage=_as_bool(value.get("stream_options_include_usage", False)),
+        provider_preset=spec.preset,
+        model_source=selection.model_source,
+        discovery_status=selection.discovery.status,
+        discovery_model_count=len(selection.discovery.models),
     )
 
 
@@ -998,6 +1028,16 @@ def _build_teachers(value: Mapping[str, Any], *, dry_run: bool) -> dict[str, Tea
     if dry_run:
         mock = MockTeacher()
         return {name: cast(Teacher, mock) for name in ("seed", *TASK_TYPES)}
+    spec = provider_spec(value)
+    legacy_model = os.environ.get("KIMI_MODEL_ID") if "provider" not in value else None
+    selection = select_provider_model(
+        spec,
+        requested_model=str(value.get("model") or legacy_model or "") or None,
+        discover=_as_bool(value.get("discover_models", False)),
+        force_model=_as_bool(value.get("force_model", False)),
+        model_index=int(value["model_index"]) if value.get("model_index") is not None else None,
+        timeout_seconds=float(value.get("discovery_timeout_seconds", 20)),
+    )
     default_effort = str(value.get("thinking_effort", "medium"))
     efforts = {
         "seed": str(value.get("thinking_effort_seed", default_effort)),
@@ -1008,7 +1048,7 @@ def _build_teachers(value: Mapping[str, Any], *, dry_run: bool) -> dict[str, Tea
         "security": str(value.get("thinking_effort_security", "low")),
     }
     workers = {
-        name: _build_teacher(value, thinking_effort=effort)
+        name: _build_teacher(value, thinking_effort=effort, selection=selection)
         for name, effort in efforts.items()
     }
     owner = workers["seed"]
@@ -1042,7 +1082,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         print(config.status_path.read_text(encoding="utf-8"))
         return 0
-    if not args.dry_run and not os.environ.get(str(raw.get("api_key_env", "KIMI_API_KEY"))):
+    credential_env = provider_spec(raw).api_key_env
+    if not args.dry_run and not os.environ.get(credential_env):
         print("anchor-automation: credential environment variable is not set", file=sys.stderr)
         return 2
     try:

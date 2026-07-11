@@ -1,9 +1,11 @@
 # Unattended Kimi distillation. This file never contains credentials.
+provider: kimi-code-anthropic
 protocol: anthropic
 base_url: https://api.kimi.com/coding/
 fallback_protocol: anthropic
 fallback_base_url: https://api.kimi.com/coding/
 model: kimi-for-coding
+force_model: true
 api_key_env: KIMI_API_KEY
 anthropic_version: 2023-06-01
 user_agent: anchor-moe-lora/0.1

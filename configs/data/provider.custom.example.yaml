@@ -1,0 +1,17 @@
+# Generic OpenAI-compatible example. Never put api_key/token/Authorization here.
+provider: custom-openai
+protocol: openai
+base_url: https://gateway.example.com/v1
+api_key_env: TEACHER_API_KEY
+
+# First inspect: py -m anchor_mvp.data models --config <this-file>
+# Then set model to an ID from that output, or use model_index with discover_models.
+discover_models: true
+model: replace-with-provider-model-id
+# Set true to skip GET /models and always use the manual model above.
+force_model: false
+discovery_timeout_seconds: 20
+
+thinking_enabled: false
+stream_openai: true
+max_tokens: 4096

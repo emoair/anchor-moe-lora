@@ -182,6 +182,7 @@ class DistilledRecord:
         teacher_protocol: str,
         generation_params: Mapping[str, Any],
         template_sha256: str,
+        provider_provenance: Mapping[str, Any] | None = None,
         canonical_task_input: Mapping[str, Any] | None = None,
         provenance_extra: Mapping[str, Any] | None = None,
     ) -> "DistilledRecord":
@@ -231,6 +232,8 @@ class DistilledRecord:
             "template_sha256": template_sha256,
             "created_at": utc_now(),
         }
+        if provider_provenance:
+            provenance["teacher"]["provider"] = dict(provider_provenance)
         if provenance_extra:
             provenance.update({str(key): value for key, value in provenance_extra.items()})
         return cls(

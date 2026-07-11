@@ -62,3 +62,40 @@ def test_cli_exposes_timeout_and_retry_policy() -> None:
     assert teacher.max_retries == 0
     assert teacher.stream_openai is True
     assert teacher.stream_options_include_usage is True
+
+
+def test_models_command_reports_missing_key_without_request(capsys, monkeypatch) -> None:
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    assert main(["models", "--provider", "kimi-code-openai"]) == 0
+    report = json.loads(capsys.readouterr().out)[0]
+    assert report["status"] == "missing_credential"
+    assert report["choices"] == []
+    assert report["base_url"] == "https://api.kimi.com/coding/v1"
+
+
+def test_force_model_builds_custom_provider_without_discovery() -> None:
+    args = build_parser().parse_args(
+        [
+            "run",
+            "--provider",
+            "custom-openai",
+            "--base-url",
+            "https://gateway.example.com/v1",
+            "--api-key-env",
+            "PRIVATE_TEACHER_KEY",
+            "--model",
+            "manual-model",
+            "--force-model",
+        ]
+    )
+    teacher = _teacher(args, {})
+    assert isinstance(teacher, CompatibleTeacher)
+    assert teacher.api_key_env == "PRIVATE_TEACHER_KEY"
+    assert teacher.provider_provenance == {
+        "preset": "custom-openai",
+        "base_url": "https://gateway.example.com/v1",
+        "protocol": "openai",
+        "model": "manual-model",
+        "model_source": "manual",
+        "discovery": {"status": "skipped_force_model", "model_count": 0},
+    }

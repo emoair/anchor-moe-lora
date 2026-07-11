@@ -301,6 +301,7 @@ class DistillationPipeline:
                     teacher_base_url=self.teacher.base_url,
                     teacher_protocol=self.teacher.protocol,
                     generation_params=self.teacher.generation_params,
+                    provider_provenance=self.teacher.provider_provenance,
                     template_sha256=template_sha256(task_type),
                     canonical_task_input=task_input,
                     provenance_extra=provenance_extra,

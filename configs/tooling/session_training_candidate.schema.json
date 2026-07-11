@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/session-training-candidate-v1.json",
+  "title": "Controlled OpenCode session training candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_id",
+    "source",
+    "trajectory",
+    "final_diff",
+    "validators",
+    "public_outcome"
+  ],
+  "properties": {
+    "schema_version": { "const": "anchor.session-training-candidate.v1" },
+    "sample_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "opencode_version", "source_sha256", "workspace"],
+      "properties": {
+        "kind": { "const": "controlled-opencode-export" },
+        "opencode_version": { "type": "string" },
+        "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "workspace": { "const": "<workspace>" }
+      }
+    },
+    "trajectory": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "sequence", "content"],
+            "properties": {
+              "type": { "enum": ["user_input", "assistant_output"] },
+              "sequence": { "type": "integer", "minimum": 1 },
+              "content": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "sequence", "call_id", "tool", "input"],
+            "properties": {
+              "type": { "const": "tool_call" },
+              "sequence": { "type": "integer", "minimum": 1 },
+              "call_id": { "type": "string", "pattern": "^call_[0-9]{4}$" },
+              "tool": { "enum": ["read", "bash", "edit", "apply_patch"] },
+              "input": { "type": "object" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "sequence", "call_id", "tool", "status", "content"],
+            "properties": {
+              "type": { "const": "tool_result" },
+              "sequence": { "type": "integer", "minimum": 1 },
+              "call_id": { "type": "string", "pattern": "^call_[0-9]{4}$" },
+              "tool": { "enum": ["read", "bash", "edit", "apply_patch"] },
+              "status": { "enum": ["completed", "error"] },
+              "content": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "final_diff": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "patch", "additions", "deletions", "status"],
+        "properties": {
+          "file": { "type": "string", "pattern": "^<workspace>(/|$)" },
+          "patch": { "type": "string" },
+          "additions": { "type": "integer", "minimum": 0 },
+          "deletions": { "type": "integer", "minimum": 0 },
+          "status": { "enum": ["added", "deleted", "modified"] }
+        }
+      }
+    },
+    "validators": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "exit_code", "command", "stdout", "stderr"],
+        "properties": {
+          "name": { "enum": ["build", "test", "lint"] },
+          "status": { "const": "PASS" },
+          "exit_code": { "const": 0 },
+          "command": { "type": "string" },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" }
+        }
+      }
+    },
+    "public_outcome": {
+      "type": "object",
+      "required": ["schema_version", "status", "decision_trace", "repair_summaries", "final_summary"],
+      "properties": {
+        "schema_version": { "const": "anchor.public-outcome.v1" },
+        "status": { "const": "completed" }
+      }
+    }
+  }
+}

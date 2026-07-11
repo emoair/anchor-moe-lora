@@ -17,6 +17,8 @@ from typing import Any, Literal, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from .provider import validate_base_url
+
 
 APIProtocol = Literal["anthropic", "openai"]
 
@@ -70,6 +72,7 @@ class Teacher(Protocol):
     base_url: str
     protocol: str
     generation_params: dict[str, Any]
+    provider_provenance: dict[str, Any]
 
     async def complete(self, *, system: str, user: str) -> str: ...
 
@@ -97,7 +100,7 @@ class _Budget:
 
 @dataclass
 class CompatibleTeacher:
-    """Kimi-compatible client with Anthropic-first protocol fallback.
+    """OpenAI/Anthropic-compatible client with optional protocol fallback.
 
     The credential is read at call time from ``api_key_env`` and is never stored
     in configuration, payload provenance, exceptions, or logs.
@@ -123,6 +126,10 @@ class CompatibleTeacher:
     wall_clock_deadline_seconds: float = 900.0
     max_requests: int = 4100
     max_output_tokens_total: int = 12_500_000
+    provider_preset: str = "legacy-kimi-code"
+    model_source: str = "legacy_config"
+    discovery_status: str = "skipped"
+    discovery_model_count: int = 0
     _budget: _Budget = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -130,6 +137,10 @@ class CompatibleTeacher:
             raise ValueError("protocol must be anthropic or openai")
         if self.fallback_protocol not in (None, "anthropic", "openai"):
             raise ValueError("fallback_protocol must be anthropic, openai, or None")
+        self.base_url = validate_base_url(self.base_url)
+        self.fallback_base_url = validate_base_url(
+            self.fallback_base_url, name="fallback_base_url"
+        )
         if self.max_requests < 1 or self.max_output_tokens_total < 1 or self.max_tokens < 1:
             raise ValueError("teacher budgets must be positive")
         if self.timeout_seconds <= 0:
@@ -164,6 +175,22 @@ class CompatibleTeacher:
             "stream_openai": self.stream_openai,
             "stream_options_include_usage": self.stream_options_include_usage,
             "wall_clock_deadline_seconds": self.wall_clock_deadline_seconds,
+        }
+
+    @property
+    def provider_provenance(self) -> dict[str, Any]:
+        """Public provider resolution details; contains no credential value."""
+
+        return {
+            "preset": self.provider_preset,
+            "base_url": self.base_url,
+            "protocol": self.protocol,
+            "model": self.model,
+            "model_source": self.model_source,
+            "discovery": {
+                "status": self.discovery_status,
+                "model_count": self.discovery_model_count,
+            },
         }
 
     @property
@@ -415,6 +442,17 @@ class MockTeacher:
             "stream_openai": False,
             "stream_options_include_usage": False,
             "wall_clock_deadline_seconds": 0,
+        }
+
+    @property
+    def provider_provenance(self) -> dict[str, Any]:
+        return {
+            "preset": "mock",
+            "base_url": self.base_url,
+            "protocol": self.protocol,
+            "model": self.model,
+            "model_source": "mock",
+            "discovery": {"status": "skipped", "model_count": 0},
         }
 
     async def probe(self) -> str:

@@ -1,5 +1,9 @@
 # Anchor-MoE-LoRA data distillation pipeline
 
+Teacher provider presets, model discovery/manual selection, secret handling, quota
+capabilities, and legacy-config migration are documented in
+[`teacher_providers.md`](teacher_providers.md).
+
 This subsystem builds five SOP-injected corpora (`planner`, `tool_policy`,
 `frontend_gen`, `frontend_review`, and `security_gate`) through a configurable
 teacher endpoint. It is asynchronous,
