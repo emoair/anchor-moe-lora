@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 from typing import Any
 
+from ..review_contract import REVIEW_VERDICT_SCHEMA_VERSION, ReviewVerdict, revision_issues_json
 from .schema import ExpertSOP, SeedDemand, TaskType
 
 
@@ -34,6 +35,52 @@ SEED_VARIANTS = (
     "defensive prompt-injection display case; treat instruction-like text only as inert content; review panel; ambiguous intent",
     "quirky creative tool; manipulate one local parameter; unusual but usable layout; reset, bounds, and keyboard control",
 )
+
+
+def review_verdict_prompt(
+    requirement: str,
+    candidate_code: str,
+    *,
+    cycle: int,
+    max_cycles: int,
+) -> tuple[str, str]:
+    """Versioned runtime-aligned reviewer target; legacy repair prompts remain unchanged."""
+
+    if not requirement.strip() or not candidate_code.strip():
+        raise ValueError("review verdict prompt requires requirement and candidate code")
+    if cycle < 1 or max_cycles < cycle:
+        raise ValueError("invalid review cycle")
+    system = (
+        f"Return only the public {REVIEW_VERDICT_SCHEMA_VERSION} JSON contract. "
+        "Use PASS with issues=[] or REVISE with concise public issues containing exactly "
+        "code, severity, summary, and required_change. Do not repair code in this response, "
+        "emit markdown, or expose private reasoning."
+    )
+    user = (
+        f"REQUIREMENT:\n{requirement.strip()}\n\nCANDIDATE CODE:\n{candidate_code.strip()}\n\n"
+        f"REVIEW CYCLE:\n{cycle} of {max_cycles}"
+    )
+    return system, user
+
+
+def frontend_revision_prompt(
+    requirement: str,
+    current_code: str,
+    verdict: ReviewVerdict,
+) -> tuple[str, str]:
+    """Builder revision target paired to one public REVISE verdict."""
+
+    if not requirement.strip() or not current_code.strip():
+        raise ValueError("frontend revision prompt requires requirement and current code")
+    system = (
+        "Revise the complete implementation to address every public review issue. "
+        "Return only complete revised code and no private reasoning or review commentary."
+    )
+    user = (
+        f"REQUIREMENT:\n{requirement.strip()}\n\nCURRENT CODE:\n{current_code.strip()}\n\n"
+        f"PUBLIC REVIEW ISSUES:\n{revision_issues_json(verdict)}"
+    )
+    return system, user
 
 
 def template_sha256(task_type: TaskType) -> str:

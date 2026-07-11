@@ -19,12 +19,40 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "opencode_version", "source_sha256", "workspace"],
+      "required": ["kind", "opencode_version", "source_sha256", "workspace", "tool_contract"],
       "properties": {
         "kind": { "const": "controlled-opencode-export" },
         "opencode_version": { "type": "string" },
         "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "workspace": { "const": "<workspace>" }
+        "workspace": { "const": "<workspace>" },
+        "tool_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "tools", "bash_commands"],
+          "properties": {
+            "version": { "const": "anchor.execution-tool-contract.v2" },
+            "tools": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 8,
+              "maxItems": 8,
+              "items": { "enum": ["read", "bash", "edit", "apply_patch", "write", "grep", "glob", "list"] }
+            },
+            "bash_commands": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "enum": [
+                  "npm run build --if-present",
+                  "npm run test --if-present",
+                  "npm run lint --if-present"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "trajectory": {
@@ -50,7 +78,7 @@
               "type": { "const": "tool_call" },
               "sequence": { "type": "integer", "minimum": 1 },
               "call_id": { "type": "string", "pattern": "^call_[0-9]{4}$" },
-              "tool": { "enum": ["read", "bash", "edit", "apply_patch"] },
+              "tool": { "enum": ["read", "bash", "edit", "apply_patch", "write", "grep", "glob", "list"] },
               "input": { "type": "object" }
             }
           },
@@ -62,7 +90,7 @@
               "type": { "const": "tool_result" },
               "sequence": { "type": "integer", "minimum": 1 },
               "call_id": { "type": "string", "pattern": "^call_[0-9]{4}$" },
-              "tool": { "enum": ["read", "bash", "edit", "apply_patch"] },
+              "tool": { "enum": ["read", "bash", "edit", "apply_patch", "write", "grep", "glob", "list"] },
               "status": { "enum": ["completed", "error"] },
               "content": { "type": "string" }
             }

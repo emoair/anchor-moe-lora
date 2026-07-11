@@ -33,6 +33,7 @@ from .teacher import (
     ClientDeadlineExceeded,
     CompatibleTeacher,
     MockTeacher,
+    ProviderQuotaExhausted,
     RateLimitError,
     Teacher,
 )
@@ -561,7 +562,7 @@ class AutomationRunner:
         )
 
     async def run(self, *, wait_for_cooldown: bool = False) -> dict[str, Any]:
-        if self.status["state"] == "complete":
+        if self.status["state"] in {"complete", "provider_quota_exhausted"}:
             return self.status
         if self.status["state"] == "ready":
             self.status["state"] = "running"
@@ -592,6 +593,17 @@ class AutomationRunner:
             started = time.monotonic()
             try:
                 report = await self._run_stage(seed_target=target, concurrency=concurrency)
+            except ProviderQuotaExhausted as error:
+                self._sync_usage()
+                self.status["state"] = "provider_quota_exhausted"
+                self.status["quota_epoch"]["closed_at"] = _iso()
+                self.status["quota_epoch"]["close_reason"] = "provider_quota_exhausted"
+                self._event(
+                    "provider_quota_exhausted",
+                    classification="explicit_provider_quota",
+                    retry_after_seconds=error.retry_after_seconds,
+                )
+                return self.status
             except RateLimitError as error:
                 self._sync_usage()
                 self._set_cooldown(error.retry_after_seconds)
@@ -627,6 +639,18 @@ class AutomationRunner:
             self._sync_usage()
             self._record_report_failures(report.errors)
             if report.rate_limited:
+                if report.provider_quota_exhausted:
+                    self.status["state"] = "provider_quota_exhausted"
+                    self.status["quota_epoch"]["closed_at"] = _iso()
+                    self.status["quota_epoch"]["close_reason"] = (
+                        "provider_quota_exhausted"
+                    )
+                    self._event(
+                        "provider_quota_exhausted",
+                        classification="explicit_provider_quota",
+                        retry_after_seconds=report.retry_after_seconds,
+                    )
+                    return self.status
                 self._set_cooldown(report.retry_after_seconds)
                 if not wait_for_cooldown:
                     return self.status
@@ -730,6 +754,7 @@ class AutomationRunner:
         rate_limited = False
         retry_after: float | None = None
         client_deadline = False
+        provider_quota_exhausted = False
         for task_type in TASK_TYPES:
             self.status["current_worker"] = task_type
             self._event("worker_started", worker=task_type, concurrency=concurrency)
@@ -750,6 +775,9 @@ class AutomationRunner:
             errors.extend(report.errors)
             rate_limited = rate_limited or report.rate_limited
             client_deadline = client_deadline or report.client_deadline
+            provider_quota_exhausted = (
+                provider_quota_exhausted or report.provider_quota_exhausted
+            )
             if report.retry_after_seconds is not None:
                 retry_after = max(retry_after or 0.0, report.retry_after_seconds)
             self._event(
@@ -774,6 +802,7 @@ class AutomationRunner:
             rate_limited=rate_limited,
             retry_after_seconds=retry_after,
             client_deadline=client_deadline,
+            provider_quota_exhausted=provider_quota_exhausted,
         )
 
     async def _cooldown_gate(self, *, wait_for_cooldown: bool) -> bool:

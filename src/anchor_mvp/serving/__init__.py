@@ -19,6 +19,12 @@ from .types import (
     Message,
     TokenUsage,
 )
+from ..review_contract import (
+    REVIEW_VERDICT_SCHEMA_VERSION,
+    ReviewIssue,
+    ReviewVerdict,
+    parse_review_verdict,
+)
 
 __all__ = [
     "AdapterSelection",
@@ -34,10 +40,14 @@ __all__ = [
     "PipelineResult",
     "PipelineRouter",
     "RuntimeAdapterAdmin",
+    "REVIEW_VERDICT_SCHEMA_VERSION",
+    "ReviewIssue",
+    "ReviewVerdict",
     "StageArtifact",
     "StageStatus",
     "TokenUsage",
     "deterministic_tool_policy",
     "parse_security_decision",
+    "parse_review_verdict",
     "parse_tool_policy_decision",
 ]

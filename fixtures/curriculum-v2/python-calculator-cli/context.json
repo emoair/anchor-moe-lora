@@ -1,0 +1,1 @@
+{"user_request":"再做一个可脚本调用的 Python 计算器，错误必须可预测。","existing_stack":"single-file Python CLI","constraints":["no dependencies","no traceback for user errors","exit code 2 on invalid input"]}

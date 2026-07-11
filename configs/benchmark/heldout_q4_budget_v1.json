@@ -72,7 +72,7 @@
     },
     {
       "name": "d_budget_matched_pipeline",
-      "group": "D_Q4_BUDGET_MATCHED_ROUTED_LORA",
+      "group": "D_Q4_MANUAL_BUDGET_MATCHED_ROUTED_LORA",
       "workflow": "pipeline",
       "model": "gemma4-12b-base-q4",
       "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
@@ -94,7 +94,58 @@
         "security": "lora-budget-final-security-r3"
       },
       "max_tokens_per_call": 1024,
-      "notes": "Five routed specialists whose rank sum and materialized trainable parameter count exactly match the single mixed rank-16 LoRA in B."
+      "notes": "Frozen manual 3/3/4/3/3 routed control; rank sum and materialized parameters exactly match B."
+    },
+    {
+      "name": "e_adaptive_pareto_pipeline",
+      "group": "E_Q4_ADAPTIVE_PARETO_ROUTED_LORA",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": "96ebac04f4d2c64d4b21142bb6e05d94656c3c7fb243fdbd43c4b4457eca0156",
+      "stage_models": {
+        "planner": "CALIBRATION_PENDING",
+        "tool_policy": "CALIBRATION_PENDING",
+        "frontend": "CALIBRATION_PENDING",
+        "review": "CALIBRATION_PENDING",
+        "security": "CALIBRATION_PENDING"
+      },
+      "allocation_method": "stage_complexity_calibration_pareto_v1",
+      "selection_split": "calibration_only",
+      "allocation_frozen": false,
+      "allocation_manifest_sha256": null,
+      "maximum_stage_rank": 16,
+      "status": "calibration_pending",
+      "max_tokens_per_call": 1024,
+      "notes": "Pending E template. Held-out execution is forbidden until calibration selects and freezes a non-uniform allocation; no total-parameter match to B is required."
+    },
+    {
+      "name": "f_adaptive_budget_matched_pipeline",
+      "group": "F_Q4_ADAPTIVE_BUDGET_MATCHED_ROUTED_LORA",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": "96ebac04f4d2c64d4b21142bb6e05d94656c3c7fb243fdbd43c4b4457eca0156",
+      "adapter_trainable_parameters": 10387456,
+      "stage_models": {
+        "planner": "CALIBRATION_PENDING",
+        "tool_policy": "CALIBRATION_PENDING",
+        "frontend": "CALIBRATION_PENDING",
+        "review": "CALIBRATION_PENDING",
+        "security": "CALIBRATION_PENDING"
+      },
+      "allocation_method": "stage_complexity_calibration_pareto_v1",
+      "selection_split": "calibration_only",
+      "allocation_frozen": false,
+      "allocation_manifest_sha256": null,
+      "maximum_stage_rank": 16,
+      "rank_sum_constraint": 16,
+      "parameter_budget_constraint": 10387456,
+      "status": "calibration_pending",
+      "max_tokens_per_call": 1024,
+      "notes": "Pending F template. It uses E's adaptive mechanism, but frozen ranks must sum to 16 and materialized trainable parameters must exactly equal B before held-out execution."
     }
   ]
 }

@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"build":"py -3 -m py_compile src/merge_config.py","test":"node --test test/public.test.mjs","lint":"py -3 -m tabnanny src/merge_config.py"}}

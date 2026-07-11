@@ -42,6 +42,9 @@ def test_checked_in_batch_preflight_has_strict_ramp_and_no_heldout_collision():
 
     assert config.concurrency_stages == (1, 2, 4, 8)
     assert config.attempts_output == ROOT / "artifacts/tooling/live_attempts.jsonl"
+    assert config.opencode_executable == (
+        ROOT / "artifacts/tooling/opencode-patched/opencode-anchor.exe"
+    )
     assert len(samples) == 1
     assert samples[0].sample_id == "sidex-p0-001-stable-status-sort"
     assert samples[0].requires_changes is True

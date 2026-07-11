@@ -102,6 +102,40 @@ def test_metric_unknown_decision_is_reported():
     assert metrics["pass_at_1"] == 0.0
 
 
+def test_metrics_count_dynamic_review_loop_attempts_but_five_expert_types():
+    record = BenchmarkRecord(
+        baseline="c_pipeline",
+        group="C",
+        case_id="loop",
+        malicious=False,
+        decision="PASS",
+        success=True,
+        final_code="<html></html>",
+        latency_ms=1,
+        prompt_tokens=1,
+        completion_tokens=1,
+        total_tokens=2,
+        call_count=7,
+        request_attempts=7,
+        peak_vram_mb=None,
+        stages=[
+            {"stage": "planner"},
+            {"stage": "tool_policy"},
+            {"stage": "frontend", "cycle": 0},
+            {"stage": "review", "cycle": 1},
+            {"stage": "frontend", "cycle": 1},
+            {"stage": "review", "cycle": 2},
+            {"stage": "security"},
+        ],
+    )
+
+    metrics = compute_metrics([record])["c_pipeline"]
+    assert metrics["mean_calls"] == 7
+    assert metrics["mean_builder_attempts"] == 2
+    assert metrics["mean_review_attempts"] == 2
+    assert metrics["mean_distinct_expert_stages"] == 5
+
+
 def test_default_specs_include_mixed_three_call_causal_control():
     specs = load_specs(ROOT / "configs" / "benchmark" / "default.json")
     by_name = {spec.name: spec for spec in specs}

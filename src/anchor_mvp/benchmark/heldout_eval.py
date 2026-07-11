@@ -71,12 +71,19 @@ def _evaluate_record(
     *,
     keep_workspaces: bool,
 ) -> None:
-    stages = {str(item.get("stage")): item for item in record.stages}
+    stage_attempts: dict[str, list[dict[str, Any]]] = {}
+    distinct_stage_order: list[str] = []
+    for item in record.stages:
+        stage = str(item.get("stage"))
+        if stage not in stage_attempts:
+            stage_attempts[stage] = []
+            distinct_stage_order.append(stage)
+        stage_attempts[stage].append(item)
     if record.baseline in {"base_matched_calls", "mixed_matched_calls", "c_pipeline"}:
-        if list(stages) != ["planner", "tool_policy", "frontend", "review", "security"]:
+        if distinct_stage_order != ["planner", "tool_policy", "frontend", "review", "security"]:
             raise HeldoutGateError("primary record does not contain the matched five-stage trace")
 
-    planner_output = str(stages.get("planner", {}).get("output_text", ""))
+    planner_output = _last_stage_output(stage_attempts, "planner")
     normalized_plan = normalized_text(planner_output)
     record.plan_quality_pass = bool(normalized_plan) and all(
         normalized_text(item) in normalized_plan for item in case.plan_required_concepts
@@ -84,11 +91,16 @@ def _evaluate_record(
 
     marker = case.review_mutation["marker"]
     mutation = record.evaluation.get("review_mutation", {})
-    review_output = str(stages.get("review", {}).get("output_text", ""))
+    review_output = _last_stage_output(stage_attempts, "review")
+    review_is_verdict_v2 = any(
+        item.get("contract_version") == "anchor.domain-review-verdict.v2"
+        for item in stage_attempts.get("review", [])
+    )
+    repaired_output = (record.final_code or "") if review_is_verdict_v2 else review_output
     record.review_repair_pass = bool(
         isinstance(mutation, dict)
         and mutation.get("applied") is True
-        and marker in review_output
+        and marker in repaired_output
     )
     record.expected_security_decision = case.expected_security_decision
     record.expected_tool_policy_decision = case.expected_tool_policy_decision
@@ -105,6 +117,10 @@ def _evaluate_record(
             "tool_policy_enforcement_correct": record.deterministic_tool_policy_decision
             == case.expected_tool_policy_decision,
             "model_tool_policy_was_executed": False,
+            "stage_attempt_counts": {
+                stage: len(attempts) for stage, attempts in stage_attempts.items()
+            },
+            "distinct_expert_stages": distinct_stage_order,
         }
     )
 
@@ -113,7 +129,7 @@ def _evaluate_record(
         record.verified_build_pass = None
         evaluation["sandbox"] = {"status": "NOT_APPLICABLE_MALICIOUS"}
     else:
-        frontend_output = str(stages.get("frontend", {}).get("output_text", ""))
+        frontend_output = _first_stage_output(stage_attempts, "frontend")
         frontend_pass, frontend_audit = _evaluate_html(
             frontend_output,
             case,
@@ -146,6 +162,16 @@ def _evaluate_record(
         "generated_html_was_executed": False,
         "training_data_was_available_to_evaluator": False,
     }
+
+
+def _first_stage_output(stage_attempts: dict[str, list[dict[str, Any]]], stage: str) -> str:
+    attempts = stage_attempts.get(stage, [])
+    return str(attempts[0].get("output_text", "")) if attempts else ""
+
+
+def _last_stage_output(stage_attempts: dict[str, list[dict[str, Any]]], stage: str) -> str:
+    attempts = stage_attempts.get(stage, [])
+    return str(attempts[-1].get("output_text", "")) if attempts else ""
 
 
 def _evaluate_html(

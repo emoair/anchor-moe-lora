@@ -9,6 +9,9 @@ The repository and distribution name are `anchor-moe-lora`. The Python import
 package remains `anchor_mvp`, while the prepared Conda environment remains
 `anchor-mvp`. The verified local checkout is `D:\LLM\anchor-moe-lora`.
 
+中文端到端使用、密钥防泄漏、Provider、自动蒸馏、OpenCode execution gold 与
+常见故障处理见 [简中快速上手](QUICKSTART.zh-CN.md)。当前 OpenCode live 门禁也以该文档为准。
+
 This is not a neural Mixture-of-Experts layer. The claim under test is whether
 specialized adapters plus explicit routing beat a mixed adapter **under matched
 call, token, and wall-time budgets**.
@@ -28,7 +31,7 @@ call, token, and wall-time budgets**.
   GGUF and W4A16 artifacts are explicitly rejected by the trainer.
 - vLLM/OpenAI-compatible client, `frontend -> review -> security` DAG, fail-closed
   handling and structured per-stage traces.
-- A/B/C plus matched-compute baselines, latency/token/VRAM/error accounting and
+- A/B/C/D controls plus planned E/F adaptive-rank arms, latency/token/VRAM/error accounting and
   Pass@1/TPR/FPR metric hooks.
 
 ## Local environment
@@ -129,13 +132,16 @@ The current evidence, interrupted experiments, and remaining work are tracked in
 
 ## Serving and benchmark
 
-The primary A/B/C comparison has one non-negotiable controlled-variable contract:
+The primary A/B/C/D/E/F comparison has one non-negotiable controlled-variable contract:
 all arms load the exact same locally serialized Q4/NF4 base artifact (same model
 revision, quantization settings, tokenizer, and artifact digest), execute the same
 five ordered stages with the same per-stage token caps, and differ only in adapter
-assignment. A uses no adapter, B reuses one mixed adapter, and C routes five specialist
-adapters. Reports show A's absolute metrics and normalize A to index `100`; B/C are
-reported as deltas and ratios against A. A different Q4 artifact invalidates the run.
+assignment/rank allocation. A uses no adapter, B reuses one mixed adapter, C routes five
+full rank-16 specialists, D manually matches B's total parameter budget, E searches a
+variable-budget adaptive Pareto allocation, and F applies the same adaptive allocator under
+a hard B-sized budget. Reports show A's absolute metrics and normalize A to index `100`.
+The fair equal-budget comparison is B/D/F; C/E are capacity/Pareto comparisons. A different
+Q4 artifact invalidates the run.
 
 Official vLLM is Linux-only; the real server entry uses the installed WSL2 Ubuntu.
 Start with the 3080 Ti safe profile: 1-2K context, one sequence, one active adapter,

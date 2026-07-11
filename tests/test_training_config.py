@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_smoke.yaml"
 ONE_STEP_CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_one_step.yaml"
 FORMAL_V2_CONFIG = ROOT / "configs" / "training" / "formal_v2_lowmem_common.yaml"
 FORMAL_V2_PROBE = ROOT / "configs" / "training" / "formal_v2_lowmem_probe.yaml"
+ADAPTIVE_MATRIX = ROOT / "configs" / "training" / "complexity_adaptive_lora.yaml"
 
 
 def test_checked_in_config_is_safe_for_12gb_smoke() -> None:
@@ -146,6 +148,9 @@ def test_formal_v2_lowmem_freezes_engine_exposure_and_nine_gib_gate() -> None:
         "artifacts/formal_v1/dataset/data_plan.jsonl"
     ]
     assert profile["paths"]["adapter_dir"] == "artifacts/formal_v2/C/adapters"
+    assert profile["scale_gate"]["required_smoke_gate_manifest"] == (
+        "artifacts/formal_v1/manifests/smoke-gate-frontend_gen-r16.execute.json"
+    )
 
 
 def test_formal_v2_rejects_peak_budget_above_nine_gib() -> None:
@@ -166,3 +171,26 @@ def test_formal_v2_probe_uses_real_manual_train_branch_for_two_steps() -> None:
     assert profile["training"]["save_steps"] == 1
     assert profile["paths"]["manifest_dir"] == "artifacts/formal_v2/probe/manifests"
     assert profile["paths"]["adapter_dir"] == "artifacts/formal_v2/probe/adapters"
+    assert profile["scale_gate"]["minimum_free_host_memory_gib"] == 11.0
+    assert load_training_config(FORMAL_V2_CONFIG)["scale_gate"][
+        "minimum_free_host_memory_gib"
+    ] == 12.0
+
+
+def test_adaptive_matrix_defines_distinct_e_and_exact_budget_f() -> None:
+    matrix = yaml.safe_load(ADAPTIVE_MATRIX.read_text(encoding="utf-8"))
+    shared = matrix["shared_selection"]
+    arm_e = matrix["arms"]["E"]
+    arm_f = matrix["arms"]["F"]
+
+    assert matrix["schema_version"] == "anchor.complexity-adaptive-budget.v2"
+    assert shared["data_split"] == "calibration_only"
+    assert shared["heldout_access"] == "forbidden_until_allocation_frozen"
+    assert shared["freeze_manifest"]["immutable_after_heldout_open"] is True
+    assert arm_e["per_stage_max_rank"] == 16
+    assert arm_e["total_rank_constraint"] is None
+    assert arm_e["materialized_parameter_constraint"] is None
+    assert arm_f["per_stage_max_rank"] == 16
+    assert arm_f["total_rank_constraint"] == 16
+    assert arm_f["materialized_parameter_constraint"] == 10_387_456
+    assert arm_e["search"] != arm_f["search"]

@@ -77,6 +77,14 @@ class BaselineSpec:
     matched_tokens_to: str | None = None
     adapter_trainable_parameters: int | None = None
     stage_adapter_ranks: dict[str, int] = field(default_factory=dict)
+    allocation_method: str = ""
+    selection_split: str = ""
+    allocation_frozen: bool = True
+    allocation_manifest_sha256: str | None = None
+    maximum_stage_rank: int | None = None
+    rank_sum_constraint: int | None = None
+    parameter_budget_constraint: int | None = None
+    status: str = "ready"
     notes: str = ""
 
     @classmethod
@@ -106,6 +114,30 @@ class BaselineSpec:
                 str(key): int(value)
                 for key, value in payload.get("stage_adapter_ranks", {}).items()
             },
+            allocation_method=str(payload.get("allocation_method", "")),
+            selection_split=str(payload.get("selection_split", "")),
+            allocation_frozen=bool(payload.get("allocation_frozen", True)),
+            allocation_manifest_sha256=(
+                str(payload["allocation_manifest_sha256"])
+                if payload.get("allocation_manifest_sha256") is not None
+                else None
+            ),
+            maximum_stage_rank=(
+                int(payload["maximum_stage_rank"])
+                if payload.get("maximum_stage_rank") is not None
+                else None
+            ),
+            rank_sum_constraint=(
+                int(payload["rank_sum_constraint"])
+                if payload.get("rank_sum_constraint") is not None
+                else None
+            ),
+            parameter_budget_constraint=(
+                int(payload["parameter_budget_constraint"])
+                if payload.get("parameter_budget_constraint") is not None
+                else None
+            ),
+            status=str(payload.get("status", "ready")),
             notes=str(payload.get("notes", "")),
         )
 

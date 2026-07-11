@@ -1,0 +1,1 @@
+{"user_request":"修复标签渲染的转义缺陷，输入只是数据，不能当成标记执行。","existing_stack":"server-rendered web helper","constraints":["escape five HTML characters","no DOM or network","coerce primitive number"]}

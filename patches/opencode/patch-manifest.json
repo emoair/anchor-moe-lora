@@ -1,0 +1,29 @@
+{
+  "schema_version": "anchor.opencode-patch-source.v1",
+  "repository": "https://github.com/anomalyco/opencode.git",
+  "baseline_commit": "b1fc8113948b518835c2a39ece49553cffe9b30c",
+  "upstream_version": "1.17.18",
+  "patch": "v1.17.18-require-initial-tool.patch",
+  "patch_sha256": "e571780779e9bdf7659d99628d4f527c6387e1b134176b2a267e6b22d9ebb74f",
+  "bun_version": "1.3.14",
+  "tool_contract_version": "anchor.execution-tool-contract.v2",
+  "tool_contract": {
+    "version": "anchor.execution-tool-contract.v2",
+    "tools": ["apply_patch", "bash", "edit", "glob", "grep", "list", "read", "write"],
+    "bash_commands": [
+      "npm run build --if-present",
+      "npm run lint --if-present",
+      "npm run test --if-present"
+    ]
+  },
+  "required_tests": {
+    "core": [
+      "test/config/v1-agent-initial-tool-call.test.ts"
+    ],
+    "opencode": [
+      "test/session/initial-tool-call.test.ts",
+      "test/session/prompt.test.ts",
+      "test/agent/agent.test.ts"
+    ]
+  }
+}

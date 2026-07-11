@@ -44,6 +44,19 @@ class RateLimitError(TeacherError):
         self.retry_after_seconds = retry_after_seconds
 
 
+class ProviderQuotaExhausted(RateLimitError):
+    """The provider explicitly reported that the account quota/budget is exhausted.
+
+    This is intentionally distinct from a temporary HTTP 429.  Downstream
+    orchestration may stop distillation on this signal, but must never infer it
+    from a generic transport or HTTP failure.
+    """
+
+    def __init__(self, retry_after_seconds: float | None = None) -> None:
+        super().__init__(retry_after_seconds)
+        self.args = ("provider explicitly reported quota exhausted",)
+
+
 class ClientDeadlineExceeded(TeacherError):
     """A local absolute wall-clock deadline, distinct from a server failure."""
 
@@ -304,8 +317,8 @@ class CompatibleTeacher:
                     self._request_sync, protocol, base_url, system, user, max_tokens
                 )
             except _ProtocolError as error:
-                if error.status == 403 and _is_quota_exhaustion(error):
-                    raise RateLimitError(error.retry_after_seconds) from None
+                if error.status in (402, 403, 429) and _is_quota_exhaustion(error):
+                    raise ProviderQuotaExhausted(error.retry_after_seconds) from None
                 if error.status == 429 and (error.retry_after_seconds or 0) > 60:
                     raise RateLimitError(error.retry_after_seconds) from None
                 if error.status not in (408, 409, 429) and error.status < 500:
@@ -788,7 +801,17 @@ def _check_stream_deadline(
 
 def _is_quota_exhaustion(error: _ProtocolError) -> bool:
     detail = str(error).casefold()
-    return "usage limit" in detail or "quota will be refreshed" in detail
+    # Keep this allowlist narrow.  Generic 402/403/429 responses, networking
+    # errors, and client errors must not become a training handoff trigger.
+    return any(
+        marker in detail
+        for marker in (
+            "usage limit",
+            "quota will be refreshed",
+            "quota exhausted",
+            "budget exhausted",
+        )
+    )
 
 
 def _safe_http_error_detail(error: HTTPError, *, api_key: str, system: str, user: str) -> str:

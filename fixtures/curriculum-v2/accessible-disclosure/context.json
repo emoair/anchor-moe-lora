@@ -1,0 +1,1 @@
+{"user_request":"修好设置页的可访问折叠面板；键盘控制已在上层，当前只缺可靠状态转换。","existing_stack":"frontend state utility","constraints":["immutable input","string aria state","unknown id is a no-op"]}

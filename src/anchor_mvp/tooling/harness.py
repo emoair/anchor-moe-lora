@@ -6,7 +6,7 @@ from .config import write_opencode_config
 from .models import GoldRecord, SampleSpec, ToolTraceEntry, sample_contract_sha256
 from .policy import ToolPolicy
 from .runner import AgentExecutor
-from .validation import run_validations
+from .validation import run_validations_with_output
 from .workspace import WorkspaceManager, diff_snapshots, snapshot_files
 
 
@@ -48,12 +48,27 @@ class ToolingHarness:
             else ()
         )
         try:
-            validations, validation_trace = run_validations(workspace, self.policy)
+            validations, validation_trace, validation_capture = run_validations_with_output(
+                workspace, self.policy
+            )
             validation_errors: tuple[str, ...] = ()
         except ValueError:
             validations = ()
             validation_trace = ()
+            validation_capture = ()
             validation_errors = ("invalid_package_manifest",)
+
+        capture_errors: tuple[str, ...] = ()
+        finalize_capture = getattr(self.executor, "finalize_capture", None)
+        if callable(finalize_capture):
+            captured, capture_code = finalize_capture(
+                execution=execution,
+                sample_id=sample.sample_id,
+                workspace=workspace,
+                validators=validation_capture,
+            )
+            if not captured:
+                capture_errors = (capture_code or "controlled_session_capture_failed",)
 
         offset = len(execution.trace)
         resequenced_validation_trace = tuple(
@@ -87,6 +102,7 @@ class ToolingHarness:
                 + validation_errors
                 + preflight_contract_errors
                 + protected_change_errors
+                + capture_errors
             )
         )
         if sample.requires_changes and not changes:

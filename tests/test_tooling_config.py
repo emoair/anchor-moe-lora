@@ -25,6 +25,7 @@ def test_keyless_kimi_config_matches_checked_in_example():
     }
     assert "headers" not in generated["provider"]["kimi-code"]["options"]
     assert generated["agent"]["anchor-gold"]["steps"] == 8
+    assert generated["agent"]["anchor-gold"]["requireInitialToolCall"] is True
     assert generated["share"] == "disabled"
     model = generated["provider"]["kimi-code"]["models"]["kimi-for-coding"]
     assert model["variants"] == {

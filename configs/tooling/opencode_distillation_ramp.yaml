@@ -2,9 +2,15 @@ schema_version: anchor.opencode-live-batch.v1
 candidate_manifest: configs/tooling/execution_candidates_p0.yaml
 split_policy: configs/tooling/execution_split_policy_v1.yaml
 skill_registry: configs/data/skill_sources.yaml
+opencode_executable: artifacts/tooling/opencode-patched/opencode-anchor.exe
 workspace_root: runs/tooling-live
 gold_output: artifacts/tooling/live_gold.accepted.jsonl
 attempts_output: artifacts/tooling/live_attempts.jsonl
+session_candidates: artifacts/tooling/session_candidates.jsonl
+session_quarantine: artifacts/tooling/session_quarantine.jsonl
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
 concurrency_stages: [1, 2, 4, 8]
 samples_per_stage: [1, 2, 4, 8]
 minimum_stage_success_rate: 0.8

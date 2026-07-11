@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"build":"node --check src/status-filter.mjs","test":"node --test test/public.test.mjs","lint":"node --check src/status-filter.mjs"}}

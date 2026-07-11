@@ -1,0 +1,1 @@
+{"user_request":"实现确定性的 TypeScript 查询串序列化，数组要重复键。","existing_stack":"Node TypeScript HTTP utility","constraints":["no network","sorted keys","URLSearchParams encoding"]}

@@ -29,12 +29,18 @@ def _package_scripts(workspace: Path) -> dict[str, str]:
     return {str(key): str(value) for key, value in scripts.items()}
 
 
-def run_validations(
+def _run_validations(
     workspace: Path, policy: ToolPolicy
-) -> tuple[tuple[ValidationResult, ...], tuple[ToolTraceEntry, ...]]:
+) -> tuple[
+    tuple[ValidationResult, ...],
+    tuple[ToolTraceEntry, ...],
+    tuple[dict[str, object], ...],
+]:
+    """Run validators and retain private full output for controlled conversion."""
     scripts = _package_scripts(workspace)
     results: list[ValidationResult] = []
     trace: list[ToolTraceEntry] = []
+    captures: list[dict[str, object]] = []
     npm_executable = shutil.which("npm.cmd" if os.name == "nt" else "npm")
     for name in _VALIDATION_NAMES:
         command = f"npm run {name} --if-present"
@@ -48,6 +54,16 @@ def run_validations(
                     script_present=False,
                     status="SKIP",
                 )
+            )
+            captures.append(
+                {
+                    "name": name,
+                    "status": "SKIP",
+                    "exit_code": None,
+                    "command": command,
+                    "stdout": "",
+                    "stderr": "",
+                }
             )
             continue
         started = time.perf_counter()
@@ -103,4 +119,31 @@ def run_validations(
                 output_sha256=output_hash,
             )
         )
-    return tuple(results), tuple(trace)
+        captures.append(
+            {
+                "name": name,
+                "status": status,
+                "exit_code": exit_code,
+                "command": command,
+                "stdout": output,
+                "stderr": "",
+            }
+        )
+    return tuple(results), tuple(trace), tuple(captures)
+
+
+def run_validations(
+    workspace: Path, policy: ToolPolicy
+) -> tuple[tuple[ValidationResult, ...], tuple[ToolTraceEntry, ...]]:
+    results, trace, _ = _run_validations(workspace, policy)
+    return results, trace
+
+
+def run_validations_with_output(
+    workspace: Path, policy: ToolPolicy
+) -> tuple[
+    tuple[ValidationResult, ...],
+    tuple[ToolTraceEntry, ...],
+    tuple[dict[str, object], ...],
+]:
+    return _run_validations(workspace, policy)

@@ -70,13 +70,15 @@ The main experiment fixes this call order and the per-stage completion-token cap
 | --- | --- | --- |
 | A `base_matched_calls` | Native Gemma 4 12B Q4 at all five stages | Reference index 100 |
 | B `mixed_matched_calls` | One mixed-all LoRA at all five stages | Single-adapter control |
-| C `c_pipeline` | Five task-specific LoRAs selected by the application router | Task-routed pipeline |
+| C `c_pipeline` | Five full rank-16 task LoRAs | Maximum-capacity routed control |
+| D `d_budget_matched_pipeline` | Manual fixed `3/3/4/3/3` | Equal-B-budget routed control |
 
-All three are required to load the exact same local Q4/NF4 base artifact and tokenizer.
+All four are required to load the exact same local Q4/NF4 base artifact and tokenizer.
 The spec pins one shared source SHA and quantization contract; the live runner refuses
-to start until the generated Q4 artifact SHA is populated identically for A/B/C. This
-is currently a pending gate, not a claim that the Q4 artifact already exists. They
-have five calls, identical stage order, and identical completion-token caps. Actual
+to start until the generated Q4 artifact SHA is populated identically for A/B/C/D. They
+use the same five expert types, the same two-cycle review bound, and identical
+completion-token caps. An immediate review PASS uses five calls; one REVISE cycle
+uses seven. Attempt counts are measured per stage and must be compared like-for-like. Actual
 prompt/total tokens remain measured outcomes because earlier stage outputs can differ.
 A one-call base result may be
 reported as an auxiliary product-shape baseline only; it cannot establish the
@@ -95,8 +97,10 @@ intent labels only. URLs, executable snippets, event handlers, shell commands,
 and active XSS-like material are rejected during freeze.
 
 The reviewer receives a deterministic benign mutation: one case-specific literal
-accessible name is removed from the generated artifact. Repair passes only when
-the mutation was actually applied and the exact behavior is restored.
+accessible name is removed from the generated artifact. It returns only the strict
+public v2 PASS/REVISE contract. On REVISE, the same builder receives the current
+artifact plus public issues; repair passes only when the mutation was actually
+applied, the exact behavior is restored, and a later review cycle returns PASS.
 
 For benign cases, Pass@1 is based on actual isolated `npm run build` and
 `npm run test` results. The trusted fixture reads the generated HTML as data; it
@@ -108,10 +112,18 @@ review-repair rate, security TPR/FPR, composite success, end-to-end latency,
 tokens, peak VRAM, and tokens per composite success. The report displays the
 native Q4 absolute value and index 100, then B/C deltas and ratios.
 
+`configs/benchmark/heldout_q4_budget_v1.json` is the full A/B/C/D/E/F matrix.
+E permits calibration-selected non-uniform ranks up to 16 per stage and searches a
+quality/parameters/latency/VRAM Pareto frontier without matching B's total size. F
+uses the same complexity evaluator and allocation mechanism but requires rank sum 16
+and exactly 10,387,456 materialized trainable parameters. Its checked-in E/F entries
+are deliberately `calibration_pending`; the held-out gate fails closed until both
+calibration-only selections are frozen and their immutable manifest hashes are written.
+
 ## No-network mock E2E
 
-The mock validates the same frozen inputs, performs exactly 5 calls for every
-primary arm, runs the real local build/test fixture, and produces records,
+The mock validates the same frozen inputs, deterministically exercises one REVISE
+cycle (7 calls) for every primary arm, runs the real local build/test fixture, and produces records,
 metrics, Markdown/CSV, and SVG without an API call or model load:
 
 ```powershell

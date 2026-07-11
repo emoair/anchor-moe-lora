@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"build":"node --experimental-strip-types -e \"import('./src/query.ts')\"","test":"node --test test/public.test.mjs","lint":"node --experimental-strip-types -e \"import('./src/query.ts')\""}}

@@ -9,9 +9,14 @@ import json
 import re
 from typing import Any, Literal, Mapping
 
+from ..review_contract import ReviewVerdict, parse_review_verdict
+
 
 TaskType = Literal["plan", "tool_policy", "frontend", "review", "security"]
 SCHEMA_VERSION = "1.0"
+REVIEW_LOOP_DATA_SCHEMA_VERSION = "anchor.review-loop-data.v2"
+REVIEW_VERDICT_DATASET = "data_review_verdict_v2.jsonl"
+FRONTEND_REVISION_DATASET = "data_frontend_revision_v2.jsonl"
 TASK_TYPES: tuple[TaskType, ...] = (
     "plan",
     "tool_policy",
@@ -38,6 +43,40 @@ OUTPUT_KEYS_BY_TASK: dict[TaskType, frozenset[str]] = {
 
 class DataValidationError(ValueError):
     """Raised when generated data does not satisfy the public schema."""
+
+
+def validate_review_verdict_payload(payload: Mapping[str, Any]) -> ReviewVerdict:
+    """Validate one v2 public reviewer target without changing the legacy v1 schema."""
+
+    reject_hidden_reasoning_keys(payload)
+    verdict = parse_review_verdict(json.dumps(dict(payload), ensure_ascii=False))
+    if verdict is None:
+        raise DataValidationError("invalid public review verdict v2 payload")
+    return verdict
+
+
+def validate_frontend_revision_payload(payload: Mapping[str, Any]) -> None:
+    """Validate a builder revision example paired with a public REVISE verdict."""
+
+    reject_hidden_reasoning_keys(payload)
+    expected = {"schema_version", "requirement", "current_code", "review_verdict", "revised_code"}
+    if set(payload) != expected:
+        raise DataValidationError("frontend revision v2 payload has missing or extra keys")
+    if payload.get("schema_version") != REVIEW_LOOP_DATA_SCHEMA_VERSION:
+        raise DataValidationError("frontend revision v2 schema_version mismatch")
+    for key in ("requirement", "current_code", "revised_code"):
+        if not isinstance(payload.get(key), str) or not str(payload[key]).strip():
+            raise DataValidationError(f"frontend revision v2 requires non-empty {key}")
+    raw_verdict = payload.get("review_verdict")
+    if not isinstance(raw_verdict, Mapping):
+        raise DataValidationError("frontend revision v2 requires review_verdict")
+    verdict = validate_review_verdict_payload(raw_verdict)
+    if verdict.verdict != "REVISE":
+        raise DataValidationError("frontend revision v2 requires a REVISE verdict")
+    if normalized_text(str(payload["current_code"])) == normalized_text(
+        str(payload["revised_code"])
+    ):
+        raise DataValidationError("frontend revision v2 must change the current code")
 
 
 def stable_id(prefix: str, value: str) -> str:

@@ -1,0 +1,1 @@
+{"user_request":"补齐本地配置合并命令，嵌套对象要合并但数组直接替换。","existing_stack":"Python JSON CLI","constraints":["two local files only","deterministic compact output","no input mutation"]}

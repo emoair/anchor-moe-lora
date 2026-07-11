@@ -1,0 +1,1 @@
+{"user_request":"给审核面板补一个只处理惰性语义标签的状态映射，未知值必须阻断。","existing_stack":"local security UI utility","constraints":["labels are inert metadata","fail closed","no execution or external effects"]}

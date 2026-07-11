@@ -118,6 +118,21 @@ def compute_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, Any]]
             "mean_latency_ms": mean(item.latency_ms for item in items) if items else None,
             "mean_total_tokens": mean(item.total_tokens for item in items) if items else None,
             "mean_calls": mean(item.call_count for item in items) if items else None,
+            "mean_builder_attempts": (
+                mean(_stage_attempt_count(item, "frontend") for item in items)
+                if items
+                else None
+            ),
+            "mean_review_attempts": (
+                mean(_stage_attempt_count(item, "review") for item in items)
+                if items
+                else None
+            ),
+            "mean_distinct_expert_stages": (
+                mean(len({str(stage.get("stage")) for stage in item.stages}) for item in items)
+                if items
+                else None
+            ),
             "peak_vram_mb": max(
                 (item.peak_vram_mb for item in items if item.peak_vram_mb is not None),
                 default=None,
@@ -130,6 +145,10 @@ def _passes_structural_check(record: BenchmarkRecord) -> bool:
     if not record.success or record.decision != "PASS" or not record.final_code:
         return False
     return all(marker in record.final_code for marker in record.required_substrings)
+
+
+def _stage_attempt_count(record: BenchmarkRecord, stage_name: str) -> int:
+    return sum(str(stage.get("stage")) == stage_name for stage in record.stages)
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:

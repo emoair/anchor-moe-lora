@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import json
 import os
+from dataclasses import asdict, dataclass
 from pathlib import Path
 import shutil
 import signal
 import subprocess
 import time
+import threading
+from contextlib import nullcontext
 from typing import Mapping, Protocol
 
 from .config import AGENT_ID, DEFAULT_MODEL, DEFAULT_VARIANT, PROVIDER_ID
+from .behavioral_probe import run_behavioral_probe
+from .initial_tool_proxy import InitialToolChoiceProxy
 from .models import AgentExecution, ToolTraceEntry
+from .opencode_artifact import (
+    BinaryAttestation,
+    verify_binary_attestation,
+    verify_binary_identity,
+    verify_launch_identity,
+)
 from .policy import ToolPolicy
 from .trace import (
     classify_error_metadata,
@@ -17,6 +29,62 @@ from .trace import (
     parse_opencode_jsonl,
     parse_public_outcome,
 )
+from .session_export import (
+    QuarantineError,
+    SessionConversionPolicy,
+    append_jsonl,
+    convert_controlled_session,
+    quarantine_record,
+)
+
+
+_CAPTURE_LOCK = threading.Lock()
+_SESSION_ID = __import__("re").compile(r"^ses_[A-Za-z0-9_-]{4,128}$")
+
+
+@dataclass(frozen=True)
+class ControlledSessionCapture:
+    candidates_path: Path
+    quarantine_path: Path
+    heldout_cases: Path
+    heldout_fixtures_root: Path
+    heldout_manifest: Path
+
+    def __post_init__(self) -> None:
+        for value in (
+            self.candidates_path,
+            self.quarantine_path,
+            self.heldout_cases,
+            self.heldout_fixtures_root,
+            self.heldout_manifest,
+        ):
+            if not value.is_absolute():
+                raise ValueError("controlled session capture paths must be absolute")
+
+
+def _walk_objects(value: object):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_objects(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_objects(child)
+
+
+def _extract_session_id(stdout: str) -> str | None:
+    found: set[str] = set()
+    for line in stdout.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        for item in _walk_objects(value):
+            for name in ("sessionID", "session_id", "sessionId"):
+                candidate = item.get(name)
+                if isinstance(candidate, str) and _SESSION_ID.fullmatch(candidate):
+                    found.add(candidate)
+    return next(iter(found)) if len(found) == 1 else None
 
 
 class AgentExecutor(Protocol):
@@ -52,16 +120,32 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
 
 
 class OpenCodeExecutor:
-    backend_name = "opencode-kimi"
-
     def __init__(
         self,
         executable: str = "opencode",
         *,
         extra_environment: Mapping[str, str] | None = None,
+        initial_tool_proxy: bool = False,
+        patch_manifest: str | Path | None = None,
+        session_capture: ControlledSessionCapture | None = None,
     ) -> None:
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
+        self.initial_tool_proxy = initial_tool_proxy
+        project_root = Path(__file__).resolve().parents[3]
+        self.patch_manifest = Path(
+            patch_manifest or project_root / "patches" / "opencode" / "patch-manifest.json"
+        ).resolve()
+        self.session_capture = session_capture
+        self._attestation: BinaryAttestation | None = None
+
+    @property
+    def backend_name(self) -> str:
+        return (
+            "opencode-kimi-initial-tool-proxy"
+            if self.initial_tool_proxy
+            else "opencode-kimi"
+        )
 
     def _resolved_executable(self) -> str | None:
         if os.name == "nt" and not Path(self.executable).suffix:
@@ -72,6 +156,98 @@ class OpenCodeExecutor:
 
     def available(self) -> bool:
         return self._resolved_executable() is not None
+
+    @staticmethod
+    def is_patched_agent_config(value: object) -> bool:
+        if not isinstance(value, dict):
+            return False
+        options = value.get("options")
+        return value.get("requireInitialToolCall") is True and not (
+            isinstance(options, dict) and "requireInitialToolCall" in options
+        )
+
+    def probe_patched(self, config_path: Path) -> tuple[bool, str]:
+        executable = self._resolved_executable()
+        if executable is None:
+            return False, "patched executable is missing"
+        try:
+            attestation = verify_binary_attestation(
+                executable, patch_manifest=self.patch_manifest
+            )
+        except (OSError, ValueError) as error:
+            return False, str(error)
+        environment = self._environment(config_path)
+        environment.pop("KIMI_CODE_API_KEY", None)
+        try:
+            verify_binary_identity(attestation)
+            completed = subprocess.run(
+                [str(attestation.executable), "debug", "agent", AGENT_ID, "--pure"],
+                cwd=config_path.parent,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=30,
+                check=False,
+            )
+            if completed.returncode != 0:
+                return False, f"patched capability probe exited {completed.returncode}"
+            try:
+                payload = json.loads(completed.stdout)
+            except json.JSONDecodeError:
+                return False, "patched capability probe returned invalid JSON"
+            if not self.is_patched_agent_config(payload):
+                return False, "requireInitialToolCall is not a first-class resolved agent field"
+            verify_binary_identity(attestation)
+            passed, reason = run_behavioral_probe(
+                attestation.executable,
+                probe_root=config_path.parent / "behavioral-probe",
+                environment=environment,
+            )
+            if not passed:
+                return False, reason
+            self._attestation = attestation.with_behavioral_probe()
+            return True, reason
+        except subprocess.TimeoutExpired:
+            return False, "patched capability probe timed out"
+        finally:
+            shutil.rmtree(config_path.parent / "runtime", ignore_errors=True)
+
+    def probe_initial_tool_proxy(self, config_path: Path) -> tuple[bool, str]:
+        if not self.initial_tool_proxy:
+            return False, "initial-tool proxy mode is disabled"
+        if self._resolved_executable() is None:
+            return False, "OpenCode executable is missing"
+        try:
+            loaded = json.loads(config_path.read_text(encoding="utf-8"))
+            provider = loaded["provider"][PROVIDER_ID]
+            if not isinstance(provider, dict) or not isinstance(
+                provider.get("options"), dict
+            ):
+                return False, "OpenCode provider configuration is invalid"
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            return False, "OpenCode provider configuration is invalid"
+        return True, "loopback initial-tool proxy is configured"
+
+    @staticmethod
+    def _proxy_config(config_path: Path, base_url: str) -> Path:
+        loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        provider = loaded["provider"][PROVIDER_ID]
+        provider["options"]["baseURL"] = base_url
+        agent = loaded.get("agent", {}).get(AGENT_ID)
+        if isinstance(agent, dict):
+            # The unpatched binary would treat unknown agent keys as provider
+            # options. Enforcement belongs exclusively to the proxy fallback.
+            agent.pop("requireInitialToolCall", None)
+        destination = config_path.with_name("opencode.proxy.json")
+        destination.write_text(
+            json.dumps(loaded, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return destination
 
     def _environment(self, config_path: Path) -> dict[str, str]:
         runtime_root = config_path.parent / "runtime"
@@ -100,10 +276,16 @@ class OpenCodeExecutor:
         )
         return environment
 
+    def _verified_executable(self) -> Path:
+        if self._attestation is None:
+            raise ValueError("patched OpenCode behavioral attestation is missing")
+        verify_launch_identity(self._attestation)
+        return self._attestation.executable
+
     def command(self, *, sample_id: str, prompt: str, workspace: Path) -> list[str]:
-        executable = self._resolved_executable() or self.executable
+        executable = self._verified_executable()
         return [
-            executable,
+            str(executable),
             "run",
             "--format",
             "json",
@@ -129,45 +311,82 @@ class OpenCodeExecutor:
         config_path: Path,
         policy: ToolPolicy,
     ) -> AgentExecution:
-        if not self.available():
+        try:
+            self._verified_executable()
+        except (OSError, ValueError):
             return AgentExecution(
-                exit_code=127,
+                exit_code=126,
                 timed_out=False,
                 duration_ms=0.0,
-                error_codes=("opencode_not_installed",),
+                error_codes=("binary_attestation_missing_or_changed",),
             )
         started = time.perf_counter()
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        process = subprocess.Popen(
-            self.command(sample_id=sample_id, prompt=prompt, workspace=workspace),
-            cwd=workspace,
-            env=self._environment(config_path),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=creationflags,
-            start_new_session=os.name != "nt",
-        )
-        timed_out = False
-        try:
-            stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            _terminate_process_tree(process)
-            stdout, stderr = process.communicate()
+        proxy_context = InitialToolChoiceProxy() if self.initial_tool_proxy else nullcontext()
+        proxy_not_forced = False
+        with proxy_context as proxy:
+            execution_config = config_path
+            if isinstance(proxy, InitialToolChoiceProxy):
+                execution_config = self._proxy_config(config_path, proxy.base_url)
+            verify_launch_identity(self._attestation)  # type: ignore[arg-type]
+            process = subprocess.Popen(
+                self.command(sample_id=sample_id, prompt=prompt, workspace=workspace),
+                cwd=workspace,
+                env=self._environment(execution_config),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=creationflags,
+                start_new_session=os.name != "nt",
+            )
+            timed_out = False
+            try:
+                stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                _terminate_process_tree(process)
+                stdout, stderr = process.communicate()
+            if isinstance(proxy, InitialToolChoiceProxy):
+                stats = proxy.stats
+                proxy_not_forced = stats.requests > 0 and stats.forced_requests == 0
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
         public_outcome = parse_public_outcome(stdout)
         errors = list(classify_error_metadata(stdout, stderr))
-        # OpenCode persists sessions by default. Its XDG roots are redirected
-        # above and removed after event reduction so hidden reasoning/session
-        # bodies cannot become training artifacts.
-        shutil.rmtree(config_path.parent / "runtime", ignore_errors=True)
+        runtime_path = config_path.parent / "runtime"
+        session_id = _extract_session_id(stdout)
+        export_path: Path | None = None
+        if session_id is not None:
+            try:
+                executable = self._verified_executable()
+                exported = subprocess.run(
+                    [str(executable), "export", session_id],
+                    cwd=workspace,
+                    env=self._environment(execution_config),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=False,
+                    timeout=30,
+                    check=False,
+                )
+                if exported.returncode == 0:
+                    export_path = runtime_path / "capture" / "session.raw.json"
+                    export_path.parent.mkdir(parents=True, exist_ok=True)
+                    export_path.write_bytes(exported.stdout)
+                else:
+                    errors.append("controlled_session_export_failed")
+            except (OSError, subprocess.TimeoutExpired, ValueError):
+                errors.append("controlled_session_export_failed")
+        else:
+            errors.append("controlled_session_id_missing")
         if timed_out:
             errors.append("wrapper_timeout")
+        if proxy_not_forced:
+            errors.append("initial_tool_proxy_not_forced")
         return AgentExecution(
             exit_code=process.returncode if process.returncode is not None else 124,
             timed_out=timed_out,
@@ -178,7 +397,75 @@ class OpenCodeExecutor:
             rejected_events=rejected,
             error_codes=tuple(dict.fromkeys(errors)),
             public_outcome=public_outcome,
+            controlled_session_id=session_id,
+            controlled_export_path=str(export_path) if export_path else None,
+            isolated_runtime_path=str(runtime_path),
+            opencode_version=(
+                self._attestation.opencode_version if self._attestation is not None else None
+            ),
         )
+
+    def finalize_capture(
+        self,
+        *,
+        execution: AgentExecution,
+        sample_id: str,
+        workspace: Path,
+        validators: tuple[dict[str, object], ...],
+    ) -> tuple[bool, str | None]:
+        runtime = Path(execution.isolated_runtime_path) if execution.isolated_runtime_path else None
+        export_path = Path(execution.controlled_export_path) if execution.controlled_export_path else None
+        export_bytes = export_path.read_bytes() if export_path and export_path.is_file() else b""
+        try:
+            if self.session_capture is None:
+                raise QuarantineError("session_capture_not_configured")
+            if not export_bytes or execution.controlled_session_id is None:
+                raise QuarantineError("controlled_export_missing")
+            try:
+                export_data = json.loads(export_bytes.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise QuarantineError("invalid_json_or_encoding") from error
+            if not isinstance(export_data, dict):
+                raise QuarantineError("input_not_object")
+            outcome = execution.public_outcome
+            capture = {
+                "schema_version": "anchor.controlled-session-capture.v1",
+                "source": "opencode-export-controlled-fixture",
+                "sample_id": sample_id,
+                "session_id": execution.controlled_session_id,
+                "opencode_version": execution.opencode_version,
+                "validators": list(validators),
+                "public_outcome": asdict(outcome) if outcome is not None else None,
+            }
+            candidate = convert_controlled_session(
+                export_data,
+                capture,
+                SessionConversionPolicy(
+                    workspace_root=workspace.resolve(),
+                    heldout_cases=self.session_capture.heldout_cases,
+                    heldout_fixtures_root=self.session_capture.heldout_fixtures_root,
+                    heldout_manifest=self.session_capture.heldout_manifest,
+                ),
+            )
+            with _CAPTURE_LOCK:
+                append_jsonl(self.session_capture.candidates_path, candidate)
+            return True, None
+        except (OSError, ValueError) as error:
+            code = error.code if isinstance(error, QuarantineError) else "conversion_error"
+            if self.session_capture is not None:
+                with _CAPTURE_LOCK:
+                    append_jsonl(
+                        self.session_capture.quarantine_path,
+                        quarantine_record(
+                            sample_id=sample_id,
+                            code=code,
+                            export_bytes=export_bytes,
+                        ),
+                    )
+            return False, code
+        finally:
+            if runtime is not None:
+                shutil.rmtree(runtime, ignore_errors=True)
 
 
 class MockAgentExecutor:

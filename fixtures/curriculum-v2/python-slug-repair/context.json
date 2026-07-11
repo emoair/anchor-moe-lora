@@ -1,0 +1,1 @@
+{"user_request":"旧的 slug 工具在重音、连续符号和空结果上出错，修掉回归。","existing_stack":"Python library helper","constraints":["NFKD normalization","ASCII output","deterministic fallback"]}

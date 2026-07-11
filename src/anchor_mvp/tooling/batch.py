@@ -14,6 +14,7 @@ from .harness import ToolingHarness
 from .models import GoldRecord, SampleSpec, sample_contract_sha256
 from .policy import ToolPolicy
 from .runner import AgentExecutor
+from .runner import ControlledSessionCapture
 from .skills import SkillSourceRegistry
 
 
@@ -65,7 +66,13 @@ class LiveBatchConfig:
     skill_registry: Path
     workspace_root: Path
     gold_output: Path
+    opencode_executable: Path | None = None
     attempts_output: Path | None = None
+    session_candidates: Path | None = None
+    session_quarantine: Path | None = None
+    heldout_cases: Path | None = None
+    heldout_fixtures_root: Path | None = None
+    heldout_manifest: Path | None = None
     concurrency_stages: tuple[int, ...] = RAMP_STAGES
     samples_per_stage: tuple[int, ...] = RAMP_STAGES
     minimum_stage_success_rate: float = 1.0
@@ -103,21 +110,52 @@ class LiveBatchConfig:
             loaded["attempts_output"]
         ).strip():
             raise ValueError("attempts_output must be a project-relative path")
+        capture_names = (
+            "session_candidates",
+            "session_quarantine",
+            "heldout_cases",
+            "heldout_fixtures_root",
+            "heldout_manifest",
+        )
+        if not all(isinstance(loaded.get(name), str) and str(loaded[name]).strip() for name in capture_names):
+            raise ValueError("batch config requires complete controlled session capture paths")
         return cls(
             candidate_manifest=_project_path(root, loaded.get("candidate_manifest"), "candidate_manifest"),
             split_policy=_project_path(root, loaded.get("split_policy"), "split_policy"),
             skill_registry=_project_path(root, loaded.get("skill_registry"), "skill_registry"),
+            opencode_executable=_project_path(
+                root, loaded.get("opencode_executable"), "opencode_executable"
+            ),
             workspace_root=_project_path(root, loaded.get("workspace_root"), "workspace_root"),
             gold_output=_project_path(root, loaded.get("gold_output"), "gold_output"),
             attempts_output=_project_path(
                 root, loaded.get("attempts_output"), "attempts_output"
             ),
+            session_candidates=_project_path(root, loaded["session_candidates"], "session_candidates"),
+            session_quarantine=_project_path(root, loaded["session_quarantine"], "session_quarantine"),
+            heldout_cases=_project_path(root, loaded["heldout_cases"], "heldout_cases"),
+            heldout_fixtures_root=_project_path(
+                root, loaded["heldout_fixtures_root"], "heldout_fixtures_root"
+            ),
+            heldout_manifest=_project_path(root, loaded["heldout_manifest"], "heldout_manifest"),
             concurrency_stages=concurrency,
             samples_per_stage=samples,
             minimum_stage_success_rate=success_rate,
             max_iterations=int(loaded.get("max_iterations", 8)),
             timeout_seconds=float(loaded.get("timeout_seconds", 900.0)),
         )
+
+    def controlled_capture(self) -> ControlledSessionCapture:
+        values = (
+            self.session_candidates,
+            self.session_quarantine,
+            self.heldout_cases,
+            self.heldout_fixtures_root,
+            self.heldout_manifest,
+        )
+        if any(value is None for value in values):
+            raise ValueError("controlled session capture is incomplete")
+        return ControlledSessionCapture(*values)  # type: ignore[arg-type]
 
 
 def _heldout_values(path: Path) -> tuple[set[str], set[str]]:

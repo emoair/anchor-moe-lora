@@ -21,7 +21,7 @@ from .proposals import deterministic_tool_policy_oracle, generate_inert_tool_pro
 from .schema import DistilledRecord, SeedDemand, TASK_TYPES, TaskType, normalized_text, stable_id
 from .sops import load_sop_directory
 from .storage import JsonlStore, SeedStore, completed_seed_ids
-from .teacher import ClientDeadlineExceeded, RateLimitError, Teacher
+from .teacher import ClientDeadlineExceeded, ProviderQuotaExhausted, RateLimitError, Teacher
 
 
 class UpstreamDependencyError(RuntimeError):
@@ -95,6 +95,7 @@ class PipelineReport:
     rate_limited: bool = False
     retry_after_seconds: float | None = None
     client_deadline: bool = False
+    provider_quota_exhausted: bool = False
 
 
 class DistillationPipeline:
@@ -138,7 +139,22 @@ class DistillationPipeline:
                 return index, SeedDemand.from_mapping(payload)
 
             results = await asyncio.gather(*(create(index) for index in indices), return_exceptions=True)
-            rate_limits = [result for result in results if isinstance(result, RateLimitError)]
+            quota_errors = [
+                result for result in results if isinstance(result, ProviderQuotaExhausted)
+            ]
+            if quota_errors:
+                retry_values = [
+                    item.retry_after_seconds
+                    for item in quota_errors
+                    if item.retry_after_seconds is not None
+                ]
+                raise ProviderQuotaExhausted(max(retry_values) if retry_values else None)
+            rate_limits = [
+                result
+                for result in results
+                if isinstance(result, RateLimitError)
+                and not isinstance(result, ProviderQuotaExhausted)
+            ]
             if rate_limits:
                 retry_values = [
                     item.retry_after_seconds
@@ -185,6 +201,7 @@ class DistillationPipeline:
         rate_limited = False
         retry_after_seconds: float | None = None
         client_deadline = False
+        provider_quota_exhausted = False
         for task_type in selected:
             store = JsonlStore(self.output_dir / f"data_{task_type}.jsonl")
             completed = completed_seed_ids(store.records)
@@ -322,6 +339,8 @@ class DistillationPipeline:
                                 retry_after_seconds or 0.0,
                                 result.retry_after_seconds,
                             )
+                    if isinstance(result, ProviderQuotaExhausted):
+                        provider_quota_exhausted = True
                     if isinstance(result, ClientDeadlineExceeded):
                         client_deadline = True
                     continue
@@ -337,6 +356,7 @@ class DistillationPipeline:
             rate_limited=rate_limited,
             retry_after_seconds=retry_after_seconds,
             client_deadline=client_deadline,
+            provider_quota_exhausted=provider_quota_exhausted,
         )
 
     def _upstream_record(self, task_type: TaskType, seed_id: str) -> dict[str, object]:

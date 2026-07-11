@@ -1,0 +1,1 @@
+{"user_request":"修复重试退避计算的 off-by-one 和大数溢出问题。","existing_stack":"Node ESM utility","constraints":["attempt zero is base","cap safely","strict integer validation"]}

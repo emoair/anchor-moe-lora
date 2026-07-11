@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/collaboration-curriculum-v2.json",
+  "title": "Continuous multi-LoRA collaboration curriculum",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "ramp", "heldout_policy", "tasks"],
+  "properties": {
+    "schema_version": {"const": "anchor.collaboration-curriculum.v2"},
+    "status": {"const": "candidate-not-training-data"},
+    "ramp": {"const": [1, 2, 4, 8]},
+    "heldout_policy": {
+      "type": "object",
+      "required": ["training_access", "inputs"],
+      "properties": {
+        "training_access": {"const": "forbidden"},
+        "inputs": {"type": "array", "minItems": 1}
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "items": {"$ref": "#/$defs/task"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "commandContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "script", "script_sha256", "starter_expectation"],
+      "properties": {
+        "command": {"type": "string", "pattern": "^npm run (build|test|lint)$"},
+        "script": {"type": "string", "minLength": 1},
+        "script_sha256": {"$ref": "#/$defs/sha256"},
+        "starter_expectation": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "adapter", "input_refs", "output_schema"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "adapter": {"type": "string", "pattern": "^[a-z][a-z0-9_]+$"},
+        "input_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "output_schema": {"type": "string", "minLength": 1}
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id", "seed_id", "split", "domain", "difficulty", "required_builder",
+        "reviewer", "max_cycles", "source_dir", "allowed_tools", "planner_target",
+        "expected_plan_safety_decision", "expected_final_safety_decision", "safety_labels",
+        "reviewer_rubric", "skill_provenance", "stage_flow", "frozen_public_contract"
+      ],
+      "properties": {
+        "task_id": {"type": "string", "pattern": "^cv2-[a-z0-9-]+$"},
+        "seed_id": {"type": "string", "pattern": "^cv2-seed-[a-z0-9-]+$"},
+        "split": {"const": "candidate"},
+        "domain": {"enum": ["frontend-web", "python-cli", "node-ts-utility", "code-repair", "accessibility-ui", "security-inert"]},
+        "difficulty": {"enum": ["basic", "intermediate", "advanced"]},
+        "required_builder": {"type": "string"},
+        "reviewer": {"type": "string"},
+        "max_cycles": {"enum": [1, 2]},
+        "source_dir": {"type": "string", "pattern": "^fixtures/curriculum-v2/"},
+        "allowed_tools": {
+          "type": "array",
+          "items": {"enum": ["read", "edit", "apply_patch", "bash"]},
+          "uniqueItems": true
+        },
+        "planner_target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selected_builder", "handoff_required_points"],
+          "properties": {
+            "selected_builder": {"type": "string"},
+            "handoff_required_points": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "expected_plan_safety_decision": {"const": "APPROVE"},
+        "expected_final_safety_decision": {"const": "PASS"},
+        "safety_labels": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^INERT_[A-Z0-9_]+$"}},
+        "reviewer_rubric": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}},
+        "skill_provenance": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["source_id", "source", "sha256"],
+            "properties": {
+              "source_id": {"type": "string"}, "source": {"type": "string"},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        },
+        "stage_flow": {"type": "array", "minItems": 5, "maxItems": 7, "items": {"$ref": "#/$defs/stage"}},
+        "frozen_public_contract": {
+          "type": "object", "additionalProperties": false,
+          "required": ["files", "commands"],
+          "properties": {
+            "files": {
+              "type": "object", "additionalProperties": false,
+              "required": ["task", "context", "package", "public_test", "starter"],
+              "properties": {
+                "task": {"$ref": "#/$defs/fileContract"}, "context": {"$ref": "#/$defs/fileContract"},
+                "package": {"$ref": "#/$defs/fileContract"}, "public_test": {"$ref": "#/$defs/fileContract"},
+                "starter": {"$ref": "#/$defs/fileContract"}
+              }
+            },
+            "commands": {
+              "type": "object", "additionalProperties": false,
+              "required": ["build", "test", "lint"],
+              "properties": {
+                "build": {"$ref": "#/$defs/commandContract"},
+                "test": {"$ref": "#/$defs/commandContract"},
+                "lint": {"$ref": "#/$defs/commandContract"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

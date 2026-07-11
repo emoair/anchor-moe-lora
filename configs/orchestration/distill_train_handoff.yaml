@@ -1,0 +1,54 @@
+schema_version: anchor.distill-train-handoff.config.v1
+project_root: ../..
+state_dir: runs/distill-train-handoff
+
+execution:
+  batch_config: configs/tooling/opencode_distillation_ramp.yaml
+  accepted_gold: artifacts/tooling/live_gold.accepted.jsonl
+  session_candidates: artifacts/tooling/session_candidates.jsonl
+  session_quarantine: artifacts/tooling/session_quarantine.jsonl
+  # These paths are populated only by the controlled patched-OpenCode capture.
+  raw_export: runs/tooling-live/capture/session.raw.json
+  capture: runs/tooling-live/capture/sidecar.json
+  workspace: runs/tooling-live/capture/workspace
+  credential_env: KIMI_CODE_API_KEY
+  minimum_accepted_gold: 1
+  max_concurrency: 8
+
+distillation:
+  automation_config: configs/data/automation.yaml
+  status_path: data/automated_v2/automation/status.json
+  credential_env: KIMI_API_KEY
+  # Offline verification simulates only this explicit terminal state. It never
+  # calls OpenCode, a teacher API, or the GPU trainer.
+  dry_run_terminal_state: provider_quota_exhausted
+  dry_run_quota_epoch: offline-handoff-check
+
+snapshot:
+  # Point these at the immutable curated freeze that formal-v2 will consume.
+  # Raw, still-growing automation JSONL must not be used while distillation runs.
+  datasets:
+    planner: artifacts/formal_v1/dataset/data_plan.jsonl
+    tool_policy: artifacts/formal_v1/dataset/data_tool_policy.jsonl
+    frontend_gen: artifacts/formal_v1/dataset/data_frontend.jsonl
+    frontend_review: artifacts/formal_v1/dataset/data_review.jsonl
+    security_gate: artifacts/formal_v1/dataset/data_security.jsonl
+  minimum_records_per_expert: 15
+  heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+  heldout_fixtures_root: examples/benchmark/fixtures
+  heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+  sop_sources:
+    - skills/plan.md
+    - skills/tool_policy.md
+    - skills/frontend.md
+    - skills/review.md
+    - skills/security.yaml
+
+training:
+  handoff_trigger: provider_quota_exhausted
+  handoff_manifest: artifacts/formal_v2/training-handoff.json
+  config: configs/training/formal_v2_lowmem_common.yaml
+  adapters: [planner, tool_policy, frontend_gen, frontend_review, security_gate]
+  auto_start: true
+  max_parallel_gpu_jobs: 1
+  logs_dir: runs/formal-v2-handoff/logs

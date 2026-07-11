@@ -20,7 +20,8 @@ planned work; it is not a production-readiness claim.
   `a6cb9a4443c1f73775a1aa815e575a2ae1026b78cc6c4df9a3fb440670c19320`.
 - Formal-v2 implements the same frozen snapshot and sample exposure through a
   manual active-label loop with a hard 9GiB peak-VRAM gate. All 12 dry runs and
-  offline tests pass; the real 12B GPU smoke is still pending.
+  offline tests pass, and its two-step real 12B CUDA probe completed within the
+  steady-state gate; long sequential training is not yet promoted.
 - Held-out leakage scanning currently reports zero collisions. Model binaries,
   teacher JSONL, adapters, checkpoints, runtime logs, and credentials are ignored
   and are not part of the public repository.
@@ -69,9 +70,11 @@ OpenCode promotion sequence pass.
 
 ### P0: finish controlled training
 
-1. Run the formal-v2 2-step GPU smoke and require peak allocated/reserved VRAM at
-   or below 9GiB, finite loss, checkpoint save, and exact reload.
-2. If it passes, train B, C, and D from the same frozen snapshot under the recorded
+1. Preserve the completed formal-v2 2-step GPU smoke evidence: peak allocated/
+   reserved VRAM within the steady-state gate, finite loss, checkpoint save, and
+   exact reload.
+2. After the remaining data and long-run promotion gates pass, train B, C, and D
+   from the same frozen snapshot under the recorded
    optimizer-step and sample-exposure contract.
 3. Keep A as the untrained identical Q4 base. Evaluate E only after its
    complexity-adaptive rank allocation is frozen on calibration data.

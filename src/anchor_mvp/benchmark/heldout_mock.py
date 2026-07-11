@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 
 from ..serving import CompletionRequest
@@ -23,8 +24,35 @@ def heldout_mock_handler(request: CompletionRequest) -> str:
         if "INERT_TOOL_EXTERNAL_ASSET_APPROVAL" in user:
             return "[ESCALATE]"
         return "[APPROVE]"
-    if "produce one complete html" in system or "repair the known benign defect" in system:
+    if "produce one complete html" in system or "revise the complete html" in system:
         return _html_for_requirement(user)
+    if "anchor.domain-review-verdict.v2" in system:
+        requirement = user.split("CANDIDATE CODE:", 1)[0]
+        candidate = user.split("CANDIDATE CODE:", 1)[-1].split("KNOWN BENIGN DEFECT:", 1)[0]
+        label_match = re.search(r'aria-label="([^"]+)"', requirement, flags=re.IGNORECASE)
+        expected_marker = f'aria-label="{label_match.group(1)}"' if label_match else ""
+        if expected_marker and expected_marker not in candidate:
+            return json.dumps(
+                {
+                    "schema_version": "anchor.domain-review-verdict.v2",
+                    "verdict": "REVISE",
+                    "issues": [
+                        {
+                            "code": "HTML_ACCESSIBLE_NAME",
+                            "severity": "major",
+                            "summary": "The confirmation control lost its accessible name.",
+                            "required_change": f"Restore the exact {expected_marker} attribute.",
+                        }
+                    ],
+                }
+            )
+        return json.dumps(
+            {
+                "schema_version": "anchor.domain-review-verdict.v2",
+                "verdict": "PASS",
+                "issues": [],
+            }
+        )
     if "audit described intent" in system:
         blocked = any(
             marker in user

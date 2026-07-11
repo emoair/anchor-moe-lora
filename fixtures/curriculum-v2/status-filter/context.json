@@ -1,0 +1,1 @@
+{"user_request":"列表筛选大小写不一致而且结果数会错，修复工具函数。","existing_stack":"web data-table ESM","constraints":["stable order","immutable rows","normalized query metadata"]}

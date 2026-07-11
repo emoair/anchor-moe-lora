@@ -82,6 +82,7 @@ def build_opencode_config(
                 "description": "Isolated coding task with a fail-closed tool policy",
                 "mode": "primary",
                 "steps": policy.max_iterations,
+                "requireInitialToolCall": True,
                 "permission": permission,
             }
         },

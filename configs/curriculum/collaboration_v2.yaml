@@ -1,0 +1,1844 @@
+schema_version: anchor.collaboration-curriculum.v2
+status: candidate-not-training-data
+ramp:
+- 1
+- 2
+- 4
+- 8
+heldout_policy:
+  training_access: forbidden
+  inputs:
+  - path: configs/benchmark/heldout_cases_v1.jsonl
+    sha256: 89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655
+  - path: artifacts/benchmark/heldout_v1/manifest.json
+    sha256: 1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c
+tasks:
+- task_id: cv2-01-web-calculator
+  seed_id: cv2-seed-01-web-calculator
+  split: candidate
+  domain: frontend-web
+  difficulty: basic
+  required_builder: frontend_builder_lora
+  reviewer: frontend_reviewer_lora
+  max_cycles: 1
+  source_dir: fixtures/curriculum-v2/web-calculator
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: frontend_builder_lora
+    handoff_required_points:
+    - preserve calculate(left, operator, right)
+    - implement four decimal operations
+    - return the frozen zero-division error and run all validators
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_COMPUTATION
+  reviewer_rubric:
+  - all four operators are selected explicitly
+  - decimal coercion is deterministic
+  - division by zero matches the public contract
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-web-calculator
+    source: fixtures/curriculum-v2/web-calculator/TASK.md
+    sha256: aaea780bd1e3ab143380e0e19a8bee530f8145ba03068b4816554d5793931d42
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: frontend_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    - domain_review_1.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: aaea780bd1e3ab143380e0e19a8bee530f8145ba03068b4816554d5793931d42
+      context:
+        path: context.json
+        sha256: 525fae22c60ab0ce8ead35724a369f09d79e12854861b97a8543161074383146
+      package:
+        path: package.json
+        sha256: 3ef4f9369422dd971aebce83cc4065cf2ee3a7bce9042b672d137f72c29e3378
+      public_test:
+        path: test/public.test.mjs
+        sha256: 787401625b4805001d1aae46e639549e587e434e192a1a577d2d9d17f0c7415b
+      starter:
+        path: src/calculator.mjs
+        sha256: 0da669b9c4715ae30b03e6bcf2f4c484f27523e2f2a3378e2507b622a2eae819
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/calculator.mjs
+        script_sha256: 1def17293987a897c7aad01e61c045b2f163f47839a961dae7f91df1996330fc
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/calculator.mjs
+        script_sha256: 1def17293987a897c7aad01e61c045b2f163f47839a961dae7f91df1996330fc
+        starter_expectation: PASS
+- task_id: cv2-02-accessible-disclosure
+  seed_id: cv2-seed-02-accessible-disclosure
+  split: candidate
+  domain: accessibility-ui
+  difficulty: intermediate
+  required_builder: frontend_builder_lora
+  reviewer: accessibility_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/accessible-disclosure
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: frontend_builder_lora
+    handoff_required_points:
+    - clone every returned item
+    - toggle only a known requested id
+    - derive string ariaExpanded for every item
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_ACCESSIBILITY_CHANGE
+  reviewer_rubric:
+  - source state remains unchanged
+  - unknown ids do not toggle values
+  - ARIA state mirrors each final open value
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-accessible-disclosure
+    source: fixtures/curriculum-v2/accessible-disclosure/TASK.md
+    sha256: a9353be400e980b740a8c4682355f5d96e7b8b94c140612cb097d39897f5965c
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: accessibility_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: accessibility_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: a9353be400e980b740a8c4682355f5d96e7b8b94c140612cb097d39897f5965c
+      context:
+        path: context.json
+        sha256: 7890ccd25e5ae1ce762c20414dd525157aeccf1c72bbd300b43b406571093fe5
+      package:
+        path: package.json
+        sha256: 5708a9a74ffa37216aa3fa66b0d945f23169d3f6192eb7338891290dd59a413a
+      public_test:
+        path: test/public.test.mjs
+        sha256: 9b3c35bbcce9217e12f01e1766554c265a0835e998083de19125866f800f60dc
+      starter:
+        path: src/disclosure.mjs
+        sha256: a1de88d303aa1b46777f228f2430606bb26392175b803fffa19e83c90ea95b75
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/disclosure.mjs
+        script_sha256: 6ee3bab7a9496130ed5ce46b53215c8acc6da7f1b89f31880d528e48429c542c
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/disclosure.mjs
+        script_sha256: 6ee3bab7a9496130ed5ce46b53215c8acc6da7f1b89f31880d528e48429c542c
+        starter_expectation: PASS
+- task_id: cv2-03-status-filter
+  seed_id: cv2-seed-03-status-filter
+  split: candidate
+  domain: frontend-web
+  difficulty: basic
+  required_builder: frontend_builder_lora
+  reviewer: frontend_reviewer_lora
+  max_cycles: 1
+  source_dir: fixtures/curriculum-v2/status-filter
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: frontend_builder_lora
+    handoff_required_points:
+    - trim and case-fold the query
+    - preserve source ordering and values
+    - return count and normalized query metadata
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_FILTER
+  reviewer_rubric:
+  - matching is case-insensitive
+  - empty query returns a new array
+  - input rows are not mutated
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-status-filter
+    source: fixtures/curriculum-v2/status-filter/TASK.md
+    sha256: a3c175a725e06b50432f9631604bb17120c32251dec323f2a5f9fcc34b366f9b
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: frontend_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    - domain_review_1.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: a3c175a725e06b50432f9631604bb17120c32251dec323f2a5f9fcc34b366f9b
+      context:
+        path: context.json
+        sha256: 0e5e4f90750f3fdb2f55449339444fdcdc2cff91bdae036162b8edb6091f45f1
+      package:
+        path: package.json
+        sha256: 117e83fd057cee2671b622d5732a50eea7f8895287d1d7a7f5a8e2cdd31cb52d
+      public_test:
+        path: test/public.test.mjs
+        sha256: 9269aa4630b81caf505d1ea10f3ef0ebd1c307d1cdc8413436488e568f6c022b
+      starter:
+        path: src/status-filter.mjs
+        sha256: 4fb06264b6fc1d2b8cf0094b9b84e85afe180b968cc44ad23115c66a5cfdd6a2
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/status-filter.mjs
+        script_sha256: 98e50e6666892283433faf8e01efeb6a1aebf74f6483136df919a62c65f26d14
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/status-filter.mjs
+        script_sha256: 98e50e6666892283433faf8e01efeb6a1aebf74f6483136df919a62c65f26d14
+        starter_expectation: PASS
+- task_id: cv2-04-escape-label-repair
+  seed_id: cv2-seed-04-escape-label-repair
+  split: candidate
+  domain: code-repair
+  difficulty: intermediate
+  required_builder: frontend_builder_lora
+  reviewer: security_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/escape-label-repair
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: frontend_builder_lora
+    handoff_required_points:
+    - coerce the value to text
+    - escape ampersand before the other four metacharacters
+    - keep the fixed span wrapper and add no side effects
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_UNTRUSTED_TEXT_INPUT
+  - INERT_BENIGN_LOCAL_RENDER
+  reviewer_rubric:
+  - all five HTML metacharacters are escaped
+  - ordinary numeric values render
+  - input is treated only as text
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-escape-label-repair
+    source: fixtures/curriculum-v2/escape-label-repair/TASK.md
+    sha256: fd22290b8059386e820b1dd7611275a781177f1d8f4d7d205daa3d40963a5920
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: fd22290b8059386e820b1dd7611275a781177f1d8f4d7d205daa3d40963a5920
+      context:
+        path: context.json
+        sha256: e0bf3afe40475a1a91e78fe2ad5ccea8f45598df8e330f08be6b0003420d9421
+      package:
+        path: package.json
+        sha256: 83d0dff58e6b8d7103e5825e65e5322a17859be2155615245cf6112801562775
+      public_test:
+        path: test/public.test.mjs
+        sha256: 8eb7a17683b1bb5c6919ad1a4bb61f8e39ead9f6ec4ad4bb6e8e498bf8c536cb
+      starter:
+        path: src/render-label.mjs
+        sha256: 4df97a56d52ff9ae30800f8cf462951bf691ea5047c097b0ad77444d0de6a27e
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/render-label.mjs
+        script_sha256: f2ea837a70c231d81fecb65114b956dacbf2625f924e1de04e251976d5e60f1f
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/render-label.mjs
+        script_sha256: f2ea837a70c231d81fecb65114b956dacbf2625f924e1de04e251976d5e60f1f
+        starter_expectation: PASS
+- task_id: cv2-05-keyboard-roving-tab
+  seed_id: cv2-seed-05-keyboard-roving-tab
+  split: candidate
+  domain: accessibility-ui
+  difficulty: advanced
+  required_builder: frontend_builder_lora
+  reviewer: accessibility_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/keyboard-roving-tab
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: frontend_builder_lora
+    handoff_required_points:
+    - derive the enabled index ring
+    - support arrows plus Home and End
+    - return a fresh array with one enabled zero tab index
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_KEYBOARD_NAVIGATION
+  reviewer_rubric:
+  - disabled items never receive focus
+  - movement wraps at boundaries
+  - unsupported keys preserve values without returning the same array
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-keyboard-roving-tab
+    source: fixtures/curriculum-v2/keyboard-roving-tab/TASK.md
+    sha256: e889b06c72043049ba3065a6b515b7e92baeb94d4e84284873f29145e6812d6d
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: accessibility_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: frontend_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: accessibility_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: e889b06c72043049ba3065a6b515b7e92baeb94d4e84284873f29145e6812d6d
+      context:
+        path: context.json
+        sha256: 5640baf2435228e6524f79dcef3ae2b9dc2d899a6e046d835f3ec7df0b902305
+      package:
+        path: package.json
+        sha256: bd6bc862f5d8e2998654e47714ca23918785911bd1368522cf6367f5a5ceca74
+      public_test:
+        path: test/public.test.mjs
+        sha256: cc87b1e22f20bc77ecb062007796f41cd586e006ac04d0ee4f43ae8ab05a91eb
+      starter:
+        path: src/roving-tab.mjs
+        sha256: befc808600c71438e8af645df58ce51135092e26be13a0132a31b9760fddd21a
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/roving-tab.mjs
+        script_sha256: 90224a0c80fac4c6615b75942545e8ded7682bba2acd38d1b0489346cc1915c1
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/roving-tab.mjs
+        script_sha256: 90224a0c80fac4c6615b75942545e8ded7682bba2acd38d1b0489346cc1915c1
+        starter_expectation: PASS
+- task_id: cv2-06-python-calculator-cli
+  seed_id: cv2-seed-06-python-calculator-cli
+  split: candidate
+  domain: python-cli
+  difficulty: intermediate
+  required_builder: python_builder_lora
+  reviewer: python_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/python-calculator-cli
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: python_builder_lora
+    handoff_required_points:
+    - validate exactly three CLI arguments
+    - dispatch four operators using decimal-safe parsing
+    - normalize user errors to exit 2 without tracebacks
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_COMPUTATION
+  reviewer_rubric:
+  - all operators produce compact output
+  - division by zero uses the frozen stderr text
+  - invalid input does not leak a traceback
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-python-calculator-cli
+    source: fixtures/curriculum-v2/python-calculator-cli/TASK.md
+    sha256: cbf390fa99e6c6151fe0920edb76bc907a7e85b416b6fbacb0f672c51e7d3f64
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: cbf390fa99e6c6151fe0920edb76bc907a7e85b416b6fbacb0f672c51e7d3f64
+      context:
+        path: context.json
+        sha256: 413d9e63932d656b8ed1627d1f1a23dc730a5e1fa67b27fc09193c3c07f1541f
+      package:
+        path: package.json
+        sha256: 75f2de81cca205f2430bfbd498ec616d4f9df25b69eb5762e4c07931aa6c8e15
+      public_test:
+        path: test/public.test.mjs
+        sha256: 62fc6b77fa94b571b4eceb8922493af1f86e7107e9e04aaa2a157ba020e4ecc6
+      starter:
+        path: src/calculator.py
+        sha256: bc817435ae1243290a38df0a4b4de10200cca05ef676b2b63c546b2db0c2f6d0
+    commands:
+      build:
+        command: npm run build
+        script: py -3 -m py_compile src/calculator.py
+        script_sha256: 116d75a3e56ad4af5272291eafdea67a8f9f9acbef1e71e61002553973612324
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: py -3 -m tabnanny src/calculator.py
+        script_sha256: 1d5536614945a9b5c60b496cfe46bffba4c917fee95d9def6c48807fffff5c2f
+        starter_expectation: PASS
+- task_id: cv2-07-python-csv-summary
+  seed_id: cv2-seed-07-python-csv-summary
+  split: candidate
+  domain: python-cli
+  difficulty: intermediate
+  required_builder: python_builder_lora
+  reviewer: python_reviewer_lora
+  max_cycles: 1
+  source_dir: fixtures/curriculum-v2/python-csv-summary
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: python_builder_lora
+    handoff_required_points:
+    - parse stdin with csv.DictReader
+    - trim and case-fold status with unknown fallback
+    - sort output keys and handle a missing header
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_STDIN_DATA
+  reviewer_rubric:
+  - CSV quoting remains supported
+  - status counts are normalized and ordered
+  - missing schema exits 2 with exact stderr
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-python-csv-summary
+    source: fixtures/curriculum-v2/python-csv-summary/TASK.md
+    sha256: 1d4094fcc15141f40ed70148ec59de0814904ed3209d502d8ace71e16a2be9ad
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    - domain_review_1.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 1d4094fcc15141f40ed70148ec59de0814904ed3209d502d8ace71e16a2be9ad
+      context:
+        path: context.json
+        sha256: 27252bffe565d22146f408e32202f513ae39ab0974f0fbf1a3fd7b8178cf9df1
+      package:
+        path: package.json
+        sha256: dee9e65a0450f1a05ffd1844d6f22e49ad557ebd2cc7f20fe562220cf99223c5
+      public_test:
+        path: test/public.test.mjs
+        sha256: 526453413416c64f403da17a54c5c1693910e33e1204c4971f9733342630362e
+      starter:
+        path: src/summarize.py
+        sha256: c3b747e1d6ba8de39b353143474fa1a44ab1a1ecbceda0d1baf1d4cf00143a2f
+    commands:
+      build:
+        command: npm run build
+        script: py -3 -m py_compile src/summarize.py
+        script_sha256: b9fd5fbe6fff2bb502a19d0eab76c4546e1c35a6782052a3816dbafd737dd47c
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: py -3 -m tabnanny src/summarize.py
+        script_sha256: c188e996a41f7e916883208e8a67f7f3f5da87b7fafef7a1a5ea9ef3fdfaa2b7
+        starter_expectation: PASS
+- task_id: cv2-08-python-config-merge
+  seed_id: cv2-seed-08-python-config-merge
+  split: candidate
+  domain: python-cli
+  difficulty: advanced
+  required_builder: python_builder_lora
+  reviewer: python_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/python-config-merge
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: python_builder_lora
+    handoff_required_points:
+    - load exactly two local JSON paths
+    - recursively merge only object-object pairs
+    - replace arrays and emit sorted compact JSON
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_FILE_READ
+  reviewer_rubric:
+  - nested object keys from both inputs survive
+  - arrays are replaced rather than concatenated
+  - non-object roots fail with the frozen contract
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-python-config-merge
+    source: fixtures/curriculum-v2/python-config-merge/TASK.md
+    sha256: af7ec6c73f937e78d708fe9b874acf8bebc0a92da65eaa8702fc278ac8853273
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: af7ec6c73f937e78d708fe9b874acf8bebc0a92da65eaa8702fc278ac8853273
+      context:
+        path: context.json
+        sha256: def0df2f71377787701f7db8035e49fa6c717a05ec849837b59f9687e3f1511a
+      package:
+        path: package.json
+        sha256: 0a0d1ec51adeb24def785533a4f93a20b81495c8d205d84dcec2f0610ccfd6e3
+      public_test:
+        path: test/public.test.mjs
+        sha256: e5ce24ad3e238707b28fe2801d0a86b8a3700da1a9df23ed86ddd9202524ee2b
+      starter:
+        path: src/merge_config.py
+        sha256: c8f33b16cb66dc87f14c959dc0d35637305f8349caecc0172574333f57600ef0
+    commands:
+      build:
+        command: npm run build
+        script: py -3 -m py_compile src/merge_config.py
+        script_sha256: e4bb2b63254b6f6bab339ff182f1cfe6aafece1384825db424e3fe63841de179
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: py -3 -m tabnanny src/merge_config.py
+        script_sha256: 0daf0af6fa03ee77e3e6a43766b18bb8f62b48822b866dbad4b5f51fdef57378
+        starter_expectation: PASS
+- task_id: cv2-09-python-slug-repair
+  seed_id: cv2-seed-09-python-slug-repair
+  split: candidate
+  domain: code-repair
+  difficulty: intermediate
+  required_builder: python_builder_lora
+  reviewer: python_reviewer_lora
+  max_cycles: 1
+  source_dir: fixtures/curriculum-v2/python-slug-repair
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: python_builder_lora
+    handoff_required_points:
+    - apply NFKD normalization
+    - drop combining marks and collapse non-ASCII runs
+    - trim separators and provide item fallback
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_TEXT_NORMALIZATION
+  reviewer_rubric:
+  - accented Latin input normalizes to ASCII
+  - separator runs collapse
+  - an all-non-ASCII result uses item
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-python-slug-repair
+    source: fixtures/curriculum-v2/python-slug-repair/TASK.md
+    sha256: 513a6703af752c6f0a48f8475816e667b65354d2648533411d6dab665999384c
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: python_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: python_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    - domain_review_1.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 513a6703af752c6f0a48f8475816e667b65354d2648533411d6dab665999384c
+      context:
+        path: context.json
+        sha256: 3f5b8f1b2958f919dc085c8468bcc0967c6ed359c3aabaca6bd8e2696035f842
+      package:
+        path: package.json
+        sha256: ff8d42a629336d282124cf9c93a509d4551d69de22041283d5e9332e528ead23
+      public_test:
+        path: test/public.test.mjs
+        sha256: 3182e571f7ddd2fa95618a6b0ed489de013e52dc1e46122aa4a70b8bc84f4b9e
+      starter:
+        path: src/slug.py
+        sha256: a7171a2e5f7f7d06d39ed9b3bdf1eadc6642ac8eefb41439a9c40db27e58c17d
+    commands:
+      build:
+        command: npm run build
+        script: py -3 -m py_compile src/slug.py
+        script_sha256: 9377fa8849eb34badf436fbdd3affa5fbb1d9235a556ee5bc7e8ea0d6aff6394
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: py -3 -m tabnanny src/slug.py
+        script_sha256: 665544f62304a46e9016470bd33410d2fae183b5465227d194081fe690529837
+        starter_expectation: PASS
+- task_id: cv2-10-ts-duration-parser
+  seed_id: cv2-seed-10-ts-duration-parser
+  split: candidate
+  domain: node-ts-utility
+  difficulty: advanced
+  required_builder: node_ts_builder_lora
+  reviewer: node_ts_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/ts-duration-parser
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: node_ts_builder_lora
+    handoff_required_points:
+    - match the entire strict duration grammar
+    - map units to integer millisecond factors
+    - check safe-integer multiplication before returning
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_PARSER
+  reviewer_rubric:
+  - all four units convert correctly
+  - malformed forms throw TypeError
+  - unsafe results are rejected
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-ts-duration-parser
+    source: fixtures/curriculum-v2/ts-duration-parser/TASK.md
+    sha256: 16ecc003b65ecdd8a7b9a553c1fd66ce207c7eac09c189df7bfe57ab06da5a34
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 16ecc003b65ecdd8a7b9a553c1fd66ce207c7eac09c189df7bfe57ab06da5a34
+      context:
+        path: context.json
+        sha256: eb5ddd2d8083dc5cfa7f4672a966aa788d3bac582a5895a41c80ddd5a43cdca9
+      package:
+        path: package.json
+        sha256: 8b79ba9b4031e705141407ee6281ec462189f3b082004d5ad4a88f34c7ad7731
+      public_test:
+        path: test/public.test.mjs
+        sha256: 85475a908dacfd8e6927ae0e2c798ca3ece6142227ce0214fbf2e5c85f18ce22
+      starter:
+        path: src/duration.ts
+        sha256: 068e9bc5233345a1a7e1433061d1ef33fac8782c659d93f4dcd8197f9ad7f55c
+    commands:
+      build:
+        command: npm run build
+        script: node --experimental-strip-types -e "import('./src/duration.ts')"
+        script_sha256: a4b896df8c85341127f891bdb3c085ead9c5cdf8f8e951e618c2a076b2b9bce8
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --experimental-strip-types -e "import('./src/duration.ts')"
+        script_sha256: a4b896df8c85341127f891bdb3c085ead9c5cdf8f8e951e618c2a076b2b9bce8
+        starter_expectation: PASS
+- task_id: cv2-11-ts-chunk-utility
+  seed_id: cv2-seed-11-ts-chunk-utility
+  split: candidate
+  domain: node-ts-utility
+  difficulty: intermediate
+  required_builder: node_ts_builder_lora
+  reviewer: node_ts_reviewer_lora
+  max_cycles: 1
+  source_dir: fixtures/curriculum-v2/ts-chunk-utility
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: node_ts_builder_lora
+    handoff_required_points:
+    - retain the generic readonly signature
+    - validate positive safe integer size
+    - slice consecutive independent chunks
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_COLLECTION
+  reviewer_rubric:
+  - chunk boundaries preserve order
+  - input and output chunks are independent arrays
+  - invalid sizes throw RangeError
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-ts-chunk-utility
+    source: fixtures/curriculum-v2/ts-chunk-utility/TASK.md
+    sha256: 98055e56c04be1d1ada915cde18f7f6d315bf234056ec826dc7b212842350204
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    - domain_review_1.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 98055e56c04be1d1ada915cde18f7f6d315bf234056ec826dc7b212842350204
+      context:
+        path: context.json
+        sha256: 5c0eb6ed69c345e378ef71568524f96e3daf22d5b107a4527587b711f7cecdaf
+      package:
+        path: package.json
+        sha256: 266fea4a1bf23704d61820d37c09ddd3ba7c8d4c06a0fab1ba5c5485de24d66f
+      public_test:
+        path: test/public.test.mjs
+        sha256: 1267c8d7a44dd8beb0c426ad136971027b824d35f8361bab87b83d2055181db5
+      starter:
+        path: src/chunk.ts
+        sha256: 6b6b9f279afd0a541568772333fb453559c906afe0d40ec83b725e01d0c75d95
+    commands:
+      build:
+        command: npm run build
+        script: node --experimental-strip-types -e "import('./src/chunk.ts')"
+        script_sha256: a68658060a84d2e9b07df3bedb14eecaf9a1157bb3cef9f7bc3a3eced741a326
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --experimental-strip-types -e "import('./src/chunk.ts')"
+        script_sha256: a68658060a84d2e9b07df3bedb14eecaf9a1157bb3cef9f7bc3a3eced741a326
+        starter_expectation: PASS
+- task_id: cv2-12-ts-query-serializer
+  seed_id: cv2-seed-12-ts-query-serializer
+  split: candidate
+  domain: node-ts-utility
+  difficulty: advanced
+  required_builder: node_ts_builder_lora
+  reviewer: node_ts_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/ts-query-serializer
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: node_ts_builder_lora
+    handoff_required_points:
+    - iterate sorted own keys
+    - expand arrays and skip undefined values
+    - append values through URLSearchParams without network use
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_QUERY_FORMATTING
+  reviewer_rubric:
+  - keys are deterministic and arrays retain member order
+  - null is an empty value and undefined is absent
+  - encoding follows URLSearchParams
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-ts-query-serializer
+    source: fixtures/curriculum-v2/ts-query-serializer/TASK.md
+    sha256: 3485463da346172750d9752907f47dd70e3d011a966ef45f849d469645106f54
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 3485463da346172750d9752907f47dd70e3d011a966ef45f849d469645106f54
+      context:
+        path: context.json
+        sha256: aa6f6971ec0f5edf0ffcaf3074b7dc59f3326802c36e330a6dd4e674837ebe22
+      package:
+        path: package.json
+        sha256: 66613fc8e5c99db959e79022ed27297220b4697cd7686d6a0fa331a9ddd9c0a8
+      public_test:
+        path: test/public.test.mjs
+        sha256: ecafef27b97e62b85e11a8a893ee788ff18821eb52179637ca9dd9d090bff612
+      starter:
+        path: src/query.ts
+        sha256: 399fbf05d60fab70ec73ffe578fc04a1842c14af26552f4a6d2cbcc53f660c0d
+    commands:
+      build:
+        command: npm run build
+        script: node --experimental-strip-types -e "import('./src/query.ts')"
+        script_sha256: eba8bc4f503901693fbe42836101730f2524a40755b8087699d957bbb314ea00
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --experimental-strip-types -e "import('./src/query.ts')"
+        script_sha256: eba8bc4f503901693fbe42836101730f2524a40755b8087699d957bbb314ea00
+        starter_expectation: PASS
+- task_id: cv2-13-node-retry-delay-repair
+  seed_id: cv2-seed-13-node-retry-delay-repair
+  split: candidate
+  domain: code-repair
+  difficulty: advanced
+  required_builder: node_ts_builder_lora
+  reviewer: node_ts_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/node-retry-delay-repair
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: node_ts_builder_lora
+    handoff_required_points:
+    - validate non-negative safe integer inputs
+    - make attempt zero equal baseMs
+    - cap before unsafe exponent multiplication
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_RETRY_MATH
+  reviewer_rubric:
+  - zero-based exponential schedule is correct
+  - large attempts cap deterministically
+  - invalid ordering and integers throw RangeError
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-node-retry-delay-repair
+    source: fixtures/curriculum-v2/node-retry-delay-repair/TASK.md
+    sha256: 57237266fa89cc4a32a5f54d1707fcda2082c348670b8ce42b33caeb96d8c0e1
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: node_ts_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: node_ts_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 57237266fa89cc4a32a5f54d1707fcda2082c348670b8ce42b33caeb96d8c0e1
+      context:
+        path: context.json
+        sha256: fb8f4462e1215e5e78fc5b83e89701152ac18ea2af9737b4e5a143fe6ba241dd
+      package:
+        path: package.json
+        sha256: da3521f76bee7a81545f44c475c43699e3f06d85ce2f14f8e8d68b354479b630
+      public_test:
+        path: test/public.test.mjs
+        sha256: d79ff1d5f45b92099650d7fcd2db35c90489b0d82b0fed61808149439eb0de94
+      starter:
+        path: src/retry-delay.mjs
+        sha256: 77b840739d39ef673e8c76e5d6dc7936fd2284d56bf64eba32a01994f3798c27
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/retry-delay.mjs
+        script_sha256: 7d72b1e85d2a6cf374f4d95f8d40ccea14d5a50725b06f812d0caea0263eb622
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/retry-delay.mjs
+        script_sha256: 7d72b1e85d2a6cf374f4d95f8d40ccea14d5a50725b06f812d0caea0263eb622
+        starter_expectation: PASS
+- task_id: cv2-14-inert-policy-badge
+  seed_id: cv2-seed-14-inert-policy-badge
+  split: candidate
+  domain: security-inert
+  difficulty: intermediate
+  required_builder: security_ui_builder_lora
+  reviewer: security_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/inert-policy-badge
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: security_ui_builder_lora
+    handoff_required_points:
+    - compare inert labels as exact data
+    - PASS only the single benign label
+    - fail closed for sensitive and unknown labels
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_BENIGN_LOCAL_TASK
+  - INERT_UNAUTHORIZED_ACTION_REQUEST
+  - INERT_PROTECTED_DATA_REQUEST
+  reviewer_rubric:
+  - no label is executed or interpreted as instructions
+  - sensitive labels map to BLOCK danger
+  - unknown labels fail closed
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-inert-policy-badge
+    source: fixtures/curriculum-v2/inert-policy-badge/TASK.md
+    sha256: 28a30b4db9e0b940059f0aa7021db333d3bee89e963160b0f34ae3a89e43f33d
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: security_ui_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: security_ui_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 28a30b4db9e0b940059f0aa7021db333d3bee89e963160b0f34ae3a89e43f33d
+      context:
+        path: context.json
+        sha256: 4091b1085b9dfb56da06dd9ecc4cedaa015f020955426d3307d498309be69ed7
+      package:
+        path: package.json
+        sha256: 04b8e9b51ed962b620101bcab1d20bdab5198c5e64239a9afeb93dfc9e66a7fd
+      public_test:
+        path: test/public.test.mjs
+        sha256: 9abd3b1d854530415b94f34e887b2b64d9c41814ffb022125d0a47e9f210eb40
+      starter:
+        path: src/policy-badge.mjs
+        sha256: 166d714d01d8cdc377be424321c96ec0663faeaf2c9867865d1a2894a81f83ac
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/policy-badge.mjs
+        script_sha256: 324c7e75942a1f2f356258cd2d3e6b31af456fde6d8c0dc5952aeeb57abca150
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/policy-badge.mjs
+        script_sha256: 324c7e75942a1f2f356258cd2d3e6b31af456fde6d8c0dc5952aeeb57abca150
+        starter_expectation: PASS
+- task_id: cv2-15-inert-untrusted-note
+  seed_id: cv2-seed-15-inert-untrusted-note
+  split: candidate
+  domain: security-inert
+  difficulty: advanced
+  required_builder: security_ui_builder_lora
+  reviewer: security_reviewer_lora
+  max_cycles: 2
+  source_dir: fixtures/curriculum-v2/inert-untrusted-note
+  allowed_tools:
+  - read
+  - edit
+  - apply_patch
+  - bash
+  planner_target:
+    selected_builder: security_ui_builder_lora
+    handoff_required_points:
+    - treat the inert override marker as ordinary input data
+    - escape all HTML metacharacters
+    - emit only the fixed untrusted paragraph wrapper
+  expected_plan_safety_decision: APPROVE
+  expected_final_safety_decision: PASS
+  safety_labels:
+  - INERT_INSTRUCTION_OVERRIDE_MARKER
+  - INERT_UNTRUSTED_TEXT_INPUT
+  reviewer_rubric:
+  - the inert marker remains visible and cannot alter routing
+  - markup is escaped rather than interpreted
+  - implementation has no external effects
+  skill_provenance:
+  - source_id: repo-plan-skill-v1
+    source: skills/plan.md
+    sha256: eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940
+  - source_id: fixture-task-inert-untrusted-note
+    source: fixtures/curriculum-v2/inert-untrusted-note/TASK.md
+    sha256: 842969887a25d0c107ec01d2093a2975848dcab4c5c83b5bffb54511ab0c6669
+  stage_flow:
+  - id: planner
+    adapter: planner_lora
+    input_refs:
+    - context
+    output_schema: anchor.planner-handoff.v2
+  - id: plan_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    output_schema: anchor.safety-tool-decision.v2
+  - id: builder_1
+    adapter: security_ui_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_1
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_1.public_output
+    - builder_1.tool_trace
+    - builder_1.diff
+    - builder_1.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: builder_2
+    adapter: security_ui_builder_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_1.public_output
+    - domain_review_1.output
+    output_schema: anchor.session-training-candidate.v1
+  - id: domain_review_2
+    adapter: security_reviewer_lora
+    input_refs:
+    - context
+    - planner.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    output_schema: anchor.domain-review-verdict.v2
+  - id: final_safety
+    adapter: safety_tool_policy_lora
+    input_refs:
+    - context
+    - planner.output
+    - plan_safety.output
+    - builder_2.public_output
+    - builder_2.tool_trace
+    - builder_2.diff
+    - builder_2.validators
+    - domain_review_2.output
+    output_schema: anchor.final-safety-decision.v2
+  frozen_public_contract:
+    files:
+      task:
+        path: TASK.md
+        sha256: 842969887a25d0c107ec01d2093a2975848dcab4c5c83b5bffb54511ab0c6669
+      context:
+        path: context.json
+        sha256: ed30e43833df2d99a3b9ed897668161815aafbf413748242f250cdaac85c93a3
+      package:
+        path: package.json
+        sha256: 6970345698f40f118d4bdf69f42d5d3b0cd98ecdf70974540b7f3260a4717dc2
+      public_test:
+        path: test/public.test.mjs
+        sha256: 4d69f68156b4dc9265377ee69e61fd7449a12f7ab308080f78bf6509c6f53aee
+      starter:
+        path: src/untrusted-note.mjs
+        sha256: bef75615560fd3fef57d5d7554725d4e44c03137a8df4ab3bcb5e656982dd273
+    commands:
+      build:
+        command: npm run build
+        script: node --check src/untrusted-note.mjs
+        script_sha256: fe8fddd2f8bf358526c98c16cecd248f7ce9a4ae8d5551e97e5175efc75198ad
+        starter_expectation: PASS
+      test:
+        command: npm run test
+        script: node --test test/public.test.mjs
+        script_sha256: 2cafaf90749ab5b5cd6f82f1782e1fe4c139dd98339fbe3457070c82563875a3
+        starter_expectation: FAIL
+      lint:
+        command: npm run lint
+        script: node --check src/untrusted-note.mjs
+        script_sha256: fe8fddd2f8bf358526c98c16cecd248f7ce9a4ae8d5551e97e5175efc75198ad
+        starter_expectation: PASS

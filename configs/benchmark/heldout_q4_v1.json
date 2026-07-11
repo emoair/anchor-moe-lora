@@ -68,7 +68,33 @@
         "security": "lora-final-security"
       },
       "max_tokens_per_call": 1024,
-      "notes": "Five task-specific LoRAs selected by an application router; not a neural MoE."
+      "notes": "Five task-specific rank-16 LoRAs selected by an application router; not a neural MoE."
+    },
+    {
+      "name": "d_budget_matched_pipeline",
+      "group": "D_Q4_MANUAL_BUDGET_MATCHED_ROUTED_LORA",
+      "workflow": "pipeline",
+      "model": "gemma4-12b-base-q4",
+      "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+      "base_source_sha256": "fe054ae05ff7f44318fd8ae90d58992531455c7ed31356704088f0f2d8c8009a",
+      "q4_artifact_sha256": "96ebac04f4d2c64d4b21142bb6e05d94656c3c7fb243fdbd43c4b4457eca0156",
+      "adapter_trainable_parameters": 10387456,
+      "stage_adapter_ranks": {
+        "planner": 3,
+        "tool_policy": 3,
+        "frontend": 4,
+        "review": 3,
+        "security": 3
+      },
+      "stage_models": {
+        "planner": "lora-budget-planner-r3",
+        "tool_policy": "lora-budget-tool-policy-r3",
+        "frontend": "lora-budget-frontend-gen-r4",
+        "review": "lora-budget-frontend-review-r3",
+        "security": "lora-budget-final-security-r3"
+      },
+      "max_tokens_per_call": 1024,
+      "notes": "Frozen manual 3/3/4/3/3 routed control; rank sum and materialized parameters exactly match B."
     }
   ]
 }

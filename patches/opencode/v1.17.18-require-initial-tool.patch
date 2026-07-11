@@ -1,0 +1,1381 @@
+diff --git a/packages/core/src/v1/config/agent.ts b/packages/core/src/v1/config/agent.ts
+index b220bd7ef87d7e34598673fdb5ec8fa9c7a3146c..53d7c8d06d8a8db1c7c8b50e6683e81fb50dc44e 100644
+--- a/packages/core/src/v1/config/agent.ts
++++ b/packages/core/src/v1/config/agent.ts
+@@ -34,6 +34,10 @@ const AgentSchema = Schema.StructWithRest(
+     steps: Schema.optional(PositiveInt).annotate({
+       description: "Maximum number of agentic iterations before forcing text-only response",
+     }),
++    requireInitialToolCall: Schema.optional(Schema.Boolean).annotate({
++      description:
++        "Require a tool call until the current user turn has one completed tool result. Disabled by default.",
++    }),
+     maxSteps: Schema.optional(PositiveInt).annotate({ description: "@deprecated Use 'steps' field instead." }),
+     permission: Schema.optional(ConfigPermissionV1.Info),
+   }),
+@@ -52,6 +56,7 @@ const KNOWN_KEYS = new Set([
+   "hidden",
+   "color",
+   "steps",
++  "requireInitialToolCall",
+   "maxSteps",
+   "options",
+   "permission",
+diff --git a/packages/core/src/v1/session.ts b/packages/core/src/v1/session.ts
+index b4ce31e5f09addaed569c08941ae7b0888708df0..5e5708c61edf0317dbe06fbc097615ea56d8d57c 100644
+--- a/packages/core/src/v1/session.ts
++++ b/packages/core/src/v1/session.ts
+@@ -66,3 +66,13 @@ export const ContextOverflowError = NamedError.create("ContextOverflowError", {
+   responseBody: Schema.optional(Schema.String),
+ })
+ export const ContentFilterError = NamedError.create("ContentFilterError", { message: Schema.String })
++export const InitialToolCallError = NamedError.create("InitialToolCallError", {
++  reason: Schema.Literals([
++    "max_steps",
++    "no_eligible_tools",
++    "provider_ignored_required",
++    "resume_unsatisfied",
++    "unsupported_lineage",
++  ]),
++  message: Schema.String,
++})
+diff --git a/packages/core/test/config/v1-agent-initial-tool-call.test.ts b/packages/core/test/config/v1-agent-initial-tool-call.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1968f213349a0559fb8ad0aa6a0e62f3a909ed40
+--- /dev/null
++++ b/packages/core/test/config/v1-agent-initial-tool-call.test.ts
+@@ -0,0 +1,17 @@
++import { expect, test } from "bun:test"
++import { Schema } from "effect"
++import { Info } from "../../src/v1/config/agent"
++
++const decode = Schema.decodeUnknownSync(Info)
++
++test("legacy agent config keeps requireInitialToolCall out of provider options", () => {
++  const defaults = decode({})
++  expect(defaults.requireInitialToolCall).toBeUndefined()
++
++  const configured = decode({
++    requireInitialToolCall: true,
++    providerSpecificFlag: "kept",
++  })
++  expect(configured.requireInitialToolCall).toBe(true)
++  expect(configured.options).toEqual({ providerSpecificFlag: "kept" })
++})
+diff --git a/packages/opencode/src/agent/agent.ts b/packages/opencode/src/agent/agent.ts
+index 536a642fe49fb5211e66c2e2ad689856a03254c0..895f4389f19c9b42716f8c116ef1e6ede515f90f 100644
+--- a/packages/opencode/src/agent/agent.ts
++++ b/packages/opencode/src/agent/agent.ts
+@@ -52,6 +52,7 @@ export const Info = Schema.Struct({
+   prompt: Schema.optional(Schema.String),
+   options: Schema.Record(Schema.String, Schema.Unknown),
+   steps: Schema.optional(Schema.Finite),
++  requireInitialToolCall: Schema.optional(Schema.Boolean),
+ }).annotate({ identifier: "Agent" })
+ export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
+
+@@ -289,6 +290,7 @@ const layer = Layer.effect(
+           item.hidden = value.hidden ?? item.hidden
+           item.name = value.name ?? item.name
+           item.steps = value.steps ?? item.steps
++          item.requireInitialToolCall = value.requireInitialToolCall ?? item.requireInitialToolCall
+           item.options = mergeDeep(item.options, value.options ?? {})
+           item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
+         }
+diff --git a/packages/opencode/src/session/prompt.ts b/packages/opencode/src/session/prompt.ts
+index eb116f6b960f6da4115ffb262695af6162ac2045..a6cf1c1d518b1b98e33e658b7ee87a4c599803e9 100644
+--- a/packages/opencode/src/session/prompt.ts
++++ b/packages/opencode/src/session/prompt.ts
+@@ -81,6 +81,18 @@ IMPORTANT:
+
+ const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
+
++const INITIAL_TOOL_CONTRACT = "anchor.execution-tool-contract.v2" as const
++export const INITIAL_TOOL_LOCAL_ALLOWLIST = new Set([
++  "read",
++  "edit",
++  "write",
++  "apply_patch",
++  "bash",
++  "grep",
++  "glob",
++  "list",
++])
++
+ function mcpResourceBase64Size(value: string) {
+   const trimmed = value.replace(/\s/g, "")
+   const padding = trimmed.endsWith("==") ? 2 : trimmed.endsWith("=") ? 1 : 0
+@@ -660,6 +672,10 @@ const layer = Layer.effect(
+         time: { created: Date.now() },
+         tools: input.tools,
+         agent: ag.name,
++        initialToolCall:
++          ag.requireInitialToolCall === true
++            ? { required: true, agent: ag.name, policy: INITIAL_TOOL_CONTRACT }
++            : undefined,
+         model: {
+           providerID: model.providerID,
+           modelID: model.modelID,
+@@ -1107,12 +1123,42 @@ const layer = Layer.effect(
+             lastAssistantMsg?.parts.some(
+               (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
+             ) ?? false
++          const terminalAssistant =
++            lastAssistant?.finish !== undefined &&
++            lastAssistant.finish !== "tool-calls" &&
++            lastUser.id < lastAssistant.id
++
++          if (lastAssistant && terminalAssistant && lastUser.initialToolCall?.required === true) {
++            const durableEligibleTools = new Set(lastUser.initialToolCall.eligibleTools ?? [])
++            const durableSatisfied = hasCompletedInitialToolCall({
++              messages: msgs,
++              userID: lastUser.id,
++              agentName: lastUser.initialToolCall.agent,
++              eligibleTools: durableEligibleTools,
++            })
++            if (!durableSatisfied) {
++              const detail = "Recovered terminal response has no durable qualified initial tool completion"
++              lastAssistant.initialToolCallAudit = {
++                contract: INITIAL_TOOL_CONTRACT,
++                status: "unsatisfied",
++                reason: "resume_unsatisfied",
++                message: detail,
++              }
++              lastAssistant.error ??= new SessionV1.InitialToolCallError({
++                reason: "resume_unsatisfied",
++                message: detail,
++              }).toObject()
++              lastAssistant.finish = "error"
++              lastAssistant.time.completed = Date.now()
++              yield* sessions.updateMessage(lastAssistant)
++              yield* events.publish(Session.Event.Error, { sessionID, error: lastAssistant.error })
++              break
++            }
++          }
+
+           if (
+-            lastAssistant?.finish &&
+-            !["tool-calls"].includes(lastAssistant.finish) &&
+-            !hasToolCalls &&
+-            lastUser.id < lastAssistant.id
++            terminalAssistant &&
++            !hasToolCalls
+           ) {
+             const orphan = lastAssistantMsg?.parts.find(
+               (part): part is SessionV1.ToolPart => part.type === "tool" && isOrphanedInterruptedTool(part),
+@@ -1139,7 +1185,65 @@ const layer = Layer.effect(
+             }).pipe(Effect.ignore, Effect.forkIn(scope))
+
+           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
++          const agent = yield* agents.get(lastUser.agent)
++          if (!agent) {
++            const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
++            const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
++            const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
++            yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
++            throw error
++          }
++          const maxSteps = agent.steps ?? Infinity
++          const isLastStep = step >= maxSteps
++          const initialToolEnabled = lastUser.initialToolCall?.required === true
++          const newAssistantMessage = (): SessionV1.Assistant => ({
++            id: MessageID.ascending(),
++            parentID: lastUser.id,
++            role: "assistant",
++            mode: agent.name,
++            agent: agent.name,
++            variant: lastUser.model.variant,
++            path: { cwd: ctx.directory, root: ctx.worktree },
++            cost: 0,
++            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
++            modelID: model.id,
++            providerID: model.providerID,
++            time: { created: Date.now() },
++            sessionID,
++          })
++          const failInitialToolCall = Effect.fnUntraced(function* (
++            message: SessionV1.Assistant,
++            reason: "max_steps" | "no_eligible_tools" | "provider_ignored_required" | "unsupported_lineage",
++            detail: string,
++          ) {
++            message.initialToolCallAudit = {
++              contract: INITIAL_TOOL_CONTRACT,
++              status: "unsatisfied",
++              reason,
++              message: detail,
++            }
++            message.error ??= new SessionV1.InitialToolCallError({ reason, message: detail }).toObject()
++            message.finish = "error"
++            message.time.completed = Date.now()
++            yield* sessions.updateMessage(message)
++            yield* events.publish(Session.Event.Error, { sessionID, error: message.error })
++          })
+           const task = tasks.pop()
++          const lastUserWithParts = msgs.findLast(
++            (message) => message.info.role === "user" && message.info.id === lastUser.id,
++          )
++          const hasSyntheticOrigin =
++            lastUserWithParts?.parts.some((part) => part.type === "text" && part.synthetic === true) ?? false
++
++          if (initialToolEnabled && (session.parentID !== undefined || task !== undefined || hasSyntheticOrigin)) {
++            const failed = newAssistantMessage()
++            yield* failInitialToolCall(
++              failed,
++              "unsupported_lineage",
++              "requireInitialToolCall does not support child sessions, synthetic users, subtasks, or explicit compaction",
++            )
++            break
++          }
+
+           if (task?.type === "subtask") {
+             yield* handleSubtask({ task, model, lastUser, sessionID, session, msgs })
+@@ -1163,41 +1267,25 @@ const layer = Layer.effect(
+             lastFinished.summary !== true &&
+             (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
+           ) {
++            if (initialToolEnabled) {
++              const failed = newAssistantMessage()
++              yield* failInitialToolCall(
++                failed,
++                "unsupported_lineage",
++                "requireInitialToolCall does not support automatic compaction",
++              )
++              break
++            }
+             yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
+             continue
+           }
+-
+-          const agent = yield* agents.get(lastUser.agent)
+-          if (!agent) {
+-            const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+-            const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
+-            const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
+-            yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
+-            throw error
+-          }
+-          const maxSteps = agent.steps ?? Infinity
+-          const isLastStep = step >= maxSteps
+           msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
+             Effect.provideService(RuntimeFlags.Service, flags),
+             Effect.provideService(FSUtil.Service, fsys),
+             Effect.provideService(Session.Service, sessions),
+           )
+
+-          const msg: SessionV1.Assistant = {
+-            id: MessageID.ascending(),
+-            parentID: lastUser.id,
+-            role: "assistant",
+-            mode: agent.name,
+-            agent: agent.name,
+-            variant: lastUser.model.variant,
+-            path: { cwd: ctx.directory, root: ctx.worktree },
+-            cost: 0,
+-            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+-            modelID: model.id,
+-            providerID: model.providerID,
+-            time: { created: Date.now() },
+-            sessionID,
+-          }
++          const msg = newAssistantMessage()
+           yield* sessions.updateMessage(msg)
+
+           const finalizeInterruptedAssistant = Effect.gen(function* () {
+@@ -1248,6 +1336,57 @@ const layer = Layer.effect(
+                 },
+               })
+             }
++            const format = lastUser.format ?? { type: "text" as const }
++
++            const visibleTools = Permission.visibleTools(
++              tools,
++              Permission.merge(agent.permission, session.permission ?? []),
++            )
++            const eligibleTools = initialToolEnabled
++              ? Object.fromEntries(
++                  Object.entries(visibleTools).filter(([name]) => INITIAL_TOOL_LOCAL_ALLOWLIST.has(name)),
++                )
++              : tools
++            const eligibleToolNames = new Set(Object.keys(eligibleTools))
++            if (initialToolEnabled && format.type === "json_schema") {
++              yield* failInitialToolCall(
++                msg,
++                "unsupported_lineage",
++                "StructuredOutput is not part of the audited anchor local-tool allowlist",
++              )
++              return "break" as const
++            }
++            if (lastUser.initialToolCall?.required === true) {
++              lastUser.initialToolCall.eligibleTools = [...eligibleToolNames].sort()
++              yield* sessions.updateMessage(lastUser)
++            }
++            const requireInitialToolCall = shouldRequireInitialToolCall({
++              enabled: initialToolEnabled,
++              messages: msgs,
++              userID: lastUser.id,
++              agentName: agent.name,
++              eligibleTools: eligibleToolNames,
++            })
++            if (requireInitialToolCall && isLastStep) {
++              yield* failInitialToolCall(
++                msg,
++                "max_steps",
++                "Initial tool-call requirement was not satisfied before the final agent step",
++              )
++              return "break" as const
++            }
++            if (requireInitialToolCall && eligibleToolNames.size === 0) {
++              yield* failInitialToolCall(
++                msg,
++                "no_eligible_tools",
++                "Initial tool-call requirement has no executable tools after permission filtering",
++              )
++              return "break" as const
++            }
++            const requestTools =
++              initialToolEnabled && isLastStep
++                ? {}
++                : eligibleTools
+
+             if (step === 1)
+               yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
+@@ -1267,7 +1406,6 @@ const layer = Layer.effect(
+               ...(mcpInstructions ? [mcpInstructions] : []),
+               ...(skills ? [skills] : []),
+             ]
+-            const format = lastUser.format ?? { type: "text" as const }
+             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+             const result = yield* handle.process({
+               user: lastUser,
+@@ -1280,17 +1418,41 @@ const layer = Layer.effect(
+                 ...modelMsgs,
+                 ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
+               ],
+-              tools,
++              tools: requestTools,
+               model,
+-              toolChoice: format.type === "json_schema" ? "required" : undefined,
++              toolChoice: format.type === "json_schema" || requireInitialToolCall ? "required" : undefined,
+             })
+
++            const providerReturnedTerminal =
++              handle.message.error !== undefined ||
++              result === "stop" ||
++              (handle.message.finish !== undefined && handle.message.finish !== "tool-calls")
++            if (requireInitialToolCall && providerReturnedTerminal) {
++              const postMessages = yield* MessageV2.filterCompactedEffect(sessionID).pipe(
++                Effect.provideService(Database.Service, database),
++              )
++              const postconditionSatisfied = hasCompletedInitialToolCall({
++                messages: postMessages,
++                userID: lastUser.id,
++                agentName: agent.name,
++                eligibleTools: eligibleToolNames,
++              })
++              if (!postconditionSatisfied) {
++                yield* failInitialToolCall(
++                  handle.message,
++                  "provider_ignored_required",
++                  "Provider returned a terminal response before the required initial tool completed",
++                )
++                return "break" as const
++              }
++            }
++
+             if (structured !== undefined) {
+               handle.message.structured = structured
+               handle.message.finish = handle.message.finish ?? "stop"
+               yield* sessions.updateMessage(handle.message)
+               return "break" as const
+             }
+
+             const finished = handle.message.finish && !["tool-calls", "unknown"].includes(handle.message.finish)
+             if (finished && !handle.message.error) {
+@@ -1318,6 +1480,14 @@ const layer = Layer.effect(
+
+             if (result === "stop") return "break" as const
+             if (result === "compact") {
++              if (initialToolEnabled) {
++                yield* failInitialToolCall(
++                  handle.message,
++                  "unsupported_lineage",
++                  "requireInitialToolCall does not support compaction during an anchor run",
++                )
++                return "break" as const
++              }
+               yield* compaction.create({
+                 sessionID,
+                 agent: lastUser.agent,
+@@ -1496,6 +1666,39 @@ const ModelRef = Schema.Struct({
+   modelID: ModelV2.ID,
+ })
+
++export function hasCompletedInitialToolCall(input: {
++  messages: SessionV1.WithParts[]
++  userID: MessageID
++  agentName: string
++  eligibleTools: ReadonlySet<string>
++}) {
++  return input.messages.some(
++    (message) =>
++      message.info.role === "assistant" &&
++      message.info.parentID === input.userID &&
++      message.info.agent === input.agentName &&
++      message.info.mode === input.agentName &&
++      message.parts.some(
++        (part) =>
++          part.type === "tool" &&
++          part.state.status === "completed" &&
++          part.metadata?.providerExecuted !== true &&
++          input.eligibleTools.has(part.tool),
++      ),
++  )
++}
++
++export function shouldRequireInitialToolCall(input: {
++  enabled: boolean
++  messages: SessionV1.WithParts[]
++  userID: MessageID
++  agentName: string
++  eligibleTools: ReadonlySet<string>
++}) {
++  if (!input.enabled) return false
++  return !hasCompletedInitialToolCall(input)
++}
++
+ export const PromptInput = Schema.Struct({
+   sessionID: SessionID,
+   messageID: Schema.optional(MessageID),
+diff --git a/packages/opencode/test/agent/agent.test.ts b/packages/opencode/test/agent/agent.test.ts
+index efeaf408a259bb192c62135bdb4ec4ee5ff361fb..cfda80a873fa5496ab9104605e4f977203ae6ace 100644
+--- a/packages/opencode/test/agent/agent.test.ts
++++ b/packages/opencode/test/agent/agent.test.ts
+@@ -69,6 +69,32 @@ it.instance("build agent has correct default properties", () =>
+   }),
+ )
+
++it.instance("initial tool call requirement is disabled by default", () =>
++  Effect.gen(function* () {
++    const build = yield* load((svc) => svc.get("build"))
++    expect(build?.requireInitialToolCall).toBeUndefined()
++  }),
++)
++
++it.instance(
++  "resolves an explicit initial tool call requirement without provider options",
++  () =>
++    Effect.gen(function* () {
++      const anchor = yield* load((svc) => svc.get("anchor-gold"))
++      expect(anchor?.requireInitialToolCall).toBe(true)
++      expect(anchor?.options).not.toHaveProperty("requireInitialToolCall")
++    }),
++  {
++    config: {
++      agent: {
++        "anchor-gold": {
++          requireInitialToolCall: true,
++        },
++      },
++    },
++  },
++)
++
+ it.instance("plan agent denies edits except .opencode/plans/*", () =>
+   Effect.gen(function* () {
+     const plan = yield* load((svc) => svc.get("plan"))
+diff --git a/packages/opencode/test/lib/llm-server.ts b/packages/opencode/test/lib/llm-server.ts
+index 245acc7280f553ae4a8f13ffa05c97257e88587d..b7a149d59467175e41e651ce344c53b11613a7ea 100644
+--- a/packages/opencode/test/lib/llm-server.ts
++++ b/packages/opencode/test/lib/llm-server.ts
+@@ -493,6 +493,14 @@ export class Reply {
+     return this
+   }
+
++  finish(reason: string) {
++    this.#finish = reason
++    this.#hang = false
++    this.#error = undefined
++    this.#reset = false
++    return this
++  }
++
+   contentFilter() {
+     this.#finish = "content_filter"
+     this.#hang = false
+diff --git a/packages/opencode/test/session/initial-tool-call.test.ts b/packages/opencode/test/session/initial-tool-call.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ba6fd5a3ade27d26ebe562cb20db56d1645ff509
+--- /dev/null
++++ b/packages/opencode/test/session/initial-tool-call.test.ts
+@@ -0,0 +1,103 @@
++import { describe, expect, test } from "bun:test"
++import { SessionV1 } from "@opencode-ai/core/v1/session"
++import {
++  hasCompletedInitialToolCall,
++  INITIAL_TOOL_LOCAL_ALLOWLIST,
++  shouldRequireInitialToolCall,
++} from "../../src/session/prompt"
++import { MessageID } from "../../src/session/schema"
++
++const currentUser = MessageID.ascending("msg_current")
++const otherUser = MessageID.ascending("msg_other")
++
++function assistantWithTool(
++  parentID: MessageID,
++  status: "completed" | "error" | "running",
++  input?: { agent?: string; mode?: string; tool?: string; providerExecuted?: boolean },
++) {
++  return {
++    info: {
++      role: "assistant",
++      parentID,
++      agent: input?.agent ?? "anchor-gold",
++      mode: input?.mode ?? "anchor-gold",
++    },
++    parts: [
++      {
++        type: "tool",
++        tool: input?.tool ?? "read",
++        state: { status },
++        metadata: input?.providerExecuted ? { providerExecuted: true } : undefined,
++      },
++    ],
++  } as unknown as SessionV1.WithParts
++}
++
++function required(input: {
++  enabled?: boolean
++  messages?: SessionV1.WithParts[]
++  eligibleTools?: ReadonlySet<string>
++}) {
++  return shouldRequireInitialToolCall({
++    enabled: input.enabled ?? true,
++    messages: input.messages ?? [],
++    userID: currentUser,
++    agentName: "anchor-gold",
++    eligibleTools: input.eligibleTools ?? new Set(["read"]),
++  })
++}
++
++describe("shouldRequireInitialToolCall", () => {
++  test("uses exactly the versioned Anchor execution tool contract", () => {
++    expect([...INITIAL_TOOL_LOCAL_ALLOWLIST].sort()).toEqual(
++      ["read", "bash", "edit", "apply_patch", "write", "grep", "glob", "list"].sort(),
++    )
++  })
++
++  test("is off when disabled", () => {
++    expect(required({ enabled: false })).toBe(false)
++  })
++
++  test("requires the first tool when the current user turn has no tool", () => {
++    expect(required({})).toBe(true)
++  })
++
++  test("stops requiring tools after a completed tool for the current user", () => {
++    expect(required({ messages: [assistantWithTool(currentUser, "completed")] })).toBe(false)
++  })
++
++  test("does not count a completed tool belonging to another user turn", () => {
++    expect(required({ messages: [assistantWithTool(otherUser, "completed")] })).toBe(true)
++  })
++
++  test("keeps requiring after error or running tool states", () => {
++    expect(required({ messages: [assistantWithTool(currentUser, "error")] })).toBe(true)
++    expect(required({ messages: [assistantWithTool(currentUser, "running")] })).toBe(true)
++  })
++
++  test("rejects provider-executed, wrong-agent, wrong-mode, and ineligible completions", () => {
++    expect(
++      required({ messages: [assistantWithTool(currentUser, "completed", { providerExecuted: true })] }),
++    ).toBe(true)
++    expect(required({ messages: [assistantWithTool(currentUser, "completed", { agent: "build" })] })).toBe(true)
++    expect(required({ messages: [assistantWithTool(currentUser, "completed", { mode: "build" })] })).toBe(true)
++    expect(
++      required({
++        messages: [assistantWithTool(currentUser, "completed", { tool: "task" })],
++        eligibleTools: new Set(["read"]),
++      }),
++    ).toBe(true)
++  })
++
++  test("accepts only a completed eligible local tool for the current anchor turn", () => {
++    const messages = [assistantWithTool(currentUser, "completed")]
++    expect(
++      hasCompletedInitialToolCall({
++        messages,
++        userID: currentUser,
++        agentName: "anchor-gold",
++        eligibleTools: new Set(["read"]),
++      }),
++    ).toBe(true)
++  })
++})
+diff --git a/packages/opencode/test/session/prompt.test.ts b/packages/opencode/test/session/prompt.test.ts
+index 491ad06aaf478a272046465343fbcd5c8880ead6..fd773a81a7c9f0fdb4647d189251b8721d10caaf 100644
+--- a/packages/opencode/test/session/prompt.test.ts
++++ b/packages/opencode/test/session/prompt.test.ts
+@@ -303,6 +303,26 @@ function providerCfg(url: string) {
+   }
+ }
+
++function initialToolReason(message: SessionV1.WithParts) {
++  if (message.info.role !== "assistant" || message.info.error?.name !== "InitialToolCallError") return
++  return message.info.error.data.reason
++}
++
++function anchorProviderCfg(url: string, steps = 4) {
++  return {
++    ...providerCfg(url),
++    agent: {
++      "anchor-gold": {
++        model: "test/test-model",
++        mode: "primary" as const,
++        steps,
++        requireInitialToolCall: true,
++        permission: { "*": "allow" as const },
++      },
++    },
++  }
++}
++
+ const writeText = Effect.fn("test.writeText")(function* (file: string, text: string) {
+   const fs = yield* FSUtil.Service
+   yield* fs.writeWithDirs(file, text)
+@@ -417,6 +437,76 @@ const seed = Effect.fn("test.seed")(function* (sessionID: SessionID, opts?: { fi
+   return { user: msg, assistant }
+ })
+
++const seedDurableTerminal = Effect.fn("test.seedDurableTerminal")(function* (
++  sessionID: SessionID,
++  input?: { tool?: string; providerExecuted?: boolean; finish?: string },
++) {
++  const session = yield* Session.Service
++  const userMessage = yield* session.updateMessage({
++    id: MessageID.ascending(),
++    role: "user",
++    sessionID,
++    agent: "anchor-gold",
++    initialToolCall: {
++      required: true,
++      agent: "anchor-gold",
++      policy: "anchor.execution-tool-contract.v2",
++      eligibleTools: ["read", "glob"],
++    },
++    model: ref,
++    time: { created: Date.now() },
++  })
++  yield* session.updatePart({
++    id: PartID.ascending(),
++    messageID: userMessage.id,
++    sessionID,
++    type: "text",
++    text: "inspect",
++  })
++  const assistant = yield* session.updateMessage({
++    id: MessageID.ascending(),
++    role: "assistant",
++    parentID: userMessage.id,
++    sessionID,
++    mode: "anchor-gold",
++    agent: "anchor-gold",
++    cost: 0,
++    path: { cwd: "/tmp", root: "/tmp" },
++    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
++    modelID: ref.modelID,
++    providerID: ref.providerID,
++    time: { created: Date.now(), completed: Date.now() },
++    finish: input?.finish ?? "stop",
++  })
++  yield* session.updatePart({
++    id: PartID.ascending(),
++    messageID: assistant.id,
++    sessionID,
++    type: "text",
++    text: "terminal",
++  })
++  if (input?.tool) {
++    yield* session.updatePart({
++      id: PartID.ascending(),
++      messageID: assistant.id,
++      sessionID,
++      type: "tool",
++      callID: "seeded-call",
++      tool: input.tool,
++      metadata: input.providerExecuted ? { providerExecuted: true } : undefined,
++      state: {
++        status: "completed",
++        input: {},
++        output: "ok",
++        title: "seeded",
++        metadata: {},
++        time: { start: 1, end: 2 },
++      },
++    })
++  }
++  return { user: userMessage, assistant }
++})
++
+ const addSubtask = (sessionID: SessionID, messageID: MessageID, model = ref) =>
+   Effect.gen(function* () {
+     const session = yield* Session.Service
+@@ -714,6 +804,336 @@ noLLMServer.instance.skip(
+   { config: cfg },
+ )
+
++it.instance("anchor loop requires the first tool and releases tool choice after completion", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig((url) => anchorProviderCfg(url, 2))
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    const userMessage = yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++    expect(userMessage.info.role === "user" && userMessage.info.initialToolCall).toEqual({
++      required: true,
++      agent: "anchor-gold",
++      policy: "anchor.execution-tool-contract.v2",
++    })
++    yield* llm.tool("glob", { pattern: "**/*.definitely-missing" })
++    yield* llm.text("done")
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    const inputs = yield* llm.inputs
++    expect(inputs).toHaveLength(2)
++    expect(inputs[0]?.tool_choice).toBe("required")
++    expect(inputs[1]?.tool_choice).toBeUndefined()
++    expect(inputs[1]?.tools).toBeUndefined()
++    expect(result.info.role === "assistant" && result.info.error).toBeUndefined()
++    const persisted = (yield* sessions.messages({ sessionID: chat.id })).find(
++      (message) => message.info.role === "user" && message.info.id === userMessage.info.id,
++    )
++    const persistedTools =
++      persisted?.info.role === "user" ? (persisted.info.initialToolCall?.eligibleTools ?? []).toSorted() : []
++    const requestTools = (
++      (inputs[0]?.tools as Array<{ function?: { name?: string } }> | undefined) ?? []
++    )
++      .flatMap((tool) => (tool.function?.name ? [tool.function.name] : []))
++      .toSorted()
++    expect(persistedTools).toEqual(requestTools)
++    expect(persistedTools.every((tool) => SessionPrompt.INITIAL_TOOL_LOCAL_ALLOWLIST.has(tool))).toBe(true)
++  }),
++)
++
++it.instance("anchor loop quarantines a provider that ignores required tool choice", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor ignore",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++    yield* llm.text("plain text despite required")
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(yield* llm.calls).toBe(1)
++    expect((yield* llm.inputs)[0]?.tool_choice).toBe("required")
++    expect(result.info.role === "assistant" && result.info.error?.name).toBe("InitialToolCallError")
++    expect(initialToolReason(result)).toBe("provider_ignored_required")
++  }),
++)
++
++it.instance("anchor loop fails before provider when permissions deny every tool", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor deny",
++      permission: [{ permission: "*", pattern: "*", action: "deny" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(yield* llm.calls).toBe(0)
++    expect(result.info.role === "assistant" && result.info.error?.name).toBe("InitialToolCallError")
++    expect(initialToolReason(result)).toBe("no_eligible_tools")
++  }),
++)
++
++it.instance("anchor loop reserves the final step for a max-step error", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig((url) => anchorProviderCfg(url, 1))
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor max",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(yield* llm.calls).toBe(0)
++    expect(result.info.role === "assistant" && result.info.error?.name).toBe("InitialToolCallError")
++    expect(initialToolReason(result)).toBe("max_steps")
++  }),
++)
++
++it.instance("tool error keeps anchor requirement active until the final-step gate", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig((url) => anchorProviderCfg(url, 2))
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor tool error",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++    yield* llm.tool("read", {})
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(yield* llm.calls).toBe(1)
++    expect((yield* llm.inputs)[0]?.tool_choice).toBe("required")
++    expect(initialToolReason(result)).toBe("max_steps")
++  }),
++)
++
++it.instance("anchor JSON schema fails closed because StructuredOutput is outside the local allowlist", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor structured",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      format: new SessionV1.OutputFormatJsonSchema({
++        type: "json_schema",
++        schema: { type: "object", properties: { answer: { type: "string" } }, required: ["answer"] },
++        retryCount: 0,
++      }),
++      parts: [{ type: "text", text: "answer" }],
++    })
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(yield* llm.calls).toBe(0)
++    expect(initialToolReason(result)).toBe("unsupported_lineage")
++  }),
++)
++
++it.instance("default agent remains text-capable when anchor enforcement is configured", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({ title: "Default unaffected" })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "build",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "hello" }],
++    })
++    yield* llm.text("world")
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect((yield* llm.inputs)[0]?.tool_choice).not.toBe("required")
++    expect(result.info.role === "assistant" && result.info.error).toBeUndefined()
++  }),
++)
++
++noLLMServer.instance(
++  "durable resume quarantines plain, provider-executed, and ineligible terminal results",
++  () =>
++    Effect.gen(function* () {
++      const prompt = yield* SessionPrompt.Service
++      const sessions = yield* Session.Service
++      for (const variant of [
++        undefined,
++        { tool: "read", providerExecuted: true },
++        { tool: "task" },
++      ] as const) {
++        const chat = yield* sessions.create({ title: "Resume anchor" })
++        yield* seedDurableTerminal(chat.id, variant)
++        const result = yield* prompt.loop({ sessionID: chat.id })
++        expect(initialToolReason(result)).toBe("resume_unsatisfied")
++      }
++    }),
++  { config: cfg },
++)
++
++it.instance("anchor terminal length and unknown finishes fail the provider postcondition", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    for (const reason of ["length", "unknown"]) {
++      const chat = yield* sessions.create({
++        title: `Anchor ${reason}`,
++        permission: [{ permission: "*", pattern: "*", action: "allow" }],
++      })
++      yield* prompt.prompt({
++        sessionID: chat.id,
++        agent: "anchor-gold",
++        model: ref,
++        noReply: true,
++        parts: [{ type: "text", text: "inspect" }],
++      })
++      yield* llm.push(reply().text("terminal").finish(reason))
++      const result = yield* prompt.loop({ sessionID: chat.id })
++      expect(initialToolReason(result)).toBe("provider_ignored_required")
++    }
++    expect(yield* llm.calls).toBe(2)
++  }),
++)
++
++it.instance("initial-tool audit preserves the provider error object", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++    const chat = yield* sessions.create({
++      title: "Anchor provider error",
++      permission: [{ permission: "*", pattern: "*", action: "allow" }],
++    })
++    yield* prompt.prompt({
++      sessionID: chat.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "inspect" }],
++    })
++    yield* llm.error(401, { error: { message: "original provider failure" } })
++
++    const result = yield* prompt.loop({ sessionID: chat.id })
++    expect(result.info.role === "assistant" && result.info.error?.name).toBe("APIError")
++    if (result.info.role === "assistant" && result.info.error?.name === "APIError") {
++      expect(result.info.error.data.message).toContain("original provider failure")
++      expect(result.info.error.data.statusCode).toBe(401)
++    }
++    expect(result.info.role === "assistant" && result.info.initialToolCallAudit).toMatchObject({
++      contract: "anchor.execution-tool-contract.v2",
++      status: "unsatisfied",
++      reason: "provider_ignored_required",
++    })
++  }),
++)
++
++it.instance("anchor rejects synthetic, explicit-compaction, child, and auto-compaction lineages", () =>
++  Effect.gen(function* () {
++    const { llm } = yield* useServerConfig(anchorProviderCfg)
++    const prompt = yield* SessionPrompt.Service
++    const sessions = yield* Session.Service
++
++    const synthetic = yield* sessions.create({ title: "Synthetic anchor" })
++    yield* prompt.prompt({
++      sessionID: synthetic.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "synthetic", synthetic: true }],
++    })
++    expect(initialToolReason(yield* prompt.loop({ sessionID: synthetic.id }))).toBe("unsupported_lineage")
++
++    const explicit = yield* sessions.create({ title: "Explicit compaction anchor" })
++    const explicitUser = yield* prompt.prompt({
++      sessionID: explicit.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "compact" }],
++    })
++    yield* sessions.updatePart({
++      id: PartID.ascending(),
++      messageID: explicitUser.info.id,
++      sessionID: explicit.id,
++      type: "compaction",
++      auto: false,
++    })
++    expect(initialToolReason(yield* prompt.loop({ sessionID: explicit.id }))).toBe("unsupported_lineage")
++
++    const parent = yield* sessions.create({ title: "Parent" })
++    const child = yield* sessions.create({ title: "Child anchor", parentID: parent.id })
++    yield* prompt.prompt({
++      sessionID: child.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "child" }],
++    })
++    expect(initialToolReason(yield* prompt.loop({ sessionID: child.id }))).toBe("unsupported_lineage")
++
++    const automatic = yield* sessions.create({ title: "Automatic compaction anchor" })
++    const old = yield* seed(automatic.id, { finish: "stop" })
++    old.assistant.tokens.input = 200_000
++    yield* sessions.updateMessage(old.assistant)
++    yield* prompt.prompt({
++      sessionID: automatic.id,
++      agent: "anchor-gold",
++      model: ref,
++      noReply: true,
++      parts: [{ type: "text", text: "continue" }],
++    })
++    expect(initialToolReason(yield* prompt.loop({ sessionID: automatic.id }))).toBe("unsupported_lineage")
++    expect(yield* llm.calls).toBe(0)
++  }),
++)
++
+ it.instance("static loop returns assistant text through local provider", () =>
+   Effect.gen(function* () {
+     const { llm } = yield* useServerConfig(providerCfg)
+diff --git a/packages/schema/src/v1/session.ts b/packages/schema/src/v1/session.ts
+index 75e9282f117cb25078b087661434fcf5e6660620..ed490071366b4ce53cbb6c54fc3459e736dfda0c 100644
+--- a/packages/schema/src/v1/session.ts
++++ b/packages/schema/src/v1/session.ts
+@@ -61,6 +61,17 @@ export const ContextOverflowError = namedError("ContextOverflowError", {
+ export const ContentFilterError = namedError("ContentFilterError", {
+   message: Schema.String,
+ })
++const InitialToolCallFailureReason = Schema.Literals([
++  "max_steps",
++  "no_eligible_tools",
++  "provider_ignored_required",
++  "resume_unsatisfied",
++  "unsupported_lineage",
++])
++export const InitialToolCallError = namedError("InitialToolCallError", {
++  reason: InitialToolCallFailureReason,
++  message: Schema.String,
++})
+
+ export class OutputFormatText extends Schema.Class<OutputFormatText>("OutputFormatText")({
+   type: Schema.Literal("text"),
+@@ -344,6 +355,14 @@ export const User = Schema.Struct({
+     }),
+   ),
+   agent: Schema.String,
++  initialToolCall: Schema.optional(
++    Schema.Struct({
++      required: Schema.Literal(true),
++      agent: Schema.String,
++      policy: Schema.Literal("anchor.execution-tool-contract.v2"),
++      eligibleTools: Schema.optional(Schema.Array(Schema.String)),
++    }),
++  ),
+   model: Schema.Struct({
+     providerID: Provider.ID,
+     modelID: Model.ID,
+@@ -390,6 +409,7 @@ const AssistantErrorSchema = Schema.Union([
+   StructuredOutputError.EffectSchema,
+   ContextOverflowError.EffectSchema,
+   ContentFilterError.EffectSchema,
++  InitialToolCallError.EffectSchema,
+   APIError.EffectSchema,
+ ]).annotate({ discriminator: "name" })
+ type AssistantError = Schema.Schema.Type<typeof AssistantErrorSchema>
+@@ -458,6 +478,14 @@ export const Assistant = Schema.Struct({
+     completed: Schema.optional(NonNegativeInt),
+   }),
+   error: Schema.optional(AssistantErrorSchema),
++  initialToolCallAudit: Schema.optional(
++    Schema.Struct({
++      contract: Schema.Literal("anchor.execution-tool-contract.v2"),
++      status: Schema.Literal("unsatisfied"),
++      reason: InitialToolCallFailureReason,
++      message: Schema.String,
++    }),
++  ),
+   parentID: MessageID,
+   modelID: Model.ID,
+   providerID: Provider.ID,
+diff --git a/packages/sdk/js/src/v2/gen/types.gen.ts b/packages/sdk/js/src/v2/gen/types.gen.ts
+index 5e067f3..772c81b 100644
+--- a/packages/sdk/js/src/v2/gen/types.gen.ts
++++ b/packages/sdk/js/src/v2/gen/types.gen.ts
+@@ -250,6 +250,12 @@ export type UserMessage = {
+     diffs: Array<SnapshotFileDiff>
+   }
+   agent: string
++  initialToolCall?: {
++    required: true
++    agent: string
++    policy: "anchor.execution-tool-contract.v2"
++    eligibleTools?: Array<string>
++  }
+   model: {
+     providerID: string
+     modelID: string
+@@ -314,6 +320,19 @@ export type ContentFilterError = {
+   }
+ }
+
++export type InitialToolCallError = {
++  name: "InitialToolCallError"
++  data: {
++    reason:
++      | "max_steps"
++      | "no_eligible_tools"
++      | "provider_ignored_required"
++      | "resume_unsatisfied"
++      | "unsupported_lineage"
++    message: string
++  }
++}
++
+ export type ApiError = {
+   name: "APIError"
+   data: {
+@@ -346,7 +365,19 @@ export type AssistantMessage = {
+     | StructuredOutputError
+     | ContextOverflowError
+     | ContentFilterError
++    | InitialToolCallError
+     | ApiError
++  initialToolCallAudit?: {
++    contract: "anchor.execution-tool-contract.v2"
++    status: "unsatisfied"
++    reason:
++      | "max_steps"
++      | "no_eligible_tools"
++      | "provider_ignored_required"
++      | "resume_unsatisfied"
++      | "unsupported_lineage"
++    message: string
++  }
+   parentID: string
+   modelID: string
+   providerID: string
+@@ -1222,6 +1253,7 @@ export type GlobalEvent = {
+             | StructuredOutputError
+             | ContextOverflowError
+             | ContentFilterError
++            | InitialToolCallError
+             | ApiError
+         }
+       }
+@@ -1704,6 +1736,7 @@ export type AgentConfig = {
+    */
+   color?: string | "primary" | "secondary" | "accent" | "success" | "warning" | "error" | "info"
+   steps?: number
++  requireInitialToolCall?: boolean
+   maxSteps?: number
+   permission?: PermissionConfig
+   [key: string]:
+@@ -2362,6 +2395,7 @@ export type Agent = {
+     [key: string]: unknown
+   }
+   steps?: number
++  requireInitialToolCall?: boolean
+ }
+
+ export type LspStatus = {
+@@ -5356,6 +5390,7 @@ export type SessionError = {
+       | StructuredOutputError
+       | ContextOverflowError
+       | ContentFilterError
++      | InitialToolCallError
+       | ApiError
+   }
+ }
+@@ -6681,6 +6716,7 @@ export type EventSessionError = {
+       | StructuredOutputError
+       | ContextOverflowError
+       | ContentFilterError
++      | InitialToolCallError
+       | ApiError
+   }
+ }
+diff --git a/packages/sdk/openapi.json b/packages/sdk/openapi.json
+index d97885b..738a495 100644
+--- a/packages/sdk/openapi.json
++++ b/packages/sdk/openapi.json
+@@ -16004,6 +16004,30 @@
+           "agent": {
+             "type": "string"
+           },
++          "initialToolCall": {
++            "type": "object",
++            "properties": {
++              "required": {
++                "type": "boolean",
++                "enum": [true]
++              },
++              "agent": {
++                "type": "string"
++              },
++              "policy": {
++                "type": "string",
++                "enum": ["anchor.execution-tool-contract.v2"]
++              },
++              "eligibleTools": {
++                "type": "array",
++                "items": {
++                  "type": "string"
++                }
++              }
++            },
++            "required": ["required", "agent", "policy"],
++            "additionalProperties": false
++          },
+           "model": {
+             "type": "object",
+             "properties": {
+@@ -16187,6 +16211,37 @@
+         "required": ["name", "data"],
+         "additionalProperties": false
+       },
++      "InitialToolCallError": {
++        "type": "object",
++        "properties": {
++          "name": {
++            "type": "string",
++            "enum": ["InitialToolCallError"]
++          },
++          "data": {
++            "type": "object",
++            "properties": {
++              "reason": {
++                "type": "string",
++                "enum": [
++                  "max_steps",
++                  "no_eligible_tools",
++                  "provider_ignored_required",
++                  "resume_unsatisfied",
++                  "unsupported_lineage"
++                ]
++              },
++              "message": {
++                "type": "string"
++              }
++            },
++            "required": ["reason", "message"],
++            "additionalProperties": false
++          }
++        },
++        "required": ["name", "data"],
++        "additionalProperties": false
++      },
+       "APIError": {
+         "type": "object",
+         "properties": {
+@@ -16283,11 +16338,42 @@
+               {
+                 "$ref": "#/components/schemas/ContentFilterError"
+               },
++              {
++                "$ref": "#/components/schemas/InitialToolCallError"
++              },
+               {
+                 "$ref": "#/components/schemas/APIError"
+               }
+             ]
+           },
++          "initialToolCallAudit": {
++            "type": "object",
++            "properties": {
++              "contract": {
++                "type": "string",
++                "enum": ["anchor.execution-tool-contract.v2"]
++              },
++              "status": {
++                "type": "string",
++                "enum": ["unsatisfied"]
++              },
++              "reason": {
++                "type": "string",
++                "enum": [
++                  "max_steps",
++                  "no_eligible_tools",
++                  "provider_ignored_required",
++                  "resume_unsatisfied",
++                  "unsupported_lineage"
++                ]
++              },
++              "message": {
++                "type": "string"
++              }
++            },
++            "required": ["contract", "status", "reason", "message"],
++            "additionalProperties": false
++          },
+           "parentID": {
+             "type": "string",
+             "pattern": "^msg"
+@@ -19130,6 +19216,9 @@
+                           {
+                             "$ref": "#/components/schemas/ContentFilterError"
+                           },
++                          {
++                            "$ref": "#/components/schemas/InitialToolCallError"
++                          },
+                           {
+                             "$ref": "#/components/schemas/APIError"
+                           }
+@@ -20697,6 +20786,9 @@
+             "type": "integer",
+             "exclusiveMinimum": 0
+           },
++          "requireInitialToolCall": {
++            "type": "boolean"
++          },
+           "maxSteps": {
+             "type": "integer",
+             "exclusiveMinimum": 0
+@@ -22538,6 +22630,9 @@
+           },
+           "steps": {
+             "type": "number"
++          },
++          "requireInitialToolCall": {
++            "type": "boolean"
+           }
+         },
+         "required": ["name", "mode", "permission", "options"],
+@@ -31628,6 +31723,9 @@
+                   {
+                     "$ref": "#/components/schemas/ContentFilterError"
+                   },
++                  {
++                    "$ref": "#/components/schemas/InitialToolCallError"
++                  },
+                   {
+                     "$ref": "#/components/schemas/APIError"
+                   }
+@@ -35509,6 +35607,9 @@
+                   {
+                     "$ref": "#/components/schemas/ContentFilterError"
+                   },
++                  {
++                    "$ref": "#/components/schemas/InitialToolCallError"
++                  },
+                   {
+                     "$ref": "#/components/schemas/APIError"
+                   }

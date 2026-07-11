@@ -1,0 +1,1 @@
+{"user_request":"帮我写个计算器，已有纯前端模块，保持离线并补齐四则运算。","existing_stack":"browser ESM","constraints":["no dependencies","no network","preserve public API calculate(left, operator, right)"]}

@@ -2,11 +2,11 @@
 
 The MVP route is strictly ordered per seed:
 
-`planner -> tool_policy -> frontend_gen -> frontend_review -> security_gate`
+`planner -> tool_policy -> (frontend_gen <-> frontend_review, bounded) -> security_gate`
 
 All adapters use the same frozen and identically serialized Q4/NF4 base. The model
 revision, quantization settings, tokenizer, local artifact digest, stage order, and
-per-stage token cap are experiment invariants across A/B/C/D/E. Full-capacity LoRA rank
+per-stage token cap are experiment invariants across A/B/C/D/E/F. Full-capacity LoRA rank
 is 16 for the first experiment. A new domain coder is valid only when its paired domain reviewer is
 registered and evaluated in the same change.
 
@@ -14,16 +14,29 @@ registered and evaluated in the same change.
 | --- | --- | --- | --- |
 | `planner` | requirement | summary, ordered steps, constraints | stop; no policy/coder call |
 | `tool_policy` | plan + inert abstract proposals | exactly `APPROVE`, `BLOCK`, or `ESCALATE`, rationale and public trace | stop/fail closed; label is advisory only |
-| `frontend_gen` | requirement + plan + policy advisory | complete code | stop; no reviewer call |
-| `frontend_review` | requirement + deterministically benign-mutated coder output | complete repaired code | stop; no security call |
-| `security_gate` | requirement + reviewed code | exactly `[PASS]` or `[BLOCK]` | ambiguous/error/timeout becomes BLOCK |
+| `frontend_gen` | requirement + plan + policy advisory; on retry, current code + public issues | complete code | stop; no reviewer call |
+| `frontend_review` | requirement + current candidate | strict public `anchor.domain-review-verdict.v2` JSON: `PASS` with no issues, or `REVISE` with concise issues | ambiguity/error/timeout or cycle exhaustion fails closed |
+| `security_gate` | requirement + final review-passed code + public tool trace summary | exactly `[PASS]` or `[BLOCK]` | ambiguous/error/timeout becomes BLOCK |
 
 The model cannot authorize itself. Runtime execution permission is determined by
 a non-model allowlist plus workspace-boundary, side-effect, and explicit-approval
 rules. A model `APPROVE` never overrides deterministic `BLOCK` or `ESCALATE`.
 
-Data files are `data_plan.jsonl`, `data_tool_policy.jsonl`,
-`data_frontend.jsonl`, `data_review.jsonl`, and `data_security.jsonl`. Every
+The primary runtime permits at most two review cycles by default. `REVISE` reuses
+the same domain builder LoRA; the reviewer never writes repaired code and never
+emits private reasoning. The trace can contain repeated `frontend` and `review`
+attempts, but it still uses exactly five expert types. Security runs only after a
+strict `PASS` and receives the final candidate plus the public proposal/policy/cycle
+summary.
+
+Legacy v1 data files are `data_plan.jsonl`, `data_tool_policy.jsonl`,
+`data_frontend.jsonl`, `data_review.jsonl`, and `data_security.jsonl`. The v1
+`data_review.jsonl` target is complete repaired code and remains valid only for
+the compatibility `PipelineRouter.run` path and old benchmark records. It is not
+silently treated as a v2 verdict adapter. Primary v2 training writes separate
+`data_review_verdict_v2.jsonl` and `data_frontend_revision_v2.jsonl` targets under
+schema `anchor.review-loop-data.v2`; `run_five_stage` fails closed when its
+`review_verdict` adapter is absent. Every
 downstream row records its same-seed source record IDs. Tool proposals are produced
 locally by `anchor-inert-tool-proposals-v1`, contain no executable arguments or
 URLs, and persist `executed: false`. Existing successful three-stage live rows are
@@ -36,29 +49,37 @@ For benchmarks, the fair comparison uses five matched stages:
 - C routes five full-capacity rank-16 specialists (51,937,280 stored trainable parameters).
 - D routes five smaller specialists with ranks `3/3/4/3/3`; their rank sum and
   materialized trainable parameter count exactly match B.
-- E is a complexity-adaptive routed arm. It searches a calibration-only rank ladder,
-  gives more capacity to generation/review than short policy decisions, and chooses
-  the smallest total rank that remains non-inferior to the frozen D baseline.
+- E is a complexity-adaptive, non-uniform routed arm. Each stage is capped at rank 16,
+  but total rank/parameters are allowed to vary across a calibration-only budget ladder;
+  E searches the capacity/performance Pareto frontier.
+- F uses the same complexity-adaptive allocation algorithm and calibration split as E,
+  but hard-constrains total rank and materialized adapter parameters to exactly match B.
 
-C measures the maximum-capacity routed architecture. B versus D isolates routing and
-task separation under an equal adapter-parameter budget. The D allocation is frozen
-before held-out evaluation. Single-call A/B results remain auxiliary only; changing
-the serialized Q4 artifact invalidates the comparison.
+C measures the maximum-capacity routed architecture. **B versus D versus F** is the
+primary equal-budget comparison: B is mixed, D is manually allocated, and F is
+algorithmically allocated under the same hard parameter budget. C and E are capacity/Pareto
+comparisons and must not be used alone to claim an equal-budget routing win. D is fixed;
+E and F are calibration-selected and frozen before held-out evaluation. Single-call A/B results remain
+auxiliary only; changing the serialized Q4 artifact invalidates the comparison.
 
-E is a later Pareto experiment, not part of `formal-v1`. Its initial complexity prior
+E and F are later allocation experiments, not part of `formal-v1`. Their shared initial complexity prior
 is `frontend_gen >= frontend_review >= planner >= tool_policy/security_gate`. Candidate
 allocations and the selection rule live in
 `configs/training/complexity_adaptive_lora.yaml`. Rank selection may use only a
 separate calibration split; the frozen held-out benchmark must never influence the
-chosen ranks. The optimization objective is lexicographic:
+chosen ranks. Every stage rank is at most 16. E reports the calibration Pareto frontier
+over quality, materialized parameters, routed latency, and peak VRAM. F uses the same
+complexity evaluator and candidate mechanism, restricted to the exact B-sized budget.
 
-1. satisfy per-domain non-inferiority constraints against D;
-2. minimize total materialized adapter parameters;
-3. minimize routed latency and peak VRAM;
-4. maximize aggregate task quality only after the first three constraints tie.
+For E, total rank is a search variable, so the output is a capacity/performance Pareto
+point. For F, the same allocator is restricted to total rank 16 and exactly 10,387,456
+materialized trainable parameters, matching B. This separates gains from adaptive
+allocation under equal budget (B/D/F) from gains obtained by spending more or less
+capacity (C/E).
 
-This makes E a test of whether task-aware capacity allocation can move the
-size/performance Pareto frontier, rather than another unconstrained larger model.
+The checked-in adaptive benchmark entries remain `calibration_pending`. The held-out
+gate rejects them until each selected allocation has a calibration snapshot hash,
+attempt ledger, frozen ranks, materialized parameter count, and immutable manifest hash.
 
 ## Two-call live smoke
 

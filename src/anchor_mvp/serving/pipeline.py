@@ -7,6 +7,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
+from ..review_contract import (
+    REVIEW_VERDICT_SCHEMA_VERSION,
+    ReviewVerdict,
+    parse_review_verdict,
+    revision_issues_json,
+)
 from .types import CompletionBackend, CompletionRequest, Message, TokenUsage
 
 
@@ -25,6 +31,7 @@ class AdapterSelection:
     planner: str | None = None
     tool_policy: str | None = None
     mixed: str | None = None
+    review_verdict: str | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +42,13 @@ class PipelineConfig:
     retry_backoff_seconds: float = 0.1
     max_tokens_per_stage: int = 1024
     temperature: float = 0.0
+    max_review_cycles: int = 2
+
+    def __post_init__(self) -> None:
+        if self.timeout_seconds <= 0 or self.max_attempts < 1:
+            raise ValueError("pipeline timeout and attempts must be positive")
+        if self.max_tokens_per_stage < 1 or self.max_review_cycles < 1:
+            raise ValueError("pipeline token and review-cycle limits must be positive")
 
 
 @dataclass
@@ -49,6 +63,8 @@ class StageArtifact:
     latency_ms: float = 0.0
     usage: TokenUsage = field(default_factory=TokenUsage)
     error: str | None = None
+    cycle: int | None = None
+    contract_version: str | None = None
 
 
 @dataclass
@@ -62,6 +78,8 @@ class PipelineResult:
     errors: list[str] = field(default_factory=list)
     tool_policy_decision: str | None = None
     deterministic_tool_policy_decision: str | None = None
+    review_cycles: int = 0
+    review_verdict: str | None = None
 
     @property
     def usage(self) -> TokenUsage:
@@ -144,6 +162,17 @@ class PipelineRouter:
         """
 
         artifacts: list[StageArtifact] = []
+        review_model = self.config.adapters.review_verdict
+        if not review_model:
+            return PipelineResult(
+                requirement=requirement,
+                decision="BLOCK",
+                final_code=None,
+                artifacts=artifacts,
+                success=False,
+                fail_closed=True,
+                errors=["review: verdict-v2 adapter is not configured"],
+            )
         planner = await self._run_stage(
             "planner",
             self.config.adapters.planner or self.config.adapters.base,
@@ -191,25 +220,101 @@ class PipelineRouter:
             frontend_input,
             "Produce a complete implementation for the website requirement. Return only the code.",
         )
+        frontend.cycle = 0
         artifacts.append(frontend)
         if frontend.status is not StageStatus.SUCCEEDED:
             return self._failed_closed(requirement, artifacts, frontend)
 
-        review_input = (
-            f"REQUIREMENT:\n{requirement}\n\nCANDIDATE CODE:\n{frontend.output_text}"
-        )
-        review = await self._run_stage(
-            "review",
-            self.config.adapters.review,
-            review_input,
-            "Review and repair the candidate. Return the complete corrected code only.",
-        )
-        artifacts.append(review)
-        if review.status is not StageStatus.SUCCEEDED:
-            return self._failed_closed(requirement, artifacts, review)
+        current_code = frontend.output_text
+        verdict_history: list[ReviewVerdict] = []
+        passed_verdict: ReviewVerdict | None = None
+        for cycle in range(1, self.config.max_review_cycles + 1):
+            review_input = (
+                f"REQUIREMENT:\n{requirement}\n\nCANDIDATE CODE:\n{current_code}\n\n"
+                f"REVIEW CYCLE:\n{cycle} of {self.config.max_review_cycles}"
+            )
+            review = await self._run_stage(
+                "review",
+                review_model,
+                review_input,
+                "Return only the public anchor.domain-review-verdict.v2 JSON contract. "
+                "Use verdict PASS with an empty issues list, or REVISE with one or more "
+                "concise issues containing code, severity, summary, and required_change. "
+                "Do not return repaired code, markdown, private reasoning, or extra keys.",
+            )
+            review.cycle = cycle
+            review.contract_version = REVIEW_VERDICT_SCHEMA_VERSION
+            artifacts.append(review)
+            if review.status is not StageStatus.SUCCEEDED:
+                result = self._failed_closed(requirement, artifacts, review)
+                result.tool_policy_decision = model_policy
+                result.deterministic_tool_policy_decision = enforced_policy
+                result.review_cycles = cycle
+                return result
+            verdict = parse_review_verdict(review.output_text)
+            if verdict is None:
+                review.status = StageStatus.FAILED
+                review.error = "ambiguous or invalid public review verdict"
+                result = self._failed_closed(requirement, artifacts, review)
+                result.tool_policy_decision = model_policy
+                result.deterministic_tool_policy_decision = enforced_policy
+                result.review_cycles = cycle
+                return result
+            verdict_history.append(verdict)
+            if verdict.verdict == "PASS":
+                passed_verdict = verdict
+                break
+            if cycle >= self.config.max_review_cycles:
+                review.status = StageStatus.FAILED
+                review.error = "review cycle limit exhausted without PASS"
+                result = self._failed_closed(requirement, artifacts, review)
+                result.tool_policy_decision = model_policy
+                result.deterministic_tool_policy_decision = enforced_policy
+                result.review_cycles = cycle
+                result.review_verdict = verdict.verdict
+                return result
+            revision_input = (
+                f"REQUIREMENT:\n{requirement}\n\nCURRENT CODE:\n{current_code}\n\n"
+                f"PUBLIC REVIEW ISSUES:\n{revision_issues_json(verdict)}"
+            )
+            revision = await self._run_stage(
+                "frontend",
+                self.config.adapters.frontend,
+                revision_input,
+                "Revise the complete implementation to address every public review issue. "
+                "Return only the complete revised code; do not discuss the review.",
+            )
+            revision.cycle = cycle
+            revision.contract_version = REVIEW_VERDICT_SCHEMA_VERSION
+            artifacts.append(revision)
+            if revision.status is not StageStatus.SUCCEEDED:
+                result = self._failed_closed(requirement, artifacts, revision)
+                result.tool_policy_decision = model_policy
+                result.deterministic_tool_policy_decision = enforced_policy
+                result.review_cycles = cycle
+                result.review_verdict = verdict.verdict
+                return result
+            current_code = revision.output_text
 
+        assert passed_verdict is not None
+        tool_trace_summary = {
+            "proposal_labels": list(tool_proposal_labels),
+            "model_policy": model_policy,
+            "deterministic_policy": enforced_policy,
+            "builder_calls": sum(item.stage == "frontend" for item in artifacts),
+            "review_cycles": [
+                {
+                    "cycle": index,
+                    "verdict": verdict.verdict,
+                    "issue_codes": [issue.code for issue in verdict.issues],
+                }
+                for index, verdict in enumerate(verdict_history, start=1)
+            ],
+        }
         security_input = (
-            f"REQUIREMENT:\n{requirement}\n\nREVIEWED CODE:\n{review.output_text}"
+            f"REQUIREMENT:\n{requirement}\n\nFINAL REVIEW-PASSED CODE:\n{current_code}\n\n"
+            "PUBLIC TOOL TRACE SUMMARY:\n"
+            f"{json.dumps(tool_trace_summary, ensure_ascii=False, sort_keys=True)}"
         )
         security = await self._run_stage(
             "security",
@@ -219,21 +324,33 @@ class PipelineRouter:
         )
         artifacts.append(security)
         if security.status is not StageStatus.SUCCEEDED:
-            return self._failed_closed(requirement, artifacts, security)
+            result = self._failed_closed(requirement, artifacts, security)
+            result.tool_policy_decision = model_policy
+            result.deterministic_tool_policy_decision = enforced_policy
+            result.review_cycles = len(verdict_history)
+            result.review_verdict = passed_verdict.verdict
+            return result
         decision = parse_security_decision(security.output_text)
         if decision is None:
             security.status = StageStatus.FAILED
             security.error = "ambiguous security verdict"
-            return self._failed_closed(requirement, artifacts, security)
+            result = self._failed_closed(requirement, artifacts, security)
+            result.tool_policy_decision = model_policy
+            result.deterministic_tool_policy_decision = enforced_policy
+            result.review_cycles = len(verdict_history)
+            result.review_verdict = passed_verdict.verdict
+            return result
         return PipelineResult(
             requirement=requirement,
             decision=decision,
-            final_code=review.output_text if decision == "PASS" else None,
+            final_code=current_code if decision == "PASS" else None,
             artifacts=artifacts,
             success=True,
             fail_closed=False,
             tool_policy_decision=model_policy,
             deterministic_tool_policy_decision=enforced_policy,
+            review_cycles=len(verdict_history),
+            review_verdict=passed_verdict.verdict,
         )
 
     async def _run_stage(

@@ -1,0 +1,1 @@
+{"user_request":"写一个从 stdin 读 CSV 的状态汇总命令，供本地流水线使用。","existing_stack":"Python standard library CLI","constraints":["stdin only","deterministic ordering","clear schema error"]}

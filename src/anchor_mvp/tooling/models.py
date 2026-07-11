@@ -112,6 +112,10 @@ class AgentExecution:
     rejected_events: int = 0
     error_codes: tuple[str, ...] = ()
     public_outcome: PublicOutcome | None = None
+    controlled_session_id: str | None = None
+    controlled_export_path: str | None = None
+    isolated_runtime_path: str | None = None
+    opencode_version: str | None = None
 
 
 @dataclass(frozen=True)

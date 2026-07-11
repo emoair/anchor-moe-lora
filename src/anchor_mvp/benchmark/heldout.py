@@ -15,6 +15,8 @@ MANIFEST_SCHEMA = "anchor.heldout-manifest.v1"
 LEAK_AUDIT_SCHEMA = "anchor.leak-audit.v1"
 PRIMARY_BASELINES = ("base_matched_calls", "mixed_matched_calls", "c_pipeline")
 BUDGET_MATCHED_BASELINE = "d_budget_matched_pipeline"
+ADAPTIVE_BASELINE = "e_adaptive_pareto_pipeline"
+ADAPTIVE_BUDGET_BASELINE = "f_adaptive_budget_matched_pipeline"
 PRIMARY_STAGES = ("planner", "tool_policy", "frontend", "review", "security")
 _ACTIVE_PAYLOAD = re.compile(
     r"<\s*script\b|javascript\s*:|on(?:error|load|click)\s*=|"
@@ -435,8 +437,10 @@ def validate_primary_specs(
 ) -> None:
     by_name = {spec.name: spec for spec in specs}
     missing = [name for name in PRIMARY_BASELINES if name not in by_name]
+    if BUDGET_MATCHED_BASELINE not in by_name:
+        missing.append(BUDGET_MATCHED_BASELINE)
     if missing:
-        raise HeldoutGateError("all three primary Q4 arms are required")
+        raise HeldoutGateError("all fixed A/B/C/D Q4 arms are required")
     primary = [by_name[name] for name in PRIMARY_BASELINES]
     if any(spec.workflow != "pipeline" for spec in primary):
         raise HeldoutGateError("primary Q4 arms must use the matched five-stage workflow")
@@ -490,12 +494,61 @@ def validate_primary_specs(
             raise HeldoutGateError("D must declare one rank for every stage")
         if sum(budget_arm.stage_adapter_ranks.values()) != 16:
             raise HeldoutGateError("D specialist ranks must sum to the mixed rank 16")
+        if tuple(budget_arm.stage_adapter_ranks[stage] for stage in PRIMARY_STAGES) != (
+            3,
+            3,
+            4,
+            3,
+            3,
+        ):
+            raise HeldoutGateError("D must keep the frozen manual 3/3/4/3/3 allocation")
         if (
             budget_arm.adapter_trainable_parameters is None
             or budget_arm.adapter_trainable_parameters
             != mixed_arm.adapter_trainable_parameters
         ):
             raise HeldoutGateError("B and D must have exactly matched trainable parameters")
+    adaptive = by_name.get(ADAPTIVE_BASELINE)
+    adaptive_budget = by_name.get(ADAPTIVE_BUDGET_BASELINE)
+    if (adaptive is None) != (adaptive_budget is None):
+        raise HeldoutGateError("E and F must be configured together")
+    if adaptive is not None and adaptive_budget is not None:
+        controls = primary + [adaptive, adaptive_budget]
+        if any(spec.workflow != "pipeline" for spec in controls):
+            raise HeldoutGateError("E and F must use the matched five-stage workflow")
+        if any(spec.selection_split != "calibration_only" for spec in (adaptive, adaptive_budget)):
+            raise HeldoutGateError("E and F allocation may use calibration_only data")
+        if adaptive.allocation_method != adaptive_budget.allocation_method:
+            raise HeldoutGateError("E and F must use the same adaptive allocation mechanism")
+        for arm, label in ((adaptive, "E"), (adaptive_budget, "F")):
+            if not arm.allocation_frozen or arm.status != "ready":
+                raise HeldoutGateError(
+                    f"{label} allocation must be calibration-selected and frozen before held-out"
+                )
+            if not arm.allocation_manifest_sha256 or not re.fullmatch(
+                r"[0-9a-f]{64}", arm.allocation_manifest_sha256
+            ):
+                raise HeldoutGateError(f"{label} requires a frozen allocation manifest SHA-256")
+            if set(arm.stage_adapter_ranks) != set(PRIMARY_STAGES):
+                raise HeldoutGateError(f"{label} must declare one frozen rank for every stage")
+            if len(set(arm.stage_adapter_ranks.values())) == 1:
+                raise HeldoutGateError(f"{label} must use a non-uniform stage allocation")
+            maximum = arm.maximum_stage_rank or 0
+            if maximum != 16 or any(
+                rank < 1 or rank > maximum for rank in arm.stage_adapter_ranks.values()
+            ):
+                raise HeldoutGateError(f"{label} stage ranks must stay within 1..16")
+        if adaptive_budget.rank_sum_constraint != 16 or sum(
+            adaptive_budget.stage_adapter_ranks.values()
+        ) != 16:
+            raise HeldoutGateError("F frozen ranks must sum exactly to B rank 16")
+        if (
+            adaptive_budget.parameter_budget_constraint
+            != mixed_arm.adapter_trainable_parameters
+            or adaptive_budget.adapter_trainable_parameters
+            != mixed_arm.adapter_trainable_parameters
+        ):
+            raise HeldoutGateError("F materialized trainable parameters must exactly match B")
 
 
 _APPROVED_TOOL_LABELS = {

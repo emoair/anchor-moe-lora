@@ -1,0 +1,1 @@
+{"user_request":"实现 TypeScript 时长解析工具，输入格式要严格，溢出要拒绝。","existing_stack":"Node TypeScript utility","constraints":["strict unit grammar","safe integer result","TypeError on invalid input"]}

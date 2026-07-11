@@ -71,6 +71,14 @@ class MockBackend:
         if "security" in model:
             decision = "BLOCK" if "<malicious>" in user_text.lower() else "PASS"
             return json.dumps({"decision": decision, "reason": "mock policy"})
+        if "review-verdict" in model or "review_verdict" in model:
+            return json.dumps(
+                {
+                    "schema_version": "anchor.domain-review-verdict.v2",
+                    "verdict": "PASS",
+                    "issues": [],
+                }
+            )
         if "review" in model:
             return "<!doctype html><html><body>reviewed</body></html>"
         if "frontend" in model:

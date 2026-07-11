@@ -92,6 +92,47 @@ the difference between local timeout and service failure.
 
 ## Offline preflight
 
+### Patched OpenCode is mandatory
+
+Live tool distillation is fail-closed until the repository-local patched OpenCode binary
+exists at `artifacts/tooling/opencode-patched/opencode-anchor.exe`. The global `opencode`
+installation is never accepted as a fallback. Before checking API credentials or starting
+a session, the launcher runs the binary's local `debug agent anchor-gold --pure` command
+with the key removed from the child environment. The resolved agent must expose
+`requireInitialToolCall: true` as a first-class field, not as a provider option. An
+unpatched 1.17.18 binary therefore fails preflight and cannot run live.
+
+The reproducible patch is pinned to official OpenCode commit
+`b1fc8113948b518835c2a39ece49553cffe9b30c` in
+`patches/opencode/v1.17.18-require-initial-tool.patch`. Build it without touching the
+global installation:
+
+```powershell
+$nodeGypRoot = "runs\opencode-build\tools\node-gyp-13"
+npm install --prefix $nodeGypRoot --ignore-scripts node-gyp@13.0.1
+
+scripts/tooling/build_patched_opencode.ps1 `
+  -BunPath D:\path\to\bun-1.3.14\bun.exe `
+  -NodeGypPath "$nodeGypRoot\node_modules\.bin\node-gyp.cmd"
+```
+
+The script verifies the repository origin, exact commit and patch SHA-256, requires an
+explicit Bun 1.3.14 executable and an isolated node-gyp v13.0.1, runs the focused tests
+and typecheck, builds only the current Windows target, and copies the result into the
+ignored artifact directory. On Windows it follows upstream's hoisted Bun layout and
+uses a process-local FileTracker workaround; neither setting modifies the global
+installation. The artifact manifest names three upstream Windows baseline timeouts
+excluded from the focused test command. A failure leaves the globally installed
+OpenCode unchanged. Until this build succeeds, only offline tests and dry preflight are
+supported; **do not add `--confirm-live`**.
+
+The patch adds an opt-in agent setting. On the current user turn, if at least one tool
+survives permission filtering and no tool part for that same user has reached
+`completed`, OpenCode sends `tool_choice: required`. After the first completed tool it
+returns to the upstream `undefined`/automatic choice, allowing the final public JSON
+response without a forced-tool loop. Completed tools from older user turns and tools in
+`running` or `error` states do not satisfy the gate.
+
 The command below validates config, all Skill hashes/audits, the frozen held-out input
 inventory, candidate leakage, OpenCode availability, and key presence. It does not launch
 OpenCode or call Kimi unless `--confirm-live` is explicitly added.

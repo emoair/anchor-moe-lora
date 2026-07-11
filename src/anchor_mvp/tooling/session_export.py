@@ -11,23 +11,24 @@ import re
 from typing import Any, Mapping, Sequence
 
 from ..benchmark.heldout import verify_heldout_manifest
+from .tool_contract import (
+    ALLOWED_NPM_COMMANDS,
+    ALLOWED_VALIDATOR_COMMANDS,
+    EXECUTION_TOOLS,
+    PATH_REQUIRED_TOOLS,
+    SEARCH_TOOLS,
+    contract_descriptor,
+    normalized_command,
+    validate_search_input,
+)
 
 
 CANDIDATE_SCHEMA_VERSION = "anchor.session-training-candidate.v1"
 CAPTURE_SCHEMA_VERSION = "anchor.controlled-session-capture.v1"
 QUARANTINE_SCHEMA_VERSION = "anchor.session-quarantine.v1"
-ALLOWED_TOOLS = frozenset({"read", "bash", "edit", "apply_patch"})
+ALLOWED_TOOLS = EXECUTION_TOOLS
 ALLOWED_VALIDATORS = frozenset({"build", "test", "lint"})
-ALLOWED_BASH_COMMANDS = frozenset(
-    {
-        "npm run build",
-        "npm run build --if-present",
-        "npm run test",
-        "npm run test --if-present",
-        "npm run lint",
-        "npm run lint --if-present",
-    }
-)
+ALLOWED_BASH_COMMANDS = ALLOWED_NPM_COMMANDS
 PATH_KEYS = frozenset({"path", "file", "filepath", "file_path", "cwd", "directory"})
 FORBIDDEN_KEYS = frozenset(
     {"env", "environment", "reasoning", "thinking", "chain_of_thought", "chain-of-thought"}
@@ -296,7 +297,7 @@ def _validate_bash_input(value: Mapping[str, Any], gate: _SafetyGate) -> dict[st
     normalized = gate.value(value, label="bash_input")
     assert isinstance(normalized, dict)
     command = normalized.get("command")
-    if not isinstance(command, str) or " ".join(command.split()) not in ALLOWED_BASH_COMMANDS:
+    if not isinstance(command, str) or normalized_command(command) not in ALLOWED_BASH_COMMANDS:
         raise QuarantineError("bash_command_not_allowed")
     return normalized
 
@@ -317,9 +318,14 @@ def _tool_interaction(
         if tool == "bash"
         else gate.value(raw_input, label=f"{tool}_input")
     )
-    if tool in {"read", "edit"}:
+    if tool in PATH_REQUIRED_TOOLS:
         if not any(key.casefold() in PATH_KEYS for key in raw_input):
             raise QuarantineError("tool_path_missing")
+    if tool in SEARCH_TOOLS:
+        try:
+            validate_search_input(tool, raw_input)
+        except ValueError as error:
+            raise QuarantineError(str(error)) from error
     result_field = "output" if status == "completed" else "error"
     result = gate.text(state.get(result_field), label=f"{tool}_result")
     return (
@@ -399,7 +405,7 @@ def _validators(value: object, gate: _SafetyGate) -> list[dict[str, object]]:
         if status != "PASS" or exit_code != 0:
             raise QuarantineError("validator_failed")
         command = gate.text(item.get("command"), label="validator_command")
-        if " ".join(command.split()) not in ALLOWED_BASH_COMMANDS:
+        if normalized_command(command) not in ALLOWED_VALIDATOR_COMMANDS:
             raise QuarantineError("validator_command_not_allowed")
         result.append(
             {
@@ -504,6 +510,7 @@ def convert_controlled_session(
             "opencode_version": opencode_version,
             "source_sha256": _sha256_bytes(_json_bytes(export_data)),
             "workspace": "<workspace>",
+            "tool_contract": contract_descriptor(),
         },
         "trajectory": trajectory,
         "final_diff": _final_diff(diff_source, gate),

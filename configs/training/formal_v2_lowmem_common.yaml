@@ -29,7 +29,7 @@
       "adapter_dir": "artifacts/formal_v2/C/adapters"
     },
     "scale_gate": {
-      "required_smoke_gate_manifest": "artifacts/formal_v2/manifests/smoke-gate-frontend_gen-r16.execute.json"
+      "required_smoke_gate_manifest": "artifacts/formal_v1/manifests/smoke-gate-frontend_gen-r16.execute.json"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 ## What this is
 
-The primary `planner -> tool_policy -> frontend -> review -> security` path is an
+The primary `planner -> tool_policy -> (frontend <-> review, bounded) -> security` path is an
 application-level task DAG. The legacy `PipelineRouter.run` three-stage method remains
 available only for compatibility; new routed experiments use `run_five_stage`. The
 router changes the OpenAI-compatible request's `model` field so vLLM selects a
@@ -17,6 +17,40 @@ so they cannot silently inflate malicious-request TPR.
 
 Artifacts distinguish application-level stage attempts from nested backend HTTP
 attempts, since client retries and DAG retries can otherwise hide the real load.
+
+## Canonical five-stage A/B/C/D/E/F experiment
+
+The controlled MVP benchmark always uses the same five ordered expert types:
+
+`planner -> tool_policy -> (frontend_gen <-> frontend_review, bounded) -> security_gate`
+
+The number of calls is dynamic: an immediate review `PASS` makes five calls; a
+`REVISE` adds one builder and one reviewer call. Benchmark records therefore report
+builder/reviewer attempt counts separately while preserving the five-expert control.
+The default review-cycle limit is two.
+
+All arms must use the identical frozen Q4 artifact and tokenizer, task inputs, stage
+prompts, data split, per-stage token caps, sampling, validator contract, and held-out
+cases. Only adapter assignment/rank allocation may differ.
+
+| Arm | Five-stage adapter assignment | Parameter interpretation |
+| --- | --- | --- |
+| A | no LoRA at any stage | native Q4; report absolute metrics and index A as 100 |
+| B | one mixed rank-16 LoRA reused at all stages | 10,387,456 trainable parameters |
+| C | five independent rank-16 specialists | 51,937,280 total; full-capacity routed arm |
+| D | manual fixed ranks `3/3/4/3/3` | exactly matches B's total rank and parameters |
+| E | calibration-selected non-uniform ranks, each `<=16` | total budget may vary; Pareto arm |
+| F | same adaptive allocator as E with a hard B-sized budget | total rank/parameters exactly match B |
+
+The primary equal-budget causal comparison is **B vs D vs F**. C is the full-capacity
+routed comparison; E tests the capacity/performance Pareto frontier. C/E results must not
+be described as equal-budget wins over B. E and F may use only calibration data to choose
+ranks, must freeze the allocation before held-out execution, and must report every tried
+allocation rather than only the winner.
+
+`configs/benchmark/heldout_q4_budget_v1.json` currently materializes A/B/C/D. E/F remain
+planned until their calibration allocations and checkpoints are frozen; absence from the
+current config means “not yet evaluated”, never zero or equivalent to D.
 
 ## Start vLLM locally through WSL2
 
@@ -154,23 +188,32 @@ router = PipelineRouter(client, PipelineConfig(adapters=AdapterSelection(
     tool_policy="lora-tool-policy",
     frontend="lora-frontend-gen",
     review="lora-frontend-review",
+    review_verdict="lora-frontend-review-verdict-v2",
     security="lora-final-security",
     mixed="lora-mixed-all",
-)))
+), max_review_cycles=2))
 result = asyncio.run(router.run_five_stage(
     "Build an accessible product landing page.",
     tool_proposal_labels=("INERT_TOOL_READ_WORKSPACE", "INERT_TOOL_NPM_BUILD"),
 ))
 ```
 
+`review` remains the legacy repaired-code adapter used by `PipelineRouter.run`.
+`review_verdict` is mandatory for the primary route and must emit only the exact
+`anchor.domain-review-verdict.v2` JSON contract. On `REVISE`, the router calls the
+same `frontend` adapter with current code plus public issue objects. Invalid JSON,
+extra/private-reasoning keys, timeout, or cycle exhaustion returns fail-closed
+`BLOCK`; security is never called. After `PASS`, security receives the requirement,
+final code, and a public tool trace summary.
+
 The client depends on the OpenAI-compatible HTTP surface, not on vLLM Python
 internals. A different backend can replace vLLM if it exposes compatible chat
 completions and the required adapter model ids. Adapter loading conventions are
 backend-specific, so this portability does not imply identical LoRA support.
 
-## Benchmark design
+## Legacy/default three-stage compatibility benchmark
 
-`configs/benchmark/default.json` defines:
+`configs/benchmark/default.json` retains an older three-stage product-shape benchmark:
 
 - A: one direct call to the frozen base.
 - B: one direct call to the mixed LoRA.

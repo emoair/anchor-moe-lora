@@ -121,7 +121,7 @@ def _export(workspace: Path) -> dict[str, object]:
                         "tool": "bash",
                         "state": {
                             "status": "completed",
-                            "input": {"command": "npm run test"},
+                            "input": {"command": "npm run test --if-present"},
                             "output": "TAP version 13\n# pass 3\n# fail 0",
                         },
                     },
@@ -201,6 +201,9 @@ def test_controlled_export_retains_safe_tool_results_and_drops_reasoning(tmp_pat
     assert str(workspace) not in serialized
     assert candidate["final_diff"][0]["file"] == "<workspace>/src/status-list.js"
     assert candidate["validators"][1]["stdout"] == "test: complete output retained"
+    assert candidate["source"]["tool_contract"]["version"] == (
+        "anchor.execution-tool-contract.v2"
+    )
 
 
 def test_secret_in_tool_result_quarantines_entire_capture(tmp_path: Path):
@@ -284,3 +287,63 @@ def test_checked_in_heldout_manifest_is_verified_before_conversion(tmp_path: Pat
     candidate = convert_controlled_session(_export(workspace), _capture(), policy)
 
     assert candidate["sample_id"] == "controlled-session-001"
+
+
+def test_v2_contract_retains_write_and_workspace_search_results(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    source = workspace / "src" / "status-list.js"
+    extra = [
+        ("write", {"filePath": str(source), "content": "export const ok = true"}, "Wrote file"),
+        ("grep", {"pattern": "export\\s+const", "path": str(workspace / "src")}, "src/status-list.js:1"),
+        ("glob", {"pattern": "**/*.js", "path": str(workspace / "src")}, "src/status-list.js"),
+        ("list", {"path": str(workspace / "src")}, "status-list.js"),
+    ]
+    parts = exported["messages"][1]["parts"]
+    insert_at = len(parts) - 1
+    for index, (tool, tool_input, output) in enumerate(extra, 1):
+        parts.insert(
+            insert_at + index - 1,
+            {
+                "id": f"part_v2_{index}",
+                "type": "tool",
+                "callID": f"raw-v2-{index}",
+                "tool": tool,
+                "state": {"status": "completed", "input": tool_input, "output": output},
+            },
+        )
+
+    candidate = convert_controlled_session(exported, _capture(), policy)
+    calls = [item for item in candidate["trajectory"] if item["type"] == "tool_call"]
+    results = [item for item in candidate["trajectory"] if item["type"] == "tool_result"]
+    assert [item["tool"] for item in calls][-4:] == ["write", "grep", "glob", "list"]
+    assert calls[-4]["input"]["filePath"] == "<workspace>/src/status-list.js"
+    assert calls[-3]["input"]["path"] == "<workspace>/src"
+    assert [item["call_id"] for item in calls] == [item["call_id"] for item in results]
+
+
+def test_v2_contract_rejects_glob_traversal_and_search_secret_result(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    parts = exported["messages"][1]["parts"]
+    parts.insert(
+        -1,
+        {
+            "id": "bad-glob",
+            "type": "tool",
+            "callID": "bad-glob",
+            "tool": "glob",
+            "state": {
+                "status": "completed",
+                "input": {"pattern": "../**/*", "path": str(workspace)},
+                "output": "none",
+            },
+        },
+    )
+    with pytest.raises(QuarantineError, match="glob_pattern_escapes_workspace"):
+        convert_controlled_session(exported, _capture(), policy)
+
+    parts[-2]["state"]["input"]["pattern"] = "**/*.js"
+    parts[-2]["state"]["output"] = "sk-search-result-secret-123456"
+    with pytest.raises(QuarantineError, match="secret_detected"):
+        convert_controlled_session(exported, _capture(), policy)

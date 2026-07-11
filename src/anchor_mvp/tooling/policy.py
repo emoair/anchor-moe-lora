@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import hashlib
 import re
 
+from .tool_contract import EXECUTION_TOOLS
+
 
 _SHELL_META = re.compile(r"[\r\n;&|<>`$()]")
 _TOOL_ALIASES = {"write": "edit", "patch": "edit"}
@@ -13,7 +15,7 @@ _TOOL_ALIASES = {"write": "edit", "patch": "edit"}
 class ToolPolicy:
     """Fail-closed tool policy shared by OpenCode and the local validator."""
 
-    allowed_tools: tuple[str, ...] = ("read", "edit", "glob", "grep", "list", "bash")
+    allowed_tools: tuple[str, ...] = tuple(sorted(EXECUTION_TOOLS))
     allowed_commands: tuple[str, ...] = (
         "npm run build --if-present",
         "npm run test --if-present",

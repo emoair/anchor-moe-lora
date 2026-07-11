@@ -1,0 +1,1 @@
+{"user_request":"补完通用 TypeScript 分块函数，严格校验 size 并保持输入不变。","existing_stack":"typed Node utility","constraints":["preserve generic signature","positive safe integer","new arrays"]}

@@ -11,6 +11,9 @@
     "paths": {
       "manifest_dir": "artifacts/formal_v2/probe/manifests",
       "adapter_dir": "artifacts/formal_v2/probe/adapters"
+    },
+    "scale_gate": {
+      "minimum_free_host_memory_gib": 11.0
     }
   }
 }
