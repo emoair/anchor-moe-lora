@@ -13,6 +13,27 @@ def digest_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", errors="replace")).hexdigest()
 
 
+def classify_kimi_400_error(value: str) -> str:
+    """Reduce a trusted Kimi HTTP 400 body to one fixed, content-free category."""
+
+    lowered = value.casefold()
+    if "invalid_url" in lowered or "provided url is invalid" in lowered:
+        return "kimi_400_invalid_url"
+    if "total message size" in lowered and "exceeds limit" in lowered:
+        return "kimi_400_message_too_large"
+    if "request exceeded model token limit" in lowered:
+        return "kimi_400_token_limit"
+    if "reasoning_content" in lowered and "missing" in lowered:
+        return "kimi_400_missing_reasoning_content"
+    if "unsupported image url" in lowered:
+        return "kimi_400_unsupported_image_url"
+    if "function name" in lowered and "duplicated" in lowered:
+        return "kimi_400_duplicate_function_name"
+    if "request was rejected" in lowered and "high risk" in lowered:
+        return "kimi_400_high_risk_rejected"
+    return "kimi_400_unknown"
+
+
 def classify_error_text(value: str) -> tuple[str, ...]:
     lowered = value.lower()
     codes: list[str] = []
@@ -66,6 +87,25 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if isinstance(event, dict) and str(event.get("type", "")).casefold() == "error":
+            error = event.get("error")
+            data = error.get("data") if isinstance(error, dict) else None
+            if (
+                isinstance(error, dict)
+                and str(error.get("name", "")).casefold() == "apierror"
+                and isinstance(data, dict)
+            ):
+                try:
+                    status_code = int(data.get("statusCode"))
+                except (TypeError, ValueError):
+                    status_code = 0
+                if status_code == 400:
+                    trusted_text = "\n".join(
+                        value
+                        for name in ("message", "responseBody")
+                        if isinstance((value := data.get(name)), str)
+                    )
+                    codes.append(classify_kimi_400_error(trusted_text))
         for item in _walk_dicts(event):
             if str(item.get("type", "")).casefold() == "error":
                 codes.append("agent_error_event")

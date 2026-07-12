@@ -10,6 +10,8 @@ import threading
 from typing import Mapping
 from urllib.parse import urlparse
 
+from .trace import classify_kimi_400_error
+
 
 OFFICIAL_CHAT_COMPLETIONS_URL = (
     "https://api.kimi.com/coding/v1/chat/completions"
@@ -26,27 +28,6 @@ _HOP_BY_HOP = {
 }
 _MAX_REQUEST_BYTES = 64 * 1024 * 1024
 _MAX_ERROR_CLASSIFICATION_BYTES = 64 * 1024
-
-
-def _classify_kimi_400(body: bytes) -> str:
-    """Reduce a trusted upstream 400 body to one fixed, content-free category."""
-
-    lowered = body.decode("utf-8", errors="replace").casefold()
-    if "invalid_url" in lowered or "provided url is invalid" in lowered:
-        return "kimi_400_invalid_url"
-    if "total message size" in lowered and "exceeds limit" in lowered:
-        return "kimi_400_message_too_large"
-    if "request exceeded model token limit" in lowered:
-        return "kimi_400_token_limit"
-    if "reasoning_content" in lowered and "missing" in lowered:
-        return "kimi_400_missing_reasoning_content"
-    if "unsupported image url" in lowered:
-        return "kimi_400_unsupported_image_url"
-    if "function name" in lowered and "duplicated" in lowered:
-        return "kimi_400_duplicate_function_name"
-    if "request was rejected" in lowered and "high risk" in lowered:
-        return "kimi_400_high_risk_rejected"
-    return "kimi_400_unknown"
 
 
 def _current_turn_has_tool_result(messages: object) -> bool:
@@ -227,7 +208,11 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"0\r\n\r\n")
             self.wfile.flush()
             if response.status == 400:
-                self.server.record_error(_classify_kimi_400(bytes(error_body)))
+                self.server.record_error(
+                    classify_kimi_400_error(
+                        bytes(error_body).decode("utf-8", errors="replace")
+                    )
+                )
         except (OSError, ConnectionError):
             if not self.wfile.closed:
                 self.close_connection = True

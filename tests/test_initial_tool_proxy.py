@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 import pytest
 
 from anchor_mvp.tooling import InitialToolChoiceProxy, enforce_initial_tool_choice
-from anchor_mvp.tooling.initial_tool_proxy import _classify_kimi_400
+from anchor_mvp.tooling.trace import classify_kimi_400_error
 
 
 def _payload(messages, *, tool_choice=None):
@@ -235,7 +235,7 @@ def test_loopback_proxy_classifies_upstream_400_without_retaining_error_text():
 def test_kimi_400_classifier_returns_only_fixed_categories(message: str, expected: str):
     secret = "sk-private-classifier-input"
 
-    code = _classify_kimi_400(f"{message}; {secret}".encode())
+    code = classify_kimi_400_error(f"{message}; {secret}")
 
     assert code == expected
     assert secret not in code

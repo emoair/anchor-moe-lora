@@ -110,6 +110,36 @@ def test_kimi_400_missing_reasoning_content_is_classified_without_raw_error_text
     assert all(secret not in code for code in codes)
 
 
+def test_structured_opencode_api_error_classifies_kimi_body_without_retaining_it():
+    secret = "sk-private-provider-body"
+    stdout = json.dumps(
+        {
+            "type": "error",
+            "error": {
+                "name": "APIError",
+                "data": {
+                    "statusCode": 400,
+                    "message": "Bad request",
+                    "responseBody": json.dumps(
+                        {
+                            "error": {
+                                "message": (
+                                    "function name read is duplicated; " + secret
+                                )
+                            }
+                        }
+                    ),
+                },
+            },
+        }
+    )
+
+    codes = classify_error_metadata(stdout, "")
+
+    assert "kimi_400_duplicate_function_name" in codes
+    assert all(secret not in code for code in codes)
+
+
 def test_reasoning_content_message_without_http_400_is_not_classified_as_kimi_contract_error():
     codes = classify_error_text("HTTP 401 reasoning_content is required")
 
