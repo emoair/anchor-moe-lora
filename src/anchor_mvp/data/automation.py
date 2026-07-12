@@ -41,7 +41,7 @@ from .teacher import (
 
 AUTOMATION_SCHEMA_VERSION = "2.0"
 LEGACY_AUTOMATION_SCHEMA_VERSION = "1.0"
-REQUIRED_STAGES = (1, 2, 4, 8)
+DEFAULT_CONCURRENCY_STAGES = (1,)
 NON_CHARGEABLE_FAILURE_CLASSES = frozenset(
     {"BudgetExceeded", "ClientDeadlineExceeded", "RateLimitError", "UpstreamDependencyError"}
 )
@@ -54,10 +54,22 @@ def _int_tuple(value: Any, *, name: str) -> tuple[int, ...]:
         raw = list(value)
     else:
         raise ValueError(f"{name} must be a comma-separated list")
-    try:
-        return tuple(int(item) for item in raw)
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"{name} must contain integers") from error
+    normalized: list[int] = []
+    for item in raw:
+        if isinstance(item, bool):
+            raise ValueError(f"{name} must contain positive integers")
+        if isinstance(item, int):
+            candidate = item
+        elif isinstance(item, str) and item.isdecimal():
+            candidate = int(item)
+        else:
+            raise ValueError(f"{name} must contain positive integers")
+        if candidate < 1:
+            raise ValueError(f"{name} must contain positive integers")
+        normalized.append(candidate)
+    if not normalized:
+        raise ValueError(f"{name} must contain at least one positive integer")
+    return tuple(normalized)
 
 
 def chargeable_failure_count(errors: Sequence[str]) -> int:
@@ -74,8 +86,8 @@ class AutomationConfig:
     heldout_fixtures_root: Path | None = None
     heldout_manifest: Path | None = None
     heldout_leak_audit: Path | None = None
-    concurrency_stages: tuple[int, ...] = REQUIRED_STAGES
-    stage_seed_counts: tuple[int, ...] = (3, 6, 12, 24)
+    concurrency_stages: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
+    stage_seed_counts: tuple[int, ...] = (3,)
     min_success_rate: float = 1.0
     max_duplicate_rate: float = 0.0
     max_safety_violations: int = 0
@@ -89,14 +101,21 @@ class AutomationConfig:
     max_stagnant_gate_rounds: int = 5
 
     def __post_init__(self) -> None:
-        if self.concurrency_stages != REQUIRED_STAGES:
-            raise ValueError("concurrency_stages must be exactly 1,2,4,8")
-        if max(self.concurrency_stages) > 8:
-            raise ValueError("automation concurrency hard limit is 8")
+        if (
+            not self.concurrency_stages
+            or any(
+                isinstance(value, bool) or not isinstance(value, int) or value < 1
+                for value in self.concurrency_stages
+            )
+        ):
+            raise ValueError("concurrency_stages must contain positive integers")
         if len(self.stage_seed_counts) != len(self.concurrency_stages):
             raise ValueError("stage_seed_counts must have one target per concurrency stage")
-        if any(value < 1 for value in self.stage_seed_counts):
-            raise ValueError("stage seed targets must be positive")
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 1
+            for value in self.stage_seed_counts
+        ):
+            raise ValueError("stage seed targets must be positive integers")
         if tuple(sorted(set(self.stage_seed_counts))) != self.stage_seed_counts:
             raise ValueError("stage seed targets must be strictly increasing")
         if not 0 <= self.min_success_rate <= 1:
@@ -159,10 +178,10 @@ class AutomationConfig:
             heldout_manifest=optional_path("heldout_manifest"),
             heldout_leak_audit=optional_path("heldout_leak_audit"),
             concurrency_stages=_int_tuple(
-                value.get("concurrency_stages", "1,2,4,8"), name="concurrency_stages"
+                value.get("concurrency_stages", "1"), name="concurrency_stages"
             ),
             stage_seed_counts=_int_tuple(
-                value.get("stage_seed_counts", "3,6,12,24"), name="stage_seed_counts"
+                value.get("stage_seed_counts", "3"), name="stage_seed_counts"
             ),
             min_success_rate=float(value.get("min_success_rate", 1.0)),
             max_duplicate_rate=float(value.get("max_duplicate_rate", 0.0)),

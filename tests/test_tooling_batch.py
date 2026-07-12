@@ -23,7 +23,7 @@ from anchor_mvp.tooling import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_checked_in_batch_preflight_has_strict_ramp_and_no_heldout_collision():
+def test_checked_in_batch_preflight_defaults_to_one_sandboxed_stage_and_no_heldout_collision():
     config = LiveBatchConfig.load(
         ROOT, ROOT / "configs/tooling/opencode_distillation_ramp.yaml"
     )
@@ -40,7 +40,15 @@ def test_checked_in_batch_preflight_has_strict_ramp_and_no_heldout_collision():
         heldout_requirements=requirements,
     )
 
-    assert config.concurrency_stages == (1, 2, 4, 8)
+    assert config.concurrency_stages == (1,)
+    assert config.samples_per_stage == (1,)
+    assert config.anchor_sandbox_options().memory == "4G"
+    assert config.anchor_sandbox_options().linux_executable == (
+        ROOT / "artifacts/tooling/opencode-patched/linux-x64/opencode-anchor"
+    )
+    assert config.anchor_sandbox_options().wsl_distro == "Ubuntu-22.04"
+    assert config.anchor_sandbox_options().supervisor == "wsl-root-systemd"
+    assert config.retain_workspace is False
     assert config.attempts_output == ROOT / "artifacts/tooling/live_attempts.jsonl"
     assert config.opencode_executable == (
         ROOT / "artifacts/tooling/opencode-patched/opencode-anchor.exe"
@@ -148,13 +156,13 @@ def test_failure_in_one_sample_is_isolated_from_siblings(tmp_path):
         skill_registry=tmp_path / "unused",
         workspace_root=tmp_path / "runs",
         gold_output=tmp_path / "gold.jsonl",
-        concurrency_stages=(1, 2, 4, 8),
-        samples_per_stage=(1, 2, 1, 1),
+        concurrency_stages=(1, 2, 5),
+        samples_per_stage=(1, 2, 1),
         minimum_stage_success_rate=0.0,
     )
     from anchor_mvp.tooling import SampleSpec
 
-    samples = tuple(SampleSpec(f"s-{index}", "task", source) for index in range(5))
+    samples = tuple(SampleSpec(f"s-{index}", "task", source) for index in range(4))
     delegate = MockAgentExecutor(public_outcome=outcome)
 
     class OneFailureExecutor:
@@ -167,7 +175,7 @@ def test_failure_in_one_sample_is_isolated_from_siblings(tmp_path):
 
     executor = OneFailureExecutor()
     stages = run_live_batch(
-        samples=samples, config=config, executor=executor, max_stages=4
+        samples=samples, config=config, executor=executor, max_stages=3
     )
 
     assert len(stages) == 2
@@ -197,13 +205,13 @@ def test_live_batch_defaults_to_only_the_first_ramp_stage(tmp_path):
         skill_registry=tmp_path / "unused",
         workspace_root=tmp_path / "runs",
         gold_output=tmp_path / "gold.jsonl",
-        concurrency_stages=(1, 2, 4, 8),
-        samples_per_stage=(1, 2, 4, 8),
+        concurrency_stages=(1, 3, 9),
+        samples_per_stage=(1, 2, 3),
         minimum_stage_success_rate=1.0,
     )
     from anchor_mvp.tooling import SampleSpec
 
-    samples = tuple(SampleSpec(f"safe-{index}", "task", source) for index in range(15))
+    samples = tuple(SampleSpec(f"safe-{index}", "task", source) for index in range(6))
 
     stages = run_live_batch(
         samples=samples,
@@ -235,13 +243,13 @@ def test_live_batch_runs_only_explicitly_requested_stage_slice(tmp_path):
         skill_registry=tmp_path / "unused",
         workspace_root=tmp_path / "runs",
         gold_output=tmp_path / "gold.jsonl",
-        concurrency_stages=(1, 2, 4, 8),
-        samples_per_stage=(1, 2, 4, 8),
+        concurrency_stages=(1, 3, 9),
+        samples_per_stage=(1, 2, 3),
         minimum_stage_success_rate=1.0,
     )
     from anchor_mvp.tooling import SampleSpec
 
-    samples = tuple(SampleSpec(f"slice-{index}", "task", source) for index in range(15))
+    samples = tuple(SampleSpec(f"slice-{index}", "task", source) for index in range(6))
 
     stages = run_live_batch(
         samples=samples,
@@ -250,7 +258,7 @@ def test_live_batch_runs_only_explicitly_requested_stage_slice(tmp_path):
         max_stages=2,
     )
 
-    assert [stage.concurrency for stage in stages] == [1, 2]
+    assert [stage.concurrency for stage in stages] == [1, 3]
     assert sum(len(stage.records) for stage in stages) == 3
     assert batch_run_succeeded(stages, requested_stages=2) is True
     assert batch_run_succeeded(stages, requested_stages=4) is False
@@ -265,7 +273,7 @@ def test_batch_success_semantics_require_every_requested_gate():
     assert batch_run_succeeded((passed, failed), requested_stages=2) is False
 
 
-@pytest.mark.parametrize("value", [0, 5])
+@pytest.mark.parametrize("value", [0, 2])
 def test_live_batch_rejects_out_of_range_stage_limit(tmp_path, value):
     config = LiveBatchConfig(
         candidate_manifest=tmp_path / "unused",
@@ -281,4 +289,28 @@ def test_live_batch_rejects_out_of_range_stage_limit(tmp_path, value):
             config=config,
             executor=MockAgentExecutor(),
             max_stages=value,
+        )
+
+
+def test_live_batch_accepts_operator_selected_positive_stage_values(tmp_path):
+    config = LiveBatchConfig(
+        candidate_manifest=tmp_path / "unused",
+        split_policy=tmp_path / "unused",
+        skill_registry=tmp_path / "unused",
+        workspace_root=tmp_path / "runs",
+        gold_output=tmp_path / "gold.jsonl",
+        concurrency_stages=(1, 3, 17),
+        samples_per_stage=(1, 1, 1),
+    )
+
+    assert config.concurrency_stages == (1, 3, 17)
+    with pytest.raises(ValueError, match="positive integers"):
+        LiveBatchConfig(
+            candidate_manifest=tmp_path / "unused",
+            split_policy=tmp_path / "unused",
+            skill_registry=tmp_path / "unused",
+            workspace_root=tmp_path / "runs",
+            gold_output=tmp_path / "gold.jsonl",
+            concurrency_stages=(1, 0),
+            samples_per_stage=(1, 1),
         )

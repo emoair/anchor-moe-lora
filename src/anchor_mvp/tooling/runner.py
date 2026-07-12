@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -35,10 +36,13 @@ from .session_export import (
     convert_controlled_session,
     quarantine_record,
 )
+from .workspace import safe_sample_id
 
 
 _CAPTURE_LOCK = threading.Lock()
 _SESSION_ID = __import__("re").compile(r"^ses_[A-Za-z0-9_-]{4,128}$")
+_MEMORY_LIMIT = re.compile(r"^[1-9][0-9]*(?:[KMGTP](?:i?B)?|[kmg])$")
+_CPU_LIMIT = re.compile(r"^(?:0\.[0-9]*[1-9][0-9]*|[1-9][0-9]*(?:\.[0-9]+)?)$")
 
 
 @dataclass(frozen=True)
@@ -59,6 +63,54 @@ class ControlledSessionCapture:
         ):
             if not value.is_absolute():
                 raise ValueError("controlled session capture paths must be absolute")
+
+
+@dataclass(frozen=True)
+class AnchorSandboxOptions:
+    """Operator-owned limits for the patched OpenCode anchor sandbox command."""
+
+    linux_executable: Path | None = None
+    wsl_distro: str | None = None
+    supervisor: str | None = None
+    memory: str | None = None
+    cpus: str | None = None
+    pids: int | None = None
+    timeout_seconds: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.linux_executable is not None and not self.linux_executable.is_absolute():
+            raise ValueError("anchor sandbox linux_executable must be absolute")
+        if self.wsl_distro is not None and not self.wsl_distro.strip():
+            raise ValueError("anchor sandbox wsl_distro must not be blank")
+        if self.supervisor not in {None, "direct", "wsl-root-systemd"}:
+            raise ValueError(
+                "anchor sandbox supervisor must be direct or wsl-root-systemd"
+            )
+        if self.memory is not None and not _MEMORY_LIMIT.fullmatch(self.memory):
+            raise ValueError("anchor sandbox memory must be a positive size such as 4G")
+        if self.cpus is not None and not _CPU_LIMIT.fullmatch(self.cpus):
+            raise ValueError("anchor sandbox cpus must be a positive decimal")
+        for value, name in ((self.pids, "pids"), (self.timeout_seconds, "timeout_seconds")):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
+                raise ValueError(f"anchor sandbox {name} must be a positive integer")
+
+    def command_options(self) -> list[str]:
+        result: list[str] = []
+        if self.linux_executable is not None:
+            result.extend(("--linux-executable", str(self.linux_executable)))
+        if self.wsl_distro is not None:
+            result.extend(("--wsl-distro", self.wsl_distro))
+        if self.supervisor is not None:
+            result.extend(("--supervisor", self.supervisor))
+        if self.memory is not None:
+            result.extend(("--memory", self.memory))
+        if self.cpus is not None:
+            result.extend(("--cpus", self.cpus))
+        if self.pids is not None:
+            result.extend(("--pids", str(self.pids)))
+        if self.timeout_seconds is not None:
+            result.extend(("--timeout", str(self.timeout_seconds)))
+        return result
 
 
 def _walk_objects(value: object):
@@ -126,6 +178,7 @@ class OpenCodeExecutor:
         extra_environment: Mapping[str, str] | None = None,
         patch_manifest: str | Path | None = None,
         session_capture: ControlledSessionCapture | None = None,
+        sandbox_options: AnchorSandboxOptions | None = None,
     ) -> None:
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
@@ -134,11 +187,12 @@ class OpenCodeExecutor:
             patch_manifest or project_root / "patches" / "opencode" / "patch-manifest.json"
         ).resolve()
         self.session_capture = session_capture
+        self.sandbox_options = sandbox_options or AnchorSandboxOptions()
         self._attestation: BinaryAttestation | None = None
 
     @property
     def backend_name(self) -> str:
-        return "opencode-kimi"
+        return "opencode-kimi-anchor-sandbox"
 
     def _resolved_executable(self) -> str | None:
         if os.name == "nt" and not Path(self.executable).suffix:
@@ -248,24 +302,64 @@ class OpenCodeExecutor:
         verify_launch_identity(self._attestation)
         return self._attestation.executable
 
-    def command(self, *, sample_id: str, prompt: str, workspace: Path) -> list[str]:
+    def command(
+        self, *, sample_id: str, prompt: str, workspace: Path, config_path: Path
+    ) -> list[str]:
         executable = self._verified_executable()
+        run_id = safe_sample_id(sample_id)
         return [
             str(executable),
+            "anchor",
             "run",
-            "--format",
-            "json",
+            "--run-id",
+            run_id,
+            "--workspace",
+            str(workspace.resolve()),
+            "--config",
+            str(config_path.resolve()),
+            *self.sandbox_options.command_options(),
             "--model",
             f"{PROVIDER_ID}/{DEFAULT_MODEL}",
             "--agent",
             AGENT_ID,
             "--variant",
             DEFAULT_VARIANT,
-            "--dir",
-            str(workspace),
             "--title",
-            f"anchor-gold:{sample_id}",
+            f"anchor-distiller:{run_id}",
             prompt,
+        ]
+
+    def _export_command(
+        self, *, sample_id: str, session_id: str, workspace: Path, config_path: Path
+    ) -> list[str]:
+        executable = self._verified_executable()
+        run_id = safe_sample_id(sample_id)
+        return [
+            str(executable),
+            "anchor",
+            "export",
+            "--run-id",
+            run_id,
+            "--workspace",
+            str(workspace.resolve()),
+            "--config",
+            str(config_path.resolve()),
+            *self.sandbox_options.command_options(),
+            "--session",
+            session_id,
+        ]
+
+    def _cleanup_command(self, *, sample_id: str, workspace: Path) -> list[str]:
+        executable = self._verified_executable()
+        run_id = safe_sample_id(sample_id)
+        return [
+            str(executable),
+            "anchor",
+            "cleanup",
+            "--run-id",
+            run_id,
+            "--workspace",
+            str(workspace.resolve()),
         ]
 
     def run(
@@ -290,19 +384,39 @@ class OpenCodeExecutor:
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         execution_config = config_path
         verify_launch_identity(self._attestation)  # type: ignore[arg-type]
-        process = subprocess.Popen(
-            self.command(sample_id=sample_id, prompt=prompt, workspace=workspace),
-            cwd=workspace,
-            env=self._environment(execution_config),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=creationflags,
-            start_new_session=os.name != "nt",
-        )
+        try:
+            process = subprocess.Popen(
+                self.command(
+                    sample_id=sample_id,
+                    prompt=prompt,
+                    workspace=workspace,
+                    config_path=execution_config,
+                ),
+                cwd=workspace,
+                env=self._environment(execution_config),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=creationflags,
+                start_new_session=os.name != "nt",
+            )
+        except OSError:
+            cleanup_code = self._cleanup_sandbox(sample_id=sample_id, workspace=workspace)
+            launch_errors: tuple[str, ...] = ("anchor_sandbox_launch_failed",)
+            if cleanup_code is not None:
+                launch_errors += (cleanup_code,)
+            attestation = self._attestation
+            return AgentExecution(
+                exit_code=127,
+                timed_out=False,
+                duration_ms=(time.perf_counter() - started) * 1000,
+                error_codes=launch_errors,
+                isolated_runtime_path=str(config_path.parent / "runtime"),
+                opencode_version=attestation.opencode_version if attestation is not None else None,
+            )
         timed_out = False
         try:
             stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
@@ -313,15 +427,19 @@ class OpenCodeExecutor:
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
         public_outcome = parse_public_outcome(stdout)
-        errors = list(classify_error_metadata(stdout, stderr))
+        error_codes = list(classify_error_metadata(stdout, stderr))
         runtime_path = config_path.parent / "runtime"
         session_id = _extract_session_id(stdout)
         export_path: Path | None = None
         if session_id is not None:
             try:
-                executable = self._verified_executable()
                 exported = subprocess.run(
-                    [str(executable), "export", session_id],
+                    self._export_command(
+                        sample_id=sample_id,
+                        session_id=session_id,
+                        workspace=workspace,
+                        config_path=execution_config,
+                    ),
                     cwd=workspace,
                     env=self._environment(execution_config),
                     stdin=subprocess.DEVNULL,
@@ -336,13 +454,13 @@ class OpenCodeExecutor:
                     export_path.parent.mkdir(parents=True, exist_ok=True)
                     export_path.write_bytes(exported.stdout)
                 else:
-                    errors.append("controlled_session_export_failed")
+                    error_codes.append("controlled_session_export_failed")
             except (OSError, subprocess.TimeoutExpired, ValueError):
-                errors.append("controlled_session_export_failed")
+                error_codes.append("controlled_session_export_failed")
         else:
-            errors.append("controlled_session_id_missing")
+            error_codes.append("controlled_session_id_missing")
         if timed_out:
-            errors.append("wrapper_timeout")
+            error_codes.append("wrapper_timeout")
         return AgentExecution(
             exit_code=process.returncode if process.returncode is not None else 124,
             timed_out=timed_out,
@@ -351,7 +469,7 @@ class OpenCodeExecutor:
             stdout_sha256=digest_text(stdout),
             stderr_sha256=digest_text(stderr),
             rejected_events=rejected,
-            error_codes=tuple(dict.fromkeys(errors)),
+            error_codes=tuple(dict.fromkeys(error_codes)),
             public_outcome=public_outcome,
             controlled_session_id=session_id,
             controlled_export_path=str(export_path) if export_path else None,
@@ -360,6 +478,21 @@ class OpenCodeExecutor:
                 self._attestation.opencode_version if self._attestation is not None else None
             ),
         )
+
+    def _cleanup_sandbox(self, *, sample_id: str, workspace: Path) -> str | None:
+        try:
+            completed = subprocess.run(
+                self._cleanup_command(sample_id=sample_id, workspace=workspace),
+                cwd=workspace,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            return "anchor_sandbox_cleanup_failed"
+        return None if completed.returncode == 0 else "anchor_sandbox_cleanup_failed"
 
     def finalize_capture(
         self,
@@ -372,6 +505,8 @@ class OpenCodeExecutor:
         runtime = Path(execution.isolated_runtime_path) if execution.isolated_runtime_path else None
         export_path = Path(execution.controlled_export_path) if execution.controlled_export_path else None
         export_bytes = export_path.read_bytes() if export_path and export_path.is_file() else b""
+        candidate: dict[str, object] | None = None
+        failure_code: str | None = None
         try:
             if self.session_capture is None:
                 raise QuarantineError("session_capture_not_configured")
@@ -403,11 +538,20 @@ class OpenCodeExecutor:
                     heldout_manifest=self.session_capture.heldout_manifest,
                 ),
             )
-            with _CAPTURE_LOCK:
-                append_jsonl(self.session_capture.candidates_path, candidate)
-            return True, None
         except (OSError, ValueError) as error:
-            code = error.code if isinstance(error, QuarantineError) else "conversion_error"
+            failure_code = error.code if isinstance(error, QuarantineError) else "conversion_error"
+        finally:
+            cleanup_code = (
+                None
+                if "anchor_sandbox_launch_failed" in execution.error_codes
+                else self._cleanup_sandbox(sample_id=sample_id, workspace=workspace)
+            )
+            if cleanup_code is not None:
+                failure_code = cleanup_code
+            if runtime is not None:
+                shutil.rmtree(runtime, ignore_errors=True)
+        if failure_code is not None or candidate is None:
+            code = failure_code or "conversion_error"
             if self.session_capture is not None:
                 with _CAPTURE_LOCK:
                     append_jsonl(
@@ -419,9 +563,10 @@ class OpenCodeExecutor:
                         ),
                     )
             return False, code
-        finally:
-            if runtime is not None:
-                shutil.rmtree(runtime, ignore_errors=True)
+        assert self.session_capture is not None
+        with _CAPTURE_LOCK:
+            append_jsonl(self.session_capture.candidates_path, candidate)
+        return True, None
 
 
 class MockAgentExecutor:

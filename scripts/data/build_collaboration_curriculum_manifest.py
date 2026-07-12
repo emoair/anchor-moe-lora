@@ -189,7 +189,7 @@ def main() -> int:
     payload = {
         "schema_version": "anchor.collaboration-curriculum.v2",
         "status": "candidate-not-training-data",
-        "ramp": [1, 2, 4, 8],
+        "ramp": [1],
         "heldout_policy": {
             "training_access": "forbidden",
             "inputs": [

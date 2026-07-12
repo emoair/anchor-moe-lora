@@ -9,9 +9,9 @@ from .policy import ToolPolicy
 
 DEFAULT_BASE_URL = "https://api.kimi.com/coding/v1"
 DEFAULT_MODEL = "kimi-for-coding"
-DEFAULT_VARIANT = "thinking"
-PROVIDER_ID = "kimi-code"
-AGENT_ID = "anchor-gold"
+DEFAULT_VARIANT = "medium"
+PROVIDER_ID = "anchor-kimi"
+AGENT_ID = "anchor-distiller"
 
 
 def validate_base_url(value: str) -> str:

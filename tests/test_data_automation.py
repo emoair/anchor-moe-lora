@@ -31,8 +31,8 @@ def config(tmp_path: Path, **overrides) -> AutomationConfig:
     values = {
         "sop_dir": ROOT / "skills",
         "output_dir": tmp_path,
-        "concurrency_stages": (1, 2, 4, 8),
-        "stage_seed_counts": (1, 2, 3, 4),
+        "concurrency_stages": (1,),
+        "stage_seed_counts": (1,),
         "min_success_rate": 1.0,
         "max_duplicate_rate": 0.0,
         "max_safety_violations": 0,
@@ -46,14 +46,14 @@ def config(tmp_path: Path, **overrides) -> AutomationConfig:
     return AutomationConfig(**values)
 
 
-def test_mock_automation_ramps_gates_and_resumes(tmp_path: Path) -> None:
+def test_mock_automation_defaults_to_one_gated_stage_and_resumes(tmp_path: Path) -> None:
     settings = config(tmp_path)
     status = asyncio.run(AutomationRunner(config=settings, teacher=MockTeacher()).run())
 
     assert status["state"] == "complete"
-    assert [stage["concurrency"] for stage in status["stages"]] == [1, 2, 4, 8]
+    assert [stage["concurrency"] for stage in status["stages"]] == [1]
     assert all(stage["gate"]["passed"] for stage in status["stages"])
-    assert status["metrics"]["records"] == 20
+    assert status["metrics"]["records"] == 5
     assert status["metrics"]["throughput_records_per_second"] > 0
     assert status["metrics"]["eta_seconds"] == 0
     assert status["quota_epoch"]["requests_used"] <= 40
@@ -69,18 +69,18 @@ def test_mock_automation_ramps_gates_and_resumes(tmp_path: Path) -> None:
     }
     for task, expert in experts.items():
         report = validate_jsonl(tmp_path / f"data_{task}.jsonl", allowed_experts=[expert])
-        assert report["valid_records"] == 4
+        assert report["valid_records"] == 1
 
     events_before = settings.events_path.read_text(encoding="utf-8").splitlines()
     event_types = [json.loads(line)["type"] for line in events_before]
-    assert event_types.count("stage_started") == 4
-    assert event_types.count("gate_passed") == 4
+    assert event_types.count("stage_started") == 1
+    assert event_types.count("gate_passed") == 1
     assert event_types[-1] == "automation_completed"
 
     resumed = asyncio.run(AutomationRunner(config=settings, teacher=MockTeacher()).run())
     assert resumed["state"] == "complete"
     assert settings.events_path.read_text(encoding="utf-8").splitlines() == events_before
-    assert all(len((tmp_path / f"data_{task}.jsonl").read_text(encoding="utf-8").splitlines()) == 4 for task in experts)
+    assert all(len((tmp_path / f"data_{task}.jsonl").read_text(encoding="utf-8").splitlines()) == 1 for task in experts)
 
 
 def test_gate_detects_duplicates_and_training_schema_failure(tmp_path: Path) -> None:
@@ -91,7 +91,7 @@ def test_gate_detects_duplicates_and_training_schema_failure(tmp_path: Path) -> 
     with frontend.open("a", encoding="utf-8") as handle:
         handle.write(first + "\n")
 
-    gate = evaluate_gate(settings, 4)
+    gate = evaluate_gate(settings, 1)
     assert gate["passed"] is False
     assert gate["duplicate_count"] >= 1
     assert gate["duplicate_rate"] > 0
@@ -276,9 +276,16 @@ def test_real_worker_factory_uses_low_security_effort_and_shared_budget() -> Non
     assert len({worker.usage_budget_id for worker in workers.values()}) == 1
 
 
-def test_concurrency_ramp_is_not_configurable_past_gate_order(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="exactly 1,2,4,8"):
-        config(tmp_path, concurrency_stages=(1, 2, 8))
+def test_concurrency_stages_accept_any_positive_operator_values(tmp_path: Path) -> None:
+    settings = config(
+        tmp_path,
+        concurrency_stages=(1, 3, 11),
+        stage_seed_counts=(1, 2, 3),
+    )
+    assert settings.concurrency_stages == (1, 3, 11)
+
+    with pytest.raises(ValueError, match="positive integers"):
+        config(tmp_path, concurrency_stages=(1, 0), stage_seed_counts=(1, 2))
 
 
 def _heldout_paths() -> dict[str, Path]:
@@ -311,7 +318,7 @@ def test_heldout_gate_rescans_five_outputs_and_records_manifest(tmp_path: Path) 
         for line in settings.events_path.read_text(encoding="utf-8").splitlines()
     ]
     heldout_events = [event for event in events if event["type"] == "heldout_leakage_gate"]
-    assert len(heldout_events) == 4
+    assert len(heldout_events) == 1
     assert all(event["data"]["passed"] for event in heldout_events)
 
     heldout_requirement = json.loads(

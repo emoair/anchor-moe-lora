@@ -15,12 +15,14 @@ from anchor_mvp.tooling import OpenCodeExecutor  # noqa: E402
 def main() -> int:
     parser = argparse.ArgumentParser(description="Print a keyless OpenCode live command")
     parser.add_argument("workspace", type=Path)
+    parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--sample-id", default="dry-run")
     args = parser.parse_args()
     command = OpenCodeExecutor().command(
         sample_id=args.sample_id,
         prompt="<PROMPT_FROM_SAMPLE_MANIFEST>",
         workspace=args.workspace.resolve(),
+        config_path=args.config.resolve(),
     )
     print(shlex.join(command))
     print("KIMI_CODE_API_KEY is read only from the environment at live-run time.")

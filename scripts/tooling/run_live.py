@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from anchor_mvp.tooling import (  # noqa: E402
+    AnchorSandboxOptions,
     LiveBatchConfig,
     ControlledSessionCapture,
     OpenCodeExecutor,
@@ -32,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-config",
         type=Path,
-        help="Audited 1->2->4->8 batch configuration; mutually exclusive with single mode",
+        help="Audited optional-stage batch configuration; mutually exclusive with single mode",
     )
     parser.add_argument(
         "--session-candidates",
@@ -46,12 +47,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--max-stages",
-        type=int,
-        choices=(1, 2, 3, 4),
+        type=_positive_int,
         default=1,
         help=(
-            "Maximum ramp stages to run. Defaults to the single-concurrency gate; "
-            "use 2, 3, or 4 only after reviewing prior-stage gold."
+            "Maximum configured stages to run. Defaults to the single-concurrency gate; "
+            "a value above the configured stage count is rejected."
         ),
     )
     parser.add_argument("--sample-id")
@@ -68,6 +68,32 @@ def parse_args() -> argparse.Namespace:
         help="Explicit patched OpenCode binary; the global PATH binary is never used",
     )
     parser.add_argument(
+        "--sandbox-linux-executable",
+        type=Path,
+        default=PROJECT_ROOT
+        / "artifacts"
+        / "tooling"
+        / "opencode-patched"
+        / "linux-x64"
+        / "opencode-anchor",
+        help="Linux x64 OpenCode artifact mounted read-only in the Debian/WSL job",
+    )
+    parser.add_argument(
+        "--sandbox-wsl-distro",
+        default="Ubuntu-22.04" if os.name == "nt" else None,
+        help="Dedicated WSL distro; required by the patched command on Windows",
+    )
+    parser.add_argument(
+        "--sandbox-supervisor",
+        choices=("direct", "wsl-root-systemd"),
+        default="wsl-root-systemd" if os.name == "nt" else "direct",
+        help="Patched OpenCode supervisor backend",
+    )
+    parser.add_argument("--sandbox-memory", default="4G")
+    parser.add_argument("--sandbox-cpus", default="2")
+    parser.add_argument("--sandbox-pids", type=_positive_int, default=256)
+    parser.add_argument("--sandbox-timeout-seconds", type=_positive_int, default=900)
+    parser.add_argument(
         "--skill",
         action="append",
         help="Audited source id from configs/data/skill_sources.yaml; repeat as needed",
@@ -81,6 +107,11 @@ def parse_args() -> argparse.Namespace:
         "--workspace-root",
         type=Path,
         default=PROJECT_ROOT / "runs" / "tooling-live",
+    )
+    parser.add_argument(
+        "--retain-workspace",
+        action="store_true",
+        help="Keep copied task workspaces after capture for local debugging only",
     )
     parser.add_argument(
         "--output",
@@ -107,6 +138,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer") from error
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def patched_preflight(
     executor: OpenCodeExecutor, policy: ToolPolicy
 ) -> tuple[bool, str]:
@@ -124,12 +165,19 @@ def main() -> int:
             print("--batch-config cannot be combined with single-sample inputs", file=sys.stderr)
             return 2
         config = LiveBatchConfig.load(PROJECT_ROOT, args.batch_config)
+        if args.max_stages > len(config.concurrency_stages):
+            print(
+                "--max-stages exceeds the configured concurrency_stages length",
+                file=sys.stderr,
+            )
+            return 2
         if config.opencode_executable is None:
             print("batch config requires opencode_executable", file=sys.stderr)
             return 2
         executor = OpenCodeExecutor(
             executable=str(config.opencode_executable),
             session_capture=config.controlled_capture(),
+            sandbox_options=config.anchor_sandbox_options(),
         )
         policy = ToolPolicy(
             max_iterations=config.max_iterations,
@@ -197,6 +245,15 @@ def main() -> int:
             (PROJECT_ROOT / "examples" / "benchmark" / "fixtures").resolve(),
             (PROJECT_ROOT / "artifacts" / "benchmark" / "heldout_v1" / "manifest.json").resolve(),
         ),
+        sandbox_options=AnchorSandboxOptions(
+            linux_executable=args.sandbox_linux_executable.resolve(),
+            wsl_distro=args.sandbox_wsl_distro,
+            supervisor=args.sandbox_supervisor,
+            memory=args.sandbox_memory,
+            cpus=args.sandbox_cpus,
+            pids=args.sandbox_pids,
+            timeout_seconds=args.sandbox_timeout_seconds,
+        ),
     )
     policy = ToolPolicy(
         max_iterations=args.max_iterations,
@@ -234,7 +291,12 @@ def main() -> int:
     task = args.prompt_file.read_text(encoding="utf-8")
     registry = SkillSourceRegistry(PROJECT_ROOT, args.skill_registry)
     prompt, skill_provenance = registry.compose_execution_prompt(task, tuple(args.skill))
-    record = ToolingHarness(args.workspace_root, executor, policy=policy).run_sample(
+    record = ToolingHarness(
+        args.workspace_root,
+        executor,
+        policy=policy,
+        retain_workspace=args.retain_workspace,
+    ).run_sample(
         SampleSpec(
             args.sample_id,
             prompt,

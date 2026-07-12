@@ -61,8 +61,8 @@ OpenCode promotion sequence pass.
 
 1. Run one OpenCode plus audited external-Skill live execution sample and require a
    validated public outcome, isolated workspace, tests, and append-only gold record.
-2. Promote only through the checked-in `1 -> 2 -> 4 -> 8` ramp after each stage meets
-   its success-rate and leakage gates.
+2. Keep the default serialized stage; open only explicitly configured positive-integer
+   stages after each preceding stage meets its success-rate and leakage gates.
 3. Add TSX parse/typecheck/build checks, review mutation-repair verification, trace
    grounding, semantic deduplication, and category/label balance gates.
 4. Produce 3-6 successful independent OpenCode fixtures before treating execution

@@ -11,8 +11,22 @@ session_quarantine: artifacts/tooling/session_quarantine.jsonl
 heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
 heldout_fixtures_root: examples/benchmark/fixtures
 heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
-concurrency_stages: [1, 2, 4, 8]
-samples_per_stage: [1, 2, 4, 8]
+# Optional operator-selected stages.  The safe default is one serialized task;
+# Python accepts any non-empty list of positive integers without a static ceiling.
+concurrency_stages: [1]
+samples_per_stage: [1]
+anchor_sandbox:
+  # These are passed only as argv to `opencode anchor run`; no credentials belong here.
+  # Debian's default image must execute the matching Linux x64 artifact, not the Windows host binary.
+  linux_executable: artifacts/tooling/opencode-patched/linux-x64/opencode-anchor
+  wsl_distro: Ubuntu-22.04
+  supervisor: wsl-root-systemd
+  memory: 4G
+  cpus: 2
+  pids: 256
+  timeout_seconds: 900
+# Temporary copied fixtures are removed after controlled capture. Set true only for local debugging.
+retain_workspace: false
 minimum_stage_success_rate: 0.8
 max_iterations: 8
 timeout_seconds: 900

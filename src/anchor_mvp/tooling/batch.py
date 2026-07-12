@@ -13,12 +13,11 @@ from .gold import merge_gold_jsonl
 from .harness import ToolingHarness
 from .models import GoldRecord, SampleSpec, sample_contract_sha256
 from .policy import ToolPolicy
-from .runner import AgentExecutor
-from .runner import ControlledSessionCapture
+from .runner import AgentExecutor, AnchorSandboxOptions, ControlledSessionCapture
 from .skills import SkillSourceRegistry
 
 
-RAMP_STAGES = (1, 2, 4, 8)
+DEFAULT_CONCURRENCY_STAGES = (1,)
 
 
 def _project_path(project_root: Path, value: object, label: str) -> Path:
@@ -35,6 +34,14 @@ def _project_path(project_root: Path, value: object, label: str) -> Path:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _positive_integer_sequence(value: object, *, name: str) -> tuple[int, ...]:
+    if not isinstance(value, (list, tuple)) or not value:
+        raise ValueError(f"{name} must be a non-empty list of positive integers")
+    if any(isinstance(item, bool) or not isinstance(item, int) or item < 1 for item in value):
+        raise ValueError(f"{name} must contain only positive integers")
+    return tuple(value)
 
 
 def _load_protected_files(
@@ -73,11 +80,38 @@ class LiveBatchConfig:
     heldout_cases: Path | None = None
     heldout_fixtures_root: Path | None = None
     heldout_manifest: Path | None = None
-    concurrency_stages: tuple[int, ...] = RAMP_STAGES
-    samples_per_stage: tuple[int, ...] = RAMP_STAGES
+    sandbox_linux_executable: Path | None = None
+    sandbox_wsl_distro: str | None = None
+    sandbox_supervisor: str | None = None
+    sandbox_memory: str | None = None
+    sandbox_cpus: str | None = None
+    sandbox_pids: int | None = None
+    sandbox_timeout_seconds: int | None = None
+    retain_workspace: bool = False
+    concurrency_stages: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
+    samples_per_stage: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
     minimum_stage_success_rate: float = 1.0
     max_iterations: int = 8
     timeout_seconds: float = 900.0
+
+    def __post_init__(self) -> None:
+        concurrency = _positive_integer_sequence(
+            self.concurrency_stages, name="concurrency_stages"
+        )
+        samples = _positive_integer_sequence(self.samples_per_stage, name="samples_per_stage")
+        if len(samples) != len(concurrency):
+            raise ValueError("samples_per_stage must have one positive value per concurrency stage")
+        AnchorSandboxOptions(
+            linux_executable=self.sandbox_linux_executable,
+            wsl_distro=self.sandbox_wsl_distro,
+            supervisor=self.sandbox_supervisor,
+            memory=self.sandbox_memory,
+            cpus=self.sandbox_cpus,
+            pids=self.sandbox_pids,
+            timeout_seconds=self.sandbox_timeout_seconds,
+        )
+        if not isinstance(self.retain_workspace, bool):
+            raise ValueError("retain_workspace must be a boolean")
 
     @classmethod
     def load(cls, project_root: str | Path, path: str | Path) -> "LiveBatchConfig":
@@ -88,21 +122,16 @@ class LiveBatchConfig:
         ):
             raise ValueError("unsupported OpenCode live batch schema")
 
-        def integers(name: str) -> tuple[int, ...]:
-            value = loaded.get(name)
-            if not isinstance(value, list):
-                raise ValueError(f"{name} must be a list")
-            try:
-                return tuple(int(item) for item in value)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"{name} must contain integers") from exc
-
-        concurrency = integers("concurrency_stages")
-        samples = integers("samples_per_stage")
-        if concurrency != RAMP_STAGES:
-            raise ValueError("concurrency_stages must be exactly 1,2,4,8")
-        if len(samples) != len(concurrency) or any(value < 1 for value in samples):
-            raise ValueError("samples_per_stage must have four positive values")
+        concurrency = _positive_integer_sequence(
+            loaded.get("concurrency_stages", DEFAULT_CONCURRENCY_STAGES),
+            name="concurrency_stages",
+        )
+        samples = _positive_integer_sequence(
+            loaded.get("samples_per_stage", (1,) * len(concurrency)),
+            name="samples_per_stage",
+        )
+        if len(samples) != len(concurrency):
+            raise ValueError("samples_per_stage must have one positive value per concurrency stage")
         success_rate = float(loaded.get("minimum_stage_success_rate", 1.0))
         if not 0.0 <= success_rate <= 1.0:
             raise ValueError("minimum_stage_success_rate must be between 0 and 1")
@@ -119,6 +148,30 @@ class LiveBatchConfig:
         )
         if not all(isinstance(loaded.get(name), str) and str(loaded[name]).strip() for name in capture_names):
             raise ValueError("batch config requires complete controlled session capture paths")
+        sandbox = loaded.get("anchor_sandbox", {})
+        if not isinstance(sandbox, Mapping):
+            raise ValueError("anchor_sandbox must be an object when configured")
+        linux_executable: Path | None = None
+        if sandbox.get("linux_executable") is not None:
+            linux_executable = _project_path(
+                root, sandbox["linux_executable"], "anchor_sandbox.linux_executable"
+            )
+
+        def optional_text(name: str) -> str | None:
+            value = sandbox.get(name)
+            return None if value is None else str(value)
+
+        def optional_positive_int(name: str) -> int | None:
+            value = sandbox.get(name)
+            if value is None:
+                return None
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"anchor_sandbox.{name} must be a positive integer")
+            return value
+
+        retain_workspace = loaded.get("retain_workspace", False)
+        if not isinstance(retain_workspace, bool):
+            raise ValueError("retain_workspace must be a boolean")
         return cls(
             candidate_manifest=_project_path(root, loaded.get("candidate_manifest"), "candidate_manifest"),
             split_policy=_project_path(root, loaded.get("split_policy"), "split_policy"),
@@ -138,6 +191,14 @@ class LiveBatchConfig:
                 root, loaded["heldout_fixtures_root"], "heldout_fixtures_root"
             ),
             heldout_manifest=_project_path(root, loaded["heldout_manifest"], "heldout_manifest"),
+            sandbox_linux_executable=linux_executable,
+            sandbox_wsl_distro=optional_text("wsl_distro"),
+            sandbox_supervisor=optional_text("supervisor"),
+            sandbox_memory=optional_text("memory"),
+            sandbox_cpus=optional_text("cpus"),
+            sandbox_pids=optional_positive_int("pids"),
+            sandbox_timeout_seconds=optional_positive_int("timeout_seconds"),
+            retain_workspace=retain_workspace,
             concurrency_stages=concurrency,
             samples_per_stage=samples,
             minimum_stage_success_rate=success_rate,
@@ -156,6 +217,17 @@ class LiveBatchConfig:
         if any(value is None for value in values):
             raise ValueError("controlled session capture is incomplete")
         return ControlledSessionCapture(*values)  # type: ignore[arg-type]
+
+    def anchor_sandbox_options(self) -> AnchorSandboxOptions:
+        return AnchorSandboxOptions(
+            linux_executable=self.sandbox_linux_executable,
+            wsl_distro=self.sandbox_wsl_distro,
+            supervisor=self.sandbox_supervisor,
+            memory=self.sandbox_memory,
+            cpus=self.sandbox_cpus,
+            pids=self.sandbox_pids,
+            timeout_seconds=self.sandbox_timeout_seconds,
+        )
 
 
 def _heldout_values(path: Path) -> tuple[set[str], set[str]]:
@@ -376,7 +448,12 @@ def run_live_batch(
         max_iterations=config.max_iterations,
         timeout_seconds=config.timeout_seconds,
     )
-    harness = ToolingHarness(config.workspace_root, executor, policy=policy)
+    harness = ToolingHarness(
+        config.workspace_root,
+        executor,
+        policy=policy,
+        retain_workspace=config.retain_workspace,
+    )
     stages: list[BatchStageResult] = []
     offset = 0
     for concurrency, count in zip(selected_concurrency, selected_sample_counts):

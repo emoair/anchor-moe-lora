@@ -2,10 +2,10 @@
 
 > 当前项目绝对路径：`D:\LLM\anchor-moe-lora`
 >
-> **重要门禁：当前 OpenCode 1.17.18 官方二进制只能做离线预检，暂不能执行 live gold。**
-> 原因是现有 runner 会在事件归约后删除隔离 session，而“受控 raw export + sidecar”尚未接入
-> runner。必须先使用经过审计的 patched binary/runner，在删除 session 前导出同一受控 session、
-> 生成 validators/public-outcome sidecar，再允许 `--confirm-live`。不要为了省事读取历史真实 session。
+> **重要门禁：live gold 必须使用仓库构建并校验的 patched OpenCode，不得使用 PATH 中的官方裸版。**
+> Windows 与 WSL/Linux 产物、一次性 Podman 沙箱、受控 raw export 和清理链已经接入；默认仍只做
+> 离线预检。只有进程级 API key、held-out 分离和 patched capability probe 全部通过后，才允许
+> 显式添加 `--confirm-live`。不要读取历史真实 session。
 
 本文所有不带 `--confirm-live` 的示例均可离线执行。任何 live 命令都必须在完成文中门禁后手动运行。
 
@@ -165,8 +165,9 @@ try {
 
 ## 5. Automation、quota epoch 与失败账本
 
-Automation 固定按 `1 -> 2 -> 4 -> 8` 并发升级，每一档都要通过 schema、重复率、
-安全和 frozen held-out 门禁。查看状态：
+Automation 默认并发为 `1`。`concurrency_stages` 可由操作者填写任意非空正整数序列，代码中
+没有固定 `1 -> 2 -> 4 -> 8` 或最大 8 的上限；每一档仍必须通过 schema、重复率、安全和
+frozen held-out 门禁。查看状态：
 
 ```powershell
 .\scripts\data\show_automation_status.ps1 -Config configs/data/automation.yaml
@@ -196,7 +197,7 @@ try {
 
 ## 6. 受控 OpenCode execution gold
 
-### 当前状态：只允许预检
+### 当前状态：patched 沙箱管线已构建，默认仍只预检
 
 当前官方 OpenCode 版本：`1.17.18`。以下命令只预检：
 
@@ -205,7 +206,7 @@ python scripts/tooling/run_live.py `
   --batch-config configs/tooling/opencode_distillation_ramp.yaml
 ```
 
-**现在不要添加 `--confirm-live`。** 在 live 前，patched binary/runner 必须同时满足：
+只有在进程级 key 和 dry-run 均通过后才添加 `--confirm-live`。patched binary/runner 必须同时满足：
 
 1. session 只能写入该样本的隔离 XDG data 目录；
 2. 在 runtime 清理前得到受控 raw export；
@@ -214,7 +215,7 @@ python scripts/tooling/run_live.py `
 5. converter 完成后才删除隔离 session；
 6. 不读取 `%USERPROFILE%\.local\share\opencode\opencode.db` 中的历史 session。
 
-补丁完成并通过审计后，最多先放行第一档一个候选：
+当前默认只配置一个候选、一个并发 stage。首次 live 放行命令：
 
 ```powershell
 python scripts/tooling/run_live.py `
@@ -224,7 +225,8 @@ python scripts/tooling/run_live.py `
 ```
 
 当前只有 `sidex-p0-001-stable-status-sort` 具备一致的任务、fixture 和冻结验收合同；其余题目仍是
-deferred。请求 `--max-stages 2/3/4` 应在预检阶段因可信候选不足而失败。
+deferred。要增加并发，必须同时在 batch 配置中增加正整数 stage、样本数和已经审计的候选；单独把
+`--max-stages` 调大仍会被拒绝。
 
 ### attempts 与 accepted gold 不是一回事
 

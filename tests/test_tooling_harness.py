@@ -66,6 +66,22 @@ def test_harness_isolates_sample_runs_validations_and_hashes_changes(tmp_path):
     assert record.changed_files[0].path == "index.js"
     assert record.changed_files[0].before_sha256 != record.changed_files[0].after_sha256
     assert all(item.output_sha256 for item in record.validations)
+    assert not list((tmp_path / "runs").iterdir())
+
+
+def test_harness_can_retain_a_task_workspace_for_operator_debugging(tmp_path):
+    source = tmp_path / "source"
+    _make_project(source)
+    runs = tmp_path / "runs"
+    record = ToolingHarness(
+        runs,
+        MockAgentExecutor(public_outcome=OUTCOME),
+        retain_workspace=True,
+    ).run_sample(SampleSpec("keep/workspace", "Inspect fixture", source))
+
+    retained = runs / record.workspace_id
+    assert retained.is_dir()
+    assert (retained / "index.js").is_file()
 
 
 def test_missing_required_script_fails_closed_and_jsonl_is_canonical(tmp_path):

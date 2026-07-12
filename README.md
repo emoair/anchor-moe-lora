@@ -94,7 +94,8 @@ reasoning deltas; JSONL remains atomic after the complete response. Optional
 `stream_options.include_usage` is off unless a probe confirms compatibility.
 
 After the mock and one-seed gates pass, unattended distillation is available through
-`scripts/data/start_automation.ps1`. It ramps concurrency only through 1, 2, 4, and 8,
+`scripts/data/start_automation.ps1`. Concurrency defaults to one; operators may configure
+any non-empty sequence of positive integers, with no static code ceiling. The automation
 persists provider cooldowns, enforces request/token/failure budgets, and exposes
 atomic status plus append-only events. Every configured scale step also rechecks the
 frozen held-out corpus against all five current training JSONLs and five SOPs; any

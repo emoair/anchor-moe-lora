@@ -3,8 +3,8 @@
   "repository": "https://github.com/anomalyco/opencode.git",
   "baseline_commit": "b1fc8113948b518835c2a39ece49553cffe9b30c",
   "upstream_version": "1.17.18",
-  "patch": "v1.17.18-require-initial-tool.patch",
-  "patch_sha256": "e571780779e9bdf7659d99628d4f527c6387e1b134176b2a267e6b22d9ebb74f",
+  "patch": "v1.17.18-anchor-distillation.patch",
+  "patch_sha256": "d2c9f0f32e4a14db58d098ba7083966adf408f2151fc6a17e04bb8868c44db0a",
   "bun_version": "1.3.14",
   "tool_contract_version": "anchor.execution-tool-contract.v2",
   "tool_contract": {
@@ -21,6 +21,7 @@
       "test/config/v1-agent-initial-tool-call.test.ts"
     ],
     "opencode": [
+      "test/anchor/sandbox.test.ts",
       "test/session/initial-tool-call.test.ts",
       "test/session/prompt.test.ts",
       "test/agent/agent.test.ts"

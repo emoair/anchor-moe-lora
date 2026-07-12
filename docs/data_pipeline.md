@@ -192,9 +192,9 @@ outputs, so dependency chaining cannot be used to smuggle active material into J
 
 ## Unattended gated ramp
 
-The automation runner does not start a large live batch by itself. It advances through
-the fixed concurrency sequence `1 -> 2 -> 4 -> 8` (hard ceiling 8) only after every
-previous stage passes all gates:
+The automation runner defaults to one serialized stage. Operators may configure an
+optional non-empty list of positive concurrency values; every subsequent configured stage
+opens only after the preceding stage passes all gates:
 
 - requested-record success rate;
 - canonical/training JSONL validation;
@@ -209,8 +209,8 @@ Each domain has an independent worker/client configuration while sharing one per
 wire budget. Seed, planner, frontend, and review default to medium Thinking effort;
 tool policy and security default to low because their targets are concise defensive
 classifications rather than long reasoning transcripts. Workers run one domain at a time
-within the current global concurrency ceiling, so five domain workers cannot silently
-multiply concurrency past 8.
+within the current configured stage concurrency, so five domain workers cannot silently
+multiply the operator-selected limit.
 
 When the four `heldout_*` paths are present in the automation config, every scale gate
 first verifies the frozen manifest and pre-bulk audit sidecars, then locally scans the

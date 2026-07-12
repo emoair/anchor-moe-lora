@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Mapping, Sequence
 
@@ -61,6 +61,8 @@ HIDDEN_REASONING_MARKER = re.compile(
 )
 WINDOWS_ABSOLUTE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]:[\\/][^\r\n\t\"'<>|]*)")
 POSIX_ABSOLUTE = re.compile(r"(?m)(?<![A-Za-z0-9_.-])(/(?:home|Users|var|tmp|opt|etc)/[^\r\n\t\"'<>|]*)")
+CONTAINER_WORKSPACE = re.compile(r"(?<![A-Za-z0-9_.-])/workspace(?=$|[\\/])")
+WORKSPACE_REFERENCE = re.compile(r"<workspace>(?:[\\/][^\r\n\t\"'<>|]*)?")
 
 
 class QuarantineError(ValueError):
@@ -232,7 +234,11 @@ class _SafetyGate:
     def path(self, value: object, *, label: str) -> str:
         text = self.text(value, label=label)
         if text.startswith("<workspace>"):
-            return text
+            if not WORKSPACE_REFERENCE.fullmatch(text):
+                raise QuarantineError("workspace_reference_invalid")
+            return self._normalize_workspace_reference(text)
+        if text.startswith("/"):
+            raise QuarantineError("absolute_path_outside_workspace")
         candidate = Path(text)
         if candidate.is_absolute():
             resolved = candidate.resolve()
@@ -257,13 +263,27 @@ class _SafetyGate:
             normalized,
             flags=re.IGNORECASE,
         )
+        normalized = CONTAINER_WORKSPACE.sub("<workspace>", normalized)
         if WINDOWS_ABSOLUTE.search(normalized) or POSIX_ABSOLUTE.search(normalized):
             raise QuarantineError("absolute_path_outside_workspace")
-        return re.sub(
-            r"<workspace>[^\r\n\t\"'<>|]*",
-            lambda match: match.group(0).replace("\\", "/"),
-            normalized,
+        return WORKSPACE_REFERENCE.sub(
+            lambda match: self._normalize_workspace_reference(match.group(0)), normalized
         )
+
+    @staticmethod
+    def _normalize_workspace_reference(value: str) -> str:
+        """Canonicalize a local or container workspace reference without allowing escape."""
+
+        if value == "<workspace>":
+            return value
+        suffix = value.removeprefix("<workspace>").replace("\\", "/")
+        if not suffix.startswith("/"):
+            raise QuarantineError("workspace_reference_invalid")
+        parts = PurePosixPath(suffix.lstrip("/")).parts
+        if any(part == ".." for part in parts):
+            raise QuarantineError("workspace_escape")
+        normalized = tuple(part for part in parts if part not in {"", "."})
+        return "<workspace>" if not normalized else "<workspace>/" + "/".join(normalized)
 
 
 def _as_mapping(value: object, *, code: str) -> Mapping[str, Any]:

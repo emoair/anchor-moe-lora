@@ -1,16 +1,62 @@
 param(
     [string]$CheckoutRoot = "",
     [string]$BunPath = "",
+    [string]$BunSha256 = "",
     [string]$NodeGypPath = "",
     [switch]$SkipInstall,
     [switch]$SkipTests,
     [switch]$SkipTypecheck
 )
 
+<#
+Build the Windows x64 member of the pinned OpenCode patch bundle.
+
+This script deliberately creates or consumes one clean, target-specific checkout. It
+never calls git reset/clean and refuses a non-clean existing checkout, including a
+previously patched checkout. Use a new -CheckoutRoot after an interrupted build.
+
+The WSL/Linux counterpart is scripts/tooling/build_patched_opencode_wsl.sh. Once both
+platform manifests exist, create/check the cross-platform bundle with
+scripts/tooling/assemble_opencode_bundle.py.
+#>
+
 $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $PatchManifestPath = Join-Path $ProjectRoot "patches\opencode\patch-manifest.json"
 $OutputRoot = Join-Path $ProjectRoot "artifacts\tooling\opencode-patched"
+$Target = "windows-x64"
+
+function Invoke-Checked {
+    param([string]$FilePath, [string[]]$Arguments, [string]$WorkingDirectory)
+    Push-Location $WorkingDirectory
+    try {
+        & $FilePath @Arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "$FilePath exited with code $LASTEXITCODE"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Invoke-Git {
+    param([string[]]$Arguments, [string]$WorkingDirectory = "")
+    $gitArguments = @("-c", "core.autocrlf=false")
+    if ($WorkingDirectory) {
+        $gitArguments += @("-C", $WorkingDirectory)
+    }
+    $gitArguments += $Arguments
+    & git @gitArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "git $($Arguments -join ' ') exited with code $LASTEXITCODE"
+    }
+}
+
+function Get-Sha256 {
+    param([string]$Path)
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
 
 if (-not (Test-Path -LiteralPath $PatchManifestPath -PathType Leaf)) {
     throw "Patch source manifest is missing: $PatchManifestPath"
@@ -34,63 +80,55 @@ if ($BaselineCommit -notmatch '^[0-9a-f]{40}$' -or $ExpectedPatchSha256 -notmatc
 if ($null -eq $ToolContract -or [string]$ToolContract.version -ne [string]$patchSource.tool_contract_version) {
     throw "Patch source manifest contains an invalid tool contract"
 }
-
-if (-not $CheckoutRoot) {
-    $CheckoutRoot = Join-Path $ProjectRoot "runs\opencode-build\v1.17.18"
-}
-$CheckoutRoot = [IO.Path]::GetFullPath($CheckoutRoot)
-
-function Invoke-Checked {
-    param([string]$FilePath, [string[]]$Arguments, [string]$WorkingDirectory)
-    Push-Location $WorkingDirectory
-    try {
-        & $FilePath @Arguments
-        if ($LASTEXITCODE -ne 0) {
-            throw "$FilePath exited with code $LASTEXITCODE"
-        }
-    }
-    finally {
-        Pop-Location
-    }
-}
-
 if (-not (Test-Path -LiteralPath $PatchPath -PathType Leaf)) {
     throw "Patch is missing: $PatchPath"
 }
-$patchSha = (Get-FileHash -LiteralPath $PatchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$patchSha = Get-Sha256 $PatchPath
 if ($patchSha -ne $ExpectedPatchSha256) {
     throw "Patch hash mismatch. Expected $ExpectedPatchSha256, got $patchSha"
 }
 
-$createdCheckout = $false
-if (-not (Test-Path -LiteralPath (Join-Path $CheckoutRoot ".git"))) {
+if (-not [Environment]::Is64BitOperatingSystem) {
+    throw "Windows x64 build requires a 64-bit host"
+}
+if (-not $CheckoutRoot) {
+    $CheckoutRoot = Join-Path $ProjectRoot "runs\opencode-build\worktrees\$Target"
+}
+$CheckoutRoot = [IO.Path]::GetFullPath($CheckoutRoot)
+
+# A checkout with the canonical patch applied is intentionally considered dirty. Do
+# not reuse it: this keeps the source contract simple and preserves user work.
+if (Test-Path -LiteralPath $CheckoutRoot) {
+    if (-not (Test-Path -LiteralPath (Join-Path $CheckoutRoot ".git"))) {
+        throw "CheckoutRoot exists but is not a Git checkout: $CheckoutRoot"
+    }
+    $existingOrigin = (& git -c core.autocrlf=false -C $CheckoutRoot remote get-url origin).Trim()
+    if ($LASTEXITCODE -ne 0 -or $existingOrigin -ne $Repository) {
+        throw "Checkout origin is not the audited repository: $existingOrigin"
+    }
+    $existingStatus = @(& git -c core.autocrlf=false -C $CheckoutRoot status --porcelain=v1)
+    if ($LASTEXITCODE -ne 0 -or $existingStatus.Count -ne 0) {
+        throw "Checkout is dirty. Use a fresh -CheckoutRoot; this script never resets user work."
+    }
+}
+else {
     $parent = Split-Path -Parent $CheckoutRoot
     New-Item -ItemType Directory -Force $parent | Out-Null
-    Invoke-Checked git @(
-        "clone", "--depth", "1", "--branch", "v1.17.18", "--filter=blob:none", "--no-checkout", $Repository, $CheckoutRoot
-    ) $parent
-    $createdCheckout = $true
+    Invoke-Git @("clone", "--depth", "1", "--branch", "v$($patchSource.upstream_version)", "--filter=blob:none", "--no-checkout", $Repository, $CheckoutRoot) $parent
 }
 
-$origin = (& git -C $CheckoutRoot remote get-url origin).Trim()
-if ($LASTEXITCODE -ne 0 -or $origin -ne $Repository) {
-    throw "Checkout origin is not the audited repository: $origin"
-}
-if (-not $createdCheckout -and (& git -C $CheckoutRoot status --porcelain)) {
-    throw "Checkout is dirty. Use a fresh -CheckoutRoot; this script never resets user work."
-}
 $baselineObject = "${BaselineCommit}^{commit}"
-& git -C $CheckoutRoot cat-file -e $baselineObject 2>$null
+& git -c core.autocrlf=false -C $CheckoutRoot cat-file -e $baselineObject 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Invoke-Checked git @("fetch", "--depth", "1", "origin", $BaselineCommit) $CheckoutRoot
+    Invoke-Git @("fetch", "--depth", "1", "origin", $BaselineCommit) $CheckoutRoot
 }
-Invoke-Checked git @("checkout", "--detach", $BaselineCommit) $CheckoutRoot
-$actualCommit = (& git -C $CheckoutRoot rev-parse HEAD).Trim()
+Invoke-Git @("checkout", "--detach", $BaselineCommit) $CheckoutRoot
+$actualCommit = (& git -c core.autocrlf=false -C $CheckoutRoot rev-parse HEAD).Trim()
 if ($actualCommit -ne $BaselineCommit) {
     throw "Baseline mismatch. Expected $BaselineCommit, got $actualCommit"
 }
-Invoke-Checked git @("apply", "--check", $PatchPath) $CheckoutRoot
-Invoke-Checked git @("apply", $PatchPath) $CheckoutRoot
+Invoke-Git @("apply", "--check", $PatchPath) $CheckoutRoot
+Invoke-Git @("apply", $PatchPath) $CheckoutRoot
 
 if (-not $BunPath) {
     $BunPath = $env:ANCHOR_BUN_EXE
@@ -103,10 +141,17 @@ $bunVersion = (& $BunPath --version).Trim()
 if ($LASTEXITCODE -ne 0 -or $bunVersion -ne $ExpectedBunVersion) {
     throw "Audited build requires Bun $ExpectedBunVersion; got '$bunVersion'"
 }
+$bunSha = Get-Sha256 $BunPath
+if ($BunSha256) {
+    $expectedBunSha = $BunSha256.ToLowerInvariant()
+    if ($expectedBunSha -notmatch '^[0-9a-f]{64}$' -or $bunSha -ne $expectedBunSha) {
+        throw "Bun SHA-256 does not match -BunSha256"
+    }
+}
 
 $nodeGypVersion = $null
 $nodeGypDirectory = $null
-if ($env:OS -eq "Windows_NT" -and -not $SkipInstall) {
+if (-not $SkipInstall) {
     if (-not $NodeGypPath) {
         $NodeGypPath = $env:ANCHOR_NODE_GYP_CMD
     }
@@ -122,26 +167,16 @@ if ($env:OS -eq "Windows_NT" -and -not $SkipInstall) {
 }
 
 $env:BUN_CONFIG_MAX_HTTP_REQUESTS = "4"
-$env:BUN_INSTALL_CACHE_DIR = Join-Path $ProjectRoot "runs\opencode-build\bun-cache"
+$env:BUN_INSTALL_CACHE_DIR = Join-Path $ProjectRoot "runs\opencode-build\bun-cache\$Target"
 if (-not $SkipInstall) {
     $priorTrackFileAccess = $env:TrackFileAccess
     $priorPath = $env:PATH
     try {
-        if ($env:OS -eq "Windows_NT") {
-            # node-gyp's generated C++ project otherwise enables MSBuild
-            # FileTracker, which can leave link.exe blocked on this host.
-            # This process-local setting is inherited by Bun/node-gyp/MSBuild;
-            # it never changes user or machine environment state.
-            $env:TrackFileAccess = "false"
-            $env:PATH = "$nodeGypDirectory;$priorPath"
-        }
-        $installArgs = @("install", "--frozen-lockfile")
-        if ($env:OS -eq "Windows_NT") {
-            # Match OpenCode's own Windows CI layout. The isolated linker can
-            # leave peer dependencies unavailable to its package test runner.
-            $installArgs += @("--linker", "hoisted")
-        }
-        Invoke-Checked $BunPath $installArgs $CheckoutRoot
+        # node-gyp's generated C++ project otherwise enables MSBuild FileTracker,
+        # which can leave link.exe blocked on this host. Both changes are process-only.
+        $env:TrackFileAccess = "false"
+        $env:PATH = "$nodeGypDirectory;$priorPath"
+        Invoke-Checked $BunPath @("install", "--frozen-lockfile", "--linker", "hoisted") $CheckoutRoot
     }
     finally {
         if ($null -eq $priorTrackFileAccess) {
@@ -153,33 +188,27 @@ if (-not $SkipInstall) {
         $env:PATH = $priorPath
     }
 }
+
 $windowsBaselineTestExclusions = @()
 if (-not $SkipTests) {
     $coreTests = @("test") + @($patchSource.required_tests.core)
     Invoke-Checked $BunPath $coreTests (Join-Path $CheckoutRoot "packages\core")
-    if ($env:OS -eq "Windows_NT") {
-        # These two /bin/sh-dependent tests time out on the unpatched Windows
-        # v1.17.18 baseline as well. Keep the exception narrow and record it in
-        # the artifact manifest instead of reporting an unqualified full pass.
-        $windowsBaselineTestExclusions = @(
-            "loop waits while shell runs and starts after shell exits",
-            "shell completion resumes queued loop callers",
-            "project reference directories are allowed for external_directory"
-        )
-        $promptTest = "test/session/prompt.test.ts"
-        $agentTest = "test/agent/agent.test.ts"
-        $otherOpenCodeTests = @($patchSource.required_tests.opencode | Where-Object { $_ -ne $promptTest -and $_ -ne $agentTest })
-        Invoke-Checked $BunPath (@("test") + $otherOpenCodeTests) (Join-Path $CheckoutRoot "packages\opencode")
-        $promptExclusions = @($windowsBaselineTestExclusions | Where-Object { $_ -ne "project reference directories are allowed for external_directory" })
-        $promptPattern = "^(?!(?:" + (($promptExclusions | ForEach-Object { [regex]::Escape($_) }) -join "|") + ")$).*"
-        Invoke-Checked $BunPath @("test", $promptTest, "--test-name-pattern", $promptPattern) (Join-Path $CheckoutRoot "packages\opencode")
-        $agentPattern = "^(?!(?:" + [regex]::Escape("project reference directories are allowed for external_directory") + ")$).*"
-        Invoke-Checked $BunPath @("test", $agentTest, "--test-name-pattern", $agentPattern) (Join-Path $CheckoutRoot "packages\opencode")
-    }
-    else {
-        $opencodeTests = @("test") + @($patchSource.required_tests.opencode)
-        Invoke-Checked $BunPath $opencodeTests (Join-Path $CheckoutRoot "packages\opencode")
-    }
+    # These upstream Windows baseline cases are known /bin/sh-dependent timeouts.
+    $windowsBaselineTestExclusions = @(
+        "loop waits while shell runs and starts after shell exits",
+        "shell completion resumes queued loop callers",
+        "cancel with queued callers resolves all cleanly",
+        "project reference directories are allowed for external_directory"
+    )
+    $promptTest = "test/session/prompt.test.ts"
+    $agentTest = "test/agent/agent.test.ts"
+    $otherOpenCodeTests = @($patchSource.required_tests.opencode | Where-Object { $_ -ne $promptTest -and $_ -ne $agentTest })
+    Invoke-Checked $BunPath (@("test") + $otherOpenCodeTests) (Join-Path $CheckoutRoot "packages\opencode")
+    $promptExclusions = @($windowsBaselineTestExclusions | Where-Object { $_ -ne "project reference directories are allowed for external_directory" })
+    $promptPattern = "^(?!(?:" + (($promptExclusions | ForEach-Object { [regex]::Escape($_) }) -join "|") + ")$).*"
+    Invoke-Checked $BunPath @("test", $promptTest, "--test-name-pattern", $promptPattern) (Join-Path $CheckoutRoot "packages\opencode")
+    $agentPattern = "^(?!(?:" + [regex]::Escape("project reference directories are allowed for external_directory") + ")$).*"
+    Invoke-Checked $BunPath @("test", $agentTest, "--test-name-pattern", $agentPattern) (Join-Path $CheckoutRoot "packages\opencode")
 }
 if (-not $SkipTypecheck) {
     Invoke-Checked $BunPath @("run", "--cwd", "packages/opencode", "typecheck") $CheckoutRoot
@@ -197,30 +226,73 @@ if (-not $built) {
 }
 
 New-Item -ItemType Directory -Force $OutputRoot | Out-Null
+$platformDirectory = Join-Path $OutputRoot $Target
+New-Item -ItemType Directory -Force $platformDirectory | Out-Null
+$platformDestination = Join-Path $platformDirectory "opencode-anchor.exe"
+Copy-Item -LiteralPath $built -Destination $platformDestination -Force
+$binarySha = Get-Sha256 $platformDestination
+
+# The root copy preserves the current Windows-only executor contract. Bundle members
+# always use the symmetric <target>/opencode-anchor[.exe] layout below.
 $destination = Join-Path $OutputRoot "opencode-anchor.exe"
-Copy-Item -LiteralPath $built -Destination $destination -Force
-$binarySha = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
-$manifest = [ordered]@{
+Copy-Item -LiteralPath $platformDestination -Destination $destination -Force
+if ((Get-Sha256 $destination) -ne $binarySha) {
+    throw "Legacy Windows compatibility copy does not match the platform artifact"
+}
+$patchManifestSha = Get-Sha256 $PatchManifestPath
+$lockPath = Join-Path $CheckoutRoot "bun.lock"
+$lockSha = if (Test-Path -LiteralPath $lockPath -PathType Leaf) { Get-Sha256 $lockPath } else { $null }
+$source = [ordered]@{
+    repository = $Repository
+    baseline_commit = $BaselineCommit
+    opencode_version = [string]$patchSource.upstream_version
+    patch_sha256 = $patchSha
+    patch_source_manifest_sha256 = $patchManifestSha
+    bun_version = $bunVersion
+    tool_contract_version = [string]$patchSource.tool_contract_version
+    tool_contract = $ToolContract
+    lockfile_sha256 = $lockSha
+}
+$platformManifest = [ordered]@{
+    schema_version = "anchor.patched-opencode.platform.v1"
+    target = $Target
+    platform = [ordered]@{ os = "windows"; arch = "x64"; libc = $null }
+    source = $source
+    bun = [ordered]@{ version = $bunVersion; sha256 = $bunSha }
+    node_gyp_version = $nodeGypVersion
+    install = [ordered]@{ executed = -not $SkipInstall; linker = "hoisted"; cache_scope = $Target }
+    checks = [ordered]@{
+        tests_executed = -not $SkipTests
+        required_tests = [ordered]@{ core = @($patchSource.required_tests.core); opencode = @($patchSource.required_tests.opencode) }
+        test_exclusions = @($windowsBaselineTestExclusions)
+        typecheck_executed = -not $SkipTypecheck
+        build_smoke_executed = $true
+    }
+    binary = [ordered]@{ path = "$Target/opencode-anchor.exe"; sha256 = $binarySha }
+    global_install_modified = $false
+}
+$platformManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OutputRoot "$Target.manifest.json") -Encoding UTF8
+
+# Preserve the existing single-Windows artifact contract while the bundle manifest is
+# assembled separately after the Linux member has been built.
+$legacyManifest = [ordered]@{
     schema_version = "anchor.patched-opencode.v1"
     repository = $Repository
     baseline_commit = $BaselineCommit
     opencode_version = [string]$patchSource.upstream_version
     patch_sha256 = $patchSha
-    patch_source_manifest_sha256 = (Get-FileHash -LiteralPath $PatchManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    patch_source_manifest_sha256 = $patchManifestSha
     bun_version = $bunVersion
     node_gyp_version = $nodeGypVersion
     tool_contract_version = [string]$patchSource.tool_contract_version
     tool_contract = $ToolContract
     tests_executed = -not $SkipTests
-    required_tests = [ordered]@{
-        core = @($patchSource.required_tests.core)
-        opencode = @($patchSource.required_tests.opencode)
-    }
+    required_tests = [ordered]@{ core = @($patchSource.required_tests.core); opencode = @($patchSource.required_tests.opencode) }
     windows_baseline_test_exclusions = @($windowsBaselineTestExclusions)
     typecheck_executed = -not $SkipTypecheck
     binary_sha256 = $binarySha
     binary = "opencode-anchor.exe"
     global_install_modified = $false
 }
-$manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputRoot "manifest.json") -Encoding UTF8
+$legacyManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OutputRoot "manifest.json") -Encoding UTF8
 Write-Output $destination

@@ -32,7 +32,7 @@ from .models import (
     ValidationResult,
 )
 from .policy import ToolPolicy
-from .runner import ControlledSessionCapture, MockAgentExecutor, OpenCodeExecutor
+from .runner import AnchorSandboxOptions, ControlledSessionCapture, MockAgentExecutor, OpenCodeExecutor
 from .skills import (
     AuditedSkill,
     SkillSourceError,
@@ -46,6 +46,7 @@ __all__ = [
     "batch_run_succeeded",
     "FileChange",
     "GoldRecord",
+    "AnchorSandboxOptions",
     "ControlledSessionCapture",
     "PublicDecisionStep",
     "PublicOutcome",

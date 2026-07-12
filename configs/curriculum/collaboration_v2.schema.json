@@ -8,7 +8,11 @@
   "properties": {
     "schema_version": {"const": "anchor.collaboration-curriculum.v2"},
     "status": {"const": "candidate-not-training-data"},
-    "ramp": {"const": [1, 2, 4, 8]},
+    "ramp": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "integer", "minimum": 1}
+    },
     "heldout_policy": {
       "type": "object",
       "required": ["training_access", "inputs"],

@@ -13,7 +13,8 @@ execution:
   workspace: runs/tooling-live/capture/workspace
   credential_env: KIMI_CODE_API_KEY
   minimum_accepted_gold: 1
-  max_concurrency: 8
+  # Optional audited execution stages; default stays serialized.
+  concurrency_stages: [1]
 
 distillation:
   automation_config: configs/data/automation.yaml

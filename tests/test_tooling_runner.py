@@ -3,7 +3,12 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from anchor_mvp.tooling import ControlledSessionCapture, OpenCodeExecutor, ToolPolicy
+from anchor_mvp.tooling import (
+    AnchorSandboxOptions,
+    ControlledSessionCapture,
+    OpenCodeExecutor,
+    ToolPolicy,
+)
 from anchor_mvp.tooling.opencode_artifact import BinaryAttestation, sha256_file
 
 
@@ -64,6 +69,32 @@ def test_missing_opencode_returns_auditable_failure_without_api_call(tmp_path):
     assert result.error_codes == ("binary_attestation_missing_or_changed",)
 
 
+def test_anchor_launch_failure_still_attempts_cleanup(monkeypatch, tmp_path):
+    executor = _attested_executor(tmp_path)
+    commands: list[list[str]] = []
+
+    def failing_popen(*args, **kwargs):
+        raise OSError("synthetic launch failure")
+
+    def fake_run(command, *args, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("anchor_mvp.tooling.runner.subprocess.Popen", failing_popen)
+    monkeypatch.setattr("anchor_mvp.tooling.runner.subprocess.run", fake_run)
+
+    result = executor.run(
+        sample_id="launch-failure",
+        prompt="No call",
+        workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
+        policy=ToolPolicy(),
+    )
+
+    assert result.error_codes == ("anchor_sandbox_launch_failed",)
+    assert commands[0][1:3] == ["anchor", "cleanup"]
+
+
 def test_windows_uses_the_launchable_npm_cmd_shim(tmp_path):
     if os.name != "nt":
         return
@@ -71,20 +102,86 @@ def test_windows_uses_the_launchable_npm_cmd_shim(tmp_path):
         sample_id="shim",
         prompt="No call",
         workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
     )
 
     assert Path(command[0]).suffix.casefold() == ".cmd"
 
 
 def test_command_pins_audited_thinking_variant_without_printing_reasoning(tmp_path):
-    command = _attested_executor(tmp_path).command(
+    linux = (tmp_path / "opencode-linux").resolve()
+    executor = _attested_executor(tmp_path)
+    executor.sandbox_options = AnchorSandboxOptions(
+        linux_executable=linux,
+        wsl_distro="Ubuntu-22.04",
+        supervisor="wsl-root-systemd",
+        memory="4G",
+        cpus="2",
+        pids=256,
+        timeout_seconds=900,
+    )
+    argv = executor.command(
         sample_id="thinking",
         prompt="No call",
         workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
     )
 
-    assert command[command.index("--variant") + 1] == "thinking"
-    assert "--thinking" not in command
+    assert argv[1:3] == ["anchor", "run"]
+    assert argv[argv.index("--run-id") + 1] == "thinking"
+    assert argv[argv.index("--workspace") + 1] == str(tmp_path.resolve())
+    assert argv[argv.index("--config") + 1] == str((tmp_path / "opencode.json").resolve())
+    assert argv[argv.index("--linux-executable") + 1] == str(linux)
+    assert argv[argv.index("--wsl-distro") + 1] == "Ubuntu-22.04"
+    assert argv[argv.index("--supervisor") + 1] == "wsl-root-systemd"
+    assert argv[argv.index("--memory") + 1] == "4G"
+    assert argv[argv.index("--cpus") + 1] == "2"
+    assert argv[argv.index("--pids") + 1] == "256"
+    assert argv[argv.index("--timeout") + 1] == "900"
+    assert argv[argv.index("--model") + 1] == "anchor-kimi/kimi-for-coding"
+    assert argv[argv.index("--agent") + 1] == "anchor-distiller"
+    assert argv[argv.index("--variant") + 1] == "medium"
+    assert "--dir" not in argv
+    assert "--thinking" not in argv
+
+
+def test_anchor_export_reuses_the_run_sandbox_options(tmp_path):
+    executor = _attested_executor(tmp_path)
+    executor.sandbox_options = AnchorSandboxOptions(
+        linux_executable=(tmp_path / "opencode-linux").resolve(),
+        wsl_distro="Ubuntu-22.04",
+        supervisor="wsl-root-systemd",
+        memory="4G",
+        cpus="2",
+        pids=256,
+        timeout_seconds=900,
+    )
+
+    argv = executor._export_command(
+        sample_id="export/test",
+        session_id="ses_mock_1234",
+        workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
+    )
+
+    assert argv[1:3] == ["anchor", "export"]
+    assert argv[argv.index("--run-id") + 1] == "export-test"
+    assert argv[argv.index("--wsl-distro") + 1] == "Ubuntu-22.04"
+    assert argv[argv.index("--supervisor") + 1] == "wsl-root-systemd"
+    assert argv[argv.index("--memory") + 1] == "4G"
+    assert argv[argv.index("--session") + 1] == "ses_mock_1234"
+
+
+def test_anchor_run_id_is_normalized_before_cli_invocation(tmp_path):
+    argv = _attested_executor(tmp_path).command(
+        sample_id="plan/计算器:01",
+        prompt="No call",
+        workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
+    )
+
+    assert argv[argv.index("--run-id") + 1] == "plan-u8ba1u7b97u5668-01"
+    assert argv[argv.index("--title") + 1] == "anchor-distiller:plan-u8ba1u7b97u5668-01"
 
 
 def test_live_agent_config_rejects_any_initial_tool_force():
@@ -173,10 +270,13 @@ def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):
             return stdout, ""
 
     monkeypatch.setattr("anchor_mvp.tooling.runner.subprocess.Popen", lambda *a, **k: FakeProcess())
-    monkeypatch.setattr(
-        "anchor_mvp.tooling.runner.subprocess.run",
-        lambda *a, **k: SimpleNamespace(returncode=0, stdout=b"{}", stderr=b""),
-    )
+    calls: list[list[str]] = []
+
+    def fake_run(command, *args, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0, stdout=b"{}", stderr=b"")
+
+    monkeypatch.setattr("anchor_mvp.tooling.runner.subprocess.run", fake_run)
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     config = tmp_path / "run" / "opencode.json"
@@ -206,6 +306,7 @@ def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):
     assert captured is False
     assert code is not None
     assert not runtime_path.exists()
+    assert any(command[1:3] == ["anchor", "cleanup"] for command in calls)
     quarantine = (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8")
     assert "lifecycle" in quarantine
     assert "ses_mock_1234" not in quarantine

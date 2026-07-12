@@ -12,8 +12,15 @@ _IGNORED_DIRECTORIES = {".git", ".hg", ".svn", ".anchor"}
 
 
 def safe_sample_id(value: str) -> str:
-    cleaned = "".join(char if char.isalnum() or char in "-_" else "-" for char in value)
-    cleaned = cleaned.strip("-")
+    cleaned_parts: list[str] = []
+    for char in value:
+        if char.isascii() and (char.isalnum() or char in "-_"):
+            cleaned_parts.append(char)
+        elif char.isalnum():
+            cleaned_parts.append(f"u{ord(char):x}")
+        else:
+            cleaned_parts.append("-")
+    cleaned = "".join(cleaned_parts).strip("-_")
     if not cleaned:
         raise ValueError("sample_id must contain a letter or digit")
     return cleaned[:80]
@@ -54,6 +61,16 @@ class WorkspaceManager:
         workspace.mkdir()
         _copy_tree_no_links(source, workspace)
         return workspace
+
+    def cleanup(self, workspace: str | Path) -> None:
+        """Remove one generated task workspace, never an arbitrary directory."""
+
+        candidate = Path(workspace).resolve()
+        _assert_within(candidate, self.root)
+        if candidate.parent != self.root:
+            raise ValueError(f"workspace is not an immediate run child: {candidate}")
+        if candidate.exists():
+            shutil.rmtree(candidate)
 
 
 def _file_digest(path: Path) -> str:

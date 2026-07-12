@@ -341,8 +341,13 @@ def validate_curriculum(manifest_path: str | Path, repo_root: str | Path) -> dic
         raise CurriculumValidationError("curriculum schema_version mismatch")
     if manifest.get("status") != "candidate-not-training-data":
         raise CurriculumValidationError("curriculum must remain candidate-not-training-data")
-    if manifest.get("ramp") != [1, 2, 4, 8]:
-        raise CurriculumValidationError("curriculum ramp must be exactly 1 -> 2 -> 4 -> 8")
+    ramp = manifest.get("ramp")
+    if (
+        not isinstance(ramp, list)
+        or not ramp
+        or any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in ramp)
+    ):
+        raise CurriculumValidationError("curriculum ramp must contain positive integers")
     policy = manifest.get("heldout_policy")
     if not isinstance(policy, Mapping) or policy.get("training_access") != "forbidden":
         raise CurriculumValidationError("heldout policy must forbid training access")

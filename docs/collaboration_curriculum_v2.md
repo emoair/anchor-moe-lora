@@ -65,5 +65,6 @@ After an intentional fixture or task change, regenerate the mechanical hashes wi
 `scripts/data/build_collaboration_curriculum_manifest.py`, review the resulting manifest
 diff, then run validation again. Never regenerate hashes merely to silence unexpected drift.
 
-The distillation ramp is fixed at 1, 2, 4, then 8 accepted seeds. Each ramp gate must retain
-whole trajectories; partial stages and reviewer-only samples do not count as accepted seeds.
+The curriculum defaults to one accepted-seed stage. Operators may configure later positive
+stages, but each gate must retain whole trajectories; partial stages and reviewer-only
+samples do not count as accepted seeds.

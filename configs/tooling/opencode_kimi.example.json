@@ -1,11 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "kimi-code/kimi-for-coding",
-  "default_agent": "anchor-gold",
+  "model": "anchor-kimi/kimi-for-coding",
+  "default_agent": "anchor-distiller",
   "share": "disabled",
   "lsp": false,
   "provider": {
-    "kimi-code": {
+    "anchor-kimi": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Kimi Code (official OpenAI-compatible endpoint)",
       "options": {
@@ -24,7 +24,7 @@
             "output": 32768
           },
           "variants": {
-            "thinking": {
+            "medium": {
               "reasoningEffort": "medium"
             }
           }
@@ -55,7 +55,7 @@
     }
   },
   "agent": {
-    "anchor-gold": {
+    "anchor-distiller": {
       "description": "Isolated coding task with a fail-closed tool policy",
       "mode": "primary",
       "steps": 8,

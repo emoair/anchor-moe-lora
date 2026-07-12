@@ -36,7 +36,7 @@ CONFIG_SCHEMA = "anchor.distill-train-handoff.config.v1"
 STATUS_SCHEMA = "anchor.distill-train-handoff.status.v1"
 MANIFEST_SCHEMA = "anchor.training-handoff.v1"
 EXPERTS = ("planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate")
-RAMP = (1, 2, 4, 8)
+DEFAULT_EXECUTION_CONCURRENCY_STAGES = (1,)
 SAFE_HANDOFF_TRIGGERS = frozenset({"provider_quota_exhausted", "automation_complete"})
 _FORBIDDEN_SECRET_KEYS = frozenset(
     {"api_key", "apikey", "secret", "token", "password", "authorization"}
@@ -100,6 +100,14 @@ def _project_path(root: Path, value: object, label: str) -> Path:
     return resolved
 
 
+def _positive_integer_stages(value: object, *, label: str) -> tuple[int, ...]:
+    if not isinstance(value, (list, tuple)) or not value:
+        raise ValueError(f"{label} must be a non-empty list of positive integers")
+    if any(isinstance(item, bool) or not isinstance(item, int) or item < 1 for item in value):
+        raise ValueError(f"{label} must contain only positive integers")
+    return tuple(value)
+
+
 class HandoffConfig:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path).resolve()
@@ -119,10 +127,14 @@ class HandoffConfig:
         self.distillation = self._section("distillation")
         self.snapshot = self._section("snapshot")
         self.training = self._section("training")
-        max_concurrency = int(self.execution.get("max_concurrency", 8))
-        if max_concurrency not in RAMP:
-            raise ValueError("execution.max_concurrency must be one of 1,2,4,8")
-        self.ramp = tuple(value for value in RAMP if value <= max_concurrency)
+        if "max_concurrency" in self.execution:
+            raise ValueError(
+                "execution.max_concurrency is unsupported; use concurrency_stages instead"
+            )
+        self.ramp = _positive_integer_stages(
+            self.execution.get("concurrency_stages", DEFAULT_EXECUTION_CONCURRENCY_STAGES),
+            label="execution.concurrency_stages",
+        )
         if int(self.training.get("max_parallel_gpu_jobs", 1)) != 1:
             raise ValueError("training.max_parallel_gpu_jobs must be exactly 1")
         trigger = str(
@@ -669,6 +681,7 @@ def _run_opencode_stage(
             executable=str(batch.opencode_executable),
             extra_environment={credential_env: credential},
             session_capture=batch.controlled_capture(),
+            sandbox_options=batch.anchor_sandbox_options(),
         )
         with tempfile.TemporaryDirectory(
             prefix="handoff-opencode-probe-", dir=config.state_dir

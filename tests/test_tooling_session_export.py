@@ -245,6 +245,26 @@ def test_workspace_escape_in_tool_input_quarantines_capture(tmp_path: Path):
         convert_controlled_session(exported, _capture(), policy)
 
 
+def test_container_workspace_paths_are_normalized_without_allowing_escape(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    source = exported["messages"][1]["parts"][2]
+    source["state"]["input"]["filePath"] = "/workspace/src/status-list.js"
+    source["state"]["output"] = "/workspace/src/status-list.js\nexport const value = 1;"
+    exported["info"]["directory"] = "/workspace"
+    exported["info"]["summary"]["diffs"][0]["file"] = "/workspace/src/status-list.js"
+
+    candidate = convert_controlled_session(exported, _capture(), policy)
+
+    calls = [item for item in candidate["trajectory"] if item["type"] == "tool_call"]
+    assert calls[0]["input"]["filePath"] == "<workspace>/src/status-list.js"
+    assert candidate["final_diff"][0]["file"] == "<workspace>/src/status-list.js"
+
+    source["state"]["input"]["filePath"] = "/workspace/../outside.txt"
+    with pytest.raises(QuarantineError, match="workspace_escape"):
+        convert_controlled_session(exported, _capture(), policy)
+
+
 def test_heldout_text_in_public_output_quarantines_capture(tmp_path: Path):
     heldout = "Frozen cobalt acceptance phrase"
     policy, workspace = _policy(tmp_path, heldout=heldout)

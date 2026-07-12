@@ -4,8 +4,8 @@ This layer produces auditable tool-execution candidates. It is intentionally sep
 from ordinary text distillation and never stores private reasoning, raw OpenCode event
 streams, tool output, environment variables, or API keys.
 
-The custom Kimi provider defines a named `thinking` model variant with
-`reasoningEffort: medium`, and every OpenCode execution pins `--variant thinking`. OpenCode
+The custom Kimi provider defines a named `medium` model variant with
+`reasoningEffort: medium`, and every OpenCode execution pins `--variant medium`. OpenCode
 also declares the model as reasoning-capable with interleaved `reasoning_content`, so
 assistant tool-call messages retain Kimi's required protocol field on later turns. This
 field remains protocol state only: the CLI is never passed `--thinking`, reasoning
@@ -50,11 +50,10 @@ record fail even if the modified scripts report success. Fourteen earlier task i
 listed as deferred and are not loaded until each receives an independent fixture and
 frozen acceptance contract.
 
-The ramp shape remains 1, 2, 4, and 8, but only stage 1 can run with the current trusted
-pool. Requesting later stages fails preflight for insufficient audited candidates. The live
-CLI and batch runner default to **one stage only**; `--confirm-live` alone can never widen
-the run. A stage that misses its success gate stops the requested slice, and a single sample
-exception is reduced to a content-free failure record without cancelling siblings.
+The batch runner defaults to **one stage only**. Operators may configure additional stages
+as any positive-integer list, provided every requested stage has audited candidates. A
+stage that misses its success gate stops the requested slice, and a single sample exception
+is reduced to a content-free failure record without cancelling siblings.
 
 ## Attempt ledger and accepted gold
 
@@ -99,14 +98,14 @@ the difference between local timeout and service failure.
 Live tool distillation is fail-closed until the repository-local attested OpenCode binary
 exists at `artifacts/tooling/opencode-patched/opencode-anchor.exe`. The global `opencode`
 installation is never accepted as a fallback. Before checking API credentials or starting
-a session, the launcher runs the binary's local `debug agent anchor-gold --pure` command
+a session, the launcher runs the binary's local `debug agent anchor-distiller --pure` command
 with the key removed from the child environment. The resolved agent must not contain
 `requireInitialToolCall` at the top level or in provider options. Tool choice remains
 automatic; the model is never forced to call a tool merely to satisfy the transport.
 
 The reproducible patch is pinned to official OpenCode commit
 `b1fc8113948b518835c2a39ece49553cffe9b30c` in
-`patches/opencode/v1.17.18-require-initial-tool.patch`. Build it without touching the
+`patches/opencode/v1.17.18-anchor-distillation.patch`. Build it without touching the
 global installation:
 
 ```powershell
@@ -118,15 +117,15 @@ scripts/tooling/build_patched_opencode.ps1 `
   -NodeGypPath "$nodeGypRoot\node_modules\.bin\node-gyp.cmd"
 ```
 
-The script verifies the repository origin, exact commit and patch SHA-256, requires an
-explicit Bun 1.3.14 executable and an isolated node-gyp v13.0.1, runs the focused tests
-and typecheck, builds only the current Windows target, and copies the result into the
-ignored artifact directory. On Windows it follows upstream's hoisted Bun layout and
+The builders verify the repository origin, exact commit and patch SHA-256, require an
+explicit Bun 1.3.14 executable, run the focused tests and typecheck, and emit separate
+Windows x64 and Linux x64 artifacts plus a source-bound bundle manifest. On Windows the
+builder also uses isolated node-gyp v13.0.1, follows upstream's hoisted Bun layout, and
 uses a process-local FileTracker workaround; neither setting modifies the global
-installation. The artifact manifest names three upstream Windows baseline timeouts
+installation. The artifact manifest names four upstream Windows baseline timeouts
 excluded from the focused test command. A failure leaves the globally installed
-OpenCode unchanged. Until this build succeeds, only offline tests and dry preflight are
-supported; **do not add `--confirm-live`**.
+OpenCode unchanged. Exact dual-build commands and hashes are documented in
+[OpenCode dual-platform build](opencode_dual_build.md).
 
 The local binary still carries the historical opt-in patch for reproducibility, but the
 Anchor configuration deliberately leaves that option unset. The offline behavioral
@@ -134,6 +133,13 @@ probe rejects `tool_choice: required` on either request and verifies automatic c
 tool-result replay, and `reasoning_content` replay. Execution candidates enter gold only
 when their observed session, file diff, public outcome, and validators pass; rejection
 happens after observation rather than by constraining the model's first move.
+
+Live execution uses the patched `opencode anchor run/export/cleanup` command family, with
+one Podman job per copied fixture. This WSL 2 host uses root `systemd-run` for the outer
+cgroup and rootful Podman with its own cgroup handling disabled; native Linux defaults to
+direct rootless Podman. Its arguments, cleanup rule, operator
+resource settings, attribution, and explicit local-only security boundary are documented
+in [Anchor sandbox execution](anchor_sandbox_execution.md).
 
 The command below validates config, all Skill hashes/audits, the frozen held-out input
 inventory, candidate leakage, OpenCode availability, and key presence. It does not launch
@@ -144,8 +150,8 @@ py -3.10 scripts/tooling/run_live.py `
   --batch-config configs/tooling/opencode_distillation_ramp.yaml
 ```
 
-After reviewing the first-stage record, a deliberate two-stage live run would require
-both `--confirm-live` and `--max-stages 2`. Omitting `--max-stages` remains capped at one.
+After reviewing the first-stage record, an operator may request any configured stage count
+with both `--confirm-live` and `--max-stages N`. Omitting `--max-stages` remains one stage.
 
 Offline regression tests:
 

@@ -28,14 +28,14 @@ from a CLI option or config file and is passed only in the child environment. Op
 and teacher output is reduced to an exit code and hashes; it is not copied into the
 handoff log. The training child receives neither teacher credential.
 
-The order is fixed:
+The order is fail-closed:
 
 1. Run the patched OpenCode concurrency-1 execution gate.
 2. Convert only the configured controlled raw session export. The accepted gold record
    and session candidate must share a sample ID, and tool calls must have complete,
    matching tool results.
-3. Open the remaining audited stages in order: 2, 4, then 8 (or the configured prefix).
-   A failed stage stops the ramp.
+3. Open only the remaining operator-configured positive-integer stages. A failed stage
+   stops the requested sequence.
 4. Run the existing general teacher automation for its configured quota epoch.
 5. Only `provider_quota_exhausted` can trigger the default handoff. Temporary 429,
    cooldown, network/client deadline, 400/499, local request budget, and arbitrary

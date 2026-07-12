@@ -163,6 +163,7 @@ def test_automation_persists_explicit_provider_quota_terminal(tmp_path: Path) ->
     config = AutomationConfig(
         sop_dir=ROOT / "skills",
         output_dir=tmp_path / "output",
+        concurrency_stages=(1, 3, 7, 11),
         stage_seed_counts=(1, 2, 3, 4),
         quota_epoch_id="test-epoch",
     )
@@ -236,7 +237,7 @@ def test_offline_coordinator_freezes_handoff_without_api_or_training(tmp_path: P
                 "accepted_gold": str(gold.relative_to(ROOT)),
                 "session_candidates": str(sessions.relative_to(ROOT)),
                 "minimum_accepted_gold": 1,
-                "max_concurrency": 8,
+                "concurrency_stages": [1],
             },
             "distillation": {
                 "dry_run_terminal_state": "provider_quota_exhausted",
