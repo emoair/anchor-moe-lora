@@ -31,7 +31,7 @@
     "backend": {"type": "string"},
     "success": {"type": "boolean"},
     "workspace_id": {"type": "string"},
-    "max_iterations": {"type": "integer", "minimum": 1},
+    "max_iterations": {"type": ["integer", "null"], "minimum": 1},
     "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
     "agent_exit_code": {"type": "integer"},
     "timed_out": {"type": "boolean"},

@@ -18,6 +18,7 @@ from anchor_mvp.data.pipeline import (  # noqa: E402
     _ensure_frontend_public_trace,
     _normalize_frontend_payload,
 )
+from anchor_mvp.data.cleaning import validate_safe_payload  # noqa: E402
 from anchor_mvp.data.proposals import (  # noqa: E402
     deterministic_tool_policy_oracle,
     generate_inert_tool_proposals,
@@ -38,6 +39,14 @@ def _run(output: Path):
         concurrency=3,
     )
     return asyncio.run(pipeline.run(seed_count=4))
+
+
+def test_credential_like_teacher_payload_is_a_hard_reject() -> None:
+    with pytest.raises(ValueError, match="credential-like"):
+        validate_safe_payload(
+            "plan",
+            {"output": {"summary": "api_key=sk-do-not-write-this-value-123456"}},
+        )
 
 
 def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
@@ -82,6 +91,11 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
                 "APPROVE", "ESCALATE", "BLOCK", "APPROVE"
             ]
             assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
+            assert all(
+                record["provenance"]["teacher_observed_decision"]
+                in {"APPROVE", "BLOCK", "ESCALATE"}
+                for record in records
+            )
             assert all(
                 not any(
                     str(value).startswith(("http://", "https://"))
@@ -139,6 +153,10 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
             ]
             assert all(record["provenance"]["security_fixture"]["active_payload_present"] is False for record in records)
             assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
+            assert all(
+                record["provenance"]["teacher_observed_decision"] in {"PASS", "BLOCK"}
+                for record in records
+            )
             review_ids = {
                 json.loads(line)["id"]
                 for line in (tmp_path / "data_review.jsonl").read_text(encoding="utf-8").splitlines()

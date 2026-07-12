@@ -34,7 +34,7 @@ def _read_mapping(path: Path) -> dict[str, Any]:
         value = json.loads(text)
     except json.JSONDecodeError as json_error:
         try:
-            import yaml  # type: ignore[import-untyped]
+            import yaml
         except ImportError as exc:
             raise ConfigError(
                 f"{path} is not JSON-compatible YAML and PyYAML is unavailable: "

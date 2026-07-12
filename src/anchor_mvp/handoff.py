@@ -638,6 +638,7 @@ def _run_opencode_stage(
     """Run exactly one audited ramp stage using the existing batch implementation."""
 
     from .tooling import (
+        GoldRecord,
         LiveBatchConfig,
         OpenCodeExecutor,
         SkillSourceRegistry,
@@ -676,6 +677,17 @@ def _run_opencode_stage(
     )
     if batch.opencode_executable is None:
         raise ValueError("batch config requires a patched OpenCode executable")
+    attempts_output = batch.attempts_output
+    if attempts_output is None:
+        raise ValueError("batch config requires an attempts output")
+
+    def persist_stage(records: tuple[GoldRecord, ...]) -> None:
+        persist_attempts_and_gold(
+            records,
+            attempts_path=attempts_output,
+            gold_path=batch.gold_output,
+        )
+
     with _credential_free_parent_environment():
         executor = OpenCodeExecutor(
             executable=str(batch.opencode_executable),
@@ -699,11 +711,7 @@ def _run_opencode_stage(
             config=stage_config,
             executor=executor,
             max_stages=1,
-            on_stage=lambda records: persist_attempts_and_gold(
-                records,
-                attempts_path=batch.attempts_output,
-                gold_path=batch.gold_output,
-            ),
+            on_stage=persist_stage,
         )
     return {
         "passed": batch_run_succeeded(stages, 1),

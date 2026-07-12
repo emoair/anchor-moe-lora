@@ -10,6 +10,7 @@ from typing import Any, Iterable
 from .cleaning import (
     build_inert_security_fixture,
     contains_active_payload,
+    contains_secret_material,
     extract_frontend_payload,
     extract_json_object,
     sanitize_security_seed,
@@ -18,7 +19,15 @@ from .cleaning import (
 from .mutator import mutate_frontend_code
 from .prompts import seed_prompt, task_prompt, template_sha256
 from .proposals import deterministic_tool_policy_oracle, generate_inert_tool_proposals
-from .schema import DistilledRecord, SeedDemand, TASK_TYPES, TaskType, normalized_text, stable_id
+from .schema import (
+    DistilledRecord,
+    SeedDemand,
+    TASK_TYPES,
+    TaskType,
+    normalized_text,
+    stable_id,
+    validate_output,
+)
 from .sops import load_sop_directory
 from .storage import JsonlStore, SeedStore, completed_seed_ids
 from .teacher import ClientDeadlineExceeded, ProviderQuotaExhausted, RateLimitError, Teacher
@@ -136,6 +145,8 @@ class DistillationPipeline:
                 payload = extract_json_object(await self._complete(system=system, user=user))
                 if contains_active_payload(payload):
                     raise ValueError("seed contains active payload material")
+                if contains_secret_material(payload):
+                    raise ValueError("seed contains credential-like material")
                 return index, SeedDemand.from_mapping(payload)
 
             results = await asyncio.gather(*(create(index) for index in indices), return_exceptions=True)
@@ -288,6 +299,19 @@ class DistillationPipeline:
                 else:
                     payload = extract_json_object(raw_response)
                 if authoritative_output is not None:
+                    # The local oracle defines the training target, but a valid
+                    # teacher disagreement is still useful negative evidence.
+                    # Reject malformed/unsafe teacher structures before replacing
+                    # the target; never turn a corrupt response into apparent gold.
+                    observed_output = payload.get("output")
+                    if not isinstance(observed_output, dict):
+                        raise ValueError("teacher classification output must be an object")
+                    validate_output(task_type, observed_output)
+                    validate_safe_payload(task_type, payload)
+                    provenance_extra = dict(provenance_extra or {})
+                    provenance_extra["teacher_observed_decision"] = str(
+                        observed_output["decision"]
+                    )
                     payload["output"] = authoritative_output
                     decision = str(authoritative_output["decision"])
                     payload["decision_trace"] = [
@@ -299,11 +323,15 @@ class DistillationPipeline:
                     ]
                 if task_type == "frontend":
                     normalization = _normalize_frontend_payload(payload)
-                    provenance_extra["payload_normalization"] = normalization
+                    frontend_provenance: dict[str, object] = provenance_extra or {}
+                    frontend_provenance["payload_normalization"] = normalization
+                    provenance_extra = frontend_provenance
                 validate_safe_payload(task_type, payload)
                 if task_type == "frontend":
                     trace_source = _ensure_frontend_public_trace(payload)
-                    provenance_extra["decision_trace_source"] = trace_source
+                    frontend_provenance = provenance_extra or {}
+                    frontend_provenance["decision_trace_source"] = trace_source
+                    provenance_extra = frontend_provenance
                 if task_input is not None:
                     validate_safe_payload(
                         task_type,
@@ -359,7 +387,7 @@ class DistillationPipeline:
             provider_quota_exhausted=provider_quota_exhausted,
         )
 
-    def _upstream_record(self, task_type: TaskType, seed_id: str) -> dict[str, object]:
+    def _upstream_record(self, task_type: TaskType, seed_id: str) -> dict[str, Any]:
         store = JsonlStore(self.output_dir / f"data_{task_type}.jsonl")
         matches = [
             record

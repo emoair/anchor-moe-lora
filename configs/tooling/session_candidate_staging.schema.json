@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/session-candidate-staging-v1.json",
+  "title": "Safe collect-first OpenCode session staging record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_id",
+    "source",
+    "skill_provenance",
+    "trajectory",
+    "final_diff",
+    "validators",
+    "public_outcome",
+    "quality"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.session-candidate-staging.v1"},
+    "sample_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "source": {"type": "object"},
+    "skill_provenance": {"type": "array", "minItems": 1},
+    "trajectory": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {"enum": ["user_input", "assistant_output", "tool_call", "tool_result"]},
+          "status": {"enum": ["completed", "error", "rejected"]}
+        },
+        "required": ["type", "sequence"]
+      }
+    },
+    "final_diff": {"type": "array"},
+    "validators": {"type": "array"},
+    "public_outcome": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {"const": "anchor.public-outcome.v1"},
+            "status": {"enum": ["completed", "blocked", "partial"]}
+          },
+          "required": ["schema_version", "status"]
+        }
+      ]
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["labels", "strict_gold_eligible", "execution"],
+      "properties": {
+        "labels": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "strict_gold_eligible": {"type": "boolean"},
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["agent_exit_code", "timed_out", "rejected_events", "error_codes"],
+          "properties": {
+            "agent_exit_code": {"type": "integer"},
+            "timed_out": {"type": "boolean"},
+            "rejected_events": {"type": "integer", "minimum": 0},
+            "error_codes": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,9 @@
-# Unattended Kimi distillation. This file never contains credentials.
+# Operator opt-in only. Use only after the single-sample OpenCode live gate is
+# PASS. Soft model-quality failures are retained for the offline partitioner;
+# structural/safety/secret/held-out failures still stop immediately. This profile shares the
+# v3 output path deliberately: the automation status binding rejects mixing it
+# with the serialized profile in the same state directory.
+# Credentials remain process-environment only (KIMI_API_KEY).
 provider: kimi-code-anthropic
 protocol: anthropic
 base_url: https://api.kimi.com/coding/
@@ -11,30 +16,44 @@ anthropic_version: 2023-06-01
 user_agent: anchor-moe-lora/0.1
 
 sop_dir: skills
-output_dir: data/automated_v2
+output_dir: data/automated_v3
 heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
 heldout_fixtures_root: examples/benchmark/fixtures
 heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
 heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
-concurrency_stages: [1]
+
+# Explicitly selected speed profile for this local operator window. Do not
+# change this file in place after a state directory has been created.
+concurrency_stages: [10]
 stage_seed_counts: [128]
+collection_policy: collect_then_partition
 
 min_success_rate: 1.0
 max_duplicate_rate: 0.0
 max_safety_violations: 0
 max_failures: 200
 max_requests: 1200
-max_output_tokens_total: 20000000
-# Change this operator-controlled identifier only after the provider quota resets.
-# The previous epoch is archived while the durable failure ledger is retained.
-quota_epoch_id: kimi-2026-07-11-reset-1
+max_output_tokens_total: 40000000
+quota_epoch_id: kimi-full-v3-fast10-operator-1
 max_failure_retries: 2
 max_stagnant_gate_rounds: 5
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 40
+    ESCALATE: 40
+    BLOCK: 40
+  security:
+    PASS: 60
+    BLOCK: 60
+
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/automated_v3
+artifact_validation_timeout_seconds: 30
 
 timeout_seconds: 600
 wall_clock_deadline_seconds: 900
 max_retries: 1
-max_tokens: 16384
+max_tokens: 32768
 thinking_enabled: true
 thinking_effort: medium
 thinking_effort_seed: low
@@ -47,7 +66,5 @@ thinking_budget_tokens: 1024
 stream_openai: true
 stream_options_include_usage: false
 
-# Current run uses the operator-observed remaining window. A repeated limit response
-# persists another cooldown instead of busy-looping or discarding completed rows.
 cooldown_seconds: 7200
 cooldown_poll_seconds: 60

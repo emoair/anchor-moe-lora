@@ -1,3 +1,5 @@
+import pytest
+
 from anchor_mvp.tooling import ToolPolicy
 
 
@@ -19,3 +21,9 @@ def test_opencode_permissions_are_fail_closed():
     assert permission["websearch"] == "deny"
     assert permission["bash"]["*"] == "deny"
     assert permission["bash"]["npm run lint --if-present"] == "allow"
+
+
+@pytest.mark.parametrize("value", [0, -1, True, "8"])
+def test_optional_iteration_limit_accepts_only_positive_integers(value):
+    with pytest.raises(ValueError, match="positive integer"):
+        ToolPolicy(max_iterations=value)  # type: ignore[arg-type]

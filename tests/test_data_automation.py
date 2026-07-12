@@ -18,7 +18,11 @@ from anchor_mvp.data.automation import (  # noqa: E402
     chargeable_failure_count,
     evaluate_gate,
     evaluate_heldout_scale_gate,
+    main,
+    partition_collected_records,
 )
+from anchor_mvp.data.cli import _simple_config  # noqa: E402
+from anchor_mvp.data.pipeline import DistillationPipeline  # noqa: E402
 from anchor_mvp.data.teacher import (  # noqa: E402
     ClientDeadlineExceeded,
     MockTeacher,
@@ -96,6 +100,117 @@ def test_gate_detects_duplicates_and_training_schema_failure(tmp_path: Path) -> 
     assert gate["duplicate_count"] >= 1
     assert gate["duplicate_rate"] > 0
     assert gate["training_schema_ok"] is False
+
+
+def test_collect_first_does_not_retry_soft_quality_gate(tmp_path: Path) -> None:
+    settings = config(
+        tmp_path,
+        collection_policy="collect_then_partition",
+        minimum_label_counts={"tool_policy": {"BLOCK": 2}},
+        max_stagnant_gate_rounds=1,
+    )
+    status = asyncio.run(AutomationRunner(config=settings, teacher=MockTeacher()).run())
+
+    assert status["state"] == "complete"
+    assert status["stage_index"] == 1
+    assert status["partition"]["training_ready"] is False
+    assert status["partition"]["label_quota_errors"]
+    events = [
+        json.loads(line)["type"]
+        for line in settings.events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("stage_started") == 1
+    assert "gate_retry_scheduled" not in events
+    assert "collection_partitioned" in events
+
+
+def test_collect_first_partitions_partial_output_when_budget_closes(tmp_path: Path) -> None:
+    settings = config(
+        tmp_path,
+        collection_policy="collect_then_partition",
+        max_requests=1,
+        max_failures=20,
+    )
+    status = asyncio.run(AutomationRunner(config=settings, teacher=MockTeacher()).run())
+
+    assert status["state"] == "budget_exhausted"
+    assert status["partition"]["training_ready"] is False
+    assert settings.quality_staging_path.is_file()
+    assert (settings.partition_dir / "manifest.json").is_file()
+
+
+def test_offline_partition_retains_quality_negative_and_content_free_reject(
+    tmp_path: Path,
+) -> None:
+    settings = config(tmp_path, collection_policy="collect_then_partition")
+    _distill_for_gate(settings, seed_count=1)
+    frontend = settings.output_dir / "data_frontend.jsonl"
+    source = json.loads(frontend.read_text(encoding="utf-8").splitlines()[0])
+    duplicate = json.loads(json.dumps(source))
+    secret = json.loads(json.dumps(source))
+    secret["id"] = "secret-bearing-record"
+    secret["output"]["code"] += "\n// api_key=sk-example-secret-value-123456"
+    with frontend.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(duplicate, ensure_ascii=False) + "\n")
+        handle.write(json.dumps(secret, ensure_ascii=False) + "\n")
+    tool_policy = settings.output_dir / "data_tool_policy.jsonl"
+    tool_record = json.loads(tool_policy.read_text(encoding="utf-8").splitlines()[0])
+    authoritative = tool_record["output"]["decision"]
+    tool_record["provenance"]["teacher_observed_decision"] = (
+        "BLOCK" if authoritative != "BLOCK" else "APPROVE"
+    )
+    _write_jsonl(tool_policy, [tool_record])
+
+    manifest = partition_collected_records(settings, 1)
+
+    assert manifest["negative_count"] >= 3
+    assert manifest["reject_count"] == 1
+    negatives = settings.partition_dir / "negative.jsonl"
+    assert "duplicate_record_id" in negatives.read_text(encoding="utf-8")
+    assert "teacher_label_disagreement" in negatives.read_text(encoding="utf-8")
+    reject = (settings.partition_dir / "reject.jsonl").read_text(encoding="utf-8")
+    assert "secret_detected" in reject
+    assert "sk-example-secret-value-123456" not in reject
+    staging = settings.quality_staging_path.read_text(encoding="utf-8")
+    assert "sk-example-secret-value-123456" not in staging
+
+
+def test_failure_attempt_ledger_is_content_free(tmp_path: Path) -> None:
+    settings = config(tmp_path, max_failures=2)
+    runner = AutomationRunner(config=settings, teacher=MockTeacher())
+    error = "frontend:seed-1: DataValidationError: api_key=sk-do-not-store-123456"
+
+    runner._record_report_failures([error])
+    runner._append_failure_attempts([error])
+
+    retained = settings.attempts_path.read_text(encoding="utf-8")
+    assert "DataValidationError" in retained
+    assert "sk-do-not-store-123456" not in retained
+    assert "teacher_content_retained\": false" in retained
+
+
+def test_partition_only_cli_does_not_require_provider_credential(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from anchor_mvp.data import automation as module
+
+    config_path = tmp_path / "collect.yaml"
+    config_path.write_text(
+        f'sop_dir: "{(ROOT / "skills").as_posix()}"\n'
+        f'output_dir: "{tmp_path.as_posix()}"\n'
+        "concurrency_stages: [1]\n"
+        "stage_seed_counts: [1]\n"
+        "collection_policy: collect_then_partition\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.setattr(
+        module,
+        "partition_collected_records",
+        lambda unused: {"training_ready": True, "gold_count": 5},
+    )
+
+    assert main(["--config", str(config_path), "--partition-only"]) == 0
 
 
 class _RateLimitedTeacher:
@@ -197,6 +312,7 @@ def test_schema_v1_budget_exhaustion_migrates_without_erasing_history(tmp_path: 
     legacy = dict(template)
     legacy["schema_version"] = "1.0"
     legacy["state"] = "budget_exhausted"
+    legacy["stage_index"] = 3
     legacy["budgets"] = {
         "requests_used": 1200,
         "output_tokens_used": 456_000,
@@ -211,10 +327,13 @@ def test_schema_v1_budget_exhaustion_migrates_without_erasing_history(tmp_path: 
     settings.status_path.parent.mkdir(parents=True)
     settings.status_path.write_text(json.dumps(legacy), encoding="utf-8")
 
-    migrated = AutomationRunner(config=settings, teacher=MockTeacher()).status
+    runner = AutomationRunner(config=settings, teacher=MockTeacher())
+    migrated = runner.status
 
     assert migrated["schema_version"] == "2.0"
-    assert migrated["state"] == "running"
+    assert migrated["state"] == "ready"
+    assert migrated["stage_index"] == 0
+    assert migrated["stages"] == []
     assert migrated["quota_epoch"]["epoch_id"] == "reset-window-2"
     assert migrated["quota_epoch"]["requests_used"] == 0
     assert migrated["quota_epoch"]["failures_used"] == 0
@@ -222,6 +341,14 @@ def test_schema_v1_budget_exhaustion_migrates_without_erasing_history(tmp_path: 
     assert migrated["audit_ledger"]["requests_total"] == 1200
     assert migrated["audit_ledger"]["legacy_unkeyed_failures"] == 276
     assert migrated["migration_history"][0]["legacy_status"]["budgets"]["failures_used"] == 276
+    assert migrated["migration_history"][0]["resume_policy"] == "fresh_epoch_stage_zero"
+    assert migrated["migration_history"][0]["previous_stage_index"] == 3
+
+    # A one-stage v2 config must perform stage zero, not mistake the legacy
+    # stage index for a completed v2 ramp.
+    resumed = asyncio.run(runner.run())
+    assert resumed["state"] == "complete"
+    assert [stage["index"] for stage in resumed["stages"]] == [0]
 
 
 def test_new_quota_epoch_resets_window_but_retains_durable_failure_ledger(
@@ -286,6 +413,212 @@ def test_concurrency_stages_accept_any_positive_operator_values(tmp_path: Path) 
 
     with pytest.raises(ValueError, match="positive integers"):
         config(tmp_path, concurrency_stages=(1, 0), stage_seed_counts=(1, 2))
+
+
+@pytest.mark.parametrize(
+    ("config_name", "expected_stages", "expected_targets"),
+    [
+        ("automation.mock.yaml", (1,), (1,)),
+        ("automation.yaml", (1,), (128,)),
+        ("automation.full_v3.yaml", (1,), (128,)),
+        ("automation.full_v3.fast.yaml", (10,), (128,)),
+    ],
+)
+def test_canonical_stage_lists_load_and_legacy_scalar_remains_compatible(
+    config_name: str,
+    expected_stages: tuple[int, ...],
+    expected_targets: tuple[int, ...],
+) -> None:
+    raw = _simple_config(ROOT / "configs" / "data" / config_name)
+    assert raw["concurrency_stages"] == list(expected_stages)
+    assert raw["stage_seed_counts"] == list(expected_targets)
+    loaded = AutomationConfig.from_mapping(raw, repo_root=ROOT)
+    assert loaded.concurrency_stages == expected_stages
+    assert loaded.stage_seed_counts == expected_targets
+
+    legacy_scalar = AutomationConfig.from_mapping(
+        {
+            "sop_dir": "skills",
+            "output_dir": "data/legacy-scalar-test",
+            "concurrency_stages": 1,
+            "stage_seed_counts": 1,
+        },
+        repo_root=ROOT,
+    )
+    assert legacy_scalar.concurrency_stages == (1,)
+    assert legacy_scalar.stage_seed_counts == (1,)
+
+
+def test_full_v3_config_has_an_isolated_full_corpus_state_directory() -> None:
+    raw = _simple_config(ROOT / "configs" / "data" / "automation.full_v3.yaml")
+    loaded = AutomationConfig.from_mapping(raw, repo_root=ROOT)
+
+    assert loaded.output_dir == (ROOT / "data" / "automated_v3").resolve()
+    assert loaded.status_path == loaded.output_dir / "automation" / "status.json"
+    assert loaded.status_path != (ROOT / "data" / "automated_v2" / "automation" / "status.json")
+    assert loaded.concurrency_stages == (1,)
+    assert loaded.stage_seed_counts == (128,)
+    assert loaded.collection_policy == "collect_then_partition"
+    assert loaded.max_requests == 1200
+    assert loaded.minimum_label_counts == {
+        "tool_policy": {"APPROVE": 40, "ESCALATE": 40, "BLOCK": 40},
+        "security": {"PASS": 60, "BLOCK": 60},
+    }
+    assert loaded.artifact_validation_fixture == (
+        ROOT / "examples" / "data" / "fixtures" / "tsx-fragment"
+    ).resolve()
+
+
+def test_fast_v3_profile_is_opt_in_and_cannot_mix_state_with_serial_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    serial_raw = _simple_config(ROOT / "configs" / "data" / "automation.full_v3.yaml")
+    fast_raw = _simple_config(ROOT / "configs" / "data" / "automation.full_v3.fast.yaml")
+    serial = AutomationConfig.from_mapping(serial_raw, repo_root=ROOT)
+    fast = AutomationConfig.from_mapping(fast_raw, repo_root=ROOT)
+
+    assert serial.output_dir == fast.output_dir
+    assert serial.concurrency_stages == (1,)
+    assert fast.concurrency_stages == (10,)
+    assert serial.stage_seed_counts == fast.stage_seed_counts == (128,)
+    assert serial.collection_policy == fast.collection_policy == "collect_then_partition"
+    assert serial.minimum_label_counts == fast.minimum_label_counts
+    assert serial.status_binding_sha256 != fast.status_binding_sha256
+    assert serial.quota_epoch_id != fast.quota_epoch_id
+
+    # The checked-in fast profile loads through the read-only operator status
+    # command without constructing a teacher or mutating output/state.
+    status_path = fast.status_path
+    before = status_path.read_bytes() if status_path.exists() else None
+    assert main(["--config", str(ROOT / "configs" / "data" / "automation.full_v3.fast.yaml"), "--status-only"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert "state" in payload
+    after = status_path.read_bytes() if status_path.exists() else None
+    assert after == before
+
+    # A state created by one ramp profile cannot be reopened with the other,
+    # even when the operator chooses a different quota epoch.
+    shared_output = tmp_path / "shared-output"
+    serialized = config(
+        shared_output,
+        quota_epoch_id="serialized-window",
+        concurrency_stages=(1,),
+        stage_seed_counts=(1,),
+    )
+    serialized_runner = AutomationRunner(config=serialized, teacher=MockTeacher())
+    serialized_runner._save_status()
+    fast_settings = config(
+        shared_output,
+        quota_epoch_id="fast-window",
+        concurrency_stages=(10,),
+        stage_seed_counts=(1,),
+    )
+    with pytest.raises(ValueError, match="config binding mismatch"):
+        AutomationRunner(config=fast_settings, teacher=MockTeacher())
+
+
+def _distill_for_gate(settings: AutomationConfig, *, seed_count: int) -> None:
+    report = asyncio.run(
+        DistillationPipeline(
+            teacher=MockTeacher(),
+            sop_dir=settings.sop_dir,
+            output_dir=settings.output_dir,
+        ).run(seed_count=seed_count)
+    )
+    assert report.errors == ()
+
+
+def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
+    path.write_text(
+        "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records),
+        encoding="utf-8",
+    )
+
+
+def test_quality_gate_requires_current_oracles_and_isolated_artifact_builds(tmp_path: Path) -> None:
+    settings = config(
+        tmp_path,
+        stage_seed_counts=(4,),
+        minimum_label_counts={
+            "tool_policy": {"APPROVE": 1, "ESCALATE": 1, "BLOCK": 1},
+            "security": {"PASS": 1, "BLOCK": 1},
+        },
+        artifact_validation_fixture=ROOT / "examples" / "data" / "fixtures" / "tsx-fragment",
+        artifact_validation_workspace_root=tmp_path / "artifact-workspaces",
+        artifact_validation_timeout_seconds=15,
+    )
+    _distill_for_gate(settings, seed_count=4)
+
+    gate = evaluate_gate(settings, 4)
+    assert gate["passed"] is True
+    assert gate["deterministic_oracle_ok"] is True
+    assert gate["label_counts"] == {
+        "tool_policy": {"APPROVE": 2, "ESCALATE": 1, "BLOCK": 1},
+        "security": {"PASS": 2, "BLOCK": 2},
+    }
+    assert gate["artifact_validation"]["passed"] is True
+    assert gate["artifact_validation"]["checked"] == {"frontend": 4, "review": 4}
+
+    tool_path = tmp_path / "data_tool_policy.jsonl"
+    tool_records = [json.loads(line) for line in tool_path.read_text(encoding="utf-8").splitlines()]
+    tool_records[0]["provenance"].pop("label_oracle")
+    _write_jsonl(tool_path, tool_records)
+    security_path = tmp_path / "data_security.jsonl"
+    security_records = [
+        json.loads(line) for line in security_path.read_text(encoding="utf-8").splitlines()
+    ]
+    security_records[0]["provenance"].pop("security_fixture")
+    _write_jsonl(security_path, security_records)
+
+    rejected = evaluate_gate(settings, 4)
+    assert rejected["passed"] is False
+    assert rejected["deterministic_oracle_ok"] is False
+    assert any(error.startswith("tool_policy:") for error in rejected["oracle_errors"])
+    assert any(error.startswith("security:") for error in rejected["oracle_errors"])
+
+
+def test_quality_gate_fails_closed_for_missing_label_quota_and_review_regression(
+    tmp_path: Path,
+) -> None:
+    quota_settings = config(
+        tmp_path / "quota",
+        minimum_label_counts={
+            "tool_policy": {"APPROVE": 1, "ESCALATE": 1, "BLOCK": 1},
+            "security": {"PASS": 1, "BLOCK": 1},
+        },
+    )
+    _distill_for_gate(quota_settings, seed_count=1)
+    quota_gate = evaluate_gate(quota_settings, 1)
+    assert quota_gate["passed"] is False
+    assert quota_gate["deterministic_oracle_ok"] is True
+    assert quota_gate["label_quota_ok"] is False
+    assert {error.split(":", 2)[1] for error in quota_gate["label_quota_errors"]} == {
+        "ESCALATE",
+        "BLOCK",
+    }
+
+    settings = config(
+        tmp_path / "execution",
+        stage_seed_counts=(4,),
+        artifact_validation_fixture=ROOT / "examples" / "data" / "fixtures" / "tsx-fragment",
+        artifact_validation_workspace_root=tmp_path / "execution-workspaces",
+        artifact_validation_timeout_seconds=15,
+    )
+    _distill_for_gate(settings, seed_count=4)
+    review_path = settings.output_dir / "data_review.jsonl"
+    review_records = [
+        json.loads(line) for line in review_path.read_text(encoding="utf-8").splitlines()
+    ]
+    review_records[0]["output"]["code"] = review_records[0]["input"]["candidate_code"]
+    _write_jsonl(review_path, review_records)
+
+    rejected = evaluate_gate(settings, 4)
+    assert rejected["passed"] is False
+    assert rejected["artifact_validation"]["passed"] is False
+    assert any(
+        "repair_does_not_restore_frontend_source" in error
+        for error in rejected["artifact_validation"]["errors"]
+    )
 
 
 def _heldout_paths() -> dict[str, Path]:

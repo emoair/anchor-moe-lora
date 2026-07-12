@@ -28,7 +28,7 @@ training = [
   "trl>=1.0",
 ]
 download = ["huggingface-hub>=0.16"]
-dev = ["pytest>=8", "ruff>=0.14"]
+dev = ["pytest>=8", "ruff>=0.14", "types-PyYAML>=6.0"]
 
 [project.scripts]
 anchor-data = "anchor_mvp.data.cli:main"

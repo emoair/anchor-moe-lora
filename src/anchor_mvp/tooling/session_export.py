@@ -24,6 +24,7 @@ from .tool_contract import (
 
 
 CANDIDATE_SCHEMA_VERSION = "anchor.session-training-candidate.v1"
+STAGING_SCHEMA_VERSION = "anchor.session-candidate-staging.v1"
 CAPTURE_SCHEMA_VERSION = "anchor.controlled-session-capture.v1"
 QUARANTINE_SCHEMA_VERSION = "anchor.session-quarantine.v1"
 ALLOWED_TOOLS = EXECUTION_TOOLS
@@ -32,6 +33,18 @@ ALLOWED_BASH_COMMANDS = ALLOWED_NPM_COMMANDS
 PATH_KEYS = frozenset({"path", "file", "filepath", "file_path", "cwd", "directory"})
 FORBIDDEN_KEYS = frozenset(
     {"env", "environment", "reasoning", "thinking", "chain_of_thought", "chain-of-thought"}
+)
+SECRET_FIELD_KEYS = frozenset(
+    {
+        "api_key",
+        "apikey",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "password",
+        "secret_key",
+        "private_key",
+    }
 )
 CAPTURE_KEYS = frozenset(
     {
@@ -43,6 +56,8 @@ CAPTURE_KEYS = frozenset(
         "validators",
         "public_outcome",
         "final_diff",
+        "skill_provenance",
+        "quality",
     }
 )
 SECRET_PATTERNS = (
@@ -205,19 +220,39 @@ class _SafetyGate:
             return
         if isinstance(value, Mapping):
             for raw_key, item in value.items():
-                if str(raw_key).casefold() in {"env", "environment"}:
+                key = str(raw_key).casefold()
+                if key in {"env", "environment"}:
                     raise QuarantineError("forbidden_environment_field")
+                if key in SECRET_FIELD_KEYS:
+                    raise QuarantineError("secret_field_detected")
                 self.raw_sensitive_scan(item)
             return
         raise QuarantineError("raw_export_unsupported_value")
 
-    def value(self, value: object, *, label: str) -> object:
+    def value(
+        self,
+        value: object,
+        *,
+        label: str,
+        check_hidden_reasoning: bool = True,
+    ) -> object:
         if isinstance(value, str):
-            return self.text(value, label=label)
+            return self.text(
+                value,
+                label=label,
+                check_hidden_reasoning=check_hidden_reasoning,
+            )
         if value is None or isinstance(value, (bool, int, float)):
             return value
         if isinstance(value, list):
-            return [self.value(item, label=label) for item in value]
+            return [
+                self.value(
+                    item,
+                    label=label,
+                    check_hidden_reasoning=check_hidden_reasoning,
+                )
+                for item in value
+            ]
         if isinstance(value, Mapping):
             result: dict[str, object] = {}
             for raw_key, item in value.items():
@@ -227,7 +262,11 @@ class _SafetyGate:
                 if key.casefold() in PATH_KEYS:
                     result[key] = self.path(item, label=label)
                 else:
-                    result[key] = self.value(item, label=label)
+                    result[key] = self.value(
+                        item,
+                        label=label,
+                        check_hidden_reasoning=check_hidden_reasoning,
+                    )
             return result
         raise QuarantineError(f"{label}_unsupported_value")
 
@@ -300,7 +339,9 @@ def _message_role(message: Mapping[str, Any]) -> str:
     return role
 
 
-def _text_parts(message: Mapping[str, Any], gate: _SafetyGate) -> list[str]:
+def _text_parts(
+    message: Mapping[str, Any], gate: _SafetyGate, *, role: str
+) -> list[str]:
     parts = message.get("parts")
     if not isinstance(parts, list):
         raise QuarantineError("message_parts_missing")
@@ -309,7 +350,18 @@ def _text_parts(message: Mapping[str, Any], gate: _SafetyGate) -> list[str]:
         item = _as_mapping(part, code="part_not_object")
         if item.get("type") != "text" or item.get("ignored") is True:
             continue
-        result.append(gate.text(item.get("text"), label="message_text"))
+        # The audited user prompt legitimately states that private
+        # chain-of-thought must not be revealed.  That instruction is input,
+        # not leaked model reasoning.  Assistant-visible text remains subject
+        # to the hidden-reasoning marker gate, while official reasoning parts
+        # are dropped separately below.
+        result.append(
+            gate.text(
+                item.get("text"),
+                label="message_text",
+                check_hidden_reasoning=role == "assistant",
+            )
+        )
     return result
 
 
@@ -374,7 +426,7 @@ def _trajectory(messages: Sequence[object], gate: _SafetyGate) -> list[dict[str,
     for raw_message in messages:
         message = _as_mapping(raw_message, code="message_not_object")
         role = _message_role(message)
-        for text in _text_parts(message, gate):
+        for text in _text_parts(message, gate, role=role):
             sequence += 1
             trajectory.append(
                 {
@@ -442,6 +494,47 @@ def _validators(value: object, gate: _SafetyGate) -> list[dict[str, object]]:
     return result
 
 
+def _staging_validators(
+    value: object, gate: _SafetyGate, labels: set[str]
+) -> list[dict[str, object]]:
+    """Retain complete safe validator output; classify quality after collection."""
+
+    if not isinstance(value, list):
+        raise QuarantineError("validators_not_array")
+    result: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for raw in value:
+        item = _as_mapping(raw, code="validator_not_object")
+        name = str(item.get("name", ""))
+        if name not in ALLOWED_VALIDATORS or name in seen:
+            raise QuarantineError("validator_invalid")
+        seen.add(name)
+        status = str(item.get("status", ""))
+        if status not in {"PASS", "FAIL", "SKIP", "TIMEOUT"}:
+            raise QuarantineError("validator_status_invalid")
+        exit_code = item.get("exit_code")
+        if exit_code is not None and (isinstance(exit_code, bool) or not isinstance(exit_code, int)):
+            raise QuarantineError("validator_exit_code_invalid")
+        command = gate.text(item.get("command"), label="validator_command")
+        if normalized_command(command) not in ALLOWED_VALIDATOR_COMMANDS:
+            labels.add("validator_command_not_allowed")
+        if status != "PASS" or exit_code != 0:
+            labels.add("validator_failed")
+        result.append(
+            {
+                "name": name,
+                "status": status,
+                "exit_code": exit_code,
+                "command": command,
+                "stdout": gate.text(item.get("stdout", ""), label="validator_stdout"),
+                "stderr": gate.text(item.get("stderr", ""), label="validator_stderr"),
+            }
+        )
+    if seen != ALLOWED_VALIDATORS:
+        labels.add("validators_incomplete")
+    return result
+
+
 def _public_outcome(value: object, gate: _SafetyGate) -> dict[str, object]:
     item = _as_mapping(value, code="public_outcome_missing")
     if item.get("schema_version") != "anchor.public-outcome.v1" or item.get("status") != "completed":
@@ -455,6 +548,35 @@ def _public_outcome(value: object, gate: _SafetyGate) -> dict[str, object]:
     }
     normalized = gate.value(allowed, label="public_outcome")
     assert isinstance(normalized, dict)
+    return normalized
+
+
+def _staging_public_outcome(
+    value: object, gate: _SafetyGate, labels: set[str]
+) -> dict[str, object] | None:
+    if value is None:
+        labels.add("public_outcome_missing")
+        return None
+    item = _as_mapping(value, code="public_outcome_not_object")
+    status = str(item.get("status", ""))
+    if item.get("schema_version") != "anchor.public-outcome.v1" or status not in {
+        "completed",
+        "blocked",
+        "partial",
+    }:
+        labels.add("public_outcome_missing")
+        return None
+    allowed = {
+        "schema_version": item["schema_version"],
+        "status": status,
+        "decision_trace": item.get("decision_trace", []),
+        "repair_summaries": item.get("repair_summaries", []),
+        "final_summary": item.get("final_summary", ""),
+    }
+    normalized = gate.value(allowed, label="public_outcome")
+    assert isinstance(normalized, dict)
+    if status != "completed":
+        labels.add(f"task_{status}")
     return normalized
 
 
@@ -486,6 +608,180 @@ def _final_diff(value: object, gate: _SafetyGate) -> list[dict[str, object]]:
             }
         )
     return result
+
+
+def _staging_final_diff(
+    value: object, gate: _SafetyGate, labels: set[str]
+) -> list[dict[str, object]]:
+    if value is None or value == []:
+        labels.add("final_diff_missing")
+        return []
+    return _final_diff(value, gate)
+
+
+def _staging_trajectory(
+    messages: Sequence[object], gate: _SafetyGate, labels: set[str]
+) -> list[dict[str, object]]:
+    """Retain safe complete call/result pairs even when a tool reports an error."""
+
+    trajectory: list[dict[str, object]] = []
+    call_index = 0
+    sequence = 0
+    for raw_message in messages:
+        message = _as_mapping(raw_message, code="message_not_object")
+        role = _message_role(message)
+        for text in _text_parts(message, gate, role=role):
+            sequence += 1
+            trajectory.append(
+                {
+                    "type": "user_input" if role == "user" else "assistant_output",
+                    "sequence": sequence,
+                    "content": text,
+                }
+            )
+        parts = message.get("parts")
+        assert isinstance(parts, list)
+        if role != "assistant":
+            continue
+        for raw_part in parts:
+            part = _as_mapping(raw_part, code="part_not_object")
+            if part.get("type") == "reasoning":
+                continue
+            if part.get("type") != "tool":
+                continue
+            tool = gate.text(part.get("tool", ""), label="tool_name")
+            state = _as_mapping(part.get("state"), code="tool_state_missing")
+            status = str(state.get("status", ""))
+            if status not in {"completed", "error", "rejected"}:
+                raise QuarantineError("tool_state_incomplete")
+            raw_input = _as_mapping(state.get("input"), code="tool_input_missing")
+            tool_input = gate.value(raw_input, label=f"{tool or 'tool'}_input")
+            assert isinstance(tool_input, dict)
+            if tool not in ALLOWED_TOOLS:
+                labels.add("tool_not_allowed")
+            elif tool in PATH_REQUIRED_TOOLS and not any(
+                key.casefold() in PATH_KEYS for key in raw_input
+            ):
+                labels.add("tool_path_missing")
+            if tool == "bash":
+                command = tool_input.get("command")
+                if not isinstance(command, str) or normalized_command(command) not in ALLOWED_BASH_COMMANDS:
+                    labels.add("bash_command_not_allowed")
+            if tool in SEARCH_TOOLS:
+                try:
+                    validate_search_input(tool, raw_input)
+                except ValueError:
+                    labels.add("search_input_not_allowed")
+            if status == "completed":
+                raw_result = state.get("output")
+            elif status == "error":
+                raw_result = state.get("error")
+            else:
+                raw_result = state.get(
+                    "error",
+                    state.get("message", state.get("output", "tool call rejected by policy")),
+                )
+            result = gate.text(raw_result, label=f"{tool or 'tool'}_result")
+            call_index += 1
+            sequence += 1
+            call_id = f"call_{call_index:04d}"
+            trajectory.append(
+                {
+                    "type": "tool_call",
+                    "sequence": sequence,
+                    "call_id": call_id,
+                    "tool": tool,
+                    "input": tool_input,
+                }
+            )
+            sequence += 1
+            trajectory.append(
+                {
+                    "type": "tool_result",
+                    "sequence": sequence,
+                    "call_id": call_id,
+                    "tool": tool,
+                    "status": status,
+                    "content": result,
+                }
+            )
+            if status == "error":
+                labels.add("tool_error")
+            elif status == "rejected":
+                labels.add("tool_rejected")
+    if not any(item["type"] == "user_input" for item in trajectory):
+        raise QuarantineError("user_input_missing")
+    if not any(item["type"] == "assistant_output" for item in trajectory):
+        raise QuarantineError("assistant_output_missing")
+    if not any(item["type"] == "tool_call" for item in trajectory):
+        labels.add("tool_calls_missing")
+    return trajectory
+
+
+def _skill_provenance(value: object, gate: _SafetyGate) -> list[dict[str, object]]:
+    if not isinstance(value, list) or not value:
+        raise QuarantineError("skill_provenance_missing")
+    required = {
+        "source_id",
+        "repository",
+        "commit",
+        "license",
+        "license_sha256",
+        "bundle_sha256",
+        "instruction_audit_sha256",
+    }
+    result: list[dict[str, object]] = []
+    for raw in value:
+        item = _as_mapping(raw, code="skill_provenance_not_object")
+        if set(item) != required:
+            raise QuarantineError("skill_provenance_fields_invalid")
+        normalized = gate.value(item, label="skill_provenance")
+        assert isinstance(normalized, dict)
+        if not str(normalized["repository"]).startswith("https://"):
+            raise QuarantineError("skill_repository_invalid")
+        if not re.fullmatch(r"[0-9a-f]{40}", str(normalized["commit"])):
+            raise QuarantineError("skill_commit_invalid")
+        for name in ("license_sha256", "bundle_sha256", "instruction_audit_sha256"):
+            if not re.fullmatch(r"[0-9a-f]{64}", str(normalized[name])):
+                raise QuarantineError("skill_hash_invalid")
+        result.append(normalized)
+    return result
+
+
+def _capture_quality(value: object, gate: _SafetyGate, labels: set[str]) -> dict[str, object]:
+    item = _as_mapping(value, code="capture_quality_missing")
+    allowed = {"agent_exit_code", "timed_out", "rejected_events", "error_codes"}
+    if set(item) != allowed:
+        raise QuarantineError("capture_quality_fields_invalid")
+    exit_code = item.get("agent_exit_code")
+    rejected = item.get("rejected_events")
+    timed_out = item.get("timed_out")
+    errors = item.get("error_codes")
+    if (
+        isinstance(exit_code, bool)
+        or not isinstance(exit_code, int)
+        or not isinstance(timed_out, bool)
+        or isinstance(rejected, bool)
+        or not isinstance(rejected, int)
+        or rejected < 0
+        or not isinstance(errors, list)
+        or any(not isinstance(code, str) or not code for code in errors)
+    ):
+        raise QuarantineError("capture_quality_invalid")
+    normalized_errors = [gate.text(code, label="capture_error_code") for code in errors]
+    if exit_code != 0:
+        labels.add("agent_exit_nonzero")
+    if timed_out:
+        labels.add("task_timed_out")
+    if rejected:
+        labels.add("tool_rejected")
+    labels.update(normalized_errors)
+    return {
+        "agent_exit_code": exit_code,
+        "timed_out": timed_out,
+        "rejected_events": rejected,
+        "error_codes": normalized_errors,
+    }
 
 
 def convert_controlled_session(
@@ -522,7 +818,7 @@ def convert_controlled_session(
     opencode_version = gate.text(capture.get("opencode_version"), label="opencode_version")
     if not re.fullmatch(r"\d+\.\d+\.\d+", opencode_version):
         raise QuarantineError("opencode_version_invalid")
-    candidate = {
+    candidate: dict[str, object] = {
         "schema_version": CANDIDATE_SCHEMA_VERSION,
         "sample_id": sample_id,
         "source": {
@@ -536,6 +832,83 @@ def convert_controlled_session(
         "final_diff": _final_diff(diff_source, gate),
         "validators": _validators(capture.get("validators"), gate),
         "public_outcome": _public_outcome(capture.get("public_outcome"), gate),
+    }
+    if capture.get("skill_provenance") is not None:
+        candidate["skill_provenance"] = _skill_provenance(
+            capture.get("skill_provenance"), gate
+        )
+    if len(_json_bytes(candidate)) > policy.max_record_bytes:
+        raise QuarantineError("record_size_limit")
+    return candidate
+
+
+def convert_controlled_session_staging(
+    export_data: Mapping[str, Any],
+    capture: Mapping[str, Any],
+    policy: SessionConversionPolicy,
+) -> dict[str, object]:
+    """Collect a structurally complete, safe session before offline quality filtering.
+
+    Tool errors, blocked/partial task outcomes, validation failures, policy rejections,
+    and non-zero exits are retained as labels. Secrets, held-out leakage, unsafe paths,
+    malformed structures, and hidden reasoning in retained public text still fail closed.
+    """
+
+    if capture.get("schema_version") != CAPTURE_SCHEMA_VERSION:
+        raise QuarantineError("capture_schema_invalid")
+    if set(capture).difference(CAPTURE_KEYS):
+        raise QuarantineError("capture_unknown_field")
+    if capture.get("source") != "opencode-export-controlled-fixture":
+        raise QuarantineError("capture_source_untrusted")
+    info = _as_mapping(export_data.get("info"), code="session_info_missing")
+    messages = export_data.get("messages")
+    if not isinstance(messages, list):
+        raise QuarantineError("session_messages_missing")
+    if str(capture.get("session_id", "")) != str(info.get("id", "")):
+        raise QuarantineError("capture_session_mismatch")
+    gate = _SafetyGate(policy)
+    gate.raw_sensitive_scan(export_data)
+    gate.raw_sensitive_scan(capture)
+    if gate.path(info.get("directory"), label="session_directory") != "<workspace>":
+        raise QuarantineError("capture_workspace_mismatch")
+    sample_id = gate.text(capture.get("sample_id"), label="sample_id")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", sample_id):
+        raise QuarantineError("sample_id_invalid")
+    opencode_version = gate.text(capture.get("opencode_version"), label="opencode_version")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", opencode_version):
+        raise QuarantineError("opencode_version_invalid")
+
+    labels: set[str] = set()
+    trajectory = _staging_trajectory(messages, gate, labels)
+    summary = info.get("summary")
+    summary_diffs = summary.get("diffs") if isinstance(summary, Mapping) else None
+    diff_source = capture.get("final_diff", summary_diffs)
+    validators = _staging_validators(capture.get("validators"), gate, labels)
+    public_outcome = _staging_public_outcome(capture.get("public_outcome"), gate, labels)
+    final_diff = _staging_final_diff(diff_source, gate, labels)
+    provenance = _skill_provenance(capture.get("skill_provenance"), gate)
+    execution = _capture_quality(capture.get("quality"), gate, labels)
+
+    candidate: dict[str, object] = {
+        "schema_version": STAGING_SCHEMA_VERSION,
+        "sample_id": sample_id,
+        "source": {
+            "kind": "controlled-opencode-export",
+            "opencode_version": opencode_version,
+            "source_sha256": _sha256_bytes(_json_bytes(export_data)),
+            "workspace": "<workspace>",
+            "tool_contract": contract_descriptor(),
+        },
+        "skill_provenance": provenance,
+        "trajectory": trajectory,
+        "final_diff": final_diff,
+        "validators": validators,
+        "public_outcome": public_outcome,
+        "quality": {
+            "labels": sorted(labels),
+            "strict_gold_eligible": not labels,
+            "execution": execution,
+        },
     }
     if len(_json_bytes(candidate)) > policy.max_record_bytes:
         raise QuarantineError("record_size_limit")

@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import time
 
-from .models import ToolTraceEntry, ValidationResult
+from .models import ToolTraceEntry, ValidationResult, ValidationStatus
 from .policy import ToolPolicy
 from .trace import digest_text
 
@@ -95,7 +95,7 @@ def _run_validations(
             output = "npm executable not found"
         duration_ms = (time.perf_counter() - started) * 1000
         output_hash = digest_text(output)
-        status = "TIMEOUT" if timed_out else "PASS" if exit_code == 0 else "FAIL"
+        status: ValidationStatus = "TIMEOUT" if timed_out else "PASS" if exit_code == 0 else "FAIL"
         results.append(
             ValidationResult(
                 name=name,

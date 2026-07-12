@@ -10,7 +10,10 @@
       "name": "Kimi Code (official OpenAI-compatible endpoint)",
       "options": {
         "baseURL": "https://api.kimi.com/coding/v1",
-        "apiKey": "{env:KIMI_CODE_API_KEY}"
+        "apiKey": "{env:KIMI_CODE_API_KEY}",
+        "includeUsage": false,
+        "headerTimeout": 30000,
+        "chunkTimeout": 60000
       },
       "models": {
         "kimi-for-coding": {
@@ -58,7 +61,6 @@
     "anchor-distiller": {
       "description": "Isolated coding task with a fail-closed tool policy",
       "mode": "primary",
-      "steps": 8,
       "permission": {
         "*": "deny",
         "read": "allow",

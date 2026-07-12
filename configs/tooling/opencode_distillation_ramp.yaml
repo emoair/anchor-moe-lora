@@ -7,6 +7,7 @@ workspace_root: runs/tooling-live
 gold_output: artifacts/tooling/live_gold.accepted.jsonl
 attempts_output: artifacts/tooling/live_attempts.jsonl
 session_candidates: artifacts/tooling/session_candidates.jsonl
+session_staging: artifacts/tooling/session_staging.raw.jsonl
 session_quarantine: artifacts/tooling/session_quarantine.jsonl
 heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
 heldout_fixtures_root: examples/benchmark/fixtures
@@ -28,5 +29,5 @@ anchor_sandbox:
 # Temporary copied fixtures are removed after controlled capture. Set true only for local debugging.
 retain_workspace: false
 minimum_stage_success_rate: 0.8
-max_iterations: 8
+# No max_iterations field: formal distillation is bounded by wall-clock timeout, not agent steps.
 timeout_seconds: 900

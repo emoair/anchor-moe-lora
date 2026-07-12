@@ -6,6 +6,7 @@ import shutil
 import uuid
 
 from .models import FileChange
+from typing import Literal
 
 
 _IGNORED_DIRECTORIES = {".git", ".hg", ".svn", ".anchor"}
@@ -102,6 +103,12 @@ def diff_snapshots(before: dict[str, str], after: dict[str, str]) -> tuple[FileC
         after_hash = after.get(path)
         if before_hash == after_hash:
             continue
-        operation = "added" if before_hash is None else "deleted" if after_hash is None else "modified"
+        operation: Literal["added", "modified", "deleted"] = (
+            "added"
+            if before_hash is None
+            else "deleted"
+            if after_hash is None
+            else "modified"
+        )
         changes.append(FileChange(path, operation, before_hash, after_hash))
     return tuple(changes)

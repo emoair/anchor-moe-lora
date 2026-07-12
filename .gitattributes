@@ -1,0 +1,2 @@
+# Unified-diff context represents a blank line as one leading space; do not flag that syntax as file whitespace.
+patches/opencode/*.patch whitespace=-trailing

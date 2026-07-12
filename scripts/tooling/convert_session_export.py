@@ -14,6 +14,7 @@ from anchor_mvp.tooling.session_export import (  # noqa: E402
     SessionConversionPolicy,
     append_jsonl,
     convert_controlled_session,
+    convert_controlled_session_staging,
     quarantine_record,
 )
 
@@ -30,6 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--heldout-manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--quarantine", type=Path, required=True)
+    parser.add_argument(
+        "--mode",
+        choices=("strict", "collect"),
+        default="strict",
+        help="strict readiness conversion or safe collect-first staging conversion",
+    )
     return parser
 
 
@@ -48,14 +55,20 @@ def main(argv: list[str] | None = None) -> int:
             heldout_fixtures_root=args.heldout_fixtures_root.resolve(),
             heldout_manifest=args.heldout_manifest.resolve(),
         )
-        candidate = convert_controlled_session(export_data, capture, policy)
+        converter = (
+            convert_controlled_session_staging
+            if args.mode == "collect"
+            else convert_controlled_session
+        )
+        candidate = converter(export_data, capture, policy)
     except (UnicodeDecodeError, json.JSONDecodeError):
         error = QuarantineError("invalid_json_or_encoding")
     except (OSError, ValueError) as caught:
         error = caught if isinstance(caught, QuarantineError) else QuarantineError("conversion_error")
     else:
         append_jsonl(args.output.resolve(), candidate)
-        print(json.dumps({"status": "candidate", "sample_id": candidate["sample_id"]}))
+        status = "staged" if args.mode == "collect" else "candidate"
+        print(json.dumps({"status": status, "sample_id": candidate["sample_id"]}))
         return 0
 
     sample_id = str(capture.get("sample_id")) if isinstance(capture, dict) else None

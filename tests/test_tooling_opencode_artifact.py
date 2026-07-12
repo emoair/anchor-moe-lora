@@ -62,7 +62,17 @@ def _write_attested_artifact(tmp_path: Path):
         encoding="utf-8",
     )
     executable = tmp_path / "opencode-anchor.exe"
-    executable.write_bytes(b"audited binary")
+    executable.write_bytes(b"audited windows binary")
+    windows_binary = tmp_path / "windows-x64" / "opencode-anchor.exe"
+    windows_binary.parent.mkdir()
+    windows_binary.write_bytes(executable.read_bytes())
+    linux_binary = tmp_path / "linux-x64" / "opencode-anchor"
+    linux_binary.parent.mkdir()
+    linux_binary.write_bytes(b"audited linux binary")
+    required_tests = {
+        "core": ["test/config/behavior.test.ts"],
+        "opencode": ["test/session/behavior.test.ts"],
+    }
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -94,10 +104,7 @@ def _write_attested_artifact(tmp_path: Path):
                     ],
                 },
                 "tests_executed": True,
-                "required_tests": {
-                    "core": ["test/config/behavior.test.ts"],
-                    "opencode": ["test/session/behavior.test.ts"],
-                },
+                "required_tests": required_tests,
                 "typecheck_executed": True,
                 "binary_sha256": sha256_file(executable),
                 "binary": executable.name,
@@ -106,39 +113,214 @@ def _write_attested_artifact(tmp_path: Path):
         ),
         encoding="utf-8",
     )
-    return executable, source, manifest
+    source_contract = {
+        "repository": "https://github.com/anomalyco/opencode.git",
+        "baseline_commit": "1" * 40,
+        "opencode_version": "1.17.18",
+        "patch_sha256": sha256_file(patch),
+        "patch_source_manifest_sha256": sha256_file(source),
+        "bun_version": "1.3.14",
+        "tool_contract_version": "anchor.execution-tool-contract.v2",
+        "tool_contract": {
+            "version": "anchor.execution-tool-contract.v2",
+            "tools": [
+                "apply_patch",
+                "bash",
+                "edit",
+                "glob",
+                "grep",
+                "list",
+                "read",
+                "write",
+            ],
+            "bash_commands": [
+                "npm run build --if-present",
+                "npm run lint --if-present",
+                "npm run test --if-present",
+            ],
+        },
+        "lockfile_sha256": "2" * 64,
+    }
+    platform_manifests: dict[str, Path] = {}
+    platform_binaries = {
+        "windows-x64": windows_binary,
+        "linux-x64": linux_binary,
+    }
+    for target, binary in platform_binaries.items():
+        binary_relative = binary.relative_to(tmp_path).as_posix()
+        platform_manifest = tmp_path / f"{target}.manifest.json"
+        platform_manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": "anchor.patched-opencode.platform.v1",
+                    "target": target,
+                    "platform": {
+                        "os": "windows" if target == "windows-x64" else "linux",
+                        "arch": "x64",
+                        "libc": None if target == "windows-x64" else "glibc",
+                    },
+                    "source": source_contract,
+                    "checks": {
+                        "tests_executed": True,
+                        "required_tests": required_tests,
+                        "typecheck_executed": True,
+                        "build_smoke_executed": True,
+                    },
+                    "binary": {
+                        "path": binary_relative,
+                        "sha256": sha256_file(binary),
+                    },
+                    "global_install_modified": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        platform_manifests[target] = platform_manifest
+    bundle = tmp_path / "bundle-manifest.json"
+    bundle.write_text(
+        json.dumps(
+            {
+                "schema_version": "anchor.patched-opencode.bundle.v1",
+                "source": source_contract,
+                "platforms": {
+                    target: {
+                        "manifest": member.name,
+                        "manifest_sha256": sha256_file(member),
+                        "binary": {
+                            "path": platform_binaries[target].relative_to(tmp_path).as_posix(),
+                            "sha256": sha256_file(platform_binaries[target]),
+                        },
+                    }
+                    for target, member in platform_manifests.items()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "executable": executable,
+        "linux": linux_binary,
+        "source": source,
+        "manifest": manifest,
+        "bundle": bundle,
+        "members": platform_manifests,
+        "windows_member": windows_binary,
+    }
 
 
 def test_artifact_attestation_rehashes_binary_and_manifest_before_launch(tmp_path: Path):
-    executable, source, _ = _write_attested_artifact(tmp_path)
-    attestation = verify_binary_attestation(executable, patch_manifest=source)
+    artifact = _write_attested_artifact(tmp_path)
+    attestation = verify_binary_attestation(
+        artifact["executable"],
+        patch_manifest=artifact["source"],
+        linux_executable=artifact["linux"],
+    )
     verified = attestation.with_behavioral_probe()
 
     verify_launch_identity(verified)
-    executable.write_bytes(b"changed after probe")
+    artifact["executable"].write_bytes(b"changed after probe")
 
     with pytest.raises(ValueError, match="changed before launch"):
         verify_launch_identity(verified)
 
 
+def test_artifact_attestation_rehashes_mounted_linux_before_launch(tmp_path: Path):
+    artifact = _write_attested_artifact(tmp_path)
+    verified = verify_binary_attestation(
+        artifact["executable"],
+        patch_manifest=artifact["source"],
+        linux_executable=artifact["linux"],
+    ).with_behavioral_probe()
+
+    artifact["linux"].write_bytes(b"changed after probe")
+
+    with pytest.raises(ValueError, match="changed before launch"):
+        verify_launch_identity(verified)
+
+
+def test_artifact_attestation_fails_closed_without_mounted_linux(tmp_path: Path):
+    artifact = _write_attested_artifact(tmp_path)
+
+    with pytest.raises(ValueError, match="mounted Linux OpenCode executable is required"):
+        verify_binary_attestation(
+            artifact["executable"], patch_manifest=artifact["source"]
+        )
+
+
 def test_artifact_attestation_requires_exact_behavioral_test_manifest(tmp_path: Path):
-    executable, source, manifest = _write_attested_artifact(tmp_path)
+    artifact = _write_attested_artifact(tmp_path)
+    manifest = artifact["manifest"]
     build = json.loads(manifest.read_text(encoding="utf-8"))
     build["required_tests"]["opencode"] = ["test/session/wrong.test.ts"]
     manifest.write_text(json.dumps(build), encoding="utf-8")
 
     with pytest.raises(ValueError, match="required_tests"):
-        verify_binary_attestation(executable, patch_manifest=source)
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=artifact["source"],
+            linux_executable=artifact["linux"],
+        )
 
 
 def test_artifact_attestation_requires_converter_tool_contract(tmp_path: Path):
-    executable, source, _ = _write_attested_artifact(tmp_path)
+    artifact = _write_attested_artifact(tmp_path)
+    source = artifact["source"]
     source_data = json.loads(source.read_text(encoding="utf-8"))
     source_data["tool_contract"]["tools"].append("task")
     source.write_text(json.dumps(source_data), encoding="utf-8")
 
     with pytest.raises(ValueError, match="differs from the converter"):
-        verify_binary_attestation(executable, patch_manifest=source)
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=source,
+            linux_executable=artifact["linux"],
+        )
+
+
+def test_artifact_attestation_requires_the_mounted_linux_bundle_member(tmp_path: Path):
+    artifact = _write_attested_artifact(tmp_path)
+    copied = tmp_path / "copied-opencode-linux"
+    copied.write_bytes(artifact["linux"].read_bytes())
+
+    with pytest.raises(ValueError, match="not the attested bundle member"):
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=artifact["source"],
+            linux_executable=copied,
+        )
+
+
+def test_artifact_attestation_rejects_tampered_bundle_member_manifest(tmp_path: Path):
+    artifact = _write_attested_artifact(tmp_path)
+    linux_manifest = artifact["members"]["linux-x64"]
+    value = json.loads(linux_manifest.read_text(encoding="utf-8"))
+    value["checks"]["typecheck_executed"] = False
+    linux_manifest.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="member manifest SHA-256 mismatch"):
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=artifact["source"],
+            linux_executable=artifact["linux"],
+        )
+
+
+def test_artifact_attestation_rejects_cross_platform_source_drift(tmp_path: Path):
+    artifact = _write_attested_artifact(tmp_path)
+    linux_manifest = artifact["members"]["linux-x64"]
+    value = json.loads(linux_manifest.read_text(encoding="utf-8"))
+    value["source"]["lockfile_sha256"] = "3" * 64
+    linux_manifest.write_text(json.dumps(value), encoding="utf-8")
+    bundle = json.loads(artifact["bundle"].read_text(encoding="utf-8"))
+    bundle["platforms"]["linux-x64"]["manifest_sha256"] = sha256_file(linux_manifest)
+    artifact["bundle"].write_text(json.dumps(bundle), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source contract differs from the bundle"):
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=artifact["source"],
+            linux_executable=artifact["linux"],
+        )
 
 
 def test_probe_transcript_preserves_automatic_tool_choice_across_tool_result():

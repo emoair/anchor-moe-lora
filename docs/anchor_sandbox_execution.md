@@ -12,7 +12,9 @@ path, or resource setting.
 - a WSL2 Linux distribution with Podman and systemd, or a native Linux host with rootless
   Podman configured for the intended non-root user;
 - the repository-local, attested patched OpenCode binary;
-- a pinned sandbox image and, when configured, an attested Linux OpenCode artifact;
+- the pinned official Node 22 Bookworm Slim Linux/x64 image
+  `docker.io/library/node@sha256:a149cd71dccd68704a07d4e4ca3e610c27301852b0f556865cfdb6e2856f8bed`
+  (Node `v22.23.1`, npm `10.9.8`) and, when configured, an attested Linux OpenCode artifact;
 - cgroup support sufficient for the selected systemd/Podman memory, CPU, and PID limits.
 
 A dedicated sandbox distribution with automount and Windows-process interop disabled is
@@ -52,6 +54,13 @@ local debugging. On this Windows host, `wsl_distro: Ubuntu-22.04` and
 `supervisor: wsl-root-systemd` are required. The patched CLI accepts `supervisor: direct`
 for a native Linux host; it derives that default only when the option is omitted.
 
+The sandbox image is operator-controlled rather than model-controlled. The patched launcher
+defaults to the digest-pinned official Node image above, so the isolated workspace has both
+`node` and `npm`; an operator may select another digest-pinned image with the process-local
+`ANCHOR_PODMAN_IMAGE` environment variable. Mutable tags are unsuitable for formal capture.
+The WSL supervisor uses `systemd-run --quiet --pipe`: `--quiet` removes only systemd's own
+status chatter while the container process's real stdout and stderr remain attached.
+
 The executor issues the following argument-vector shape, never `sh -c` or `bash -lc`:
 
 ```text
@@ -68,9 +77,12 @@ receives the same `--linux-executable`, `--wsl-distro`, `--supervisor`, and reso
 arguments as the corresponding run. On Windows, omitting `--wsl-distro` is invalid;
 Linux may omit it. `--supervisor` is an explicit value, not a boolean switch.
 Every finalizer, including conversion failures, calls `opencode anchor cleanup --run-id
-<sample-id> --workspace <absolute-host-workspace>` and treats a non-zero cleanup exit as
-a quarantined execution attempt. The Podman command itself must also be one-shot and
-reap its container; a launcher crash still requires the anchor-side stale-job sweeper.
+<sample-id> --workspace <absolute-host-workspace>` with the same `--wsl-distro` and
+`--supervisor` routing values as the task, but without the executable or resource flags
+that cleanup does not accept. It treats a non-zero cleanup exit as a quarantined execution
+attempt. Cleanup deterministically removes the per-run container and provider secret left
+by a launcher crash before removing state. The Podman command itself must also be one-shot
+and reap its container.
 
 Container paths rooted at `/workspace` are normalized to `<workspace>` in retained public
 records. Traversal such as `/workspace/../outside` remains a hard quarantine condition;

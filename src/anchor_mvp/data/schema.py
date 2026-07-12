@@ -361,7 +361,7 @@ def canonical_input(
     """Validate task-specific teacher input and build the actual SFT user turn."""
 
     if task_type == "plan":
-        clean = {"requirement": seed.request}
+        clean: dict[str, Any] = {"requirement": seed.request}
         return clean, seed.request
     if "input" in payload:
         raise DataValidationError(

@@ -4,12 +4,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from anchor_mvp.tooling import (
+    AgentExecution,
     AnchorSandboxOptions,
     ControlledSessionCapture,
     OpenCodeExecutor,
     ToolPolicy,
 )
 from anchor_mvp.tooling.opencode_artifact import BinaryAttestation, sha256_file
+from anchor_mvp.tooling.models import PublicDecisionStep, PublicOutcome
+from anchor_mvp.tooling.runner import _public_outcome_capture
 
 
 def _attested_executor(tmp_path: Path, *, windows_shim: bool = False) -> OpenCodeExecutor:
@@ -30,6 +33,31 @@ def _attested_executor(tmp_path: Path, *, windows_shim: bool = False) -> OpenCod
         behavioral_probe=True,
     )
     return executor
+
+
+def test_public_outcome_capture_uses_only_json_native_collections():
+    outcome = PublicOutcome(
+        status="completed",
+        decision_trace=(
+            PublicDecisionStep(check="test", evidence="passed", action="finish"),
+        ),
+        repair_summaries=("Repaired the controlled fixture.",),
+        final_summary="done",
+    )
+
+    captured = _public_outcome_capture(outcome)
+
+    assert captured == {
+        "schema_version": "anchor.public-outcome.v1",
+        "status": "completed",
+        "decision_trace": [
+            {"check": "test", "evidence": "passed", "action": "finish"}
+        ],
+        "repair_summaries": ["Repaired the controlled fixture."],
+        "final_summary": "done",
+    }
+    assert isinstance(captured["decision_trace"], list)
+    assert isinstance(captured["repair_summaries"], list)
 
 
 def test_live_environment_is_isolated_and_preserves_real_client_identity(tmp_path):
@@ -172,6 +200,32 @@ def test_anchor_export_reuses_the_run_sandbox_options(tmp_path):
     assert argv[argv.index("--session") + 1] == "ses_mock_1234"
 
 
+def test_anchor_cleanup_reuses_only_the_sandbox_routing_options(tmp_path):
+    executor = _attested_executor(tmp_path)
+    executor.sandbox_options = AnchorSandboxOptions(
+        linux_executable=(tmp_path / "opencode-linux").resolve(),
+        wsl_distro="Ubuntu-22.04",
+        supervisor="wsl-root-systemd",
+        memory="4G",
+        cpus="2",
+        pids=256,
+        timeout_seconds=900,
+    )
+
+    argv = executor._cleanup_command(sample_id="cleanup/test", workspace=tmp_path)
+
+    assert argv[1:3] == ["anchor", "cleanup"]
+    assert argv[argv.index("--run-id") + 1] == "cleanup-test"
+    assert argv[argv.index("--workspace") + 1] == str(tmp_path.resolve())
+    assert argv[argv.index("--wsl-distro") + 1] == "Ubuntu-22.04"
+    assert argv[argv.index("--supervisor") + 1] == "wsl-root-systemd"
+    assert "--linux-executable" not in argv
+    assert "--memory" not in argv
+    assert "--cpus" not in argv
+    assert "--pids" not in argv
+    assert "--timeout" not in argv
+
+
 def test_anchor_run_id_is_normalized_before_cli_invocation(tmp_path):
     argv = _attested_executor(tmp_path).command(
         sample_id="plan/计算器:01",
@@ -202,10 +256,15 @@ def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
     config_path.parent.mkdir()
     config_path.write_text("{}", encoding="utf-8")
     observed: dict[str, Path] = {}
+    attestation_kwargs: dict[str, object] = {}
+
+    def fake_attestation(*args, **kwargs):
+        attestation_kwargs.update(kwargs)
+        return executor._attestation
 
     monkeypatch.setattr(
         "anchor_mvp.tooling.runner.verify_binary_attestation",
-        lambda *args, **kwargs: executor._attestation,
+        fake_attestation,
     )
     monkeypatch.setattr(
         "anchor_mvp.tooling.runner.subprocess.run",
@@ -225,6 +284,7 @@ def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
     )
 
     assert executor.probe_patched(config_path) == (True, "verified")
+    assert attestation_kwargs["linux_executable"] is None
     assert config_path.parent not in observed["probe_root"].parents
     assert observed["probe_root"].parent == config_path.parent.parent
 
@@ -310,3 +370,69 @@ def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):
     quarantine = (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8")
     assert "lifecycle" in quarantine
     assert "ses_mock_1234" not in quarantine
+
+
+def test_collect_capture_lands_before_strict_success_even_when_tools_rejected(
+    monkeypatch, tmp_path
+):
+    executor = _attested_executor(tmp_path)
+    heldout_cases = tmp_path / "heldout.jsonl"
+    heldout_cases.write_text("", encoding="utf-8")
+    heldout_fixtures = tmp_path / "heldout-fixtures"
+    heldout_fixtures.mkdir()
+    heldout_manifest = tmp_path / "heldout-manifest.json"
+    heldout_manifest.write_text("{}", encoding="utf-8")
+    staging = tmp_path / "staging.jsonl"
+    candidates = tmp_path / "candidates.jsonl"
+    executor.session_capture = ControlledSessionCapture(
+        candidates_path=candidates.resolve(),
+        quarantine_path=(tmp_path / "quarantine.jsonl").resolve(),
+        heldout_cases=heldout_cases.resolve(),
+        heldout_fixtures_root=heldout_fixtures.resolve(),
+        heldout_manifest=heldout_manifest.resolve(),
+        staging_path=staging.resolve(),
+        mode="collect",
+    )
+    export_path = tmp_path / "session.json"
+    export_path.write_text("{}", encoding="utf-8")
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    execution = AgentExecution(
+        exit_code=1,
+        timed_out=False,
+        duration_ms=1,
+        rejected_events=1,
+        controlled_session_id="ses_collect_1234",
+        controlled_export_path=str(export_path),
+        isolated_runtime_path=str(runtime),
+        opencode_version="1.17.18",
+    )
+    staged = {
+        "schema_version": "anchor.session-candidate-staging.v1",
+        "sample_id": "collect-rejected",
+        "quality": {"labels": ["tool_rejected"]},
+    }
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.convert_controlled_session_staging",
+        lambda *args, **kwargs: staged,
+    )
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.convert_controlled_session",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("collect mode must defer strict conversion")
+        ),
+    )
+    monkeypatch.setattr(executor, "_cleanup_sandbox", lambda **kwargs: None)
+
+    captured, code = executor.finalize_capture(
+        execution=execution,
+        sample_id="collect-rejected",
+        workspace=tmp_path,
+        validators=(),
+    )
+
+    assert captured is True
+    assert code is None
+    assert json.loads(staging.read_text()) == staged
+    assert not candidates.exists()
+    assert not runtime.exists()

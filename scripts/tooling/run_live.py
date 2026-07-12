@@ -15,13 +15,18 @@ from anchor_mvp.tooling import (  # noqa: E402
     LiveBatchConfig,
     ControlledSessionCapture,
     OpenCodeExecutor,
+    KimiRoutePlan,
+    RouteMode,
+    RoutePreflightError,
     SampleSpec,
     SkillSourceRegistry,
     ToolPolicy,
     ToolingHarness,
     batch_run_succeeded,
     load_candidate_samples,
+    merge_attempts_jsonl,
     persist_attempts_and_gold,
+    prepare_kimi_route_plan,
     run_live_batch,
     verify_execution_split,
     write_opencode_config,
@@ -44,6 +49,21 @@ def parse_args() -> argparse.Namespace:
         "--session-quarantine",
         type=Path,
         default=PROJECT_ROOT / "artifacts" / "tooling" / "session_quarantine.jsonl",
+    )
+    parser.add_argument(
+        "--session-staging",
+        type=Path,
+        default=PROJECT_ROOT / "artifacts" / "tooling" / "session_staging.raw.jsonl",
+        help="Safe collect-first trajectories awaiting offline partitioning",
+    )
+    parser.add_argument(
+        "--capture-mode",
+        choices=("strict", "collect"),
+        default="strict",
+        help=(
+            "strict keeps the one-sample readiness gate; collect stages every safe, "
+            "structurally complete trajectory and defers quality filtering"
+        ),
     )
     parser.add_argument(
         "--max-stages",
@@ -94,6 +114,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sandbox-pids", type=_positive_int, default=256)
     parser.add_argument("--sandbox-timeout-seconds", type=_positive_int, default=900)
     parser.add_argument(
+        "--route-mode",
+        choices=("prompt", "current", "direct", "abort"),
+        default="prompt",
+        help=(
+            "Kimi IPv4 route policy: prompt interactively, keep current routes, "
+            "temporarily add only Kimi /32 direct routes, or abort"
+        ),
+    )
+    parser.add_argument(
         "--skill",
         action="append",
         help="Audited source id from configs/data/skill_sources.yaml; repeat as needed",
@@ -128,7 +157,12 @@ def parse_args() -> argparse.Namespace:
         help="Append-only audit ledger; failed attempts never enter --output",
     )
     parser.add_argument("--required", nargs="*", default=["build"])
-    parser.add_argument("--max-iterations", type=int, default=8)
+    parser.add_argument(
+        "--max-iterations",
+        type=_positive_int,
+        default=None,
+        help="Optional OpenCode agent step limit; omitted by default",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=900.0)
     parser.add_argument(
         "--confirm-live",
@@ -158,6 +192,26 @@ def patched_preflight(
         return executor.probe_patched(config_path)
 
 
+def route_preflight(
+    executor: OpenCodeExecutor, route_mode: RouteMode
+) -> KimiRoutePlan | None:
+    try:
+        plan = prepare_kimi_route_plan(
+            distro=executor.sandbox_options.wsl_distro,
+            requested_mode=route_mode,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+        )
+    except RoutePreflightError as error:
+        if error.code == "route_mode_abort":
+            print("Live run aborted before any API request.", file=sys.stderr)
+            return None
+        print(f"Live run refused: Kimi route preflight failed: {error.code}", file=sys.stderr)
+        return None
+    print(f"route_mode={plan.mode}")
+    return plan
+
+
 def main() -> int:
     args = parse_args()
     if args.batch_config:
@@ -174,9 +228,12 @@ def main() -> int:
         if config.opencode_executable is None:
             print("batch config requires opencode_executable", file=sys.stderr)
             return 2
+        if config.attempts_output is None:
+            print("batch config requires attempts_output", file=sys.stderr)
+            return 2
         executor = OpenCodeExecutor(
             executable=str(config.opencode_executable),
-            session_capture=config.controlled_capture(),
+            session_capture=config.controlled_capture(mode=args.capture_mode),
             sandbox_options=config.anchor_sandbox_options(),
         )
         policy = ToolPolicy(
@@ -199,6 +256,7 @@ def main() -> int:
             print(f"candidate_count={len(samples)}")
             print(f"concurrency_ramp={','.join(map(str, config.concurrency_stages))}")
             print(f"requested_stages={args.max_stages}")
+            print(f"capture_mode={args.capture_mode}")
             print(
                 "planned_concurrency="
                 + ",".join(map(str, config.concurrency_stages[: args.max_stages]))
@@ -207,6 +265,9 @@ def main() -> int:
             print("patched_capability=not-run-in-dry-run")
             print(f"api_key_present={bool(os.environ.get('KIMI_CODE_API_KEY'))}")
             return 0
+        route_plan = route_preflight(executor, args.route_mode)
+        if route_plan is None:
+            return 2
         patched, patched_reason = patched_preflight(executor, policy)
         if not patched:
             print(
@@ -217,23 +278,42 @@ def main() -> int:
         if not executor.available() or not os.environ.get("KIMI_CODE_API_KEY"):
             print("OpenCode and process-local KIMI_CODE_API_KEY are required.", file=sys.stderr)
             return 2
-        stages = run_live_batch(
-            samples=samples,
-            config=config,
-            executor=executor,
-            max_stages=args.max_stages,
-            on_stage=lambda records: persist_attempts_and_gold(
-                records,
-                attempts_path=config.attempts_output,
-                gold_path=config.gold_output,
-            ),
-        )
+        try:
+            def persist_stage(records):
+                if args.capture_mode == "collect":
+                    merge_attempts_jsonl(records, config.attempts_output)
+                else:
+                    persist_attempts_and_gold(
+                        records,
+                        attempts_path=config.attempts_output,
+                        gold_path=config.gold_output,
+                    )
+
+            with route_plan.activate():
+                stages = run_live_batch(
+                    samples=samples,
+                    config=config,
+                    executor=executor,
+                    max_stages=args.max_stages,
+                    collection_mode=args.capture_mode == "collect",
+                    on_stage=persist_stage,
+                )
+        except RoutePreflightError as error:
+            print(
+                f"Live run refused: temporary Kimi route failed: {error.code}",
+                file=sys.stderr,
+            )
+            return 2
         for stage in stages:
             print(
                 f"stage={stage.concurrency} records={len(stage.records)} "
                 f"passed={stage.passed_gate}"
             )
-        print(config.gold_output)
+        print(
+            config.session_staging
+            if args.capture_mode == "collect"
+            else config.gold_output
+        )
         return 0 if batch_run_succeeded(stages, args.max_stages) else 1
 
     executor = OpenCodeExecutor(
@@ -244,6 +324,8 @@ def main() -> int:
             (PROJECT_ROOT / "configs" / "benchmark" / "heldout_cases_v1.jsonl").resolve(),
             (PROJECT_ROOT / "examples" / "benchmark" / "fixtures").resolve(),
             (PROJECT_ROOT / "artifacts" / "benchmark" / "heldout_v1" / "manifest.json").resolve(),
+            staging_path=args.session_staging.resolve(),
+            mode=args.capture_mode,
         ),
         sandbox_options=AnchorSandboxOptions(
             linux_executable=args.sandbox_linux_executable.resolve(),
@@ -272,6 +354,9 @@ def main() -> int:
         print("patched_capability=not-run-in-dry-run")
         print(f"api_key_present={bool(os.environ.get('KIMI_CODE_API_KEY'))}")
         return 0
+    route_plan = route_preflight(executor, args.route_mode)
+    if route_plan is None:
+        return 2
     patched, patched_reason = patched_preflight(executor, policy)
     if not patched:
         print(
@@ -291,24 +376,42 @@ def main() -> int:
     task = args.prompt_file.read_text(encoding="utf-8")
     registry = SkillSourceRegistry(PROJECT_ROOT, args.skill_registry)
     prompt, skill_provenance = registry.compose_execution_prompt(task, tuple(args.skill))
-    record = ToolingHarness(
-        args.workspace_root,
-        executor,
-        policy=policy,
-        retain_workspace=args.retain_workspace,
-    ).run_sample(
-        SampleSpec(
-            args.sample_id,
-            prompt,
-            args.source,
-            tuple(args.required),
-            skill_provenance,
+    try:
+        with route_plan.activate():
+            record = ToolingHarness(
+                args.workspace_root,
+                executor,
+                policy=policy,
+                retain_workspace=args.retain_workspace,
+            ).run_sample(
+                SampleSpec(
+                    args.sample_id,
+                    prompt,
+                    args.source,
+                    tuple(args.required),
+                    skill_provenance,
+                )
+            )
+    except RoutePreflightError as error:
+        print(
+            f"Live run refused: temporary Kimi route failed: {error.code}",
+            file=sys.stderr,
         )
-    )
-    persist_attempts_and_gold(
-        [record], attempts_path=args.attempts_output, gold_path=args.output
-    )
-    print(args.output)
+        return 2
+    if args.capture_mode == "collect":
+        merge_attempts_jsonl([record], args.attempts_output)
+        print(args.session_staging)
+    else:
+        persist_attempts_and_gold(
+            [record], attempts_path=args.attempts_output, gold_path=args.output
+        )
+        print(args.output)
+    if args.capture_mode == "collect":
+        return (
+            1
+            if any(code.startswith("session_hard_reject_") for code in record.error_codes)
+            else 0
+        )
     return 0 if record.success else 1
 
 

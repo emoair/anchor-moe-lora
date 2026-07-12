@@ -124,7 +124,7 @@ class GoldRecord:
     backend: str
     success: bool
     workspace_id: str
-    max_iterations: int
+    max_iterations: int | None
     timeout_seconds: float
     agent_exit_code: int
     timed_out: bool

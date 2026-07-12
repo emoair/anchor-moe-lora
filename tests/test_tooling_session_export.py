@@ -9,8 +9,10 @@ from anchor_mvp.tooling.session_export import (
     QuarantineError,
     SessionConversionPolicy,
     convert_controlled_session,
+    convert_controlled_session_staging,
     quarantine_record,
 )
+from anchor_mvp.tooling.session_partition import partition_staging_jsonl
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -170,6 +172,28 @@ def _capture() -> dict[str, object]:
     }
 
 
+def _collect_capture() -> dict[str, object]:
+    capture = _capture()
+    capture["skill_provenance"] = [
+        {
+            "source_id": "fixture-skill",
+            "repository": "https://example.com/fixture-skill.git",
+            "commit": "1" * 40,
+            "license": "MIT",
+            "license_sha256": "2" * 64,
+            "bundle_sha256": "3" * 64,
+            "instruction_audit_sha256": "4" * 64,
+        }
+    ]
+    capture["quality"] = {
+        "agent_exit_code": 0,
+        "timed_out": False,
+        "rejected_events": 0,
+        "error_codes": [],
+    }
+    return capture
+
+
 def test_controlled_export_retains_safe_tool_results_and_drops_reasoning(tmp_path: Path):
     policy, workspace = _policy(tmp_path)
     candidate = convert_controlled_session(_export(workspace), _capture(), policy)
@@ -234,6 +258,34 @@ def test_secret_in_dropped_reasoning_still_quarantines_entire_capture(tmp_path: 
         convert_controlled_session(exported, _capture(), policy)
 
 
+def test_user_instruction_may_forbid_chain_of_thought_without_being_a_leak(
+    tmp_path: Path,
+):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    exported["messages"][0]["parts"][0]["text"] = (
+        "Do not reveal private chain-of-thought; report observable evidence only."
+    )
+
+    candidate = convert_controlled_session(exported, _capture(), policy)
+
+    assert candidate["trajectory"][0]["type"] == "user_input"
+    assert "chain-of-thought" in candidate["trajectory"][0]["content"]
+
+
+def test_hidden_reasoning_marker_in_assistant_public_text_is_quarantined(
+    tmp_path: Path,
+):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    exported["messages"][1]["parts"][-1]["text"] = (
+        "Here is my chain-of-thought before the answer."
+    )
+
+    with pytest.raises(QuarantineError, match="hidden_reasoning_in_public_text"):
+        convert_controlled_session(exported, _capture(), policy)
+
+
 def test_workspace_escape_in_tool_input_quarantines_capture(tmp_path: Path):
     policy, workspace = _policy(tmp_path)
     exported = _export(workspace)
@@ -282,6 +334,15 @@ def test_official_sanitized_export_is_rejected_as_lossy(tmp_path: Path):
 
     with pytest.raises(QuarantineError, match="official_sanitize_is_lossy"):
         convert_controlled_session(exported, _capture(), policy)
+
+
+def test_non_json_collection_in_capture_remains_fail_closed(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    capture = _capture()
+    capture["public_outcome"]["repair_summaries"] = ("tuple is not JSON-native",)
+
+    with pytest.raises(QuarantineError, match="raw_export_unsupported_value"):
+        convert_controlled_session(_export(workspace), capture, policy)
 
 
 def test_failed_or_environment_reading_tools_are_not_candidates(tmp_path: Path):
@@ -367,3 +428,90 @@ def test_v2_contract_rejects_glob_traversal_and_search_secret_result(tmp_path: P
     parts[-2]["state"]["output"] = "sk-search-result-secret-123456"
     with pytest.raises(QuarantineError, match="secret_detected"):
         convert_controlled_session(exported, _capture(), policy)
+
+
+def test_collect_mode_retains_failed_quality_as_labels(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    capture = _collect_capture()
+    capture["validators"][1].update(status="FAIL", exit_code=1, stderr="one test failed")
+    capture["public_outcome"]["status"] = "partial"
+
+    staged = convert_controlled_session_staging(exported, capture, policy)
+
+    assert staged["schema_version"] == "anchor.session-candidate-staging.v1"
+    assert staged["skill_provenance"][0]["source_id"] == "fixture-skill"
+    assert staged["validators"][1]["stderr"] == "one test failed"
+    assert staged["public_outcome"]["status"] == "partial"
+    assert staged["quality"]["strict_gold_eligible"] is False
+    assert set(staged["quality"]["labels"]) == {"task_partial", "validator_failed"}
+
+
+def test_collect_mode_retains_policy_rejected_tool_pair(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    rejected = exported["messages"][1]["parts"][5]
+    rejected["state"] = {
+        "status": "rejected",
+        "input": {"command": "npm run test --if-present"},
+        "message": "operator policy rejected this call",
+    }
+    capture = _collect_capture()
+    capture["quality"]["rejected_events"] = 1
+
+    staged = convert_controlled_session_staging(exported, capture, policy)
+
+    results = [item for item in staged["trajectory"] if item["type"] == "tool_result"]
+    assert results[-1]["status"] == "rejected"
+    assert results[-1]["content"] == "operator policy rejected this call"
+    assert "tool_rejected" in staged["quality"]["labels"]
+    with pytest.raises(QuarantineError, match="tool_state_incomplete"):
+        convert_controlled_session(exported, capture, policy)
+    rejected["state"]["status"] = "running"
+    with pytest.raises(QuarantineError, match="tool_state_incomplete"):
+        convert_controlled_session_staging(exported, capture, policy)
+
+
+def test_collect_then_filter_partitions_gold_negative_and_content_free_reject(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    good = convert_controlled_session_staging(
+        _export(workspace), _collect_capture(), policy
+    )
+    bad_capture = _collect_capture()
+    bad_capture["validators"][0].update(status="FAIL", exit_code=1)
+    negative = convert_controlled_session_staging(
+        _export(workspace), bad_capture, policy
+    )
+    negative["sample_id"] = "controlled-session-negative"
+    negative["trajectory"][0]["content"] = (
+        "Do not reveal private chain-of-thought; use observable evidence only."
+    )
+    staging = tmp_path / "staging.jsonl"
+    secret_row = b'{"credential":"sk-do-not-retain-this-secret-123456"}'
+    staging.write_bytes(
+        (json.dumps(good, sort_keys=True) + "\n").encode()
+        + (json.dumps(negative, sort_keys=True) + "\n").encode()
+        + secret_row
+        + b"\n"
+    )
+    gold = tmp_path / "gold.jsonl"
+    negatives = tmp_path / "negative.jsonl"
+    rejects = tmp_path / "reject.jsonl"
+
+    counts = partition_staging_jsonl(
+        staging_path=staging,
+        gold_path=gold,
+        negative_path=negatives,
+        reject_path=rejects,
+        policy=policy,
+    )
+
+    assert counts == {"gold": 1, "negative": 1, "reject": 1}
+    assert json.loads(gold.read_text())["schema_version"] == (
+        "anchor.session-training-candidate.v1"
+    )
+    assert "validator_failed" in negatives.read_text()
+    reject_text = rejects.read_text()
+    assert "secret_detected" in reject_text
+    assert "sk-do-not-retain" not in reject_text
+    assert json.loads(reject_text)["content_retained"] is False

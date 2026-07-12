@@ -5,8 +5,8 @@ heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
 heldout_fixtures_root: examples/benchmark/fixtures
 heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
 heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
-concurrency_stages: 1
-stage_seed_counts: 1
+concurrency_stages: [1]
+stage_seed_counts: [1]
 min_success_rate: 1.0
 max_duplicate_rate: 0.0
 max_safety_violations: 0

@@ -24,6 +24,18 @@ _ACTIVE_PAYLOADS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(?:stratum\+tcp|coinhive)\b", re.IGNORECASE),
 )
 
+_SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.IGNORECASE),
+    re.compile(
+        r"\b(?:api[_-]?key|access[_-]?token|secret[_-]?key|password)"
+        r"\s*[:=]\s*['\"]?[^\s'\"]{8,}",
+        re.IGNORECASE,
+    ),
+)
+
 _SECURITY_REVIEWED_CODE_FORMS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\binnerHTML\b", re.IGNORECASE),
     # Reject raw HTML-style inline handlers such as ``onerror=...`` while
@@ -33,6 +45,7 @@ _SECURITY_REVIEWED_CODE_FORMS: tuple[re.Pattern[str], ...] = (
 )
 
 SECURITY_FIXTURE_GENERATOR_VERSION = "anchor-inert-security-fixtures-v1"
+SECURITY_FIXTURE_ORACLE_VERSION = "anchor-security-fixture-gold-v1"
 
 _SECURITY_FIXTURES: tuple[dict[str, Any], ...] = (
     {
@@ -79,6 +92,29 @@ def build_inert_security_fixture(
         "gold_sha256": sha256(canonical.encode("utf-8")).hexdigest(),
     }
     return candidate, output, manifest
+
+
+def deterministic_security_fixture_oracle(
+    reviewed_code: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Recompute the trusted label from a stored inert fixture, never a model claim.
+
+    The fixture marker is a local, descriptor-only suffix added by
+    :func:`build_inert_security_fixture`.  Rebuilding the same suffix lets the
+    bulk gate reject stale teacher-decided rows that merely resemble this
+    schema, without executing or interpreting the submitted code.
+    """
+
+    for index, fixture in enumerate(_SECURITY_FIXTURES):
+        suffix = f"\n\n/* {fixture['marker']} descriptor-only; never execute */"
+        if not reviewed_code.endswith(suffix):
+            continue
+        source = reviewed_code[: -len(suffix)]
+        candidate, output, manifest = build_inert_security_fixture(source, index)
+        if candidate != reviewed_code:
+            raise DataValidationError("security fixture is not a canonical deterministic suffix")
+        return output, manifest
+    raise DataValidationError("security reviewed_code lacks a recognized inert fixture suffix")
 
 
 def extract_json_object(raw: str) -> dict[str, Any]:
@@ -146,6 +182,8 @@ def sanitize_security_seed(seed: SeedDemand) -> SeedDemand:
 
 
 def validate_safe_payload(task_type: TaskType, payload: Mapping[str, Any]) -> None:
+    if contains_secret_material(payload):
+        raise DataValidationError(f"{task_type} record contains credential-like material")
     if task_type in ("frontend", "review"):
         output = payload.get("output", {})
         code = output.get("code", "") if isinstance(output, Mapping) else ""
@@ -170,3 +208,18 @@ def validate_safe_payload(task_type: TaskType, payload: Mapping[str, Any]) -> No
             )
     if task_type == "review" and contains_active_payload(payload):
         raise DataValidationError("review records may contain bugs, not active payloads")
+
+
+def contains_secret_material(value: Any) -> bool:
+    """Detect credential-like material without retaining or reporting its value."""
+
+    if isinstance(value, Mapping):
+        return any(
+            contains_secret_material(key) or contains_secret_material(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(contains_secret_material(item) for item in value)
+    if isinstance(value, str):
+        return any(pattern.search(value) for pattern in _SECRET_PATTERNS)
+    return False

@@ -4,7 +4,7 @@
   "baseline_commit": "b1fc8113948b518835c2a39ece49553cffe9b30c",
   "upstream_version": "1.17.18",
   "patch": "v1.17.18-anchor-distillation.patch",
-  "patch_sha256": "d2c9f0f32e4a14db58d098ba7083966adf408f2151fc6a17e04bb8868c44db0a",
+  "patch_sha256": "d1f2984d220ce420540a3eee38ac906958c12513e832406534381fc9a3185022",
   "bun_version": "1.3.14",
   "tool_contract_version": "anchor.execution-tool-contract.v2",
   "tool_contract": {
@@ -22,6 +22,7 @@
     ],
     "opencode": [
       "test/anchor/sandbox.test.ts",
+      "test/util/process.test.ts",
       "test/session/initial-tool-call.test.ts",
       "test/session/prompt.test.ts",
       "test/agent/agent.test.ts"

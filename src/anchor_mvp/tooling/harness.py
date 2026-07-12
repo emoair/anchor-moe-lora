@@ -69,6 +69,7 @@ class ToolingHarness:
                     sample_id=sample.sample_id,
                     workspace=workspace,
                     validators=validation_capture,
+                    skill_provenance=sample.skill_provenance,
                 )
                 if not captured:
                     capture_errors = (capture_code or "controlled_session_capture_failed",)

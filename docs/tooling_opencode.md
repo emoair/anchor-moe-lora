@@ -59,6 +59,40 @@
 才会创建新的 attempts/accepted 迁移文件。脚本不会删除或覆盖旧文件，迁移后的路径
 切换必须由操作者另行确认。
 
+## Kimi 路由预检（Windows / WSL）
+
+`run_live.py` 的 live 模式会先解析 `api.kimi.com` 的全部 IPv4 地址，并在配置的
+WSL distro 内逐个执行 `ip -j -4 route get <ip>`，只输出 `gateway/dev/src`、是否命中
+`198.18.0.0/15` 或明显 TUN/虚拟网卡，以及可用的非 TUN default route。这个阶段不调用
+Kimi API，不读取或打印 key；传给 `wsl.exe` 的环境也会删除常见 API key 变量。
+
+新增参数 `--route-mode prompt|current|direct|abort`，默认 `prompt`：
+
+- `prompt`：仅交互终端可用，展示审计结果后选择保持当前路由、仅 Kimi `/32` 临时直连或终止。
+- `current`：显式接受当前路由，只读审计，绝不执行 route replace/delete。
+- `direct`：为每个真实 Kimi IPv4 临时执行
+  `ip -4 route replace <ip>/32 via <gateway> dev <dev>`；不会修改 default route 或 ip rule。
+  进入 live run 前会再次 `route get` 验证，退出时恢复原有精确 `/32` route；原先没有 host
+  route 时只删除本次新增的 `/32`。
+- `abort`：在 DNS、WSL、OpenCode 和 API 请求前直接终止。
+
+非 TTY 环境使用默认 `prompt` 会 fail closed，自动化必须显式传 `--route-mode current`、
+`--route-mode direct` 或 `--route-mode abort`。batch 只建立一个 route guard，覆盖整个并发
+stage，不会让 worker 反复修改 WSL 全局路由。若 DNS 本身返回 `198.18.0.0/15` fake-IP、
+找不到唯一的非 TUN default route、替换后仍被 policy routing 导回 TUN，live run 都会拒绝。
+
+示例：
+
+```powershell
+py -3.10 scripts/tooling/run_live.py --batch-config configs/tooling/opencode_distillation_ramp.yaml `
+  --max-stages 1 --route-mode direct --confirm-live
+```
+
+临时恢复依赖 Python `try/finally`；进程被强制终止、WSL 或系统崩溃时无法保证执行恢复。
+direct guard 使用主机临时目录中的独占锁；第二个 direct 实例会以 `route_lock_busy` 拒绝，
+而不是覆盖第一个实例的快照。异常硬退出后仍应先用
+`ip -4 route show exact <kimi-ip>/32` 人工核对，再开始下一次 live run。
+
 ## 400 / 499 处理
 
 - 400 `invalid_url`：Kimi 工具错误通常是模型把描述性文字当 URL，或缺少协议。本层默认禁用 `webfetch/websearch`；Kimi Base URL 还会在启动前经过严格 HTTPS URL 校验，含空格、缺 scheme、query/fragment 的地址直接拒绝，不发送请求。

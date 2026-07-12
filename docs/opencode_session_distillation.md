@@ -58,7 +58,9 @@ inputs:
    sample ID, matching session ID, OpenCode version, complete validator stdout/stderr,
    and `anchor.public-outcome.v1`.
 
-The resulting `anchor.session-training-candidate.v1` record contains:
+Strict readiness conversion produces `anchor.session-training-candidate.v1`. Bulk
+collection first produces `anchor.session-candidate-staging.v1`; the latter adds pinned
+Skill provenance and deterministic quality labels to the same retained trajectory:
 
 - complete retained user task input and public assistant text in sequence;
 - ordered `tool_call` and `tool_result` events sharing normalized `call_0001` IDs, with
@@ -71,7 +73,59 @@ The resulting `anchor.session-training-candidate.v1` record contains:
 Reasoning/thinking parts, system fields, provider metadata, environment fields, original
 session/message IDs, and original absolute workspace paths are not emitted.
 
-## Fail-closed gates
+## Strict readiness gate versus bulk collection
+
+The default remains the strict, one-sample readiness gate. It requires completed public
+outcome, all validators passing, a non-empty diff, and the existing execution gates before
+the sample can enter `session_candidates.jsonl` and accepted execution gold.
+
+After that readiness sample passes, bulk runs use `--capture-mode collect`. Collection is
+not stopped merely because a task is blocked/partial, a validator fails, an allowlisted
+tool returns an error, or a tool is rejected by policy. A complete safe call/result pair is
+retained (including bounded `rejected` status text), and those conditions become labels in
+`quality.labels`. Hidden reasoning remains excluded. The harness writes staging before it
+computes the strict `GoldRecord.success` result, so rejected events cannot prevent a safe
+staging record from landing.
+
+Collection still rejects without retaining content when it finds credentials, malformed or
+incomplete JSON structures, hidden reasoning in retained public text, a path outside the
+workspace, or held-out leakage. Its reject/quarantine row is metadata-only.
+
+```powershell
+# Strict readiness sample (default)
+py -3.10 scripts/tooling/run_live.py `
+  --batch-config configs/tooling/opencode_distillation_ramp.yaml `
+  --route-mode direct `
+  --confirm-live
+
+# Bulk collect first; quality failures are staged, not discarded
+py -3.10 scripts/tooling/run_live.py `
+  --batch-config configs/tooling/opencode_distillation_ramp.yaml `
+  --capture-mode collect `
+  --route-mode direct `
+  --confirm-live
+```
+
+Bulk safe candidates append to `artifacts/tooling/session_staging.raw.jsonl`. Partition the
+immutable staging snapshot offline; this command makes no model/API request:
+
+```powershell
+py -3.10 scripts/tooling/partition_session_staging.py
+```
+
+It atomically rewrites three distinct outputs:
+
+- `session_candidates.filtered.gold.jsonl`: strict gold-compatible v1 records;
+- `session_candidates.filtered.negative.jsonl`: safe blocked/partial/error/failing trajectories;
+- `session_partition.reject.jsonl`: content-free hashes and reason codes only.
+
+The filtered outputs are distinct from the readiness-gate `session_candidates.jsonl`, so
+offline partitioning cannot silently overwrite the proven gate artifact. The partitioner
+recomputes labels instead of trusting the stored label list. Its gold gate
+requires completed public output, matching tool calls/results, no rejected/error calls, all
+three validators passing, a non-empty diff, clean execution metadata, and Skill provenance.
+
+## Fail-closed safety gates
 
 Before a candidate is appended, every retained field passes:
 
@@ -80,7 +134,7 @@ Before a candidate is appended, every retained field passes:
 - held-out identifier and exact-requirement leakage detection;
 - UTF-8/control/binary and per-field/record size limits;
 - tool and validation command allowlists;
-- completed validator and public-outcome requirements.
+- structurally complete tool call/result pairs and public input/output.
 
 Any hit quarantines the **entire** capture. The quarantine row stores only sample ID when
 safe, reason code, source SHA-256, and `content_retained=false`; it never stores redacted

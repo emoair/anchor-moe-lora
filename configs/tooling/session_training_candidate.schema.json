@@ -98,6 +98,32 @@
         ]
       }
     },
+    "skill_provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "repository",
+          "commit",
+          "license",
+          "license_sha256",
+          "bundle_sha256",
+          "instruction_audit_sha256"
+        ],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "repository": {"type": "string", "pattern": "^https://"},
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "license": {"type": "string", "minLength": 1},
+          "license_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "instruction_audit_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
     "final_diff": {
       "type": "array",
       "minItems": 1,

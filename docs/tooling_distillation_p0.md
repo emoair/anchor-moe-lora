@@ -2,7 +2,8 @@
 
 This layer produces auditable tool-execution candidates. It is intentionally separate
 from ordinary text distillation and never stores private reasoning, raw OpenCode event
-streams, tool output, environment variables, or API keys.
+streams, environment variables, or API keys. Controlled safe tool calls and their complete
+results are retained because they are the training target.
 
 The custom Kimi provider defines a named `medium` model variant with
 `reasoningEffort: medium`, and every OpenCode execution pins `--variant medium`. OpenCode
@@ -68,6 +69,26 @@ Only records with `success=true` and a completed public outcome are then merged 
 also refuses to append when a legacy failure is already present. Existing accepted sample
 IDs remain immutable: an identical replay is idempotent and a differing record is a hard
 conflict. A failed attempt therefore does not reserve its sample ID in accepted gold.
+
+## Collect first, filter offline
+
+The first readiness sample still uses the default strict capture. Once it passes, formal
+bulk collection adds `--capture-mode collect`. Safe complete sessions append to
+`artifacts/tooling/session_staging.raw.jsonl` even when the task is blocked/partial,
+validation fails, a tool returns an error, or policy rejects a tool call. Those outcomes are
+quality labels, not collection-time deletion. A `rejected` tool state retains its safe input
+and available error/description and can never enter strict gold.
+
+Secrets, malformed/incomplete JSON, hidden reasoning in public text, workspace escape, and
+held-out leakage remain content-dropping hard rejects. Then run:
+
+```powershell
+py -3.10 scripts/tooling/partition_session_staging.py
+```
+
+The offline pass recomputes quality and writes strict gold-compatible candidates, safe
+negative trajectories, and metadata-only rejects. See
+[OpenCode session distillation](opencode_session_distillation.md) for schemas and paths.
 
 Older mixed files are not changed or deleted automatically. Review a dry-run first:
 

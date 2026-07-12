@@ -76,6 +76,7 @@ class LiveBatchConfig:
     opencode_executable: Path | None = None
     attempts_output: Path | None = None
     session_candidates: Path | None = None
+    session_staging: Path | None = None
     session_quarantine: Path | None = None
     heldout_cases: Path | None = None
     heldout_fixtures_root: Path | None = None
@@ -91,7 +92,7 @@ class LiveBatchConfig:
     concurrency_stages: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
     samples_per_stage: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
     minimum_stage_success_rate: float = 1.0
-    max_iterations: int = 8
+    max_iterations: int | None = None
     timeout_seconds: float = 900.0
 
     def __post_init__(self) -> None:
@@ -112,6 +113,12 @@ class LiveBatchConfig:
         )
         if not isinstance(self.retain_workspace, bool):
             raise ValueError("retain_workspace must be a boolean")
+        if self.max_iterations is not None and (
+            isinstance(self.max_iterations, bool)
+            or not isinstance(self.max_iterations, int)
+            or self.max_iterations < 1
+        ):
+            raise ValueError("max_iterations must be a positive integer when configured")
 
     @classmethod
     def load(cls, project_root: str | Path, path: str | Path) -> "LiveBatchConfig":
@@ -185,6 +192,11 @@ class LiveBatchConfig:
                 root, loaded.get("attempts_output"), "attempts_output"
             ),
             session_candidates=_project_path(root, loaded["session_candidates"], "session_candidates"),
+            session_staging=_project_path(
+                root,
+                loaded.get("session_staging", "artifacts/tooling/session_staging.raw.jsonl"),
+                "session_staging",
+            ),
             session_quarantine=_project_path(root, loaded["session_quarantine"], "session_quarantine"),
             heldout_cases=_project_path(root, loaded["heldout_cases"], "heldout_cases"),
             heldout_fixtures_root=_project_path(
@@ -202,11 +214,11 @@ class LiveBatchConfig:
             concurrency_stages=concurrency,
             samples_per_stage=samples,
             minimum_stage_success_rate=success_rate,
-            max_iterations=int(loaded.get("max_iterations", 8)),
+            max_iterations=loaded.get("max_iterations"),
             timeout_seconds=float(loaded.get("timeout_seconds", 900.0)),
         )
 
-    def controlled_capture(self) -> ControlledSessionCapture:
+    def controlled_capture(self, *, mode: str = "strict") -> ControlledSessionCapture:
         values = (
             self.session_candidates,
             self.session_quarantine,
@@ -216,7 +228,11 @@ class LiveBatchConfig:
         )
         if any(value is None for value in values):
             raise ValueError("controlled session capture is incomplete")
-        return ControlledSessionCapture(*values)  # type: ignore[arg-type]
+        return ControlledSessionCapture(
+            *values,  # type: ignore[arg-type]
+            staging_path=self.session_staging,
+            mode=mode,
+        )
 
     def anchor_sandbox_options(self) -> AnchorSandboxOptions:
         return AnchorSandboxOptions(
@@ -431,10 +447,19 @@ def run_live_batch(
     config: LiveBatchConfig,
     executor: AgentExecutor,
     max_stages: int = 1,
+    collection_mode: bool = False,
     on_stage: Callable[[tuple[GoldRecord, ...]], None] | None = None,
 ) -> tuple[BatchStageResult, ...]:
     """Run isolated stages; one sample exception never aborts its siblings."""
 
+    if collection_mode:
+        capture = getattr(executor, "session_capture", None)
+        if (
+            not isinstance(capture, ControlledSessionCapture)
+            or capture.mode != "collect"
+            or not callable(getattr(executor, "finalize_capture", None))
+        ):
+            raise ValueError("collection_mode requires collect-mode controlled session capture")
     if not 1 <= max_stages <= len(config.concurrency_stages):
         raise ValueError(
             f"max_stages must be between 1 and {len(config.concurrency_stages)}"
@@ -477,7 +502,14 @@ def run_live_batch(
             on_stage(records)
         success_count = sum(record.success for record in records)
         rate = success_count / count
-        passed = failures == 0 and rate >= config.minimum_stage_success_rate
+        if collection_mode:
+            hard_rejects = sum(
+                any(code.startswith("session_hard_reject_") for code in record.error_codes)
+                for record in records
+            )
+            passed = failures == 0 and hard_rejects == 0
+        else:
+            passed = failures == 0 and rate >= config.minimum_stage_success_rate
         stages.append(BatchStageResult(concurrency, records, passed))
         if not passed:
             break

@@ -1,0 +1,73 @@
+# Fresh, isolated five-expert corpus. This configuration never resumes the
+# incomplete automated_v2 run or writes into its state directory.
+# Credentials remain process-environment only (KIMI_API_KEY).
+provider: kimi-code-anthropic
+protocol: anthropic
+base_url: https://api.kimi.com/coding/
+fallback_protocol: anthropic
+fallback_base_url: https://api.kimi.com/coding/
+model: kimi-for-coding
+force_model: true
+api_key_env: KIMI_API_KEY
+anthropic_version: 2023-06-01
+user_agent: anchor-moe-lora/0.1
+
+sop_dir: skills
+output_dir: data/automated_v3
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+
+# One serialized stage generates the complete five-expert corpus: 128 rows per
+# expert (plan, tool-policy, frontend, review, security). Do not point this
+# configuration at a prior output directory or reuse its quota epoch ID.
+concurrency_stages: [1]
+stage_seed_counts: [128]
+# Bulk mode collects structurally safe responses first. Deterministic label,
+# duplicate, artifact, and corpus-quality decisions are applied by the offline
+# partitioner after the provider window, not as per-task retry gates.
+collection_policy: collect_then_partition
+
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 200
+max_requests: 1200
+max_output_tokens_total: 40000000
+quota_epoch_id: kimi-full-v3-initial
+max_failure_retries: 2
+max_stagnant_gate_rounds: 5
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 40
+    ESCALATE: 40
+    BLOCK: 40
+  security:
+    PASS: 60
+    BLOCK: 60
+
+# The copied fixture runs only its own Node validators. Generated TSX is read
+# as data from submission.tsx and is never imported or executed.
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/automated_v3
+artifact_validation_timeout_seconds: 30
+
+timeout_seconds: 600
+wall_clock_deadline_seconds: 900
+max_retries: 1
+max_tokens: 32768
+thinking_enabled: true
+thinking_effort: medium
+thinking_effort_seed: low
+thinking_effort_plan: low
+thinking_effort_tool_policy: low
+thinking_effort_frontend: medium
+thinking_effort_review: medium
+thinking_effort_security: low
+thinking_budget_tokens: 1024
+stream_openai: true
+stream_options_include_usage: false
+
+cooldown_seconds: 7200
+cooldown_poll_seconds: 60

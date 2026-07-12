@@ -81,11 +81,20 @@ class _ProtocolError(TeacherError):
 
 
 class Teacher(Protocol):
-    model: str
-    base_url: str
-    protocol: str
-    generation_params: dict[str, Any]
-    provider_provenance: dict[str, Any]
+    @property
+    def model(self) -> str: ...
+
+    @property
+    def base_url(self) -> str: ...
+
+    @property
+    def protocol(self) -> str: ...
+
+    @property
+    def generation_params(self) -> dict[str, Any]: ...
+
+    @property
+    def provider_provenance(self) -> dict[str, Any]: ...
 
     async def complete(self, *, system: str, user: str) -> str: ...
 

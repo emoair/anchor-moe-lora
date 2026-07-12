@@ -7,13 +7,16 @@ import pytest
 import yaml
 
 from anchor_mvp.tooling import (
+    ControlledSessionCapture,
     LiveBatchConfig,
     MockAgentExecutor,
     PublicDecisionStep,
     PublicOutcome,
     SkillSourceRegistry,
     BatchStageResult,
+    ToolPolicy,
     batch_run_succeeded,
+    build_opencode_config,
     load_candidate_samples,
     run_live_batch,
     verify_execution_split,
@@ -49,6 +52,14 @@ def test_checked_in_batch_preflight_defaults_to_one_sandboxed_stage_and_no_heldo
     assert config.anchor_sandbox_options().wsl_distro == "Ubuntu-22.04"
     assert config.anchor_sandbox_options().supervisor == "wsl-root-systemd"
     assert config.retain_workspace is False
+    assert config.max_iterations is None
+    generated = build_opencode_config(
+        ToolPolicy(
+            max_iterations=config.max_iterations,
+            timeout_seconds=config.timeout_seconds,
+        )
+    )
+    assert "steps" not in generated["agent"]["anchor-distiller"]
     assert config.attempts_output == ROOT / "artifacts/tooling/live_attempts.jsonl"
     assert config.opencode_executable == (
         ROOT / "artifacts/tooling/opencode-patched/opencode-anchor.exe"
@@ -271,6 +282,53 @@ def test_batch_success_semantics_require_every_requested_gate():
     assert batch_run_succeeded((passed,), requested_stages=1) is True
     assert batch_run_succeeded((passed,), requested_stages=2) is False
     assert batch_run_succeeded((passed, failed), requested_stages=2) is False
+
+
+def test_collection_stage_does_not_apply_strict_quality_success_rate(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "package.json").write_text(
+        json.dumps({"scripts": {"build": 'node -e "process.exit(0)"'}}),
+        encoding="utf-8",
+    )
+    config = LiveBatchConfig(
+        candidate_manifest=tmp_path / "unused",
+        split_policy=tmp_path / "unused",
+        skill_registry=tmp_path / "unused",
+        workspace_root=tmp_path / "runs",
+        gold_output=tmp_path / "gold.jsonl",
+        concurrency_stages=(2,),
+        samples_per_stage=(2,),
+        minimum_stage_success_rate=1.0,
+    )
+    from anchor_mvp.tooling import SampleSpec
+
+    samples = tuple(SampleSpec(f"collect-{index}", "task", source) for index in range(2))
+    capture = ControlledSessionCapture(
+        candidates_path=(tmp_path / "candidates.jsonl").resolve(),
+        quarantine_path=(tmp_path / "quarantine.jsonl").resolve(),
+        heldout_cases=(tmp_path / "heldout.jsonl").resolve(),
+        heldout_fixtures_root=(tmp_path / "heldout-fixtures").resolve(),
+        heldout_manifest=(tmp_path / "heldout-manifest.json").resolve(),
+        staging_path=(tmp_path / "staging.jsonl").resolve(),
+        mode="collect",
+    )
+
+    class CollectExecutor(MockAgentExecutor):
+        session_capture = capture
+
+        def finalize_capture(self, **kwargs):
+            return True, None
+
+    stages = run_live_batch(
+        samples=samples,
+        config=config,
+        executor=CollectExecutor(exit_code=1),
+        collection_mode=True,
+    )
+
+    assert all(record.success is False for record in stages[0].records)
+    assert stages[0].passed_gate is True
 
 
 @pytest.mark.parametrize("value", [0, 2])

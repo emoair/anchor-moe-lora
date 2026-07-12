@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from dataclasses import dataclass
 from pathlib import Path
 import re
 import shutil
@@ -15,7 +16,7 @@ from typing import Mapping, Protocol
 
 from .config import AGENT_ID, DEFAULT_MODEL, DEFAULT_VARIANT, PROVIDER_ID
 from .behavioral_probe import run_behavioral_probe
-from .models import AgentExecution, ToolTraceEntry
+from .models import AgentExecution, PublicOutcome, SkillProvenance, ToolTraceEntry
 from .opencode_artifact import (
     BinaryAttestation,
     verify_binary_attestation,
@@ -34,6 +35,7 @@ from .session_export import (
     SessionConversionPolicy,
     append_jsonl,
     convert_controlled_session,
+    convert_controlled_session_staging,
     quarantine_record,
 )
 from .workspace import safe_sample_id
@@ -45,6 +47,27 @@ _MEMORY_LIMIT = re.compile(r"^[1-9][0-9]*(?:[KMGTP](?:i?B)?|[kmg])$")
 _CPU_LIMIT = re.compile(r"^(?:0\.[0-9]*[1-9][0-9]*|[1-9][0-9]*(?:\.[0-9]+)?)$")
 
 
+def _public_outcome_capture(outcome: PublicOutcome | None) -> dict[str, object] | None:
+    """Encode the trusted sidecar as JSON-native values without widening the gate."""
+
+    if outcome is None:
+        return None
+    return {
+        "schema_version": outcome.schema_version,
+        "status": outcome.status,
+        "decision_trace": [
+            {
+                "check": step.check,
+                "evidence": step.evidence,
+                "action": step.action,
+            }
+            for step in outcome.decision_trace
+        ],
+        "repair_summaries": list(outcome.repair_summaries),
+        "final_summary": outcome.final_summary,
+    }
+
+
 @dataclass(frozen=True)
 class ControlledSessionCapture:
     candidates_path: Path
@@ -52,6 +75,8 @@ class ControlledSessionCapture:
     heldout_cases: Path
     heldout_fixtures_root: Path
     heldout_manifest: Path
+    staging_path: Path | None = None
+    mode: str = "strict"
 
     def __post_init__(self) -> None:
         for value in (
@@ -63,6 +88,12 @@ class ControlledSessionCapture:
         ):
             if not value.is_absolute():
                 raise ValueError("controlled session capture paths must be absolute")
+        if self.staging_path is not None and not self.staging_path.is_absolute():
+            raise ValueError("controlled session staging path must be absolute")
+        if self.mode not in {"strict", "collect"}:
+            raise ValueError("controlled session capture mode must be strict or collect")
+        if self.mode == "collect" and self.staging_path is None:
+            raise ValueError("collect mode requires a staging path")
 
 
 @dataclass(frozen=True)
@@ -112,6 +143,16 @@ class AnchorSandboxOptions:
             result.extend(("--timeout", str(self.timeout_seconds)))
         return result
 
+    def cleanup_command_options(self) -> list[str]:
+        """Return only the routing flags accepted by ``opencode anchor cleanup``."""
+
+        result: list[str] = []
+        if self.wsl_distro is not None:
+            result.extend(("--wsl-distro", self.wsl_distro))
+        if self.supervisor is not None:
+            result.extend(("--supervisor", self.supervisor))
+        return result
+
 
 def _walk_objects(value: object):
     if isinstance(value, dict):
@@ -139,7 +180,8 @@ def _extract_session_id(stdout: str) -> str | None:
 
 
 class AgentExecutor(Protocol):
-    backend_name: str
+    @property
+    def backend_name(self) -> str: ...
 
     def run(
         self,
@@ -164,10 +206,13 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
             check=False,
         )
     else:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        killpg = getattr(os, "killpg", None)
+        sigkill = getattr(signal, "SIGKILL", None)
+        if callable(killpg) and sigkill is not None:
+            try:
+                killpg(process.pid, sigkill)
+            except ProcessLookupError:
+                pass
 
 
 class OpenCodeExecutor:
@@ -219,7 +264,9 @@ class OpenCodeExecutor:
             return False, "patched executable is missing"
         try:
             attestation = verify_binary_attestation(
-                executable, patch_manifest=self.patch_manifest
+                executable,
+                patch_manifest=self.patch_manifest,
+                linux_executable=self.sandbox_options.linux_executable,
             )
         except (OSError, ValueError) as error:
             return False, str(error)
@@ -360,6 +407,7 @@ class OpenCodeExecutor:
             run_id,
             "--workspace",
             str(workspace.resolve()),
+            *self.sandbox_options.cleanup_command_options(),
         ]
 
     def run(
@@ -501,11 +549,13 @@ class OpenCodeExecutor:
         sample_id: str,
         workspace: Path,
         validators: tuple[dict[str, object], ...],
+        skill_provenance: tuple[SkillProvenance, ...] = (),
     ) -> tuple[bool, str | None]:
         runtime = Path(execution.isolated_runtime_path) if execution.isolated_runtime_path else None
         export_path = Path(execution.controlled_export_path) if execution.controlled_export_path else None
         export_bytes = export_path.read_bytes() if export_path and export_path.is_file() else b""
         candidate: dict[str, object] | None = None
+        staged_candidate: dict[str, object] | None = None
         failure_code: str | None = None
         try:
             if self.session_capture is None:
@@ -526,18 +576,29 @@ class OpenCodeExecutor:
                 "session_id": execution.controlled_session_id,
                 "opencode_version": execution.opencode_version,
                 "validators": list(validators),
-                "public_outcome": asdict(outcome) if outcome is not None else None,
+                "public_outcome": _public_outcome_capture(outcome),
+                "skill_provenance": [asdict(item) for item in skill_provenance],
+                "quality": {
+                    "agent_exit_code": execution.exit_code,
+                    "timed_out": execution.timed_out,
+                    "rejected_events": execution.rejected_events,
+                    "error_codes": list(execution.error_codes),
+                },
             }
-            candidate = convert_controlled_session(
-                export_data,
-                capture,
-                SessionConversionPolicy(
-                    workspace_root=workspace.resolve(),
-                    heldout_cases=self.session_capture.heldout_cases,
-                    heldout_fixtures_root=self.session_capture.heldout_fixtures_root,
-                    heldout_manifest=self.session_capture.heldout_manifest,
-                ),
+            conversion_policy = SessionConversionPolicy(
+                workspace_root=workspace.resolve(),
+                heldout_cases=self.session_capture.heldout_cases,
+                heldout_fixtures_root=self.session_capture.heldout_fixtures_root,
+                heldout_manifest=self.session_capture.heldout_manifest,
             )
+            if self.session_capture.mode == "collect":
+                staged_candidate = convert_controlled_session_staging(
+                    export_data, capture, conversion_policy
+                )
+            else:
+                candidate = convert_controlled_session(
+                    export_data, capture, conversion_policy
+                )
         except (OSError, ValueError) as error:
             failure_code = error.code if isinstance(error, QuarantineError) else "conversion_error"
         finally:
@@ -550,7 +611,11 @@ class OpenCodeExecutor:
                 failure_code = cleanup_code
             if runtime is not None:
                 shutil.rmtree(runtime, ignore_errors=True)
-        if failure_code is not None or candidate is None:
+        if failure_code is not None or (
+            self.session_capture is not None
+            and self.session_capture.mode == "strict"
+            and candidate is None
+        ):
             code = failure_code or "conversion_error"
             if self.session_capture is not None:
                 with _CAPTURE_LOCK:
@@ -562,10 +627,15 @@ class OpenCodeExecutor:
                             export_bytes=export_bytes,
                         ),
                     )
-            return False, code
+            prefix = "session_hard_reject_" if self.session_capture and self.session_capture.mode == "collect" else ""
+            return False, prefix + code
         assert self.session_capture is not None
         with _CAPTURE_LOCK:
-            append_jsonl(self.session_capture.candidates_path, candidate)
+            if staged_candidate is not None:
+                assert self.session_capture.staging_path is not None
+                append_jsonl(self.session_capture.staging_path, staged_candidate)
+            if candidate is not None:
+                append_jsonl(self.session_capture.candidates_path, candidate)
         return True, None
 
 

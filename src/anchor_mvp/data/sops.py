@@ -25,7 +25,7 @@ def _load_simple_yaml(text: str) -> dict[str, Any]:
     """
 
     try:
-        import yaml  # type: ignore[import-not-found]
+        import yaml
 
         loaded = yaml.safe_load(text)
         if not isinstance(loaded, dict):

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
 from copy import deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -22,11 +23,21 @@ from ..benchmark.heldout import (
     verify_heldout_manifest,
     verify_leak_audit,
 )
-from .cleaning import validate_safe_payload
+from .artifact_validation import validate_tsx_fragment
+from .cleaning import (
+    contains_secret_material,
+    deterministic_security_fixture_oracle,
+    validate_safe_payload,
+)
 from .cli import _as_bool, _simple_config
+from .mutator import mutate_frontend_code
 from .pipeline import DistillationPipeline, PipelineReport
+from .proposals import (
+    PROPOSAL_GENERATOR_VERSION,
+    deterministic_tool_policy_oracle,
+)
 from .provider import PRESETS, ProviderSelection, provider_spec, select_provider_model
-from .schema import TASK_TYPES
+from .schema import TASK_TYPES, stable_id
 from .storage import JsonlStore
 from .teacher import (
     BudgetExceeded,
@@ -42,18 +53,30 @@ from .teacher import (
 AUTOMATION_SCHEMA_VERSION = "2.0"
 LEGACY_AUTOMATION_SCHEMA_VERSION = "1.0"
 DEFAULT_CONCURRENCY_STAGES = (1,)
+COLLECTION_POLICIES = frozenset({"gated", "collect_then_partition"})
+QUALITY_STAGING_SCHEMA_VERSION = "anchor.automation-quality-staging.v1"
+PARTITION_REJECT_SCHEMA_VERSION = "anchor.automation-partition-reject.v1"
 NON_CHARGEABLE_FAILURE_CLASSES = frozenset(
     {"BudgetExceeded", "ClientDeadlineExceeded", "RateLimitError", "UpstreamDependencyError"}
 )
+_LABELS_BY_TASK: dict[str, frozenset[str]] = {
+    "tool_policy": frozenset({"APPROVE", "BLOCK", "ESCALATE"}),
+    "security": frozenset({"PASS", "BLOCK"}),
+}
 
 
 def _int_tuple(value: Any, *, name: str) -> tuple[int, ...]:
-    if isinstance(value, str):
+    raw: list[Any]
+    if isinstance(value, int) and not isinstance(value, bool):
+        # Older operator configs used a YAML scalar for a one-stage ramp. Keep
+        # those files loadable, while canonical configs use a YAML list.
+        raw = [value]
+    elif isinstance(value, str):
         raw = [item.strip() for item in value.split(",") if item.strip()]
     elif isinstance(value, (list, tuple)):
         raw = list(value)
     else:
-        raise ValueError(f"{name} must be a comma-separated list")
+        raise ValueError(f"{name} must be a positive integer, list, or comma-separated list")
     normalized: list[int] = []
     for item in raw:
         if isinstance(item, bool):
@@ -78,6 +101,32 @@ def chargeable_failure_count(errors: Sequence[str]) -> int:
     return sum("UpstreamDependencyError" not in error for error in errors)
 
 
+def _minimum_label_counts(value: Any) -> dict[str, dict[str, int]]:
+    """Normalize optional per-expert label floors from an operator config."""
+
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("minimum_label_counts must be a mapping")
+    normalized: dict[str, dict[str, int]] = {}
+    for raw_task, raw_counts in value.items():
+        task = str(raw_task)
+        if task not in _LABELS_BY_TASK:
+            raise ValueError(f"minimum_label_counts has unsupported task: {task}")
+        if not isinstance(raw_counts, Mapping) or not raw_counts:
+            raise ValueError(f"minimum_label_counts.{task} must be a non-empty mapping")
+        counts: dict[str, int] = {}
+        for raw_label, raw_count in raw_counts.items():
+            label = str(raw_label)
+            if label not in _LABELS_BY_TASK[task]:
+                raise ValueError(f"minimum_label_counts.{task} has unsupported label: {label}")
+            if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 1:
+                raise ValueError(f"minimum_label_counts.{task}.{label} must be a positive integer")
+            counts[label] = raw_count
+        normalized[task] = counts
+    return normalized
+
+
 @dataclass(frozen=True)
 class AutomationConfig:
     sop_dir: Path
@@ -86,6 +135,10 @@ class AutomationConfig:
     heldout_fixtures_root: Path | None = None
     heldout_manifest: Path | None = None
     heldout_leak_audit: Path | None = None
+    minimum_label_counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    artifact_validation_fixture: Path | None = None
+    artifact_validation_workspace_root: Path | None = None
+    artifact_validation_timeout_seconds: float = 30.0
     concurrency_stages: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
     stage_seed_counts: tuple[int, ...] = (3,)
     min_success_rate: float = 1.0
@@ -99,6 +152,7 @@ class AutomationConfig:
     cooldown_seconds: int = 18_000
     cooldown_poll_seconds: int = 60
     max_stagnant_gate_rounds: int = 5
+    collection_policy: str = "gated"
 
     def __post_init__(self) -> None:
         if (
@@ -134,6 +188,21 @@ class AutomationConfig:
             raise ValueError("cooldown values must be positive")
         if self.max_stagnant_gate_rounds < 1:
             raise ValueError("max_stagnant_gate_rounds must be positive")
+        if self.collection_policy not in COLLECTION_POLICIES:
+            raise ValueError(
+                "collection_policy must be gated or collect_then_partition"
+            )
+        _minimum_label_counts(self.minimum_label_counts)
+        artifact_validation_paths = (
+            self.artifact_validation_fixture,
+            self.artifact_validation_workspace_root,
+        )
+        if any(path is not None for path in artifact_validation_paths) and not all(
+            path is not None for path in artifact_validation_paths
+        ):
+            raise ValueError("artifact validation fixture and workspace root must be configured together")
+        if self.artifact_validation_timeout_seconds <= 0:
+            raise ValueError("artifact validation timeout must be positive")
         heldout_paths = (
             self.heldout_cases,
             self.heldout_fixtures_root,
@@ -157,6 +226,67 @@ class AutomationConfig:
     def events_path(self) -> Path:
         return self.state_dir / "events.jsonl"
 
+    @property
+    def attempts_path(self) -> Path:
+        return self.state_dir / "attempts.jsonl"
+
+    @property
+    def quality_staging_path(self) -> Path:
+        return self.state_dir / "quality_staging.jsonl"
+
+    @property
+    def partition_dir(self) -> Path:
+        return self.output_dir / "partitions"
+
+    @property
+    def status_binding_sha256(self) -> str:
+        """Bind one output/state directory to its immutable corpus contract.
+
+        A quota epoch is deliberately excluded: an operator may start a new
+        provider quota window without changing the corpus definition. Ramp,
+        quality-gate, and workspace settings are included so an opt-in fast
+        profile cannot silently resume a serialized profile in the same state.
+        """
+
+        payload = {
+            "schema": "anchor.automation-status-binding.v1",
+            "sop_dir": str(self.sop_dir),
+            "output_dir": str(self.output_dir),
+            "heldout_cases": str(self.heldout_cases) if self.heldout_cases else None,
+            "heldout_fixtures_root": (
+                str(self.heldout_fixtures_root) if self.heldout_fixtures_root else None
+            ),
+            "heldout_manifest": str(self.heldout_manifest) if self.heldout_manifest else None,
+            "heldout_leak_audit": (
+                str(self.heldout_leak_audit) if self.heldout_leak_audit else None
+            ),
+            "concurrency_stages": self.concurrency_stages,
+            "stage_seed_counts": self.stage_seed_counts,
+            "min_success_rate": self.min_success_rate,
+            "max_duplicate_rate": self.max_duplicate_rate,
+            "max_safety_violations": self.max_safety_violations,
+            "minimum_label_counts": self.minimum_label_counts,
+            "artifact_validation_fixture": (
+                str(self.artifact_validation_fixture) if self.artifact_validation_fixture else None
+            ),
+            "artifact_validation_workspace_root": (
+                str(self.artifact_validation_workspace_root)
+                if self.artifact_validation_workspace_root
+                else None
+            ),
+            "artifact_validation_timeout_seconds": self.artifact_validation_timeout_seconds,
+            "max_failures": self.max_failures,
+            "max_requests": self.max_requests,
+            "max_output_tokens_total": self.max_output_tokens_total,
+            "max_failure_retries": self.max_failure_retries,
+            "cooldown_seconds": self.cooldown_seconds,
+            "cooldown_poll_seconds": self.cooldown_poll_seconds,
+            "max_stagnant_gate_rounds": self.max_stagnant_gate_rounds,
+            "collection_policy": self.collection_policy,
+        }
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any], *, repo_root: Path) -> "AutomationConfig":
         def path_setting(name: str, default: str) -> Path:
@@ -177,6 +307,14 @@ class AutomationConfig:
             heldout_fixtures_root=optional_path("heldout_fixtures_root"),
             heldout_manifest=optional_path("heldout_manifest"),
             heldout_leak_audit=optional_path("heldout_leak_audit"),
+            minimum_label_counts=_minimum_label_counts(value.get("minimum_label_counts")),
+            artifact_validation_fixture=optional_path("artifact_validation_fixture"),
+            artifact_validation_workspace_root=optional_path(
+                "artifact_validation_workspace_root"
+            ),
+            artifact_validation_timeout_seconds=float(
+                value.get("artifact_validation_timeout_seconds", 30.0)
+            ),
             concurrency_stages=_int_tuple(
                 value.get("concurrency_stages", "1"), name="concurrency_stages"
             ),
@@ -194,6 +332,7 @@ class AutomationConfig:
             cooldown_seconds=int(value.get("cooldown_seconds", 18_000)),
             cooldown_poll_seconds=int(value.get("cooldown_poll_seconds", 60)),
             max_stagnant_gate_rounds=int(value.get("max_stagnant_gate_rounds", 5)),
+            collection_policy=str(value.get("collection_policy", "gated")),
         )
 
 
@@ -268,6 +407,15 @@ def _new_quota_epoch(config: AutomationConfig) -> dict[str, Any]:
     }
 
 
+def _verify_status_config_binding(config: AutomationConfig, status: Mapping[str, Any]) -> None:
+    observed = status.get("config_binding_sha256")
+    if not isinstance(observed, str) or observed != config.status_binding_sha256:
+        raise ValueError(
+            "automation status config binding mismatch; use a separate output_dir "
+            "or remove only an intentionally discarded state directory"
+        )
+
+
 def _failure_identity(error: str) -> tuple[str, str, str] | None:
     """Return the stable seed/task/error-class identity emitted by the pipeline."""
 
@@ -338,6 +486,7 @@ class AutomationRunner:
                 return self._migrate_legacy_status(status)
             if schema_version != AUTOMATION_SCHEMA_VERSION:
                 raise ValueError("unsupported automation status schema")
+            _verify_status_config_binding(self.config, status)
             self._normalize_v2_status(status)
             epoch = status["quota_epoch"]
             if str(epoch.get("epoch_id")) != self.config.quota_epoch_id:
@@ -367,6 +516,7 @@ class AutomationRunner:
             return status
         return {
             "schema_version": AUTOMATION_SCHEMA_VERSION,
+            "config_binding_sha256": self.config.status_binding_sha256,
             "run_id": uuid4().hex,
             "state": "ready",
             "stage_index": 0,
@@ -410,6 +560,14 @@ class AutomationRunner:
         epoch.setdefault("failures_used", len(epoch["charged_failure_keys"]))
 
     def _migrate_legacy_status(self, legacy: dict[str, Any]) -> dict[str, Any]:
+        """Start a fresh v2 epoch rather than guessing legacy stage semantics.
+
+        v1 status did not persist the stage schedule. Retaining a non-terminal
+        v1 ``stage_index`` under a changed schedule can skip every configured
+        stage and incorrectly mark the run complete. Preserve the old status
+        and budgets as audit history, but reset the executable run cursor.
+        """
+
         status = deepcopy(legacy)
         old_budgets = deepcopy(status.pop("budgets", {}))
         migrated_at = _iso()
@@ -423,6 +581,7 @@ class AutomationRunner:
             }
         )
         status["schema_version"] = AUTOMATION_SCHEMA_VERSION
+        status["config_binding_sha256"] = self.config.status_binding_sha256
         status["quota_epoch"] = _new_quota_epoch(self.config)
         status["quota_history"] = [old_budgets]
         status["audit_ledger"] = {
@@ -432,17 +591,48 @@ class AutomationRunner:
             "failure_entries": {},
             "legacy_unkeyed_failures": int(old_budgets.get("failures_used", 0)),
         }
+        previous_stage_index = status.get("stage_index")
+        previous_state = str(status.get("state", "unknown"))
+        migration: dict[str, Any] = {
+            "from_schema": LEGACY_AUTOMATION_SCHEMA_VERSION,
+            "to_schema": AUTOMATION_SCHEMA_VERSION,
+            "migrated_at": migrated_at,
+            "legacy_status": deepcopy(legacy),
+        }
+        if previous_state != "complete":
+            migration["resume_policy"] = "fresh_epoch_stage_zero"
+            migration["previous_stage_index"] = previous_stage_index
+            # A legacy v1 stage count cannot be proven compatible with the
+            # current operator config. A clean v2 epoch avoids a false
+            # completion while keeping old details in migration history.
+            status.update(
+                {
+                    "run_id": uuid4().hex,
+                    "state": "ready",
+                    "stage_index": 0,
+                    "current_concurrency": 0,
+                    "current_worker": None,
+                    "cooldown_until": None,
+                    "started_at": migrated_at,
+                    "updated_at": migrated_at,
+                    "completed_at": None,
+                    "event_sequence": 0,
+                    "stages": [],
+                    "metrics": {
+                        "records": 0,
+                        "elapsed_seconds": 0.0,
+                        "throughput_records_per_second": 0.0,
+                        "eta_seconds": None,
+                    },
+                    "last_gate": None,
+                    "heldout_gate": None,
+                }
+            )
+        else:
+            migration["resume_policy"] = "completed_legacy_status_preserved"
         status.setdefault("migration_history", []).append(
-            {
-                "from_schema": LEGACY_AUTOMATION_SCHEMA_VERSION,
-                "to_schema": AUTOMATION_SCHEMA_VERSION,
-                "migrated_at": migrated_at,
-                "legacy_status": deepcopy(legacy),
-            }
+            migration
         )
-        status["cooldown_until"] = None
-        if status.get("state") != "complete":
-            status["state"] = "running"
         self._pending_status_events.append(
             (
                 "status_migrated",
@@ -450,6 +640,8 @@ class AutomationRunner:
                     "from_schema": LEGACY_AUTOMATION_SCHEMA_VERSION,
                     "to_schema": AUTOMATION_SCHEMA_VERSION,
                     "quota_epoch_id": self.config.quota_epoch_id,
+                    "resume_policy": migration["resume_policy"],
+                    "previous_stage_index": previous_stage_index,
                 },
             )
         )
@@ -570,6 +762,46 @@ class AutomationRunner:
             self._event("failure_quarantined", **event)
         return new_charges
 
+    def _append_failure_attempts(self, errors: Sequence[str]) -> None:
+        """Persist content-free failure observations for offline accounting.
+
+        Teacher text and exception messages are deliberately excluded: malformed
+        responses, request-structure failures, and credentials remain hard rejects.
+        The audit ledger retains the repeat count while this JSONL provides a
+        stable, append-only attempt index for later partition reports.
+        """
+
+        store = JsonlStore(self.config.attempts_path)
+        entries = self.status["audit_ledger"]["failure_entries"]
+        seen: set[str] = set()
+        for error in errors:
+            identity = _failure_identity(error)
+            if identity is None:
+                continue
+            seed_id, task, error_class = identity
+            key = _failure_key(seed_id, task, error_class)
+            if key in seen:
+                continue
+            seen.add(key)
+            entry = entries.get(key, {})
+            attempt_number = int(entry.get("attempts_total", 1))
+            store.append(
+                {
+                    "id": stable_id(
+                        "attempt", f"{key}:{attempt_number}:{self.status['run_id']}"
+                    ),
+                    "schema_version": "anchor.automation-attempt.v1",
+                    "run_id": self.status["run_id"],
+                    "seed_id": seed_id,
+                    "task_type": task,
+                    "outcome": "hard_reject",
+                    "error_class": error_class,
+                    "attempt_number": attempt_number,
+                    "observed_at": _iso(),
+                    "teacher_content_retained": False,
+                }
+            )
+
     def _quarantined_seed_ids_for_task(self, task_type: str) -> frozenset[str]:
         task_index = TASK_TYPES.index(task_type)  # type: ignore[arg-type]
         blocked_tasks = set(TASK_TYPES[: task_index + 1])
@@ -578,6 +810,45 @@ class AutomationRunner:
             str(entry["seed_id"])
             for entry in entries
             if entry.get("quarantined") and entry.get("task") in blocked_tasks
+        )
+
+    def _partition_terminal_collection(
+        self, *, seed_target: int, terminal_state: str, reason: str
+    ) -> None:
+        """Partition safe partial output when a provider/budget window closes."""
+
+        for task_type in TASK_TYPES:
+            path = self.config.output_dir / f"data_{task_type}.jsonl"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch(exist_ok=True)
+        heldout_gate = evaluate_heldout_scale_gate(self.config)
+        self.status["heldout_gate"] = heldout_gate
+        self._event("heldout_leakage_gate", **heldout_gate)
+        if not heldout_gate["passed"]:
+            self.status["state"] = "gate_blocked"
+            self._event(
+                "collection_hard_blocked",
+                reason="heldout_or_integrity_gate",
+                heldout_leakage=heldout_gate,
+            )
+            return
+        try:
+            partition = partition_collected_records(self.config, seed_target)
+        except (OSError, ValueError) as error:
+            self.status["state"] = "failed"
+            self._event(
+                "collection_hard_blocked",
+                reason="malformed_or_unsafe_staging",
+                error_type=type(error).__name__,
+            )
+            return
+        self.status["partition"] = partition
+        self.status["state"] = terminal_state
+        self._event(
+            "collection_partitioned",
+            seed_target=seed_target,
+            terminal_reason=reason,
+            partition=partition,
         )
 
     async def run(self, *, wait_for_cooldown: bool = False) -> dict[str, Any]:
@@ -622,6 +893,12 @@ class AutomationRunner:
                     classification="explicit_provider_quota",
                     retry_after_seconds=error.retry_after_seconds,
                 )
+                if self.config.collection_policy == "collect_then_partition":
+                    self._partition_terminal_collection(
+                        seed_target=target,
+                        terminal_state="provider_quota_exhausted",
+                        reason="explicit_provider_quota",
+                    )
                 return self.status
             except RateLimitError as error:
                 self._sync_usage()
@@ -657,6 +934,7 @@ class AutomationRunner:
             elapsed = max(0.000001, time.monotonic() - started)
             self._sync_usage()
             self._record_report_failures(report.errors)
+            self._append_failure_attempts(report.errors)
             if report.rate_limited:
                 if report.provider_quota_exhausted:
                     self.status["state"] = "provider_quota_exhausted"
@@ -669,6 +947,12 @@ class AutomationRunner:
                         classification="explicit_provider_quota",
                         retry_after_seconds=report.retry_after_seconds,
                     )
+                    if self.config.collection_policy == "collect_then_partition":
+                        self._partition_terminal_collection(
+                            seed_target=target,
+                            terminal_state="provider_quota_exhausted",
+                            reason="explicit_provider_quota",
+                        )
                     return self.status
                 self._set_cooldown(report.retry_after_seconds)
                 if not wait_for_cooldown:
@@ -695,6 +979,13 @@ class AutomationRunner:
                 return self.status
             exhausted = self._budget_exhausted()
             if exhausted:
+                if self.config.collection_policy == "collect_then_partition":
+                    self._partition_terminal_collection(
+                        seed_target=target,
+                        terminal_state="budget_exhausted",
+                        reason=exhausted,
+                    )
+                    return self.status
                 self.status["state"] = "budget_exhausted"
                 self._event("budget_exhausted", budget=exhausted)
                 return self.status
@@ -716,6 +1007,38 @@ class AutomationRunner:
                 "report": asdict(report),
             }
             self.status["stages"].append(stage_result)
+            if self.config.collection_policy == "collect_then_partition":
+                # Structural parsing, secret/safety filtering, and held-out
+                # isolation remain fail-closed. Ordinary model quality is
+                # retained and classified only after the collection stage.
+                if not heldout_gate["passed"]:
+                    self.status["state"] = "gate_blocked"
+                    self._event(
+                        "collection_hard_blocked",
+                        reason="heldout_or_integrity_gate",
+                        heldout_leakage=heldout_gate,
+                    )
+                    return self.status
+                try:
+                    partition = partition_collected_records(self.config, target)
+                except (OSError, ValueError) as error:
+                    self.status["state"] = "failed"
+                    self._event(
+                        "collection_hard_blocked",
+                        reason="malformed_or_unsafe_staging",
+                        error_type=type(error).__name__,
+                    )
+                    return self.status
+                self.status["partition"] = partition
+                self.status["stage_index"] = stage_index + 1
+                self._event(
+                    "collection_partitioned",
+                    concurrency=concurrency,
+                    seed_target=target,
+                    partition=partition,
+                    post_collection_gate_passed=gate["passed"],
+                )
+                continue
             if not gate["passed"]:
                 records = int(gate["records"])
                 if previous_gate_records is not None and records <= previous_gate_records:
@@ -789,6 +1112,13 @@ class AutomationRunner:
                 tasks=[task_type],
                 excluded_seed_ids=excluded_seed_ids,
             )
+            # A structurally valid empty file is meaningful in collect-first
+            # mode: it records zero accepted responses without confusing the
+            # held-out scanner with a missing source.
+            if self.config.collection_policy == "collect_then_partition":
+                output_path = self.config.output_dir / f"data_{task_type}.jsonl"
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.touch(exist_ok=True)
             written.update(report.written_by_task)
             skipped.update(report.skipped_by_task)
             errors.extend(report.errors)
@@ -869,12 +1199,211 @@ class AutomationRunner:
         }
 
 
+def _record_id(record: Mapping[str, Any]) -> str:
+    return str(record.get("id", "missing-record-id"))
+
+
+def _tool_policy_oracle_error(record: Mapping[str, Any]) -> str | None:
+    """Return a public error when a tool-policy row is not local-oracle gold."""
+
+    raw_input = record.get("input")
+    raw_output = record.get("output")
+    provenance = record.get("provenance")
+    if not isinstance(raw_input, Mapping) or not isinstance(raw_output, Mapping):
+        return "missing canonical input or output"
+    proposals_raw = raw_input.get("tool_proposals")
+    if not isinstance(proposals_raw, list) or not proposals_raw:
+        return "missing inert tool proposals"
+    proposals: list[dict[str, str]] = []
+    for proposal in proposals_raw:
+        if not isinstance(proposal, Mapping) or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in proposal.items()
+        ):
+            return "tool proposals are not canonical string mappings"
+        proposals.append(dict(proposal))
+    expected_output, expected_oracle = deterministic_tool_policy_oracle(proposals)
+    if dict(raw_output) != expected_output:
+        return "output differs from deterministic tool-policy oracle"
+    if not isinstance(provenance, Mapping):
+        return "missing provenance"
+    if provenance.get("label_oracle") != expected_oracle:
+        return "label_oracle differs from deterministic tool-policy oracle"
+    proposal_manifest = provenance.get("tool_proposals")
+    if not isinstance(proposal_manifest, Mapping):
+        return "missing inert tool-proposal provenance"
+    canonical = json.dumps(proposals, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    expected_proposal_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if (
+        proposal_manifest.get("generator") != PROPOSAL_GENERATOR_VERSION
+        or proposal_manifest.get("executed") is not False
+        or proposal_manifest.get("count") != len(proposals)
+        or proposal_manifest.get("sha256") != expected_proposal_hash
+    ):
+        return "tool-proposal provenance is not deterministic inert metadata"
+    return None
+
+
+def _security_oracle_error(record: Mapping[str, Any]) -> str | None:
+    """Return a public error when a security row is not local-fixture gold."""
+
+    raw_input = record.get("input")
+    raw_output = record.get("output")
+    provenance = record.get("provenance")
+    if not isinstance(raw_input, Mapping) or not isinstance(raw_output, Mapping):
+        return "missing canonical input or output"
+    reviewed_code = raw_input.get("reviewed_code")
+    if not isinstance(reviewed_code, str):
+        return "missing reviewed_code"
+    try:
+        expected_output, fixture_manifest = deterministic_security_fixture_oracle(reviewed_code)
+    except ValueError as error:
+        return f"security fixture is not canonical: {str(error)[:120]}"
+    expected_oracle = {
+        "oracle": "anchor-security-fixture-gold-v1",
+        "decision": expected_output["decision"],
+        "sha256": fixture_manifest["gold_sha256"],
+    }
+    if dict(raw_output) != expected_output:
+        return "output differs from deterministic security fixture"
+    if not isinstance(provenance, Mapping):
+        return "missing provenance"
+    if provenance.get("security_fixture") != fixture_manifest:
+        return "security_fixture provenance differs from deterministic fixture"
+    if provenance.get("label_oracle") != expected_oracle:
+        return "label_oracle differs from deterministic security fixture"
+    return None
+
+
+def _artifact_code(record: Mapping[str, Any]) -> tuple[str, str] | None:
+    output = record.get("output")
+    if not isinstance(output, Mapping):
+        return None
+    language = str(output.get("language", "")).casefold()
+    code = output.get("code")
+    if language not in {"tsx", "jsx"} or not isinstance(code, str) or not code.strip():
+        return None
+    return language, code
+
+
+def _evaluate_artifact_gate(
+    config: AutomationConfig,
+    records_by_task: Mapping[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Build/test generated TSX data in isolated fixture workspaces.
+
+    The data schema already binds a review row to its frontend source and a
+    deterministic mutation manifest, so this gate can verify the full same-seed
+    DAG without inventing a repository scaffold or executing generated code.
+    """
+
+    if config.artifact_validation_fixture is None:
+        return {"enabled": False, "passed": True, "status": "DISABLED"}
+    assert config.artifact_validation_workspace_root is not None
+    fixture_root = config.artifact_validation_fixture
+    workspace_root = config.artifact_validation_workspace_root
+    frontend_by_id = {
+        _record_id(record): record for record in records_by_task.get("frontend", [])
+    }
+    cache: dict[str, bool] = {}
+    errors: list[str] = []
+    checked = {"frontend": 0, "review": 0}
+
+    def validate_record(task_type: str, record: Mapping[str, Any]) -> None:
+        artifact = _artifact_code(record)
+        record_id = _record_id(record)
+        checked[task_type] += 1
+        if artifact is None:
+            errors.append(f"{task_type}:{record_id}:missing_tsx_artifact")
+            return
+        _, code = artifact
+        digest = hashlib.sha256(code.encode("utf-8")).hexdigest()
+        if digest not in cache:
+            try:
+                report = validate_tsx_fragment(
+                    code,
+                    fixture_root=fixture_root,
+                    workspace_root=workspace_root,
+                    timeout_seconds=config.artifact_validation_timeout_seconds,
+                )
+                cache[digest] = bool(report.get("passed"))
+            except (OSError, ValueError) as error:
+                cache[digest] = False
+                errors.append(f"{task_type}:{record_id}:validator_error:{type(error).__name__}")
+        if not cache[digest]:
+            errors.append(f"{task_type}:{record_id}:build_or_test_failed")
+
+    for record in records_by_task.get("frontend", []):
+        validate_record("frontend", record)
+
+    for record in records_by_task.get("review", []):
+        record_id = _record_id(record)
+        provenance = record.get("provenance")
+        raw_input = record.get("input")
+        if not isinstance(provenance, Mapping) or not isinstance(raw_input, Mapping):
+            errors.append(f"review:{record_id}:missing_dag_provenance")
+            validate_record("review", record)
+            continue
+        source_id = str(provenance.get("source_frontend_record_id", ""))
+        source = frontend_by_id.get(source_id)
+        if source is None:
+            errors.append(f"review:{record_id}:source_frontend_missing")
+            validate_record("review", record)
+            continue
+        source_provenance = source.get("provenance")
+        if not isinstance(source_provenance, Mapping) or (
+            provenance.get("seed_id") != source_provenance.get("seed_id")
+        ):
+            errors.append(f"review:{record_id}:source_frontend_seed_mismatch")
+        source_artifact = _artifact_code(source)
+        candidate = raw_input.get("candidate_code")
+        if source_artifact is None or not isinstance(candidate, str):
+            errors.append(f"review:{record_id}:source_or_candidate_invalid")
+            validate_record("review", record)
+            continue
+        try:
+            expected_candidate, expected_manifest = mutate_frontend_code(
+                source_artifact[1], source_record_id=source_id
+            )
+        except ValueError as error:
+            errors.append(f"review:{record_id}:mutation_recompute_failed:{type(error).__name__}")
+            validate_record("review", record)
+            continue
+        if candidate != expected_candidate or provenance.get("mutation") != expected_manifest.to_dict():
+            errors.append(f"review:{record_id}:candidate_or_mutation_not_canonical")
+        review_artifact = _artifact_code(record)
+        if review_artifact is None or review_artifact[1] != source_artifact[1]:
+            errors.append(f"review:{record_id}:repair_does_not_restore_frontend_source")
+        validate_record("review", record)
+
+    record_failures: dict[str, list[str]] = {}
+    for error in errors:
+        parts = error.split(":", 2)
+        if len(parts) == 3 and parts[0] in {"frontend", "review"}:
+            record_failures.setdefault(f"{parts[0]}:{parts[1]}", []).append(parts[2])
+    return {
+        "enabled": True,
+        "passed": not errors,
+        "validator": "anchor-tsx-fragment-build-test-v1",
+        "checked": checked,
+        "unique_artifacts_built": len(cache),
+        "error_count": len(errors),
+        "record_failures": record_failures,
+        "errors": errors[:40],
+    }
+
+
 def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
     total_records = 0
     successful = 0
     duplicate_count = 0
     safety_violations = 0
     schema_errors: list[str] = []
+    oracle_errors: list[str] = []
+    label_counts: dict[str, Counter[str]] = {
+        task_type: Counter() for task_type in _LABELS_BY_TASK
+    }
+    records_by_task: dict[str, list[dict[str, Any]]] = {}
     for task_type in TASK_TYPES:
         path = config.output_dir / f"data_{task_type}.jsonl"
         if not path.is_file():
@@ -892,6 +1421,7 @@ def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
         except (OSError, json.JSONDecodeError, ValueError) as error:
             schema_errors.append(f"{path.name}: {error}")
             continue
+        records_by_task[task_type] = records
         total_records += len(records)
         ids = [str(record.get("id", "")) for record in records]
         users = [
@@ -918,6 +1448,22 @@ def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
                     )
                 except ValueError:
                     safety_violations += 1
+        if task_type == "tool_policy":
+            for record in records:
+                decision = record.get("output", {}).get("decision") if isinstance(record.get("output"), Mapping) else None
+                if isinstance(decision, str):
+                    label_counts[task_type][decision] += 1
+                oracle_error = _tool_policy_oracle_error(record)
+                if oracle_error is not None:
+                    oracle_errors.append(f"tool_policy:{_record_id(record)}:{oracle_error}")
+        if task_type == "security":
+            for record in records:
+                decision = record.get("output", {}).get("decision") if isinstance(record.get("output"), Mapping) else None
+                if isinstance(decision, str):
+                    label_counts[task_type][decision] += 1
+                oracle_error = _security_oracle_error(record)
+                if oracle_error is not None:
+                    oracle_errors.append(f"security:{_record_id(record)}:{oracle_error}")
         try:
             from anchor_mvp.training.schema import validate_jsonl
 
@@ -932,6 +1478,16 @@ def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
         except (ImportError, ValueError) as error:
             schema_errors.append(f"{path.name}: training validation failed: {error}")
 
+    label_quota_errors: list[str] = []
+    for quota_task, minimums in config.minimum_label_counts.items():
+        for label, required in minimums.items():
+            observed = label_counts[quota_task][label]
+            if observed < required:
+                label_quota_errors.append(
+                    f"{quota_task}:{label}: observed={observed}, required={required}"
+                )
+    artifact_gate = _evaluate_artifact_gate(config, records_by_task)
+
     expected = seed_target * len(TASK_TYPES)
     success_rate = successful / expected if expected else 0.0
     duplicate_rate = duplicate_count / total_records if total_records else 0.0
@@ -940,6 +1496,9 @@ def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
         and duplicate_rate <= config.max_duplicate_rate
         and safety_violations <= config.max_safety_violations
         and not schema_errors
+        and not oracle_errors
+        and not label_quota_errors
+        and bool(artifact_gate["passed"])
     )
     return {
         "passed": passed,
@@ -954,7 +1513,242 @@ def evaluate_gate(config: AutomationConfig, seed_target: int) -> dict[str, Any]:
         "max_safety_violations": config.max_safety_violations,
         "training_schema_ok": not schema_errors,
         "schema_errors": schema_errors[:20],
+        "deterministic_oracle_ok": not oracle_errors,
+        "oracle_errors": oracle_errors[:20],
+        "label_counts": {task_type: dict(counts) for task_type, counts in label_counts.items()},
+        "label_quota_ok": not label_quota_errors,
+        "label_quota_errors": label_quota_errors[:20],
+        "artifact_validation": artifact_gate,
     }
+
+
+def _atomic_write_jsonl(path: Path, records: Sequence[Mapping[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        for record in records:
+            handle.write(json.dumps(dict(record), ensure_ascii=False, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(dict(value), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    os.replace(temporary, path)
+
+
+def _load_collection_records(config: AutomationConfig) -> dict[str, list[dict[str, Any]]]:
+    """Read only complete JSON objects; malformed collection files fail closed."""
+
+    loaded: dict[str, list[dict[str, Any]]] = {}
+    for task_type in TASK_TYPES:
+        path = config.output_dir / f"data_{task_type}.jsonl"
+        records: list[dict[str, Any]] = []
+        if path.is_file():
+            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if not line.strip():
+                    continue
+                try:
+                    value = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise ValueError(
+                        f"malformed collection JSONL: {path.name}:{line_number}"
+                    ) from error
+                if not isinstance(value, dict):
+                    raise ValueError(
+                        f"collection record is not an object: {path.name}:{line_number}"
+                    )
+                records.append(value)
+        loaded[task_type] = records
+    return loaded
+
+
+def partition_collected_records(
+    config: AutomationConfig, seed_target: int | None = None
+) -> dict[str, Any]:
+    """Partition a completed collection without deleting ordinary model failures.
+
+    Structurally accepted records first enter quality staging. Deterministic label,
+    duplicate, and executable-artifact failures are retained as negatives. Unsafe
+    or secret-bearing records become content-free rejects. The raw per-task files
+    remain the append-only collection source; only ``partitions/gold`` is eligible
+    to become a training snapshot.
+    """
+
+    target = seed_target or config.stage_seed_counts[-1]
+    records_by_task = _load_collection_records(config)
+    empty_digest = hashlib.sha256(b"").hexdigest()
+    source_digests = {
+        task_type: (
+            file_sha256(config.output_dir / f"data_{task_type}.jsonl")
+            if (config.output_dir / f"data_{task_type}.jsonl").is_file()
+            else empty_digest
+        )
+        for task_type in TASK_TYPES
+    }
+    artifact_gate = _evaluate_artifact_gate(config, records_by_task)
+    artifact_failures = artifact_gate.get("record_failures", {})
+    if not isinstance(artifact_failures, Mapping):
+        artifact_failures = {}
+
+    id_counts: Counter[str] = Counter()
+    prompt_counts: Counter[str] = Counter()
+    for records in records_by_task.values():
+        for record in records:
+            id_counts[_record_id(record)] += 1
+            messages = record.get("messages")
+            prompt = ""
+            if isinstance(messages, list) and messages and isinstance(messages[0], Mapping):
+                prompt = " ".join(str(messages[0].get("content", "")).split()).casefold()
+            if prompt:
+                prompt_counts[prompt] += 1
+
+    staged: list[dict[str, Any]] = []
+    negatives: list[dict[str, Any]] = []
+    rejects: list[dict[str, Any]] = []
+    gold_by_task: dict[str, list[dict[str, Any]]] = {task: [] for task in TASK_TYPES}
+    seen_ids: set[str] = set()
+    seen_prompts: set[str] = set()
+    gold_label_counts: dict[str, Counter[str]] = {
+        task: Counter() for task in _LABELS_BY_TASK
+    }
+
+    for task_type in TASK_TYPES:
+        for index, record in enumerate(records_by_task[task_type]):
+            record_id = _record_id(record)
+            quality_labels: set[str] = set()
+            hard_labels: set[str] = set()
+            encoded = json.dumps(record, ensure_ascii=False, sort_keys=True)
+            if contains_secret_material(record):
+                hard_labels.add("secret_detected")
+            try:
+                validate_safe_payload(
+                    cast(Any, task_type),
+                    {"input": record.get("input", {}), "output": record.get("output", {})},
+                )
+            except ValueError:
+                hard_labels.add("unsafe_payload")
+
+            messages = record.get("messages")
+            prompt = ""
+            if isinstance(messages, list) and messages and isinstance(messages[0], Mapping):
+                prompt = " ".join(str(messages[0].get("content", "")).split()).casefold()
+            if record_id in seen_ids or id_counts[record_id] > 1:
+                quality_labels.add("duplicate_record_id")
+            if prompt and (prompt in seen_prompts or prompt_counts[prompt] > 1):
+                quality_labels.add("duplicate_prompt")
+            seen_ids.add(record_id)
+            if prompt:
+                seen_prompts.add(prompt)
+
+            oracle_error: str | None = None
+            if task_type == "tool_policy":
+                oracle_error = _tool_policy_oracle_error(record)
+            elif task_type == "security":
+                oracle_error = _security_oracle_error(record)
+            if oracle_error is not None:
+                quality_labels.add("deterministic_oracle_mismatch")
+            if task_type in _LABELS_BY_TASK:
+                provenance = record.get("provenance")
+                output = record.get("output")
+                observed = (
+                    provenance.get("teacher_observed_decision")
+                    if isinstance(provenance, Mapping)
+                    else None
+                )
+                authoritative = output.get("decision") if isinstance(output, Mapping) else None
+                if isinstance(observed, str) and observed != authoritative:
+                    quality_labels.add("teacher_label_disagreement")
+            record_artifact_failures = artifact_failures.get(f"{task_type}:{record_id}", [])
+            if isinstance(record_artifact_failures, list) and record_artifact_failures:
+                quality_labels.add("artifact_validation_failed")
+
+            disposition = "reject" if hard_labels else "negative" if quality_labels else "gold"
+            labels = sorted(hard_labels | quality_labels)
+            staging_id = stable_id(
+                "quality", f"{task_type}:{index}:{record_id}:{source_digests[task_type]}"
+            )
+            staged_record: dict[str, Any] = {
+                "id": staging_id,
+                "schema_version": QUALITY_STAGING_SCHEMA_VERSION,
+                "task_type": task_type,
+                "source_record_id": record_id,
+                "disposition": disposition,
+                "quality": {
+                    "labels": labels,
+                    "strict_gold_eligible": disposition == "gold",
+                },
+            }
+            if disposition == "reject":
+                staged_record["content_retained"] = False
+                rejects.append(
+                    {
+                        "id": staging_id,
+                        "schema_version": PARTITION_REJECT_SCHEMA_VERSION,
+                        "task_type": task_type,
+                        "source_record_sha256": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+                        "reason_codes": labels,
+                        "content_retained": False,
+                    }
+                )
+            else:
+                staged_record["content_retained"] = True
+                staged_record["record"] = record
+                if disposition == "negative":
+                    negatives.append(staged_record)
+                else:
+                    gold_by_task[task_type].append(record)
+                    if task_type in _LABELS_BY_TASK:
+                        output = record.get("output")
+                        decision = output.get("decision") if isinstance(output, Mapping) else None
+                        if isinstance(decision, str):
+                            gold_label_counts[task_type][decision] += 1
+            staged.append(staged_record)
+
+    _atomic_write_jsonl(config.quality_staging_path, staged)
+    _atomic_write_jsonl(config.partition_dir / "negative.jsonl", negatives)
+    _atomic_write_jsonl(config.partition_dir / "reject.jsonl", rejects)
+    for task_type, records in gold_by_task.items():
+        _atomic_write_jsonl(config.partition_dir / "gold" / f"data_{task_type}.jsonl", records)
+
+    coverage = {task: len(records) for task, records in gold_by_task.items()}
+    coverage_complete = all(count >= target for count in coverage.values())
+    quota_errors: list[str] = []
+    for task_type, minimums in config.minimum_label_counts.items():
+        for label, required in minimums.items():
+            observed = gold_label_counts[task_type][label]
+            if observed < required:
+                quota_errors.append(
+                    f"{task_type}:{label}: observed={observed}, required={required}"
+                )
+    manifest: dict[str, Any] = {
+        "schema_version": "anchor.automation-partition-manifest.v1",
+        "collection_policy": config.collection_policy,
+        "seed_target": target,
+        "staged_count": len(staged),
+        "gold_count": sum(coverage.values()),
+        "negative_count": len(negatives),
+        "reject_count": len(rejects),
+        "gold_by_task": coverage,
+        "gold_label_counts": {
+            task: dict(counts) for task, counts in gold_label_counts.items()
+        },
+        "label_quota_errors": quota_errors,
+        "coverage_complete": coverage_complete,
+        "training_ready": coverage_complete and not quota_errors and not rejects,
+        "quality_staging_sha256": file_sha256(config.quality_staging_path),
+        "negative_sha256": file_sha256(config.partition_dir / "negative.jsonl"),
+        "reject_sha256": file_sha256(config.partition_dir / "reject.jsonl"),
+    }
+    _atomic_write_json(config.partition_dir / "manifest.json", manifest)
+    return manifest
 
 
 def evaluate_heldout_scale_gate(config: AutomationConfig) -> dict[str, Any]:
@@ -1116,6 +1910,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="remain visible and resume after persisted 429 cooldowns",
     )
     parser.add_argument("--status-only", action="store_true")
+    parser.add_argument(
+        "--partition-only",
+        action="store_true",
+        help="recompute offline quality staging and gold/negative/reject partitions",
+    )
     return parser
 
 
@@ -1128,8 +1927,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not config.status_path.exists():
             print(json.dumps({"state": "not_started"}, indent=2))
             return 0
-        print(config.status_path.read_text(encoding="utf-8"))
+        status = json.loads(config.status_path.read_text(encoding="utf-8"))
+        if status.get("schema_version") == AUTOMATION_SCHEMA_VERSION:
+            _verify_status_config_binding(config, status)
+        print(json.dumps(status, ensure_ascii=False, indent=2))
         return 0
+    if args.partition_only:
+        try:
+            manifest = partition_collected_records(config)
+        except (OSError, ValueError) as error:
+            print(
+                f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        return 0 if manifest["training_ready"] else 3
     credential_env = provider_spec(raw).api_key_env
     if not args.dry_run and not os.environ.get(credential_env):
         print("anchor-automation: credential environment variable is not set", file=sys.stderr)

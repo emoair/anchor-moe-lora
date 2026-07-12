@@ -21,13 +21,17 @@ class ToolPolicy:
         "npm run test --if-present",
         "npm run lint --if-present",
     )
-    max_iterations: int = 8
+    max_iterations: int | None = None
     timeout_seconds: float = 900.0
     validation_timeout_seconds: float = 300.0
 
     def __post_init__(self) -> None:
-        if self.max_iterations < 1:
-            raise ValueError("max_iterations must be positive")
+        if self.max_iterations is not None and (
+            isinstance(self.max_iterations, bool)
+            or not isinstance(self.max_iterations, int)
+            or self.max_iterations < 1
+        ):
+            raise ValueError("max_iterations must be a positive integer when configured")
         if self.timeout_seconds <= 0 or self.validation_timeout_seconds <= 0:
             raise ValueError("timeouts must be positive")
         if len(set(self.allowed_tools)) != len(self.allowed_tools):

@@ -21,7 +21,7 @@ from .provider import (
     select_provider_model,
 )
 from .schema import TASK_TYPES
-from .teacher import CompatibleTeacher, MockTeacher, Teacher
+from .teacher import APIProtocol, CompatibleTeacher, MockTeacher, Teacher
 
 
 def _simple_config(path: Path) -> dict[str, Any]:
@@ -30,7 +30,7 @@ def _simple_config(path: Path) -> dict[str, Any]:
         value = json.loads(text)
     else:
         try:
-            import yaml  # type: ignore[import-not-found]
+            import yaml
 
             value = yaml.safe_load(text)
         except ImportError:
@@ -181,11 +181,15 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
     selection = _selection(args, config)
     spec = selection.spec
     configured_fallback = config.get("fallback_protocol")
-    fallback_protocol = (
-        str(configured_fallback)
-        if configured_fallback is not None
-        else "openai" if spec.preset == "kimi-code-anthropic" else None
-    )
+    fallback_protocol: APIProtocol | None
+    if configured_fallback is None:
+        fallback_protocol = "openai" if spec.preset == "kimi-code-anthropic" else None
+    elif str(configured_fallback) == "anthropic":
+        fallback_protocol = "anthropic"
+    elif str(configured_fallback) == "openai":
+        fallback_protocol = "openai"
+    else:
+        raise ValueError("fallback_protocol must be anthropic, openai, or null")
     if args.no_fallback:
         fallback_protocol = None
     fallback_base = str(
@@ -201,7 +205,7 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
         base_url=spec.base_url,
         model=selection.model,
         protocol=spec.protocol,
-        fallback_protocol=fallback_protocol,  # type: ignore[arg-type]
+        fallback_protocol=fallback_protocol,
         fallback_base_url=fallback_base,
         api_key_env=spec.api_key_env,
         anthropic_version=str(_setting(args, config, "anthropic_version", "2023-06-01")),

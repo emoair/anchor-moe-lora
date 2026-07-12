@@ -1,0 +1,9 @@
+{
+  "name": "anchor-tsx-fragment-validator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/validate.mjs build",
+    "test": "node scripts/validate.mjs test"
+  }
+}

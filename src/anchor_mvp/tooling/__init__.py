@@ -33,6 +33,14 @@ from .models import (
 )
 from .policy import ToolPolicy
 from .runner import AnchorSandboxOptions, ControlledSessionCapture, MockAgentExecutor, OpenCodeExecutor
+from .route_preflight import (
+    KimiRouteAudit,
+    KimiRoutePlan,
+    RouteMode,
+    RoutePreflightError,
+    WslKimiRoutePreflight,
+    prepare_kimi_route_plan,
+)
 from .skills import (
     AuditedSkill,
     SkillSourceError,
@@ -53,6 +61,10 @@ __all__ = [
     "MockAgentExecutor",
     "LiveBatchConfig",
     "OpenCodeExecutor",
+    "KimiRouteAudit",
+    "KimiRoutePlan",
+    "RoutePreflightError",
+    "RouteMode",
     "SampleSpec",
     "SkillProvenance",
     "SkillSourceError",
@@ -61,6 +73,7 @@ __all__ = [
     "ToolPolicy",
     "ToolTraceEntry",
     "ToolingHarness",
+    "WslKimiRoutePreflight",
     "ValidationResult",
     "build_opencode_config",
     "audit_skill_instructions",
@@ -72,6 +85,7 @@ __all__ = [
     "merge_stage_into_gold",
     "run_live_batch",
     "persist_attempts_and_gold",
+    "prepare_kimi_route_plan",
     "verify_execution_split",
     "write_gold_jsonl",
     "write_attempts_jsonl",

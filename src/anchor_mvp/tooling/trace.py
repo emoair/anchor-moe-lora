@@ -95,9 +95,13 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
                 and str(error.get("name", "")).casefold() == "apierror"
                 and isinstance(data, dict)
             ):
-                try:
-                    status_code = int(data.get("statusCode"))
-                except (TypeError, ValueError):
+                raw_status_code = data.get("statusCode")
+                if isinstance(raw_status_code, (str, int, float)):
+                    try:
+                        status_code = int(raw_status_code)
+                    except (TypeError, ValueError):
+                        status_code = 0
+                else:
                     status_code = 0
                 if status_code == 400:
                     trusted_text = "\n".join(
@@ -291,9 +295,16 @@ def parse_opencode_jsonl(
             ):
                 continue
             tool = tool.lower()
-            state = item.get("state") if isinstance(item.get("state"), dict) else {}
-            tool_input = item.get("input") if isinstance(item.get("input"), dict) else {}
-            state_input = state.get("input") if isinstance(state.get("input"), dict) else {}
+            raw_state = item.get("state")
+            state: dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+            raw_tool_input = item.get("input")
+            tool_input: dict[str, Any] = (
+                raw_tool_input if isinstance(raw_tool_input, dict) else {}
+            )
+            raw_state_input = state.get("input")
+            state_input: dict[str, Any] = (
+                raw_state_input if isinstance(raw_state_input, dict) else {}
+            )
             command = (
                 _first_string(item, ("command", "cmd"))
                 or _first_string(tool_input, ("command", "cmd"))

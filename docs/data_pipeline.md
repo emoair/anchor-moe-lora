@@ -193,8 +193,8 @@ outputs, so dependency chaining cannot be used to smuggle active material into J
 ## Unattended gated ramp
 
 The automation runner defaults to one serialized stage. Operators may configure an
-optional non-empty list of positive concurrency values; every subsequent configured stage
-opens only after the preceding stage passes all gates:
+optional non-empty list of positive concurrency values. The default `gated` policy opens
+each subsequent configured stage only after the preceding stage passes all gates:
 
 - requested-record success rate;
 - canonical/training JSONL validation;
@@ -226,6 +226,38 @@ records stage starts, held-out leakage results, budget stops, client deadlines,
 cooldowns, and completion. Dataset JSONL remains append-only; restarting skips completed
 seed/expert pairs.
 
+For bulk teacher collection, `collection_policy: collect_then_partition` changes only the
+soft-quality timing. Structurally valid, safe responses are appended first; deterministic
+oracle disagreement, duplicate prompts/IDs, generated-artifact validation failures, low
+coverage, and label-quota shortfalls do not trigger another provider round or discard a
+response.
+
+For deterministic tool-policy and security tasks, a structurally valid teacher decision is
+retained as `provenance.teacher_observed_decision` before the local oracle supplies the
+authoritative target. A disagreement is therefore preserved as a quality negative instead
+of being hidden by target normalization. Malformed or unsafe classification structures are
+still rejected before normalization.
+
+After collection, the runner atomically writes:
+
+- `automation/quality_staging.jsonl`, with retained records and recomputed quality labels;
+- `partitions/gold/data_<task>.jsonl`, the only training-eligible view;
+- `partitions/negative.jsonl`, safe but non-gold responses retained for analysis;
+- `partitions/reject.jsonl`, content-free hashes and reason codes for hard rejects; and
+- `partitions/manifest.json`, including coverage, label quotas, hashes, and
+  `training_ready`.
+
+Malformed JSON/response structure, active or unsafe content, detected credentials, frozen
+held-out collisions, and held-out manifest/audit drift remain hard failures. Failed teacher
+responses are never stored verbatim; `automation/attempts.jsonl` retains only content-free
+seed/task/error-class accounting. Recompute the split without another API call:
+
+```powershell
+py -3.10 -m anchor_mvp.data.automation `
+  --config configs/data/automation.full_v3.fast.yaml `
+  --partition-only
+```
+
 HTTP 429 uses short `Retry-After`/exponential retries in the client. Exhausted rate
 limits persist the configured cooldown floor (or a longer server `Retry-After`) in
 `status.json`. The visible runner can remain alive with `--wait-cooldown`, or exit with
@@ -255,6 +287,32 @@ $env:KIMI_API_KEY = Read-Host -MaskInput "Kimi Code key"
 scripts/data/start_automation.ps1 -Config configs/data/automation.yaml
 scripts/data/show_automation_status.ps1 -Config configs/data/automation.yaml
 ```
+
+`configs/data/automation.full_v3.yaml` is the isolated full-corpus profile:
+one serialized stage generates 128 same-seed records for each of the five
+experts in `data/automated_v3/`. It must start with its own quota epoch and
+must not reuse an incompatible output/state directory. The top-level JSONLs are
+append-only raw collection output. Both full-v3 profiles collect first: oracle
+mismatches and ordinary model-quality failures remain in staging and are excluded
+from gold offline. The partition manifest enforces the configured gold-label floors
+(all three tool-policy labels and both security labels). Frontend/review records are checked as a same-seed DAG in
+isolated copied workspaces: the trusted fixture runs `npm run build` and
+`npm run test` against TSX stored as data, never imported or executed. Review
+must exactly restore the deterministic frontend source after its benign mutation.
+This is a bounded TSX-fragment build/test contract, not a claim that an
+untrusted generated component was executed in a browser or a full React runtime.
+Only a partition with `training_ready: true` may be copied to an immutable curated freeze
+before training.
+
+The default `automation.full_v3.yaml` stays serialized (`concurrency=1`).
+`automation.full_v3.fast.yaml` is an explicit local operator profile
+(`concurrency=10`) for the same 128-seed corpus. Use it only after the one-sample
+OpenCode live gate is `PASS`. Provider/network stops remain resumable; soft model-quality
+failures are handled by offline partitioning instead of immediate retries. Both profiles intentionally target
+`data/automated_v3`, but a persisted status is bound to the ramp and quality
+configuration hash, so attempting to mix serialized and fast profiles against
+the same state directory fails closed. Its different quota epoch is for this
+operator window only, not a bypass for the state binding.
 
 The scripts contain ASCII only and read credentials solely from the current process
 environment. No real unattended batch is launched by tests or repository setup.

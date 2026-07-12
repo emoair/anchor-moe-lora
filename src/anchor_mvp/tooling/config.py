@@ -10,6 +10,9 @@ from .policy import ToolPolicy
 DEFAULT_BASE_URL = "https://api.kimi.com/coding/v1"
 DEFAULT_MODEL = "kimi-for-coding"
 DEFAULT_VARIANT = "medium"
+DEFAULT_OUTPUT_TOKENS = 32768
+DEFAULT_HEADER_TIMEOUT_MS = 30_000
+DEFAULT_CHUNK_TIMEOUT_MS = 60_000
 PROVIDER_ID = "anchor-kimi"
 AGENT_ID = "anchor-distiller"
 
@@ -51,6 +54,13 @@ def build_opencode_config(
     if not model or any(char.isspace() for char in model):
         raise ValueError("model must be a non-empty identifier")
     permission = policy.opencode_permissions()
+    agent: dict[str, object] = {
+        "description": "Isolated coding task with a fail-closed tool policy",
+        "mode": "primary",
+        "permission": permission,
+    }
+    if policy.max_iterations is not None:
+        agent["steps"] = policy.max_iterations
     return {
         "$schema": "https://opencode.ai/config.json",
         "model": f"{PROVIDER_ID}/{model}",
@@ -64,13 +74,19 @@ def build_opencode_config(
                 "options": {
                     "baseURL": base_url,
                     "apiKey": "{env:KIMI_CODE_API_KEY}",
+                    "includeUsage": False,
+                    "headerTimeout": DEFAULT_HEADER_TIMEOUT_MS,
+                    "chunkTimeout": DEFAULT_CHUNK_TIMEOUT_MS,
                 },
                 "models": {
                     model: {
                         "name": "Kimi for Coding",
                         "reasoning": True,
                         "interleaved": {"field": "reasoning_content"},
-                        "limit": {"context": 262144, "output": 32768},
+                        "limit": {
+                            "context": 262144,
+                            "output": DEFAULT_OUTPUT_TOKENS,
+                        },
                         "variants": {
                             DEFAULT_VARIANT: {"reasoningEffort": "medium"},
                         },
@@ -80,12 +96,7 @@ def build_opencode_config(
         },
         "permission": permission,
         "agent": {
-            AGENT_ID: {
-                "description": "Isolated coding task with a fail-closed tool policy",
-                "mode": "primary",
-                "steps": policy.max_iterations,
-                "permission": permission,
-            }
+            AGENT_ID: agent,
         },
     }
 

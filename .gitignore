@@ -14,6 +14,7 @@ node_modules/
 # Teacher outputs and runtime state are private experiment artifacts.
 data/**/*.jsonl
 data/**/automation/
+data/**/partitions/
 examples/data/automation-generated/
 examples/data/generated/
 
