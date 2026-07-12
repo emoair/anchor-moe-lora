@@ -92,6 +92,30 @@ def test_400_and_499_are_classified_without_persisting_raw_error():
     assert codes == ("invalid_url", "client_cancelled", "rate_limited")
 
 
+def test_kimi_400_missing_reasoning_content_is_classified_without_raw_error_text():
+    secret = "private provider diagnostic must not persist"
+    stdout = json.dumps(
+        {
+            "type": "error",
+            "error": {
+                "status": 400,
+                "message": f"reasoning_content is required; {secret}",
+            },
+        }
+    )
+
+    codes = classify_error_metadata(stdout, "")
+
+    assert "missing_reasoning_content" in codes
+    assert all(secret not in code for code in codes)
+
+
+def test_reasoning_content_message_without_http_400_is_not_classified_as_kimi_contract_error():
+    codes = classify_error_text("HTTP 401 reasoning_content is required")
+
+    assert "missing_reasoning_content" not in codes
+
+
 def test_structural_error_metadata_is_classified_without_messages():
     stdout = json.dumps(
         {

@@ -5,9 +5,11 @@ from ordinary text distillation and never stores private reasoning, raw OpenCode
 streams, tool output, environment variables, or API keys.
 
 The custom Kimi provider defines a named `thinking` model variant with
-`reasoningEffort: high`, and every OpenCode execution pins `--variant thinking`. This is
-request-side routing/compute configuration only: the CLI is never passed `--thinking`,
-reasoning events are ignored by both trace and public-outcome reducers, and only a final
+`reasoningEffort: high`, and every OpenCode execution pins `--variant thinking`. OpenCode
+also declares the model as reasoning-capable with interleaved `reasoning_content`, so
+assistant tool-call messages retain Kimi's required protocol field on later turns. This
+field remains protocol state only: the CLI is never passed `--thinking`, reasoning
+events are ignored by both trace and public-outcome reducers, and only a final
 `type: text` event may supply the bounded public outcome.
 
 ## Hard gates

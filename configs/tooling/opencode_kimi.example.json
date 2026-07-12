@@ -15,6 +15,10 @@
       "models": {
         "kimi-for-coding": {
           "name": "Kimi for Coding",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "limit": {
             "context": 262144,
             "output": 32768

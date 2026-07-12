@@ -151,7 +151,15 @@ def test_probe_transcript_requires_first_tool_then_restores_auto():
             },
             {
                 "tool_choice": "auto",
-                "messages": [{"role": "tool", "content": PROBE_MARKER}],
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": "",
+                        "reasoning_content": "",
+                        "tool_calls": [{"id": "call_anchor_probe_1"}],
+                    },
+                    {"role": "tool", "content": PROBE_MARKER},
+                ],
             },
         ]
     )
@@ -194,6 +202,33 @@ def test_probe_rejects_extra_first_turn_tools():
     assert transcript.validate() == (
         False,
         "first provider request exposed tools outside the local read allowlist",
+    )
+
+
+def test_probe_rejects_missing_reasoning_content_on_tool_call_history():
+    transcript = ProbeTranscript(
+        requests=[
+            {
+                "tool_choice": "required",
+                "tools": [{"type": "function", "function": {"name": "read"}}],
+            },
+            {
+                "tool_choice": "auto",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [{"id": "call_anchor_probe_1"}],
+                    },
+                    {"role": "tool", "content": PROBE_MARKER},
+                ],
+            },
+        ]
+    )
+
+    assert transcript.validate() == (
+        False,
+        "second provider request omitted reasoning_content from assistant tool call",
     )
 
 

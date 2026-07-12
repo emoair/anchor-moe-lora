@@ -28,6 +28,8 @@ def test_keyless_kimi_config_matches_checked_in_example():
     assert generated["agent"]["anchor-gold"]["requireInitialToolCall"] is True
     assert generated["share"] == "disabled"
     model = generated["provider"]["kimi-code"]["models"]["kimi-for-coding"]
+    assert model["reasoning"] is True
+    assert model["interleaved"] == {"field": "reasoning_content"}
     assert model["variants"] == {
         "thinking": {"reasoningEffort": "high"},
     }

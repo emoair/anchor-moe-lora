@@ -68,6 +68,8 @@ def build_opencode_config(
                 "models": {
                     model: {
                         "name": "Kimi for Coding",
+                        "reasoning": True,
+                        "interleaved": {"field": "reasoning_content"},
                         "limit": {"context": 262144, "output": 32768},
                         "variants": {
                             DEFAULT_VARIANT: {"reasoningEffort": "high"},

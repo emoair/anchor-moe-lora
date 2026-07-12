@@ -42,10 +42,22 @@ class ProbeTranscript:
         messages = second.get("messages")
         if not isinstance(messages, list):
             return False, "second provider request has no messages"
+        tool_call_messages = [
+            item
+            for item in messages
+            if isinstance(item, Mapping)
+            and item.get("role") == "assistant"
+            and isinstance(item.get("tool_calls"), list)
+        ]
+        if not tool_call_messages or any(
+            "reasoning_content" not in item or not isinstance(item.get("reasoning_content"), str)
+            for item in tool_call_messages
+        ):
+            return False, "second provider request omitted reasoning_content from assistant tool call"
         results = [item for item in messages if isinstance(item, Mapping) and item.get("role") == "tool"]
         if not results or not any(PROBE_MARKER in str(item.get("content", "")) for item in results):
             return False, "second provider request did not contain the completed probe tool result"
-        return True, "required-first-tool and post-result auto behavior verified"
+        return True, "required-first-tool, reasoning replay, and post-result auto behavior verified"
 
 
 def _response(transcript: ProbeTranscript, request: Mapping[str, Any]) -> dict[str, Any]:
@@ -260,7 +272,13 @@ def run_behavioral_probe(
                 "anchor-probe": {
                     "npm": "@ai-sdk/openai-compatible",
                     "options": {"baseURL": f"http://127.0.0.1:{port}/v1", "apiKey": "offline-probe"},
-                    "models": {"probe-model": {"name": "Offline probe"}},
+                    "models": {
+                        "probe-model": {
+                            "name": "Offline probe",
+                            "reasoning": True,
+                            "interleaved": {"field": "reasoning_content"},
+                        }
+                    },
                 }
             },
             "permission": {"*": "deny", "read": "allow", "external_directory": "deny"},

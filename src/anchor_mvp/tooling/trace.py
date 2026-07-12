@@ -24,10 +24,35 @@ def classify_error_text(value: str) -> tuple[str, ...]:
         codes.append("rate_limited")
     if "invalid authentication" in lowered or "status code: 401" in lowered or "http 401" in lowered:
         codes.append("authentication_failed")
+    if _is_missing_reasoning_content_400(lowered):
+        codes.append("missing_reasoning_content")
     return tuple(codes)
 
 
 _SAFE_ERROR_TOKEN = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
+_HTTP_400_SIGNAL = re.compile(
+    r'(?:\bhttp(?:\s+status)?|\bstatus(?:\s*code)?|"status(?:code)?")\s*(?::|=)?\s*400\b'
+)
+
+
+def _is_missing_reasoning_content_400(lowered: str) -> bool:
+    """Recognize the Kimi 400 contract error without returning provider text."""
+
+    if not _HTTP_400_SIGNAL.search(lowered):
+        return False
+    has_reasoning_field = "reasoning_content" in lowered or "reasoning content" in lowered
+    missing_signal = any(
+        marker in lowered
+        for marker in (
+            "missing",
+            "required",
+            "must include",
+            "must be included",
+            "not provided",
+            "not present",
+        )
+    )
+    return has_reasoning_field and missing_signal
 
 
 def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
