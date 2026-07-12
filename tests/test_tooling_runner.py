@@ -87,14 +87,14 @@ def test_command_pins_audited_thinking_variant_without_printing_reasoning(tmp_pa
     assert "--thinking" not in command
 
 
-def test_patched_capability_requires_first_class_agent_marker():
-    assert OpenCodeExecutor.is_patched_agent_config(
+def test_live_agent_config_rejects_any_initial_tool_force():
+    assert OpenCodeExecutor.is_unforced_agent_config({"options": {}})
+    assert not OpenCodeExecutor.is_unforced_agent_config(
         {"requireInitialToolCall": True, "options": {}}
     )
-    assert not OpenCodeExecutor.is_patched_agent_config(
+    assert not OpenCodeExecutor.is_unforced_agent_config(
         {"options": {"requireInitialToolCall": True}}
     )
-    assert not OpenCodeExecutor.is_patched_agent_config({"options": {}})
 
 
 def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
@@ -114,7 +114,7 @@ def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
         "anchor_mvp.tooling.runner.subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(
             returncode=0,
-            stdout=json.dumps({"requireInitialToolCall": True, "options": {}}),
+            stdout=json.dumps({"options": {}}),
             stderr="",
         ),
     )

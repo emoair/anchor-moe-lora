@@ -25,13 +25,13 @@ def test_keyless_kimi_config_matches_checked_in_example():
     }
     assert "headers" not in generated["provider"]["kimi-code"]["options"]
     assert generated["agent"]["anchor-gold"]["steps"] == 8
-    assert generated["agent"]["anchor-gold"]["requireInitialToolCall"] is True
+    assert "requireInitialToolCall" not in generated["agent"]["anchor-gold"]
     assert generated["share"] == "disabled"
     model = generated["provider"]["kimi-code"]["models"]["kimi-for-coding"]
     assert model["reasoning"] is True
     assert model["interleaved"] == {"field": "reasoning_content"}
     assert model["variants"] == {
-        "thinking": {"reasoningEffort": "high"},
+        "thinking": {"reasoningEffort": "medium"},
     }
 
 

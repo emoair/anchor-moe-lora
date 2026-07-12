@@ -10,12 +10,10 @@ import subprocess
 import tempfile
 import time
 import threading
-from contextlib import nullcontext
 from typing import Mapping, Protocol
 
 from .config import AGENT_ID, DEFAULT_MODEL, DEFAULT_VARIANT, PROVIDER_ID
 from .behavioral_probe import run_behavioral_probe
-from .initial_tool_proxy import InitialToolChoiceProxy
 from .models import AgentExecution, ToolTraceEntry
 from .opencode_artifact import (
     BinaryAttestation,
@@ -126,13 +124,11 @@ class OpenCodeExecutor:
         executable: str = "opencode",
         *,
         extra_environment: Mapping[str, str] | None = None,
-        initial_tool_proxy: bool = False,
         patch_manifest: str | Path | None = None,
         session_capture: ControlledSessionCapture | None = None,
     ) -> None:
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
-        self.initial_tool_proxy = initial_tool_proxy
         project_root = Path(__file__).resolve().parents[3]
         self.patch_manifest = Path(
             patch_manifest or project_root / "patches" / "opencode" / "patch-manifest.json"
@@ -142,11 +138,7 @@ class OpenCodeExecutor:
 
     @property
     def backend_name(self) -> str:
-        return (
-            "opencode-kimi-initial-tool-proxy"
-            if self.initial_tool_proxy
-            else "opencode-kimi"
-        )
+        return "opencode-kimi"
 
     def _resolved_executable(self) -> str | None:
         if os.name == "nt" and not Path(self.executable).suffix:
@@ -159,11 +151,11 @@ class OpenCodeExecutor:
         return self._resolved_executable() is not None
 
     @staticmethod
-    def is_patched_agent_config(value: object) -> bool:
+    def is_unforced_agent_config(value: object) -> bool:
         if not isinstance(value, dict):
             return False
         options = value.get("options")
-        return value.get("requireInitialToolCall") is True and not (
+        return "requireInitialToolCall" not in value and not (
             isinstance(options, dict) and "requireInitialToolCall" in options
         )
 
@@ -200,8 +192,8 @@ class OpenCodeExecutor:
                 payload = json.loads(completed.stdout)
             except json.JSONDecodeError:
                 return False, "patched capability probe returned invalid JSON"
-            if not self.is_patched_agent_config(payload):
-                return False, "requireInitialToolCall is not a first-class resolved agent field"
+            if not self.is_unforced_agent_config(payload):
+                return False, "resolved agent unexpectedly forces an initial tool call"
             verify_binary_identity(attestation)
             with tempfile.TemporaryDirectory(
                 prefix="opencode-behavioral-probe-",
@@ -220,39 +212,6 @@ class OpenCodeExecutor:
             return False, "patched capability probe timed out"
         finally:
             shutil.rmtree(config_path.parent / "runtime", ignore_errors=True)
-
-    def probe_initial_tool_proxy(self, config_path: Path) -> tuple[bool, str]:
-        if not self.initial_tool_proxy:
-            return False, "initial-tool proxy mode is disabled"
-        if self._resolved_executable() is None:
-            return False, "OpenCode executable is missing"
-        try:
-            loaded = json.loads(config_path.read_text(encoding="utf-8"))
-            provider = loaded["provider"][PROVIDER_ID]
-            if not isinstance(provider, dict) or not isinstance(
-                provider.get("options"), dict
-            ):
-                return False, "OpenCode provider configuration is invalid"
-        except (OSError, json.JSONDecodeError, KeyError, TypeError):
-            return False, "OpenCode provider configuration is invalid"
-        return True, "loopback initial-tool proxy is configured"
-
-    @staticmethod
-    def _proxy_config(config_path: Path, base_url: str) -> Path:
-        loaded = json.loads(config_path.read_text(encoding="utf-8"))
-        provider = loaded["provider"][PROVIDER_ID]
-        provider["options"]["baseURL"] = base_url
-        agent = loaded.get("agent", {}).get(AGENT_ID)
-        if isinstance(agent, dict):
-            # The unpatched binary would treat unknown agent keys as provider
-            # options. Enforcement belongs exclusively to the proxy fallback.
-            agent.pop("requireInitialToolCall", None)
-        destination = config_path.with_name("opencode.proxy.json")
-        destination.write_text(
-            json.dumps(loaded, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        return destination
 
     def _environment(self, config_path: Path) -> dict[str, str]:
         runtime_root = config_path.parent / "runtime"
@@ -329,43 +288,32 @@ class OpenCodeExecutor:
             )
         started = time.perf_counter()
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        proxy_context = InitialToolChoiceProxy() if self.initial_tool_proxy else nullcontext()
-        proxy_not_forced = False
-        proxy_error_codes: tuple[str, ...] = ()
-        with proxy_context as proxy:
-            execution_config = config_path
-            if isinstance(proxy, InitialToolChoiceProxy):
-                execution_config = self._proxy_config(config_path, proxy.base_url)
-            verify_launch_identity(self._attestation)  # type: ignore[arg-type]
-            process = subprocess.Popen(
-                self.command(sample_id=sample_id, prompt=prompt, workspace=workspace),
-                cwd=workspace,
-                env=self._environment(execution_config),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                creationflags=creationflags,
-                start_new_session=os.name != "nt",
-            )
-            timed_out = False
-            try:
-                stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                _terminate_process_tree(process)
-                stdout, stderr = process.communicate()
-            if isinstance(proxy, InitialToolChoiceProxy):
-                stats = proxy.stats
-                proxy_not_forced = stats.requests > 0 and stats.forced_requests == 0
-                proxy_error_codes = stats.error_codes
+        execution_config = config_path
+        verify_launch_identity(self._attestation)  # type: ignore[arg-type]
+        process = subprocess.Popen(
+            self.command(sample_id=sample_id, prompt=prompt, workspace=workspace),
+            cwd=workspace,
+            env=self._environment(execution_config),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=creationflags,
+            start_new_session=os.name != "nt",
+        )
+        timed_out = False
+        try:
+            stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _terminate_process_tree(process)
+            stdout, stderr = process.communicate()
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
         public_outcome = parse_public_outcome(stdout)
         errors = list(classify_error_metadata(stdout, stderr))
-        errors.extend(proxy_error_codes)
         runtime_path = config_path.parent / "runtime"
         session_id = _extract_session_id(stdout)
         export_path: Path | None = None
@@ -395,8 +343,6 @@ class OpenCodeExecutor:
             errors.append("controlled_session_id_missing")
         if timed_out:
             errors.append("wrapper_timeout")
-        if proxy_not_forced:
-            errors.append("initial_tool_proxy_not_forced")
         return AgentExecution(
             exit_code=process.returncode if process.returncode is not None else 124,
             timed_out=timed_out,

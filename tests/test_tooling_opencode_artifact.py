@@ -141,11 +141,11 @@ def test_artifact_attestation_requires_converter_tool_contract(tmp_path: Path):
         verify_binary_attestation(executable, patch_manifest=source)
 
 
-def test_probe_transcript_requires_first_tool_then_restores_auto():
+def test_probe_transcript_preserves_automatic_tool_choice_across_tool_result():
     transcript = ProbeTranscript(
         requests=[
             {
-                "tool_choice": "required",
+                "tool_choice": "auto",
                 "tools": [{"type": "function", "function": {"name": "read"}}],
                 "messages": [{"role": "user", "content": "read the marker"}],
             },
@@ -165,10 +165,10 @@ def test_probe_transcript_requires_first_tool_then_restores_auto():
     )
 
     assert transcript.validate()[0] is True
-    transcript.requests[1]["tool_choice"] = "required"
+    transcript.requests[0]["tool_choice"] = "required"
     assert transcript.validate() == (
         False,
-        "second provider request did not restore automatic tool choice",
+        "first provider request did not preserve automatic tool choice",
     )
 
 
@@ -189,7 +189,7 @@ def test_probe_rejects_extra_first_turn_tools():
     transcript = ProbeTranscript(
         requests=[
             {
-                "tool_choice": "required",
+                "tool_choice": "auto",
                 "tools": [
                     {"type": "function", "function": {"name": "read"}},
                     {"type": "function", "function": {"name": "task"}},
@@ -209,7 +209,7 @@ def test_probe_rejects_missing_reasoning_content_on_tool_call_history():
     transcript = ProbeTranscript(
         requests=[
             {
-                "tool_choice": "required",
+                "tool_choice": "auto",
                 "tools": [{"type": "function", "function": {"name": "read"}}],
             },
             {

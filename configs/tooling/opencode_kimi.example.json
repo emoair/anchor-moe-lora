@@ -25,7 +25,7 @@
           },
           "variants": {
             "thinking": {
-              "reasoningEffort": "high"
+              "reasoningEffort": "medium"
             }
           }
         }
@@ -59,7 +59,6 @@
       "description": "Isolated coding task with a fail-closed tool policy",
       "mode": "primary",
       "steps": 8,
-      "requireInitialToolCall": true,
       "permission": {
         "*": "deny",
         "read": "allow",

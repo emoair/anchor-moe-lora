@@ -72,7 +72,7 @@ def build_opencode_config(
                         "interleaved": {"field": "reasoning_content"},
                         "limit": {"context": 262144, "output": 32768},
                         "variants": {
-                            DEFAULT_VARIANT: {"reasoningEffort": "high"},
+                            DEFAULT_VARIANT: {"reasoningEffort": "medium"},
                         },
                     }
                 },
@@ -84,7 +84,6 @@ def build_opencode_config(
                 "description": "Isolated coding task with a fail-closed tool policy",
                 "mode": "primary",
                 "steps": policy.max_iterations,
-                "requireInitialToolCall": True,
                 "permission": permission,
             }
         },

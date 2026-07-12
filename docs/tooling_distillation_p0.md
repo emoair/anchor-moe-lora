@@ -5,7 +5,7 @@ from ordinary text distillation and never stores private reasoning, raw OpenCode
 streams, tool output, environment variables, or API keys.
 
 The custom Kimi provider defines a named `thinking` model variant with
-`reasoningEffort: high`, and every OpenCode execution pins `--variant thinking`. OpenCode
+`reasoningEffort: medium`, and every OpenCode execution pins `--variant thinking`. OpenCode
 also declares the model as reasoning-capable with interleaved `reasoning_content`, so
 assistant tool-call messages retain Kimi's required protocol field on later turns. This
 field remains protocol state only: the CLI is never passed `--thinking`, reasoning
@@ -94,15 +94,15 @@ the difference between local timeout and service failure.
 
 ## Offline preflight
 
-### Patched OpenCode is mandatory
+### Attested OpenCode is mandatory
 
-Live tool distillation is fail-closed until the repository-local patched OpenCode binary
+Live tool distillation is fail-closed until the repository-local attested OpenCode binary
 exists at `artifacts/tooling/opencode-patched/opencode-anchor.exe`. The global `opencode`
 installation is never accepted as a fallback. Before checking API credentials or starting
 a session, the launcher runs the binary's local `debug agent anchor-gold --pure` command
-with the key removed from the child environment. The resolved agent must expose
-`requireInitialToolCall: true` as a first-class field, not as a provider option. An
-unpatched 1.17.18 binary therefore fails preflight and cannot run live.
+with the key removed from the child environment. The resolved agent must not contain
+`requireInitialToolCall` at the top level or in provider options. Tool choice remains
+automatic; the model is never forced to call a tool merely to satisfy the transport.
 
 The reproducible patch is pinned to official OpenCode commit
 `b1fc8113948b518835c2a39ece49553cffe9b30c` in
@@ -128,12 +128,12 @@ excluded from the focused test command. A failure leaves the globally installed
 OpenCode unchanged. Until this build succeeds, only offline tests and dry preflight are
 supported; **do not add `--confirm-live`**.
 
-The patch adds an opt-in agent setting. On the current user turn, if at least one tool
-survives permission filtering and no tool part for that same user has reached
-`completed`, OpenCode sends `tool_choice: required`. After the first completed tool it
-returns to the upstream `undefined`/automatic choice, allowing the final public JSON
-response without a forced-tool loop. Completed tools from older user turns and tools in
-`running` or `error` states do not satisfy the gate.
+The local binary still carries the historical opt-in patch for reproducibility, but the
+Anchor configuration deliberately leaves that option unset. The offline behavioral
+probe rejects `tool_choice: required` on either request and verifies automatic choice,
+tool-result replay, and `reasoning_content` replay. Execution candidates enter gold only
+when their observed session, file diff, public outcome, and validators pass; rejection
+happens after observation rather than by constraining the model's first move.
 
 The command below validates config, all Skill hashes/audits, the frozen held-out input
 inventory, candidate leakage, OpenCode availability, and key presence. It does not launch

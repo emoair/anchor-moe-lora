@@ -20,11 +20,6 @@ from .gold import (
     write_gold_jsonl,
 )
 from .harness import ToolingHarness
-from .initial_tool_proxy import (
-    InitialToolChoiceProxy,
-    ProxyStats,
-    enforce_initial_tool_choice,
-)
 from .models import (
     AgentExecution,
     FileChange,
@@ -52,10 +47,8 @@ __all__ = [
     "FileChange",
     "GoldRecord",
     "ControlledSessionCapture",
-    "InitialToolChoiceProxy",
     "PublicDecisionStep",
     "PublicOutcome",
-    "ProxyStats",
     "MockAgentExecutor",
     "LiveBatchConfig",
     "OpenCodeExecutor",
@@ -71,7 +64,6 @@ __all__ = [
     "build_opencode_config",
     "audit_skill_instructions",
     "canonical_json",
-    "enforce_initial_tool_choice",
     "is_accepted_gold_record",
     "merge_attempts_jsonl",
     "merge_gold_jsonl",

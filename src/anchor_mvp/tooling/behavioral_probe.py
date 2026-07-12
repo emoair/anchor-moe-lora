@@ -33,12 +33,12 @@ class ProbeTranscript:
             for item in tools
             if isinstance(item, Mapping) and isinstance(item.get("function"), Mapping)
         } if isinstance(tools, list) else set()
-        if first.get("tool_choice") != "required" or "read" not in names:
-            return False, "first provider request did not require the local read tool"
+        if first.get("tool_choice") not in {None, "auto"} or "read" not in names:
+            return False, "first provider request did not preserve automatic tool choice"
         if names != {"read"}:
             return False, "first provider request exposed tools outside the local read allowlist"
         if second.get("tool_choice") not in {None, "auto"}:
-            return False, "second provider request did not restore automatic tool choice"
+            return False, "second provider request did not preserve automatic tool choice"
         messages = second.get("messages")
         if not isinstance(messages, list):
             return False, "second provider request has no messages"
@@ -57,7 +57,7 @@ class ProbeTranscript:
         results = [item for item in messages if isinstance(item, Mapping) and item.get("role") == "tool"]
         if not results or not any(PROBE_MARKER in str(item.get("content", "")) for item in results):
             return False, "second provider request did not contain the completed probe tool result"
-        return True, "required-first-tool, reasoning replay, and post-result auto behavior verified"
+        return True, "automatic tool choice, reasoning replay, and tool result behavior verified"
 
 
 def _response(transcript: ProbeTranscript, request: Mapping[str, Any]) -> dict[str, Any]:
@@ -286,7 +286,6 @@ def run_behavioral_probe(
                 AGENT_ID: {
                     "mode": "primary",
                     "steps": 3,
-                    "requireInitialToolCall": True,
                     "permission": {"*": "deny", "read": "allow"},
                 }
             },
