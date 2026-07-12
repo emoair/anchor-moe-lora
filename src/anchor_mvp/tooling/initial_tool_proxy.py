@@ -25,6 +25,28 @@ _HOP_BY_HOP = {
     "upgrade",
 }
 _MAX_REQUEST_BYTES = 64 * 1024 * 1024
+_MAX_ERROR_CLASSIFICATION_BYTES = 64 * 1024
+
+
+def _classify_kimi_400(body: bytes) -> str:
+    """Reduce a trusted upstream 400 body to one fixed, content-free category."""
+
+    lowered = body.decode("utf-8", errors="replace").casefold()
+    if "invalid_url" in lowered or "provided url is invalid" in lowered:
+        return "kimi_400_invalid_url"
+    if "total message size" in lowered and "exceeds limit" in lowered:
+        return "kimi_400_message_too_large"
+    if "request exceeded model token limit" in lowered:
+        return "kimi_400_token_limit"
+    if "reasoning_content" in lowered and "missing" in lowered:
+        return "kimi_400_missing_reasoning_content"
+    if "unsupported image url" in lowered:
+        return "kimi_400_unsupported_image_url"
+    if "function name" in lowered and "duplicated" in lowered:
+        return "kimi_400_duplicate_function_name"
+    if "request was rejected" in lowered and "high risk" in lowered:
+        return "kimi_400_high_risk_rejected"
+    return "kimi_400_unknown"
 
 
 def _current_turn_has_tool_result(messages: object) -> bool:
@@ -67,6 +89,7 @@ def _copy_request_headers(headers: Mapping[str, str], body_size: int) -> dict[st
         and name.casefold() not in {"host", "content-length"}
     }
     copied["Content-Length"] = str(body_size)
+    copied["Accept-Encoding"] = "identity"
     return copied
 
 
@@ -83,6 +106,7 @@ def _copy_response_headers(response: HTTPResponse) -> list[tuple[str, str]]:
 class ProxyStats:
     requests: int
     forced_requests: int
+    error_codes: tuple[str, ...]
 
 
 class _ProxyHTTPServer(ThreadingHTTPServer):
@@ -107,12 +131,18 @@ class _ProxyHTTPServer(ThreadingHTTPServer):
         self.upstream = parsed
         self.requests_seen = 0
         self.forced_requests = 0
+        self.error_codes: list[str] = []
         self.stats_lock = threading.Lock()
 
     def record(self, forced: bool) -> None:
         with self.stats_lock:
             self.requests_seen += 1
             self.forced_requests += int(forced)
+
+    def record_error(self, code: str) -> None:
+        with self.stats_lock:
+            if code not in self.error_codes:
+                self.error_codes.append(code)
 
 
 class _ProxyHandler(BaseHTTPRequestHandler):
@@ -177,6 +207,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 headers=_copy_request_headers(self.headers, len(outgoing)),
             )
             response = connection.getresponse()
+            error_body = bytearray()
             self.send_response(response.status, response.reason)
             for name, value in _copy_response_headers(response):
                 self.send_header(name, value)
@@ -186,12 +217,17 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 chunk = response.read(64 * 1024)
                 if not chunk:
                     break
+                if response.status == 400 and len(error_body) < _MAX_ERROR_CLASSIFICATION_BYTES:
+                    remaining = _MAX_ERROR_CLASSIFICATION_BYTES - len(error_body)
+                    error_body.extend(chunk[:remaining])
                 self.wfile.write(f"{len(chunk):X}\r\n".encode("ascii"))
                 self.wfile.write(chunk)
                 self.wfile.write(b"\r\n")
                 self.wfile.flush()
             self.wfile.write(b"0\r\n\r\n")
             self.wfile.flush()
+            if response.status == 400:
+                self.server.record_error(_classify_kimi_400(bytes(error_body)))
         except (OSError, ConnectionError):
             if not self.wfile.closed:
                 self.close_connection = True
@@ -227,6 +263,7 @@ class InitialToolChoiceProxy(AbstractContextManager["InitialToolChoiceProxy"]):
             return ProxyStats(
                 requests=self._server.requests_seen,
                 forced_requests=self._server.forced_requests,
+                error_codes=tuple(self._server.error_codes),
             )
 
     def __enter__(self) -> "InitialToolChoiceProxy":

@@ -4,8 +4,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import threading
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+
+import pytest
 
 from anchor_mvp.tooling import InitialToolChoiceProxy, enforce_initial_tool_choice
+from anchor_mvp.tooling.initial_tool_proxy import _classify_kimi_400
 
 
 def _payload(messages, *, tool_choice=None):
@@ -151,3 +155,87 @@ def test_loopback_proxy_two_stage_transform_preserves_headers_and_sse_bytes():
     assert captures[0][1]["authorization"] == "Bearer test-only"
     assert captures[0][1]["user-agent"] == "opencode/test-real-client"
     assert captures[0][1]["x-opencode-test"] == "preserved"
+
+
+def test_loopback_proxy_classifies_upstream_400_without_retaining_error_text():
+    secret = "sk-private-provider-diagnostic"
+    body = json.dumps(
+        {
+            "error": {
+                "message": (
+                    "thinking is enabled but reasoning_content is missing in assistant "
+                    f"tool call message; {secret}"
+                )
+            }
+        }
+    ).encode()
+
+    class UpstreamHandler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+        def do_POST(self) -> None:  # noqa: N802
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), UpstreamHandler)
+    thread = threading.Thread(target=upstream.serve_forever, daemon=True)
+    thread.start()
+    upstream_url = (
+        f"http://127.0.0.1:{upstream.server_address[1]}"
+        "/coding/v1/chat/completions"
+    )
+    try:
+        with InitialToolChoiceProxy(
+            upstream_url=upstream_url, _allow_insecure_test_upstream=True
+        ) as proxy:
+            request = Request(
+                proxy.base_url + "/chat/completions",
+                data=json.dumps(_payload([{"role": "user", "content": "inspect"}])).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                urlopen(request, timeout=5)
+            except HTTPError as exc:
+                assert exc.code == 400
+                exc.read()
+            else:
+                raise AssertionError("expected upstream HTTP 400")
+
+            stats = proxy.stats
+            assert stats.error_codes == ("kimi_400_missing_reasoning_content",)
+            assert secret not in repr(stats)
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
+        thread.join(timeout=5)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("(invalid_url) The provided URL is invalid", "kimi_400_invalid_url"),
+        ("total message size 9 exceeds limit 2", "kimi_400_message_too_large"),
+        ("Your request exceeded model token limit: 262144", "kimi_400_token_limit"),
+        ("reasoning_content is missing", "kimi_400_missing_reasoning_content"),
+        ("unsupported image url: local-path", "kimi_400_unsupported_image_url"),
+        ("function name read is duplicated", "kimi_400_duplicate_function_name"),
+        (
+            "The request was rejected because it was considered high risk",
+            "kimi_400_high_risk_rejected",
+        ),
+        ("unrecognized provider validation", "kimi_400_unknown"),
+    ],
+)
+def test_kimi_400_classifier_returns_only_fixed_categories(message: str, expected: str):
+    secret = "sk-private-classifier-input"
+
+    code = _classify_kimi_400(f"{message}; {secret}".encode())
+
+    assert code == expected
+    assert secret not in code

@@ -331,6 +331,7 @@ class OpenCodeExecutor:
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         proxy_context = InitialToolChoiceProxy() if self.initial_tool_proxy else nullcontext()
         proxy_not_forced = False
+        proxy_error_codes: tuple[str, ...] = ()
         with proxy_context as proxy:
             execution_config = config_path
             if isinstance(proxy, InitialToolChoiceProxy):
@@ -359,10 +360,12 @@ class OpenCodeExecutor:
             if isinstance(proxy, InitialToolChoiceProxy):
                 stats = proxy.stats
                 proxy_not_forced = stats.requests > 0 and stats.forced_requests == 0
+                proxy_error_codes = stats.error_codes
         duration_ms = (time.perf_counter() - started) * 1000
         trace, rejected = parse_opencode_jsonl(stdout, policy)
         public_outcome = parse_public_outcome(stdout)
         errors = list(classify_error_metadata(stdout, stderr))
+        errors.extend(proxy_error_codes)
         runtime_path = config_path.parent / "runtime"
         session_id = _extract_session_id(stdout)
         export_path: Path | None = None
