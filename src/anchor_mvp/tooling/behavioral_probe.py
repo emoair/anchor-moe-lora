@@ -276,6 +276,7 @@ def run_behavioral_probe(
         config_path = probe_root / "opencode.probe.json"
         config_path.write_text(json.dumps(config), encoding="utf-8")
         child_env = dict(environment)
+        child_env.pop("OPENCODE_CONFIG_CONTENT", None)
         child_env.update(
             {
                 "OPENCODE_CONFIG": str(config_path),
@@ -284,6 +285,7 @@ def run_behavioral_probe(
                 "XDG_DATA_HOME": str(probe_root / "data"),
                 "XDG_CACHE_HOME": str(probe_root / "cache"),
                 "OPENCODE_DISABLE_MODELS_FETCH": "true",
+                "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
                 "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
                 "OPENCODE_AUTO_SHARE": "false",
             }

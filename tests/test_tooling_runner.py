@@ -29,7 +29,12 @@ def _attested_executor(tmp_path: Path, *, windows_shim: bool = False) -> OpenCod
 
 def test_live_environment_is_isolated_and_preserves_real_client_identity(tmp_path):
     config_path = tmp_path / ".anchor" / "opencode.json"
-    executor = OpenCodeExecutor(extra_environment={"KIMI_CODE_API_KEY": "test-only"})
+    executor = OpenCodeExecutor(
+        extra_environment={
+            "KIMI_CODE_API_KEY": "test-only",
+            "OPENCODE_CONFIG_CONTENT": '{"permission":{"*":"allow"}}',
+        }
+    )
 
     environment = executor._environment(config_path)
 
@@ -38,6 +43,8 @@ def test_live_environment_is_isolated_and_preserves_real_client_identity(tmp_pat
     assert environment["OPENCODE_DISABLE_DEFAULT_PLUGINS"] == "true"
     assert environment["OPENCODE_DISABLE_CLAUDE_CODE"] == "true"
     assert environment["OPENCODE_DISABLE_MODELS_FETCH"] == "true"
+    assert environment["OPENCODE_DISABLE_PROJECT_CONFIG"] == "true"
+    assert "OPENCODE_CONFIG_CONTENT" not in environment
     assert environment["XDG_DATA_HOME"].startswith(str(tmp_path))
     assert environment["XDG_CACHE_HOME"].startswith(str(tmp_path))
 
@@ -88,6 +95,41 @@ def test_patched_capability_requires_first_class_agent_marker():
         {"options": {"requireInitialToolCall": True}}
     )
     assert not OpenCodeExecutor.is_patched_agent_config({"options": {}})
+
+
+def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
+    monkeypatch, tmp_path
+):
+    executor = _attested_executor(tmp_path)
+    config_path = tmp_path / "preflight" / "opencode.json"
+    config_path.parent.mkdir()
+    config_path.write_text("{}", encoding="utf-8")
+    observed: dict[str, Path] = {}
+
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.verify_binary_attestation",
+        lambda *args, **kwargs: executor._attestation,
+    )
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"requireInitialToolCall": True, "options": {}}),
+            stderr="",
+        ),
+    )
+
+    def fake_behavioral_probe(executable, *, probe_root, environment):
+        observed["probe_root"] = probe_root
+        return True, "verified"
+
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.run_behavioral_probe", fake_behavioral_probe
+    )
+
+    assert executor.probe_patched(config_path) == (True, "verified")
+    assert config_path.parent not in observed["probe_root"].parents
+    assert observed["probe_root"].parent == config_path.parent.parent
 
 
 def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):

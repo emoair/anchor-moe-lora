@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 import threading
 from contextlib import nullcontext
@@ -202,11 +203,15 @@ class OpenCodeExecutor:
             if not self.is_patched_agent_config(payload):
                 return False, "requireInitialToolCall is not a first-class resolved agent field"
             verify_binary_identity(attestation)
-            passed, reason = run_behavioral_probe(
-                attestation.executable,
-                probe_root=config_path.parent / "behavioral-probe",
-                environment=environment,
-            )
+            with tempfile.TemporaryDirectory(
+                prefix="opencode-behavioral-probe-",
+                dir=config_path.parent.parent,
+            ) as probe_root:
+                passed, reason = run_behavioral_probe(
+                    attestation.executable,
+                    probe_root=Path(probe_root),
+                    environment=environment,
+                )
             if not passed:
                 return False, reason
             self._attestation = attestation.with_behavioral_probe()
@@ -258,6 +263,7 @@ class OpenCodeExecutor:
             directory.mkdir(parents=True, exist_ok=True)
         environment = os.environ.copy()
         environment.update(self.extra_environment)
+        environment.pop("OPENCODE_CONFIG_CONTENT", None)
         environment.update(
             {
                 "OPENCODE_CONFIG": str(config_path),
@@ -267,6 +273,7 @@ class OpenCodeExecutor:
                 "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
                 "OPENCODE_DISABLE_CLAUDE_CODE": "true",
                 "OPENCODE_DISABLE_MODELS_FETCH": "true",
+                "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
                 "OPENCODE_AUTO_SHARE": "false",
                 "OPENCODE_ENABLE_EXA": "false",
                 "XDG_CONFIG_HOME": str(config_root),
