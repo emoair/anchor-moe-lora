@@ -127,6 +127,52 @@ def _minimum_label_counts(value: Any) -> dict[str, dict[str, int]]:
     return normalized
 
 
+def _minimum_gold_records(value: Any) -> dict[str, int]:
+    """Normalize an explicit gold floor that is separate from raw collection size.
+
+    A scalar applies to every task. A mapping must name every task so a typo or
+    omitted expert cannot silently weaken the training-readiness contract.
+    ``None`` preserves the legacy strict contract where the raw target is also
+    the gold target.
+    """
+
+    if value is None:
+        return {}
+    if isinstance(value, bool):
+        raise ValueError("minimum_gold_records_per_task must contain positive integers")
+    if isinstance(value, int):
+        if value < 1:
+            raise ValueError("minimum_gold_records_per_task must contain positive integers")
+        return {task: value for task in TASK_TYPES}
+    if isinstance(value, Mapping) and not value:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            "minimum_gold_records_per_task must be a positive integer or complete task mapping"
+        )
+    unknown = {str(task) for task in value}.difference(TASK_TYPES)
+    missing = set(TASK_TYPES).difference(str(task) for task in value)
+    if unknown:
+        raise ValueError(
+            "minimum_gold_records_per_task has unsupported tasks: "
+            + ", ".join(sorted(unknown))
+        )
+    if missing:
+        raise ValueError(
+            "minimum_gold_records_per_task is missing tasks: "
+            + ", ".join(sorted(missing))
+        )
+    normalized: dict[str, int] = {}
+    for raw_task, raw_count in value.items():
+        task = str(raw_task)
+        if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 1:
+            raise ValueError(
+                f"minimum_gold_records_per_task.{task} must be a positive integer"
+            )
+        normalized[task] = raw_count
+    return normalized
+
+
 @dataclass(frozen=True)
 class AutomationConfig:
     sop_dir: Path
@@ -136,11 +182,13 @@ class AutomationConfig:
     heldout_manifest: Path | None = None
     heldout_leak_audit: Path | None = None
     minimum_label_counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    minimum_gold_records_per_task: dict[str, int] = field(default_factory=dict)
     artifact_validation_fixture: Path | None = None
     artifact_validation_workspace_root: Path | None = None
     artifact_validation_timeout_seconds: float = 30.0
     concurrency_stages: tuple[int, ...] = DEFAULT_CONCURRENCY_STAGES
     stage_seed_counts: tuple[int, ...] = (3,)
+    raw_collection_target: int | None = None
     min_success_rate: float = 1.0
     max_duplicate_rate: float = 0.0
     max_safety_violations: int = 0
@@ -172,6 +220,30 @@ class AutomationConfig:
             raise ValueError("stage seed targets must be positive integers")
         if tuple(sorted(set(self.stage_seed_counts))) != self.stage_seed_counts:
             raise ValueError("stage seed targets must be strictly increasing")
+        normalized_gold = _minimum_gold_records(self.minimum_gold_records_per_task)
+        if normalized_gold != self.minimum_gold_records_per_task:
+            raise ValueError("minimum_gold_records_per_task must be normalized task counts")
+        if self.raw_collection_target is not None and (
+            isinstance(self.raw_collection_target, bool)
+            or not isinstance(self.raw_collection_target, int)
+            or self.raw_collection_target < self.stage_seed_counts[-1]
+        ):
+            raise ValueError(
+                "raw_collection_target must be an integer at least as large as "
+                "the final stage seed target"
+            )
+        raw_target = self.raw_records_per_task
+        over_target = {
+            task: count for task, count in normalized_gold.items() if count > raw_target
+        }
+        if over_target:
+            details = ", ".join(
+                f"{task}={count}" for task, count in sorted(over_target.items())
+            )
+            raise ValueError(
+                "minimum gold records cannot exceed the raw collection target "
+                f"({raw_target}): {details}"
+            )
         if not 0 <= self.min_success_rate <= 1:
             raise ValueError("min_success_rate must be between 0 and 1")
         if not 0 <= self.max_duplicate_rate <= 1:
@@ -239,16 +311,21 @@ class AutomationConfig:
         return self.output_dir / "partitions"
 
     @property
-    def status_binding_sha256(self) -> str:
-        """Bind one output/state directory to its immutable corpus contract.
+    def minimum_gold_records_by_task(self) -> dict[str, int]:
+        """Return explicit gold floors or the backward-compatible strict floor."""
 
-        A quota epoch is deliberately excluded: an operator may start a new
-        provider quota window without changing the corpus definition. Ramp,
-        quality-gate, and workspace settings are included so an opt-in fast
-        profile cannot silently resume a serialized profile in the same state.
-        """
+        if self.minimum_gold_records_per_task:
+            return dict(self.minimum_gold_records_per_task)
+        return {task: self.raw_records_per_task for task in TASK_TYPES}
 
-        payload = {
+    @property
+    def raw_records_per_task(self) -> int:
+        """Final raw rows requested per expert, including overcollection headroom."""
+
+        return self.raw_collection_target or self.stage_seed_counts[-1]
+
+    def _status_binding_payload(self, *, include_gold_contract: bool) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "schema": "anchor.automation-status-binding.v1",
             "sop_dir": str(self.sop_dir),
             "output_dir": str(self.output_dir),
@@ -284,8 +361,45 @@ class AutomationConfig:
             "max_stagnant_gate_rounds": self.max_stagnant_gate_rounds,
             "collection_policy": self.collection_policy,
         }
-        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        if include_gold_contract:
+            payload["schema"] = "anchor.automation-status-binding.v2"
+            payload["raw_collection_target"] = self.raw_records_per_task
+            payload["minimum_gold_records_per_task"] = self.minimum_gold_records_by_task
+        return payload
+
+    @staticmethod
+    def _binding_sha256(payload: Mapping[str, Any]) -> str:
+        canonical = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    @property
+    def status_binding_sha256(self) -> str:
+        """Bind one output/state directory to its immutable corpus contract.
+
+        A quota epoch is deliberately excluded: an operator may start a new
+        provider quota window without changing the corpus definition. Ramp,
+        quality-gate, and workspace settings are included so an opt-in fast
+        profile cannot silently resume a serialized profile in the same state.
+        """
+
+        return self._binding_sha256(
+            self._status_binding_payload(
+                include_gold_contract=(
+                    self.raw_collection_target is not None
+                    or bool(self.minimum_gold_records_per_task)
+                )
+            )
+        )
+
+    @property
+    def legacy_status_binding_sha256(self) -> str:
+        """Hash the pre-gold-floor corpus contract for one explicit migration."""
+
+        return self._binding_sha256(
+            self._status_binding_payload(include_gold_contract=False)
+        )
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any], *, repo_root: Path) -> "AutomationConfig":
@@ -308,6 +422,9 @@ class AutomationConfig:
             heldout_manifest=optional_path("heldout_manifest"),
             heldout_leak_audit=optional_path("heldout_leak_audit"),
             minimum_label_counts=_minimum_label_counts(value.get("minimum_label_counts")),
+            minimum_gold_records_per_task=_minimum_gold_records(
+                value.get("minimum_gold_records_per_task")
+            ),
             artifact_validation_fixture=optional_path("artifact_validation_fixture"),
             artifact_validation_workspace_root=optional_path(
                 "artifact_validation_workspace_root"
@@ -320,6 +437,11 @@ class AutomationConfig:
             ),
             stage_seed_counts=_int_tuple(
                 value.get("stage_seed_counts", "3"), name="stage_seed_counts"
+            ),
+            raw_collection_target=(
+                int(value["raw_collection_target"])
+                if value.get("raw_collection_target") is not None
+                else None
             ),
             min_success_rate=float(value.get("min_success_rate", 1.0)),
             max_duplicate_rate=float(value.get("max_duplicate_rate", 0.0)),
@@ -409,7 +531,12 @@ def _new_quota_epoch(config: AutomationConfig) -> dict[str, Any]:
 
 def _verify_status_config_binding(config: AutomationConfig, status: Mapping[str, Any]) -> None:
     observed = status.get("config_binding_sha256")
-    if not isinstance(observed, str) or observed != config.status_binding_sha256:
+    accepted = {config.status_binding_sha256}
+    if config.status_binding_sha256 != config.legacy_status_binding_sha256:
+        # Read-only status inspection may view the one supported v1 -> v2
+        # contract migration. AutomationRunner records the migration before use.
+        accepted.add(config.legacy_status_binding_sha256)
+    if not isinstance(observed, str) or observed not in accepted:
         raise ValueError(
             "automation status config binding mismatch; use a separate output_dir "
             "or remove only an intentionally discarded state directory"
@@ -486,7 +613,47 @@ class AutomationRunner:
                 return self._migrate_legacy_status(status)
             if schema_version != AUTOMATION_SCHEMA_VERSION:
                 raise ValueError("unsupported automation status schema")
-            _verify_status_config_binding(self.config, status)
+            observed_binding = status.get("config_binding_sha256")
+            if observed_binding == self.config.status_binding_sha256:
+                pass
+            elif (
+                self.config.status_binding_sha256
+                != self.config.legacy_status_binding_sha256
+                and observed_binding == self.config.legacy_status_binding_sha256
+            ):
+                migrated_at = _iso()
+                status["config_binding_sha256"] = self.config.status_binding_sha256
+                status.setdefault("migration_history", []).append(
+                    {
+                        "migration_type": "raw_gold_contract_v1_to_v2",
+                        "migrated_at": migrated_at,
+                        "previous_config_binding_sha256": observed_binding,
+                        "new_config_binding_sha256": self.config.status_binding_sha256,
+                        "raw_collection_target": self.config.raw_records_per_task,
+                        "minimum_gold_records_per_task": (
+                            self.config.minimum_gold_records_by_task
+                        ),
+                        "resume_policy": "preserve_append_only_rows_and_resume_missing_raw_rows",
+                    }
+                )
+                self._pending_status_events.append(
+                    (
+                        "collection_contract_migrated",
+                        {
+                            "from_binding_schema": "v1",
+                            "to_binding_schema": "v2",
+                            "raw_collection_target": self.config.raw_records_per_task,
+                            "minimum_gold_records_per_task": (
+                                self.config.minimum_gold_records_by_task
+                            ),
+                            "resume_policy": (
+                                "preserve_append_only_rows_and_resume_missing_raw_rows"
+                            ),
+                        },
+                    )
+                )
+            else:
+                _verify_status_config_binding(self.config, status)
             self._normalize_v2_status(status)
             epoch = status["quota_epoch"]
             if str(epoch.get("epoch_id")) != self.config.quota_epoch_id:
@@ -876,7 +1043,11 @@ class AutomationRunner:
                 previous_gate_records = None
                 stagnant_gate_rounds = 0
             concurrency = self.config.concurrency_stages[stage_index]
-            target = self.config.stage_seed_counts[stage_index]
+            target = (
+                self.config.raw_records_per_task
+                if stage_index == len(self.config.concurrency_stages) - 1
+                else self.config.stage_seed_counts[stage_index]
+            )
             self.status["state"] = "running"
             self.status["current_concurrency"] = concurrency
             self._event("stage_started", concurrency=concurrency, seed_target=target)
@@ -1188,7 +1359,7 @@ class AutomationRunner:
         started = datetime.fromisoformat(str(self.status["started_at"]))
         elapsed = max(0.000001, (_now() - started).total_seconds())
         throughput = records / elapsed
-        final_records = self.config.stage_seed_counts[-1] * len(TASK_TYPES)
+        final_records = self.config.raw_records_per_task * len(TASK_TYPES)
         remaining = max(0, final_records - records)
         self.status["metrics"] = {
             "records": records,
@@ -1273,6 +1444,59 @@ def _security_oracle_error(record: Mapping[str, Any]) -> str | None:
     if provenance.get("label_oracle") != expected_oracle:
         return "label_oracle differs from deterministic security fixture"
     return None
+
+
+def _oracle_normalized_disagreement_is_training_safe(
+    task_type: str, record: Mapping[str, Any]
+) -> bool:
+    """Prove that no contrary teacher rationale remains in an oracle target.
+
+    New rows carry explicit provenance. Pre-v6 rows are accepted only when
+    their trace exactly matches the historical deterministic replacement and
+    their assistant target is the canonical oracle label. Anything ambiguous
+    remains a quality negative.
+    """
+
+    provenance = record.get("provenance")
+    output = record.get("output")
+    messages = record.get("messages")
+    if (
+        not isinstance(provenance, Mapping)
+        or not isinstance(output, Mapping)
+        or not isinstance(messages, list)
+        or not messages
+        or not isinstance(messages[-1], Mapping)
+    ):
+        return False
+    decision = output.get("decision")
+    if not isinstance(decision, str):
+        return False
+    expected_target = decision if task_type == "tool_policy" else f"[{decision}]"
+    if str(messages[-1].get("content", "")).strip() != expected_target:
+        return False
+    label_oracle = provenance.get("label_oracle")
+    if not isinstance(label_oracle, Mapping) or label_oracle.get("decision") != decision:
+        return False
+
+    explicit_source = provenance.get("supervision_source")
+    if explicit_source is not None:
+        return bool(
+            explicit_source == "deterministic_oracle"
+            and provenance.get("oracle_normalized") is True
+            and provenance.get("teacher_decision_agrees_with_oracle") is False
+            and provenance.get("decision_trace_source") == "deterministic_oracle"
+        )
+
+    trace = record.get("decision_trace")
+    if not isinstance(trace, list) or len(trace) != 1 or not isinstance(trace[0], Mapping):
+        return False
+    return bool(
+        trace[0].get("check") == "deterministic label oracle"
+        and trace[0].get("evidence")
+        == "The inert fixture or proposal manifest defines the gold class."
+        and trace[0].get("action")
+        == f"Emit {decision} without executing or reconstructing payloads."
+    )
 
 
 def _artifact_code(record: Mapping[str, Any]) -> tuple[str, str] | None:
@@ -1547,6 +1771,15 @@ def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
 def _load_collection_records(config: AutomationConfig) -> dict[str, list[dict[str, Any]]]:
     """Read only complete JSON objects; malformed collection files fail closed."""
 
+    from anchor_mvp.training.schema import DatasetValidationError, validate_record
+
+    expected_experts = {
+        "plan": "planner",
+        "tool_policy": "tool_policy",
+        "frontend": "frontend_gen",
+        "review": "frontend_review",
+        "security": "security_gate",
+    }
     loaded: dict[str, list[dict[str, Any]]] = {}
     for task_type in TASK_TYPES:
         path = config.output_dir / f"data_{task_type}.jsonl"
@@ -1565,6 +1798,19 @@ def _load_collection_records(config: AutomationConfig) -> dict[str, list[dict[st
                     raise ValueError(
                         f"collection record is not an object: {path.name}:{line_number}"
                     )
+                try:
+                    expert = validate_record(
+                        value, source=f"{path.name}:{line_number}"
+                    )
+                except DatasetValidationError as error:
+                    raise ValueError(
+                        f"malformed collection record: {path.name}:{line_number}: "
+                        f"{str(error).split(':')[-1].strip()}"
+                    ) from error
+                if expert != expected_experts[task_type]:
+                    raise ValueError(
+                        f"wrong expert in collection: {path.name}:{line_number}"
+                    )
                 records.append(value)
         loaded[task_type] = records
     return loaded
@@ -1582,8 +1828,32 @@ def partition_collected_records(
     to become a training snapshot.
     """
 
-    target = seed_target or config.stage_seed_counts[-1]
-    records_by_task = _load_collection_records(config)
+    target = seed_target or config.raw_records_per_task
+    try:
+        records_by_task = _load_collection_records(config)
+    except (OSError, ValueError) as error:
+        # Replace any stale ready manifest with a content-free corpus blocker.
+        # The malformed row itself is never copied into a partition artifact.
+        _atomic_write_json(
+            config.partition_dir / "manifest.json",
+            {
+                "schema_version": "anchor.automation-partition-manifest.v2",
+                "collection_policy": config.collection_policy,
+                "seed_target": target,
+                "raw_collection_target": target,
+                "minimum_gold_records_per_task": (
+                    config.minimum_gold_records_by_task
+                ),
+                "partition_complete": False,
+                "rejects_quarantined": False,
+                "coverage_complete": False,
+                "training_ready": False,
+                "corpus_blocker": "malformed_collection",
+                "error_type": type(error).__name__,
+                "content_emitted": False,
+            },
+        )
+        raise
     empty_digest = hashlib.sha256(b"").hexdigest()
     source_digests = {
         task_type: (
@@ -1619,12 +1889,17 @@ def partition_collected_records(
     gold_label_counts: dict[str, Counter[str]] = {
         task: Counter() for task in _LABELS_BY_TASK
     }
+    audit_label_counts: dict[str, Counter[str]] = {
+        task: Counter() for task in TASK_TYPES
+    }
 
     for task_type in TASK_TYPES:
         for index, record in enumerate(records_by_task[task_type]):
             record_id = _record_id(record)
             quality_labels: set[str] = set()
             hard_labels: set[str] = set()
+            audit_labels: set[str] = set()
+            partition_record = record
             encoded = json.dumps(record, ensure_ascii=False, sort_keys=True)
             if contains_secret_material(record):
                 hard_labels.add("secret_detected")
@@ -1665,13 +1940,37 @@ def partition_collected_records(
                 )
                 authoritative = output.get("decision") if isinstance(output, Mapping) else None
                 if isinstance(observed, str) and observed != authoritative:
-                    quality_labels.add("teacher_label_disagreement")
+                    audit_labels.add("teacher_label_disagreement")
+                    if oracle_error is None and _oracle_normalized_disagreement_is_training_safe(
+                        task_type, record
+                    ):
+                        audit_labels.add("teacher_label_disagreement_oracle_normalized")
+                        # Raw collection remains append-only. The partitioned
+                        # training view makes the legacy normalization proof
+                        # explicit so downstream consumers never mistake this
+                        # row for teacher agreement.
+                        partition_record = deepcopy(record)
+                        normalized_provenance = dict(partition_record["provenance"])
+                        normalized_provenance.update(
+                            {
+                                "teacher_decision_agrees_with_oracle": False,
+                                "supervision_source": "deterministic_oracle",
+                                "oracle_normalized": True,
+                                "decision_trace_source": "deterministic_oracle",
+                            }
+                        )
+                        partition_record["provenance"] = normalized_provenance
+                    else:
+                        quality_labels.add("teacher_label_disagreement")
+                        audit_labels.add("teacher_label_disagreement_unresolved")
             record_artifact_failures = artifact_failures.get(f"{task_type}:{record_id}", [])
             if isinstance(record_artifact_failures, list) and record_artifact_failures:
                 quality_labels.add("artifact_validation_failed")
 
             disposition = "reject" if hard_labels else "negative" if quality_labels else "gold"
             labels = sorted(hard_labels | quality_labels)
+            for audit_label in audit_labels:
+                audit_label_counts[task_type][audit_label] += 1
             staging_id = stable_id(
                 "quality", f"{task_type}:{index}:{record_id}:{source_digests[task_type]}"
             )
@@ -1683,6 +1982,7 @@ def partition_collected_records(
                 "disposition": disposition,
                 "quality": {
                     "labels": labels,
+                    "audit_labels": sorted(audit_labels),
                     "strict_gold_eligible": disposition == "gold",
                 },
             }
@@ -1700,13 +2000,13 @@ def partition_collected_records(
                 )
             else:
                 staged_record["content_retained"] = True
-                staged_record["record"] = record
+                staged_record["record"] = partition_record
                 if disposition == "negative":
                     negatives.append(staged_record)
                 else:
-                    gold_by_task[task_type].append(record)
+                    gold_by_task[task_type].append(partition_record)
                     if task_type in _LABELS_BY_TASK:
-                        output = record.get("output")
+                        output = partition_record.get("output")
                         decision = output.get("decision") if isinstance(output, Mapping) else None
                         if isinstance(decision, str):
                             gold_label_counts[task_type][decision] += 1
@@ -1719,7 +2019,19 @@ def partition_collected_records(
         _atomic_write_jsonl(config.partition_dir / "gold" / f"data_{task_type}.jsonl", records)
 
     coverage = {task: len(records) for task, records in gold_by_task.items()}
-    coverage_complete = all(count >= target for count in coverage.values())
+    minimum_gold = config.minimum_gold_records_by_task
+    coverage_shortfalls = {
+        task: minimum_gold[task] - count
+        for task, count in coverage.items()
+        if count < minimum_gold[task]
+    }
+    coverage_complete = not coverage_shortfalls
+    raw_by_task = {task: len(records) for task, records in records_by_task.items()}
+    raw_collection_shortfalls = {
+        task: target - count
+        for task, count in raw_by_task.items()
+        if count < target
+    }
     quota_errors: list[str] = []
     for task_type, minimums in config.minimum_label_counts.items():
         for label, required in minimums.items():
@@ -1728,21 +2040,82 @@ def partition_collected_records(
                 quota_errors.append(
                     f"{task_type}:{label}: observed={observed}, required={required}"
                 )
+    gold_count = sum(coverage.values())
+    raw_count = sum(raw_by_task.values())
+    partition_complete = raw_count == gold_count + len(negatives) + len(rejects)
+    rejects_quarantined = all(
+        reject.get("content_retained") is False
+        and "record" not in reject
+        and isinstance(reject.get("source_record_sha256"), str)
+        for reject in rejects
+    )
+    reject_reason_counts: Counter[str] = Counter(
+        reason
+        for reject in rejects
+        for reason in cast(list[str], reject.get("reason_codes", []))
+    )
+    gold_integrity_ok = all(
+        not contains_secret_material(record)
+        for records in gold_by_task.values()
+        for record in records
+    )
+    heldout_gate = evaluate_heldout_scale_gate(config)
     manifest: dict[str, Any] = {
-        "schema_version": "anchor.automation-partition-manifest.v1",
+        "schema_version": "anchor.automation-partition-manifest.v2",
         "collection_policy": config.collection_policy,
+        # seed_target remains as a compatibility alias. It is a raw capacity
+        # target and must never be interpreted as the gold floor.
         "seed_target": target,
+        "raw_collection_target": target,
+        "minimum_gold_records_per_task": minimum_gold,
+        "raw_by_task": raw_by_task,
+        "raw_collection_complete": not raw_collection_shortfalls,
+        "raw_collection_shortfalls": raw_collection_shortfalls,
         "staged_count": len(staged),
-        "gold_count": sum(coverage.values()),
+        "gold_count": gold_count,
         "negative_count": len(negatives),
         "reject_count": len(rejects),
+        "partition_complete": partition_complete,
+        "rejects_quarantined": rejects_quarantined,
+        "reject_reason_counts": dict(sorted(reject_reason_counts.items())),
+        "reject_rate": len(rejects) / raw_count if raw_count else 0.0,
         "gold_by_task": coverage,
         "gold_label_counts": {
             task: dict(counts) for task, counts in gold_label_counts.items()
         },
         "label_quota_errors": quota_errors,
         "coverage_complete": coverage_complete,
-        "training_ready": coverage_complete and not quota_errors and not rejects,
+        "coverage_shortfalls": coverage_shortfalls,
+        "audit_label_counts": {
+            task: dict(sorted(counts.items()))
+            for task, counts in audit_label_counts.items()
+            if counts
+        },
+        "teacher_label_disagreements_by_task": {
+            task: counts["teacher_label_disagreement"]
+            for task, counts in audit_label_counts.items()
+            if counts["teacher_label_disagreement"]
+        },
+        "oracle_normalized_disagreements_by_task": {
+            task: counts["teacher_label_disagreement_oracle_normalized"]
+            for task, counts in audit_label_counts.items()
+            if counts["teacher_label_disagreement_oracle_normalized"]
+        },
+        "unresolved_disagreements_by_task": {
+            task: counts["teacher_label_disagreement_unresolved"]
+            for task, counts in audit_label_counts.items()
+            if counts["teacher_label_disagreement_unresolved"]
+        },
+        "gold_integrity_ok": gold_integrity_ok,
+        "heldout_gate": heldout_gate,
+        "training_ready": (
+            partition_complete
+            and rejects_quarantined
+            and gold_integrity_ok
+            and coverage_complete
+            and not quota_errors
+            and bool(heldout_gate.get("passed"))
+        ),
         "quality_staging_sha256": file_sha256(config.quality_staging_path),
         "negative_sha256": file_sha256(config.partition_dir / "negative.jsonl"),
         "reject_sha256": file_sha256(config.partition_dir / "reject.jsonl"),
@@ -1933,8 +2306,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(status, ensure_ascii=False, indent=2))
         return 0
     if args.partition_only:
+        persisted_status: dict[str, Any] | None = None
         try:
+            if config.status_path.exists():
+                loaded_status = json.loads(config.status_path.read_text(encoding="utf-8"))
+                if not isinstance(loaded_status, dict):
+                    raise ValueError("automation status must be a JSON object")
+                if loaded_status.get("schema_version") == AUTOMATION_SCHEMA_VERSION:
+                    _verify_status_config_binding(config, loaded_status)
+                    persisted_status = loaded_status
             manifest = partition_collected_records(config)
+            if persisted_status is not None:
+                observed_binding = persisted_status.get("config_binding_sha256")
+                if observed_binding != config.status_binding_sha256:
+                    persisted_status["config_binding_sha256"] = config.status_binding_sha256
+                    persisted_status.setdefault("migration_history", []).append(
+                        {
+                            "migration_type": "raw_gold_contract_v1_to_v2",
+                            "migrated_at": _iso(),
+                            "previous_config_binding_sha256": observed_binding,
+                            "new_config_binding_sha256": config.status_binding_sha256,
+                            "raw_collection_target": config.raw_records_per_task,
+                            "minimum_gold_records_per_task": (
+                                config.minimum_gold_records_by_task
+                            ),
+                            "resume_policy": (
+                                "preserve_append_only_rows_and_resume_missing_raw_rows"
+                            ),
+                            "migration_trigger": "offline_partition_refresh",
+                        }
+                    )
+                persisted_status["partition"] = manifest
+                persisted_status["partition_refreshed_at"] = _iso()
+                persisted_status["updated_at"] = _iso()
+                _atomic_write_json(config.status_path, persisted_status)
         except (OSError, ValueError) as error:
             print(
                 f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",

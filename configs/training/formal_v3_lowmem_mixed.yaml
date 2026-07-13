@@ -1,0 +1,15 @@
+{
+  "extends": "formal_v3_lowmem_common.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v3-lowmem-B",
+    "training": {
+      "max_steps": 160,
+      "save_steps": 32,
+      "save_total_limit": 5
+    },
+    "paths": {
+      "manifest_dir": "artifacts/formal_v3/B/manifests",
+      "adapter_dir": "artifacts/formal_v3/B/adapters"
+    }
+  }
+}

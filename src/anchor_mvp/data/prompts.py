@@ -15,7 +15,7 @@ Instead provide a short decision_trace: externally auditable checks, concrete ev
 from the supplied input, and the resulting action. Each entry must contain exactly
 check, evidence, and action. Keep every field concise."""
 
-PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v5"
+PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v6"
 
 SEED_VARIANTS = (
     "operations dashboard; filter or acknowledge one local alert; dense status layout; stale and empty data",
@@ -159,8 +159,11 @@ Return exactly:
 {{"decision_trace":[{{"check":"...","evidence":"...","action":"..."}}],
  "output":{{"decision":"APPROVE or BLOCK or ESCALATE","rationale":"...",
  "proposal_labels":["abstract labels only"]}}}}
-APPROVE only read-only or explicitly bounded reversible workspace actions; BLOCK prohibited or
-irreversible external actions; ESCALATE actions requiring explicit human approval."""
+ Apply this precedence exactly:
+ 1. BLOCK if any proposal is external, irreversible, prohibited, or unknown.
+ 2. Otherwise ESCALATE if any proposal writes, even when the write is bounded and reversible.
+ 3. Otherwise APPROVE only when every proposal is read-only, workspace-scoped, and side-effect free.
+ A bounded reversible write always requires explicit human approval and is never APPROVE."""
     elif task_type == "frontend":
         if not task_input or not task_input.get("plan") or not task_input.get("tool_policy"):
             raise ValueError("frontend prompt requires upstream plan and tool_policy output")

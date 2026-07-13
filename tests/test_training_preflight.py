@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from anchor_mvp.training.config import load_training_config  # noqa: E402
 from anchor_mvp.training.preflight import (  # noqa: E402
     build_preflight_report,
+    inspect_training_artifact,
     verify_prior_smoke_gate,
 )
 
@@ -142,6 +143,69 @@ def fixture_config(tmp_path: Path, *, omit: str | None = None, live: bool = True
         "bytes": weight.stat().st_size,
         "sha256": digest,
     }
+    nf4_dir = tmp_path / "model-nf4"
+    nf4_dir.mkdir()
+    shard = nf4_dir / "model-00001-of-00001.safetensors"
+    shard.write_bytes(b"tiny-nf4-shard")
+    shard_sha = hashlib.sha256(shard.read_bytes()).hexdigest()
+    nf4_manifest = {
+        "schema_version": "anchor.bnb-nf4-export.v1",
+        "model_footprint_bytes": shard.stat().st_size,
+        "source": "model",
+        "source_weight_sha256": digest,
+        "quantization": {
+            "type": "nf4",
+            "double_quant": True,
+            "compute_dtype": "bfloat16",
+            "storage_dtype": "bfloat16",
+        },
+        "weights": [
+            {
+                "path": shard.name,
+                "bytes": shard.stat().st_size,
+                "sha256": shard_sha,
+            }
+        ],
+    }
+    (nf4_dir / "anchor_quantization_manifest.json").write_text(
+        json.dumps(nf4_manifest), encoding="utf-8"
+    )
+    (nf4_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "quantization_config": {
+                    "quant_method": "bitsandbytes",
+                    "load_in_4bit": True,
+                    "load_in_8bit": False,
+                    "bnb_4bit_quant_type": "nf4",
+                    "bnb_4bit_use_double_quant": True,
+                    "bnb_4bit_compute_dtype": "bfloat16",
+                    "bnb_4bit_quant_storage": "bfloat16",
+                    "llm_int8_enable_fp32_cpu_offload": False,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (nf4_dir / "model.safetensors.index.json").write_text(
+        json.dumps(
+            {
+                "metadata": {"total_size": shard.stat().st_size},
+                "weight_map": {
+                    "layer.weight": shard.name,
+                    "layer.weight.quant_state.bitsandbytes__nf4": shard.name,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    config["model"]["local_path"] = "model-nf4"
+    config["scale_gate"]["training_artifact"] = {
+        "format": "transformers-bitsandbytes-nf4",
+        "local_path": "model-nf4",
+        "manifest": "model-nf4/anchor_quantization_manifest.json",
+        "model_footprint_bytes": shard.stat().st_size,
+    }
     config["scale_gate"]["minimum_free_vram_gib"] = 10.5
     config["scale_gate"]["minimum_free_host_memory_gib"] = 12.0
     config["scale_gate"]["required_smoke_gate_manifest"] = "artifacts/smoke.json"
@@ -207,3 +271,34 @@ def test_prior_smoke_manifest_must_match_dataset_snapshot(tmp_path: Path) -> Non
     changed = dict(report)
     changed["dataset_snapshot_sha256"] = "different"
     assert verify_prior_smoke_gate(config, tmp_path, changed)["passed"] is False
+
+
+def test_training_artifact_gate_binds_reloadable_nf4_shards(tmp_path: Path) -> None:
+    config = fixture_config(tmp_path)
+    report = inspect_training_artifact(config, tmp_path)
+    assert report["passed"] is True
+    assert report["checksum_source"] == "manifest-and-file-size"
+    assert report["checks"]["frozen_peft_contract"] is True
+    assert report["index_checks"] == {
+        "shards_exact": True,
+        "total_size_plausible": True,
+        "nf4_quant_state": True,
+    }
+
+
+def test_training_artifact_gate_rejects_wrong_quant_type_or_shard_size(
+    tmp_path: Path,
+) -> None:
+    config = fixture_config(tmp_path)
+    nf4_dir = tmp_path / "model-nf4"
+    model_config = json.loads((nf4_dir / "config.json").read_text(encoding="utf-8"))
+    model_config["quantization_config"]["bnb_4bit_quant_type"] = "fp4"
+    (nf4_dir / "config.json").write_text(json.dumps(model_config), encoding="utf-8")
+    (nf4_dir / "model-00001-of-00001.safetensors").write_bytes(b"drift")
+
+    report = inspect_training_artifact(config, tmp_path)
+    assert report["passed"] is False
+    assert "NF4 training artifact contract failed: transformers_config" in report[
+        "errors"
+    ]
+    assert "NF4 weight binding failed at index 0" in report["errors"]

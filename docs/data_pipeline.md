@@ -232,11 +232,16 @@ oracle disagreement, duplicate prompts/IDs, generated-artifact validation failur
 coverage, and label-quota shortfalls do not trigger another provider round or discard a
 response.
 
-For deterministic tool-policy and security tasks, a structurally valid teacher decision is
-retained as `provenance.teacher_observed_decision` before the local oracle supplies the
-authoritative target. A disagreement is therefore preserved as a quality negative instead
-of being hidden by target normalization. Malformed or unsafe classification structures are
-still rejected before normalization.
+For deterministic tool-policy and security tasks, the teacher decision remains explicit as
+`provenance.teacher_observed_decision`; the local oracle supplies the authoritative target.
+An unresolved disagreement remains a quality negative. A disagreement may enter gold only
+when the assistant label and public trace are proven fully oracle-normalized, with no
+contrary teacher rationale retained. Its partitioned provenance then explicitly records
+`supervision_source: deterministic_oracle`, `oracle_normalized: true`,
+`teacher_decision_agrees_with_oracle: false`, and the trace source. The manifest reports
+observed, normalized, and unresolved disagreement counts; it never relabels disagreement as
+teacher agreement. Malformed or unsafe classification structures are rejected before
+normalization.
 
 After collection, the runner atomically writes:
 
@@ -247,10 +252,15 @@ After collection, the runner atomically writes:
 - `partitions/manifest.json`, including coverage, label quotas, hashes, and
   `training_ready`.
 
-Malformed JSON/response structure, active or unsafe content, detected credentials, frozen
-held-out collisions, and held-out manifest/audit drift remain hard failures. Failed teacher
-responses are never stored verbatim; `automation/attempts.jsonl` retains only content-free
-seed/task/error-class accounting. Recompute the split without another API call:
+Malformed JSON/response structure and unclassified partition damage are corpus blockers.
+Active/unsafe or credential-bearing individual rows are quarantined into content-free
+rejects and never enter gold; an isolated reject does not permanently block a clean corpus
+that still meets every gold floor. Frozen held-out collisions or manifest/audit drift remain
+corpus blockers. Failed teacher responses are never stored verbatim;
+`automation/attempts.jsonl` retains only content-free seed/task/error-class accounting.
+Recompute the split without another API call. When a bound automation status exists, this
+command atomically refreshes `status.partition` together with the v2 contract migration so
+the snapshot gate cannot see a stale partition binding:
 
 ```powershell
 py -3.10 -m anchor_mvp.data.automation `
@@ -288,9 +298,10 @@ scripts/data/start_automation.ps1 -Config configs/data/automation.yaml
 scripts/data/show_automation_status.ps1 -Config configs/data/automation.yaml
 ```
 
-`configs/data/automation.full_v3.yaml` is the isolated full-corpus profile:
-one serialized stage generates 128 same-seed records for each of the five
-experts in `data/automated_v3/`. It must start with its own quota epoch and
+`configs/data/automation.full_v3.yaml` is the isolated full-corpus profile. The legacy
+stage marker remains 128 for an explicit status-binding migration, while the v2 contract
+overcollects up to 192 raw same-seed records per expert and requires 128 strict-gold records
+per expert in `data/automated_v3/`. It must start with its own quota epoch and
 must not reuse an incompatible output/state directory. The top-level JSONLs are
 append-only raw collection output. Both full-v3 profiles collect first: oracle
 mismatches and ordinary model-quality failures remain in staging and are excluded
@@ -304,15 +315,50 @@ untrusted generated component was executed in a browser or a full React runtime.
 Only a partition with `training_ready: true` may be copied to an immutable curated freeze
 before training.
 
+Prepare or inspect that freeze with the metadata-only full-v3 gate:
+
+```powershell
+py -3.10 scripts/data/prepare_full_v3_snapshot.py `
+  --config configs/orchestration/full_v3_snapshot.yaml
+```
+
+The command always atomically writes `runs/full-v3-snapshot/readiness.json`. When the
+partition says `training_ready: false`, it exits `3`, does not create
+`artifacts/formal_v3/dataset`, and does not copy any training JSONL. The report contains
+only counts, hashes, normalized blocker codes, and held-out gate metadata; it contains
+neither training record bodies nor held-out text. The v2 partition contract separates
+`raw_collection_target` from `minimum_gold_records_per_task`. The report computes, per
+task, the maximum gold coverage still possible under the raw collection target. This
+makes a mathematically unreachable target explicit instead of suggesting that a simple
+resume can fill it.
+
+When all gates pass, the command copies all five strict-gold files into a temporary
+sibling directory, validates schema/secrets/cross-expert IDs, verifies that source files,
+automation status, and partition manifest did not change during the copy, then publishes
+the whole directory with one rename. Isolated rejects do not block a corpus merely by
+existing: the v2 manifest must instead prove `partition_complete` and
+`rejects_quarantined`, while the strict-gold files independently pass schema, secret,
+coverage, label-quota, and held-out gates. `manifest.json` uses
+`anchor.training-snapshot.v2`; `manifest.json.sha256` binds the manifest, and every
+dataset has a record count, byte count, source hash, and frozen hash. An existing snapshot
+is verified and reused only when it has the same source partition binding; it is never
+overwritten.
+
+This is the data-snapshot gate only. The strict OpenCode accepted-gold/session-candidate
+execution gate remains independent and cannot be inferred or weakened by snapshot
+readiness.
+
 The default `automation.full_v3.yaml` stays serialized (`concurrency=1`).
 `automation.full_v3.fast.yaml` is an explicit local operator profile
-(`concurrency=10`) for the same 128-seed corpus. Use it only after the one-sample
+(`concurrency=10`) for the same 192-raw/128-gold contract. Use it only after the one-sample
 OpenCode live gate is `PASS`. Provider/network stops remain resumable; soft model-quality
 failures are handled by offline partitioning instead of immediate retries. Both profiles intentionally target
 `data/automated_v3`, but a persisted status is bound to the ramp and quality
 configuration hash, so attempting to mix serialized and fast profiles against
 the same state directory fails closed. Its different quota epoch is for this
-operator window only, not a bypass for the state binding.
+operator window only, not a bypass for the state binding. The one supported legacy v1 to
+v2 migration preserves append-only rows, records old/new binding hashes and both targets,
+then resumes only missing raw rows. Every other binding change still fails closed.
 
 The scripts contain ASCII only and read credentials solely from the current process
 environment. No real unattended batch is launched by tests or repository setup.

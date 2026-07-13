@@ -64,3 +64,27 @@ The sample config currently points at the previously frozen formal-v1 dataset on
 the offline gate can be exercised. Before a new real run, curate the stopped automation
 outputs into immutable per-expert JSONLs, update both the snapshot paths and formal-v2
 training config to the same files, and use a new `state_dir`.
+
+## Full-v3 preparation
+
+The original sample above remains unchanged as historical formal-v1 evidence. Full-v3
+uses separate state and configuration:
+
+```powershell
+py -3.10 scripts/data/prepare_full_v3_snapshot.py `
+  --config configs/orchestration/full_v3_snapshot.yaml
+```
+
+Exit `3` means readiness is blocked and only
+`runs/full-v3-snapshot/readiness.json` was written. In that state no snapshot JSONL is
+created and no training command is invoked. Exit `0` means the five strict-gold JSONLs
+were atomically frozen (or an identical existing freeze was verified) under
+`artifacts/formal_v3/dataset`, with `manifest.json` and its SHA-256 sidecar. Exit `2`
+means the preparation configuration itself is invalid.
+
+After a freeze exists, `configs/orchestration/distill_train_handoff_v3.yaml` binds the
+coordinator to that immutable directory and a distinct state directory. It still requires
+the strict patched-OpenCode execution proof. A collect-first sample placed in the negative
+partition is not accepted execution gold, and snapshot readiness never substitutes for
+that gate. The referenced `formal_v3_lowmem_common.yaml` must independently exist and
+pass its training preflight before any GPU job can start.

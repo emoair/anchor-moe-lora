@@ -309,18 +309,39 @@ class DistillationPipeline:
                     validate_output(task_type, observed_output)
                     validate_safe_payload(task_type, payload)
                     provenance_extra = dict(provenance_extra or {})
-                    provenance_extra["teacher_observed_decision"] = str(
-                        observed_output["decision"]
+                    observed_decision = str(observed_output["decision"])
+                    decision = str(authoritative_output["decision"])
+                    teacher_agrees = observed_decision == decision
+                    provenance_extra.update(
+                        {
+                            "teacher_observed_decision": observed_decision,
+                            "teacher_decision_agrees_with_oracle": teacher_agrees,
+                            "supervision_source": "deterministic_oracle",
+                            "oracle_normalized": True,
+                            "decision_trace_source": (
+                                "teacher_agreement"
+                                if teacher_agrees
+                                else "deterministic_oracle"
+                            ),
+                        }
                     )
                     payload["output"] = authoritative_output
-                    decision = str(authoritative_output["decision"])
-                    payload["decision_trace"] = [
-                        {
-                            "check": "deterministic label oracle",
-                            "evidence": "The inert fixture or proposal manifest defines the gold class.",
-                            "action": f"Emit {decision} without executing or reconstructing payloads.",
-                        }
-                    ]
+                    if not teacher_agrees:
+                        # Never retain a teacher trace that argues for the
+                        # opposite label. The disagreement remains explicit in
+                        # provenance while the SFT target is entirely oracle
+                        # normalized.
+                        payload["decision_trace"] = [
+                            {
+                                "check": "deterministic label oracle",
+                                "evidence": (
+                                    "The inert fixture or proposal manifest defines the gold class."
+                                ),
+                                "action": (
+                                    f"Emit {decision} without executing or reconstructing payloads."
+                                ),
+                            }
+                        ]
                 if task_type == "frontend":
                     normalization = _normalize_frontend_payload(payload)
                     frontend_provenance: dict[str, object] = provenance_extra or {}

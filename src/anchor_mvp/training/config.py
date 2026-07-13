@@ -19,7 +19,7 @@ ALLOWED_ADAPTERS = (
     "mixed_all",
 )
 SPECIALIST_ADAPTERS = ALLOWED_ADAPTERS[:-1]
-ALLOWED_RANKS = (2, 3, 4, 16, 32, 64)
+ALLOWED_RANKS = (1, 2, 3, 4, 6, 8, 12, 16, 32, 64)
 _INFERENCE_ONLY_SERIALIZATION_MARKERS = ("-gguf", ".gguf", "-w4a16-ct")
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
 
@@ -287,6 +287,26 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
                 f"scale_gate.base_artifact.{field} must be non-empty text"
             )
     _positive_int(base_artifact.get("bytes"), "scale_gate.base_artifact.bytes")
+    training_artifact = _mapping(scale_gate, "training_artifact")
+    if training_artifact.get("format") != "transformers-bitsandbytes-nf4":
+        raise ConfigError(
+            "scale_gate.training_artifact.format must be "
+            "'transformers-bitsandbytes-nf4'"
+        )
+    for field in ("local_path", "manifest"):
+        value = training_artifact.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ConfigError(
+                f"scale_gate.training_artifact.{field} must be a non-empty path"
+            )
+    if training_artifact["local_path"] != model["local_path"]:
+        raise ConfigError(
+            "scale_gate.training_artifact.local_path must match model.local_path"
+        )
+    _positive_int(
+        training_artifact.get("model_footprint_bytes"),
+        "scale_gate.training_artifact.model_footprint_bytes",
+    )
     minimum_free = scale_gate.get("minimum_free_vram_gib")
     if not isinstance(minimum_free, (int, float)) or minimum_free <= 0:
         raise ConfigError("scale_gate.minimum_free_vram_gib must be positive")
@@ -296,6 +316,40 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     for field in ("heldout_cases", "required_smoke_gate_manifest"):
         if not isinstance(scale_gate.get(field), str) or not scale_gate[field].strip():
             raise ConfigError(f"scale_gate.{field} must be a non-empty path")
+
+    snapshot = scale_gate.get("dataset_snapshot")
+    formal_v3 = str(config.get("experiment", "")).startswith(
+        "anchor-moe-lora-formal-v3"
+    )
+    if formal_v3 and not isinstance(snapshot, Mapping):
+        raise ConfigError(
+            "formal-v3 requires scale_gate.dataset_snapshot; growing automation "
+            "outputs are not valid training inputs"
+        )
+    if snapshot is not None:
+        if not isinstance(snapshot, Mapping):
+            raise ConfigError("scale_gate.dataset_snapshot must be a mapping")
+        if snapshot.get("schema_version") != "anchor.training-snapshot.v2":
+            raise ConfigError(
+                "scale_gate.dataset_snapshot.schema_version must be "
+                "'anchor.training-snapshot.v2'"
+            )
+        for field in ("manifest", "sidecar"):
+            value = snapshot.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ConfigError(
+                    f"scale_gate.dataset_snapshot.{field} must be a non-empty path"
+                )
+        if snapshot.get("immutable") is not True:
+            raise ConfigError("scale_gate.dataset_snapshot.immutable must be true")
+        minimum = _positive_int(
+            snapshot.get("minimum_records_per_expert"),
+            "scale_gate.dataset_snapshot.minimum_records_per_expert",
+        )
+        if minimum < 128:
+            raise ConfigError(
+                "formal-v3 immutable snapshots require at least 128 records per expert"
+            )
 
 
 def select_adapter(

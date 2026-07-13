@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -18,6 +19,7 @@ REQUIRED_EXPERTS = (
     "frontend_review",
     "security_gate",
 )
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _gate(passed: bool, **evidence: Any) -> dict[str, Any]:
@@ -106,6 +108,122 @@ def inspect_gate_datasets(config: Mapping[str, Any], root: Path) -> dict[str, An
     }
 
 
+def inspect_dataset_snapshot_manifest(
+    config: Mapping[str, Any], root: Path, datasets: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Verify the immutable formal-v3 manifest, sidecar, and every file binding."""
+
+    snapshot_config = config["scale_gate"].get("dataset_snapshot")
+    if snapshot_config is None:
+        return {"required": False, "passed": True}
+
+    manifest_path = (root / snapshot_config["manifest"]).resolve()
+    sidecar_path = (root / snapshot_config["sidecar"]).resolve()
+    report: dict[str, Any] = {
+        "required": True,
+        "passed": False,
+        "manifest_path": str(manifest_path),
+        "sidecar_path": str(sidecar_path),
+        "errors": [],
+    }
+    errors: list[str] = report["errors"]
+    if sidecar_path != Path(str(manifest_path) + ".sha256"):
+        errors.append("snapshot sidecar must be manifest.json.sha256 beside the manifest")
+    if not manifest_path.is_file():
+        errors.append("immutable snapshot manifest is missing")
+    if not sidecar_path.is_file():
+        errors.append("immutable snapshot SHA-256 sidecar is missing")
+    if errors:
+        return report
+
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        sidecar_tokens = sidecar_path.read_text(encoding="ascii").split()
+        if not sidecar_tokens or sidecar_tokens[0] != manifest_sha256:
+            errors.append("snapshot manifest SHA-256 sidecar mismatch")
+        value = json.loads(manifest_bytes.decode("utf-8"))
+        if not isinstance(value, Mapping):
+            errors.append("snapshot manifest must be a JSON object")
+            return report
+        if value.get("schema_version") != snapshot_config["schema_version"]:
+            errors.append("snapshot manifest schema mismatch")
+        source_sha = value.get("source_partition_manifest_sha256")
+        if not isinstance(source_sha, str) or not _SHA256_RE.fullmatch(source_sha):
+            errors.append("source partition manifest SHA-256 is missing or invalid")
+
+        files = value.get("files")
+        if not isinstance(files, Mapping) or set(files) != set(REQUIRED_EXPERTS):
+            errors.append("snapshot manifest files must map exactly the five experts")
+            files = {}
+
+        minimum = int(snapshot_config["minimum_records_per_expert"])
+        digest_parts: list[str] = []
+        file_checks: dict[str, Any] = {}
+        for expert in REQUIRED_EXPERTS:
+            entry = files.get(expert)
+            observed = datasets["reports"].get(expert, {})
+            checks: dict[str, bool] = {}
+            if not isinstance(entry, Mapping):
+                errors.append(f"snapshot manifest is missing files.{expert}")
+                file_checks[expert] = checks
+                continue
+            relative = entry.get("path")
+            safe_basename = (
+                isinstance(relative, str)
+                and bool(relative)
+                and Path(relative).name == relative
+            )
+            checks["safe_basename"] = safe_basename
+            configured = (root / config["scale_gate"]["required_datasets"][expert]).resolve()
+            bound = (manifest_path.parent / relative).resolve() if safe_basename else None
+            checks["configured_path"] = bound == configured
+            checks["observed_path"] = observed.get("path") == str(configured)
+            checks["sha256"] = entry.get("sha256") == observed.get("sha256")
+            checks["bytes"] = entry.get("bytes") == observed.get("bytes")
+            checks["records"] = entry.get("records") == observed.get("valid_records")
+            checks["minimum_records"] = (
+                isinstance(entry.get("records"), int)
+                and not isinstance(entry.get("records"), bool)
+                and entry["records"] >= minimum
+            )
+            checks["source_sha256"] = isinstance(
+                entry.get("source_sha256"), str
+            ) and bool(_SHA256_RE.fullmatch(entry["source_sha256"]))
+            if not all(checks.values()):
+                errors.append(f"snapshot manifest binding failed for {expert}")
+            file_checks[expert] = checks
+            if (
+                safe_basename
+                and isinstance(entry.get("sha256"), str)
+                and isinstance(entry.get("records"), int)
+            ):
+                digest_parts.append(
+                    f"{expert}:{relative}:{entry['sha256']}:{entry['records']}"
+                )
+
+        computed_snapshot = (
+            hashlib.sha256("\n".join(digest_parts).encode()).hexdigest()
+            if len(digest_parts) == len(REQUIRED_EXPERTS)
+            else None
+        )
+        if value.get("snapshot_sha256") != computed_snapshot:
+            errors.append("snapshot_sha256 does not match immutable file bindings")
+        report.update(
+            {
+                "manifest_sha256": manifest_sha256,
+                "source_partition_manifest_sha256": source_sha,
+                "declared_snapshot_sha256": value.get("snapshot_sha256"),
+                "computed_snapshot_sha256": computed_snapshot,
+                "file_checks": file_checks,
+            }
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+    report["passed"] = not errors
+    return report
+
+
 def inspect_base_artifact(
     config: Mapping[str, Any], root: Path, *, deep_checksum: bool = False
 ) -> dict[str, Any]:
@@ -150,6 +268,170 @@ def inspect_base_artifact(
         )
     except (OSError, ValueError, TypeError, KeyError) as exc:
         report.update({"passed": False, "error": f"{type(exc).__name__}: {exc}"})
+    return report
+
+
+def inspect_training_artifact(
+    config: Mapping[str, Any], root: Path, *, deep_checksum: bool = False
+) -> dict[str, Any]:
+    """Verify the actual reloadable bitsandbytes NF4 directory used by PEFT."""
+
+    expected = config["scale_gate"]["training_artifact"]
+    local_dir = (root / expected["local_path"]).resolve()
+    manifest_path = (root / expected["manifest"]).resolve()
+    config_path = local_dir / "config.json"
+    index_path = local_dir / "model.safetensors.index.json"
+    report: dict[str, Any] = {
+        "passed": False,
+        "local_path": str(local_dir),
+        "manifest_path": str(manifest_path),
+        "deep_checksum": deep_checksum,
+        "errors": [],
+    }
+    errors: list[str] = report["errors"]
+    if local_dir != (root / config["model"]["local_path"]).resolve():
+        errors.append("training artifact local path does not match model.local_path")
+    if manifest_path.parent != local_dir:
+        errors.append("NF4 export manifest must be inside the training artifact directory")
+    for required in (manifest_path, config_path, index_path):
+        if not required.is_file():
+            errors.append(f"required NF4 artifact file is missing: {required.name}")
+    if errors:
+        return report
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        model_config = json.loads(config_path.read_text(encoding="utf-8"))
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+        if not all(isinstance(item, Mapping) for item in (manifest, model_config, index)):
+            errors.append("NF4 manifest, config, and index must be JSON objects")
+            return report
+
+        quant = manifest.get("quantization")
+        model_quant = model_config.get("quantization_config")
+        checks = {
+            "schema": manifest.get("schema_version") == "anchor.bnb-nf4-export.v1",
+            "format": expected.get("format") == "transformers-bitsandbytes-nf4",
+            "source_path": str(manifest.get("source", "")).replace("\\", "/")
+            == str(config["scale_gate"]["base_artifact"]["local_path"]).replace(
+                "\\", "/"
+            ),
+            "source_weight_sha256": manifest.get("source_weight_sha256")
+            == config["scale_gate"]["base_artifact"]["sha256"],
+            "model_footprint_bytes": manifest.get("model_footprint_bytes")
+            == expected.get("model_footprint_bytes"),
+            "quantization_manifest": isinstance(quant, Mapping)
+            and quant.get("type") == config["quantization"]["quant_type"] == "nf4"
+            and quant.get("double_quant") is config["quantization"]["double_quant"]
+            and quant.get("compute_dtype")
+            == config["quantization"]["compute_dtype"]
+            and quant.get("storage_dtype")
+            == config["quantization"]["quant_storage_dtype"],
+            "transformers_config": isinstance(model_quant, Mapping)
+            and model_quant.get("quant_method") == "bitsandbytes"
+            and model_quant.get("load_in_4bit") is True
+            and model_quant.get("load_in_8bit") is False
+            and model_quant.get("bnb_4bit_quant_type") == "nf4"
+            and model_quant.get("bnb_4bit_use_double_quant") is True
+            and model_quant.get("bnb_4bit_compute_dtype") == "bfloat16"
+            and model_quant.get("bnb_4bit_quant_storage") == "bfloat16"
+            and model_quant.get("llm_int8_enable_fp32_cpu_offload") is False,
+            "frozen_peft_contract": config["quantization"]["freeze_base_model"] is True
+            and config["model"]["training_format"]
+            == "transformers_or_peft_4bit"
+            and config["model"]["load_strategy"] == "prequantized_peft_4bit",
+        }
+        for name, passed in checks.items():
+            if not passed:
+                errors.append(f"NF4 training artifact contract failed: {name}")
+
+        weights = manifest.get("weights")
+        weight_reports: list[dict[str, Any]] = []
+        declared_names: set[str] = set()
+        declared_total = 0
+        if not isinstance(weights, list) or not weights:
+            errors.append("NF4 manifest must bind at least one safetensors shard")
+            weights = []
+        for position, entry in enumerate(weights):
+            if not isinstance(entry, Mapping):
+                errors.append(f"NF4 weights[{position}] must be an object")
+                continue
+            name, declared_bytes, declared_sha = (
+                entry.get("path"),
+                entry.get("bytes"),
+                entry.get("sha256"),
+            )
+            safe_name = (
+                isinstance(name, str)
+                and Path(name).name == name
+                and name.endswith(".safetensors")
+            )
+            shard = local_dir / name if safe_name else local_dir / "<invalid>"
+            exists = safe_name and shard.is_file()
+            size_matches = (
+                exists
+                and isinstance(declared_bytes, int)
+                and not isinstance(declared_bytes, bool)
+                and shard.stat().st_size == declared_bytes
+            )
+            sha_shape = isinstance(declared_sha, str) and bool(
+                _SHA256_RE.fullmatch(declared_sha)
+            )
+            sha_matches = bool(
+                not deep_checksum or (exists and sha_shape and sha256_file(shard) == declared_sha)
+            )
+            if not all((safe_name, exists, size_matches, sha_shape, sha_matches)):
+                errors.append(f"NF4 weight binding failed at index {position}")
+            if safe_name:
+                declared_names.add(name)
+            if isinstance(declared_bytes, int) and not isinstance(declared_bytes, bool):
+                declared_total += declared_bytes
+            weight_reports.append(
+                {
+                    "path": name,
+                    "exists": exists,
+                    "bytes_match": size_matches,
+                    "sha256_shape": sha_shape,
+                    "sha256_verified": deep_checksum and sha_matches,
+                }
+            )
+
+        weight_map = index.get("weight_map")
+        index_names = set(weight_map.values()) if isinstance(weight_map, Mapping) else set()
+        metadata = index.get("metadata")
+        index_total = metadata.get("total_size") if isinstance(metadata, Mapping) else None
+        quant_state_present = bool(
+            isinstance(weight_map, Mapping)
+            and any("quant_state.bitsandbytes__nf4" in str(key) for key in weight_map)
+        )
+        index_checks = {
+            "shards_exact": bool(index_names) and index_names == declared_names,
+            # Safetensors index total_size is tensor payload bytes; shard file
+            # bytes also include per-file headers. Bind it to a tight plausible
+            # range instead of incorrectly requiring byte-for-byte equality.
+            "total_size_plausible": isinstance(index_total, int)
+            and not isinstance(index_total, bool)
+            and 0 < index_total <= declared_total
+            and declared_total - index_total <= max(16 * 1024 * 1024, declared_total // 100),
+            "nf4_quant_state": quant_state_present,
+        }
+        for name, passed in index_checks.items():
+            if not passed:
+                errors.append(f"NF4 safetensors index contract failed: {name}")
+        report.update(
+            {
+                "checks": checks,
+                "index_checks": index_checks,
+                "weights": weight_reports,
+                "weight_bytes": declared_total,
+                "checksum_source": (
+                    "deep-file-hash" if deep_checksum else "manifest-and-file-size"
+                ),
+            }
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+    report["passed"] = not errors
     return report
 
 
@@ -212,7 +494,11 @@ def build_preflight_report(
     deep_checksum: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     datasets = inspect_gate_datasets(config, root)
+    snapshot = inspect_dataset_snapshot_manifest(config, root, datasets)
     base = inspect_base_artifact(config, root, deep_checksum=deep_checksum)
+    training_artifact = inspect_training_artifact(
+        config, root, deep_checksum=deep_checksum
+    )
     heldout_cases, heldout = load_heldout_cases(config, root)
     device = dependencies.get("device", {})
     minimum_free = float(config["scale_gate"]["minimum_free_vram_gib"])
@@ -238,6 +524,9 @@ def build_preflight_report(
         "assistant_targets_nonempty": _gate(datasets["assistant_targets_nonempty"]),
         "dataset_ids_unique": _gate(datasets["cross_file_duplicate_ids"] == 0, duplicates=datasets["cross_file_duplicate_ids"]),
         "base_revision_and_checksum": _gate(bool(base.get("passed")), report=base),
+        "training_nf4_artifact": _gate(
+            bool(training_artifact.get("passed")), report=training_artifact
+        ),
         "training_dependencies": _gate(bool(dependencies.get("ready")), missing=dependencies.get("missing", []), incompatible=dependencies.get("incompatible", [])),
         "gpu_free_vram": _gate(gpu_passed, free_gib=free_vram, required_gib=minimum_free, device=device.get("name")),
         "host_free_memory": _gate(
@@ -249,13 +538,24 @@ def build_preflight_report(
         ),
         "heldout_cases": _gate(bool(heldout.get("passed")), report=heldout),
     }
+    if snapshot["required"]:
+        gates["immutable_dataset_snapshot"] = _gate(
+            bool(snapshot.get("passed")), report=snapshot
+        )
     passed = all(item["passed"] for item in gates.values())
+    dataset_snapshot_sha256 = (
+        snapshot.get("computed_snapshot_sha256")
+        if snapshot["required"]
+        else datasets["snapshot_sha256"]
+    )
     return (
         {
             "passed": passed,
             "gates": gates,
-            "dataset_snapshot_sha256": datasets["snapshot_sha256"],
+            "dataset_snapshot_sha256": dataset_snapshot_sha256,
+            "dataset_snapshot_manifest": snapshot,
             "base": base,
+            "training_artifact": training_artifact,
             "host_memory": host_memory,
             "heldout": heldout,
         },

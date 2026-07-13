@@ -26,6 +26,8 @@ heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
 # change this file in place after a state directory has been created.
 concurrency_stages: [10]
 stage_seed_counts: [128]
+raw_collection_target: 192
+minimum_gold_records_per_task: 128
 collection_policy: collect_then_partition
 
 min_success_rate: 1.0
@@ -34,7 +36,7 @@ max_safety_violations: 0
 max_failures: 200
 max_requests: 1200
 max_output_tokens_total: 40000000
-quota_epoch_id: kimi-full-v3-fast10-operator-1
+quota_epoch_id: kimi-full-v3-fast10-overcollect-1
 max_failure_retries: 2
 max_stagnant_gate_rounds: 5
 minimum_label_counts:

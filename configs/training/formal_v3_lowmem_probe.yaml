@@ -1,0 +1,19 @@
+{
+  "extends": "formal_v3_lowmem_common.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v3-lowmem-probe",
+    "training": {
+      "max_steps": 2,
+      "gradient_accumulation_steps": 1,
+      "save_steps": 1,
+      "save_total_limit": 2
+    },
+    "paths": {
+      "manifest_dir": "artifacts/formal_v3/probe/manifests",
+      "adapter_dir": "artifacts/formal_v3/probe/adapters"
+    },
+    "scale_gate": {
+      "minimum_free_host_memory_gib": 11.0
+    }
+  }
+}

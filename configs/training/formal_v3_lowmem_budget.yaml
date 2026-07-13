@@ -1,0 +1,10 @@
+{
+  "extends": "formal_v3_lowmem_common.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v3-lowmem-D",
+    "paths": {
+      "manifest_dir": "artifacts/formal_v3/D/manifests",
+      "adapter_dir": "artifacts/formal_v3/D/adapters"
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "extends": "gemma4_12b_qlora_smoke.yaml",
+  "overrides": {
+    "experiment": "anchor-moe-lora-formal-v3-lowmem-C",
+    "training": {
+      "runtime_engine": "manual_active_labels_v2",
+      "sample_order": "deterministic_epoch_shuffle_v1",
+      "maximum_training_peak_vram_gib": 9.0,
+      "max_seq_length": 64,
+      "max_steps": 32,
+      "per_device_train_batch_size": 1,
+      "gradient_accumulation_steps": 4,
+      "gradient_checkpointing": true,
+      "allow_tf32": true,
+      "loss_logits": "active_labels_only",
+      "minimum_backward_free_vram_mib": 256,
+      "empty_cache_after_probe": true,
+      "learning_rate": 0.0002,
+      "warmup_ratio": 0.03,
+      "lr_scheduler_type": "constant_with_warmup",
+      "optim": "paged_adamw_8bit",
+      "logging_steps": 1,
+      "save_steps": 8,
+      "save_total_limit": 4,
+      "report_to": "none",
+      "seed": 20260710
+    },
+    "adapters": {
+      "planner": {
+        "datasets": ["artifacts/formal_v3/dataset/data_plan.jsonl"],
+        "expected_experts": ["planner"]
+      },
+      "tool_policy": {
+        "datasets": ["artifacts/formal_v3/dataset/data_tool_policy.jsonl"],
+        "expected_experts": ["tool_policy"]
+      },
+      "frontend_gen": {
+        "datasets": ["artifacts/formal_v3/dataset/data_frontend.jsonl"],
+        "expected_experts": ["frontend_gen"]
+      },
+      "frontend_review": {
+        "datasets": ["artifacts/formal_v3/dataset/data_review.jsonl"],
+        "expected_experts": ["frontend_review"]
+      },
+      "security_gate": {
+        "datasets": ["artifacts/formal_v3/dataset/data_security.jsonl"],
+        "expected_experts": ["security_gate"]
+      },
+      "mixed_all": {
+        "datasets": [
+          "artifacts/formal_v3/dataset/data_plan.jsonl",
+          "artifacts/formal_v3/dataset/data_tool_policy.jsonl",
+          "artifacts/formal_v3/dataset/data_frontend.jsonl",
+          "artifacts/formal_v3/dataset/data_review.jsonl",
+          "artifacts/formal_v3/dataset/data_security.jsonl"
+        ],
+        "expected_experts": [
+          "planner",
+          "tool_policy",
+          "frontend_gen",
+          "frontend_review",
+          "security_gate"
+        ]
+      }
+    },
+    "paths": {
+      "manifest_dir": "artifacts/formal_v3/C/manifests",
+      "adapter_dir": "artifacts/formal_v3/C/adapters"
+    },
+    "scale_gate": {
+      "required_datasets": {
+        "planner": "artifacts/formal_v3/dataset/data_plan.jsonl",
+        "tool_policy": "artifacts/formal_v3/dataset/data_tool_policy.jsonl",
+        "frontend_gen": "artifacts/formal_v3/dataset/data_frontend.jsonl",
+        "frontend_review": "artifacts/formal_v3/dataset/data_review.jsonl",
+        "security_gate": "artifacts/formal_v3/dataset/data_security.jsonl"
+      },
+      "dataset_snapshot": {
+        "schema_version": "anchor.training-snapshot.v2",
+        "manifest": "artifacts/formal_v3/dataset/manifest.json",
+        "sidecar": "artifacts/formal_v3/dataset/manifest.json.sha256",
+        "immutable": true,
+        "minimum_records_per_expert": 128
+      },
+      "required_smoke_gate_manifest": "artifacts/formal_v3/smoke/manifests/smoke-gate-frontend_gen-r16.execute.json"
+    }
+  }
+}

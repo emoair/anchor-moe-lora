@@ -1,0 +1,13 @@
+schema_version: anchor.training-snapshot-config.v1
+project_root: ../..
+
+partition_manifest: data/automated_v3/partitions/manifest.json
+automation_status: data/automated_v3/automation/status.json
+collection_dir: data/automated_v3
+gold_dir: data/automated_v3/partitions/gold
+
+# The report is metadata-only and is always written atomically. The snapshot
+# directory is not created at all while training_ready is false.
+readiness_report: runs/full-v3-snapshot/readiness.json
+snapshot_dir: artifacts/formal_v3/dataset
+expected_minimum_gold_records_per_expert: 128

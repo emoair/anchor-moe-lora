@@ -19,11 +19,13 @@ heldout_fixtures_root: examples/benchmark/fixtures
 heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
 heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
 
-# One serialized stage generates the complete five-expert corpus: 128 rows per
-# expert (plan, tool-policy, frontend, review, security). Do not point this
-# configuration at a prior output directory or reuse its quota epoch ID.
+# The legacy stage marker remains 128 so the existing append-only v3 state can
+# perform the explicit v1 -> v2 contract migration. The final stage actually
+# overcollects 192 raw rows per expert and requires 128 strict gold rows.
 concurrency_stages: [1]
 stage_seed_counts: [128]
+raw_collection_target: 192
+minimum_gold_records_per_task: 128
 # Bulk mode collects structurally safe responses first. Deterministic label,
 # duplicate, artifact, and corpus-quality decisions are applied by the offline
 # partitioner after the provider window, not as per-task retry gates.
@@ -35,7 +37,7 @@ max_safety_violations: 0
 max_failures: 200
 max_requests: 1200
 max_output_tokens_total: 40000000
-quota_epoch_id: kimi-full-v3-initial
+quota_epoch_id: kimi-full-v3-serial-overcollect-1
 max_failure_retries: 2
 max_stagnant_gate_rounds: 5
 minimum_label_counts:
