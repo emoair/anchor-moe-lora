@@ -69,6 +69,44 @@ def test_harness_isolates_sample_runs_validations_and_hashes_changes(tmp_path):
     assert not list((tmp_path / "runs").iterdir())
 
 
+def test_harness_passes_observed_final_diff_to_session_capture(tmp_path):
+    source = tmp_path / "source"
+    _make_project(source)
+
+    class CapturingExecutor(MockAgentExecutor):
+        final_diff = None
+
+        def finalize_capture(self, **kwargs):
+            self.final_diff = kwargs["final_diff"]
+            return True, None
+
+    executor = CapturingExecutor(
+        file_updates={"index.js": "export const value = 2;\n"},
+        public_outcome=OUTCOME,
+    )
+
+    record = ToolingHarness(tmp_path / "runs", executor).run_sample(
+        SampleSpec("capture-diff", "Update value", source)
+    )
+
+    assert record.success is True
+    assert executor.final_diff == (
+        {
+            "file": "index.js",
+            "patch": (
+                "--- a/index.js\n"
+                "+++ b/index.js\n"
+                "@@ -1 +1 @@\n"
+                "-export const value = 1;\n"
+                "+export const value = 2;"
+            ),
+            "additions": 1,
+            "deletions": 1,
+            "status": "modified",
+        },
+    )
+
+
 def test_harness_can_retain_a_task_workspace_for_operator_debugging(tmp_path):
     source = tmp_path / "source"
     _make_project(source)
@@ -92,9 +130,7 @@ def test_missing_required_script_fails_closed_and_jsonl_is_canonical(tmp_path):
     )
     record = ToolingHarness(
         tmp_path / "runs", MockAgentExecutor(public_outcome=OUTCOME)
-    ).run_sample(
-        SampleSpec("b", "Do nothing", source)
-    )
+    ).run_sample(SampleSpec("b", "Do nothing", source))
 
     assert record.success is False
     assert record.validations[0].name == "build"
@@ -111,9 +147,7 @@ def test_change_required_task_fails_when_agent_makes_no_change(tmp_path):
     _make_project(source)
     record = ToolingHarness(
         tmp_path / "runs", MockAgentExecutor(public_outcome=OUTCOME)
-    ).run_sample(
-        SampleSpec("no-op", "Change index.js", source, requires_changes=True)
-    )
+    ).run_sample(SampleSpec("no-op", "Change index.js", source, requires_changes=True))
 
     assert record.success is False
     assert record.changed_files == ()
@@ -166,7 +200,9 @@ def test_protected_acceptance_files_cannot_be_rewritten_to_self_certify(tmp_path
     )
     record = ToolingHarness(
         tmp_path / "runs",
-        MockAgentExecutor(file_updates={"package.json": weakened}, public_outcome=OUTCOME),
+        MockAgentExecutor(
+            file_updates={"package.json": weakened}, public_outcome=OUTCOME
+        ),
     ).run_sample(
         SampleSpec(
             "protected-contract",

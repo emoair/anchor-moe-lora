@@ -35,6 +35,7 @@ anchor-data = "anchor_mvp.data.cli:main"
 anchor-train = "anchor_mvp.training.cli:main"
 anchor-benchmark = "anchor_mvp.benchmark.cli:main"
 anchor-heldout = "anchor_mvp.benchmark.heldout_cli:main"
+anchor-swebench = "anchor_mvp.swebench.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

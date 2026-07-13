@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 import hashlib
+import hmac
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -32,7 +33,14 @@ ALLOWED_VALIDATORS = frozenset({"build", "test", "lint"})
 ALLOWED_BASH_COMMANDS = ALLOWED_NPM_COMMANDS
 PATH_KEYS = frozenset({"path", "file", "filepath", "file_path", "cwd", "directory"})
 FORBIDDEN_KEYS = frozenset(
-    {"env", "environment", "reasoning", "thinking", "chain_of_thought", "chain-of-thought"}
+    {
+        "env",
+        "environment",
+        "reasoning",
+        "thinking",
+        "chain_of_thought",
+        "chain-of-thought",
+    }
 )
 SECRET_FIELD_KEYS = frozenset(
     {
@@ -62,6 +70,10 @@ CAPTURE_KEYS = frozenset(
 )
 SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(
+        r"(?<![A-Za-z0-9_-])ark-[A-Za-z0-9][A-Za-z0-9_-]{18,126}"
+        r"[A-Za-z0-9](?![A-Za-z0-9_-])"
+    ),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.IGNORECASE),
@@ -70,12 +82,15 @@ SECRET_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+_CREDENTIAL_TOKEN = re.compile(r"[A-Za-z0-9._~+/=-]{8,}")
 HIDDEN_REASONING_MARKER = re.compile(
     r"<\/?thinking>|<\/?reasoning>|chain[- ]of[- ]thought|[\"'](?:reasoning|thinking)[\"']\s*:",
     re.IGNORECASE,
 )
 WINDOWS_ABSOLUTE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]:[\\/][^\r\n\t\"'<>|]*)")
-POSIX_ABSOLUTE = re.compile(r"(?m)(?<![A-Za-z0-9_.-])(/(?:home|Users|var|tmp|opt|etc)/[^\r\n\t\"'<>|]*)")
+POSIX_ABSOLUTE = re.compile(
+    r"(?m)(?<![A-Za-z0-9_.-])(/(?:home|Users|var|tmp|opt|etc)/[^\r\n\t\"'<>|]*)"
+)
 CONTAINER_WORKSPACE = re.compile(r"(?<![A-Za-z0-9_.-])/workspace(?=$|[\\/])")
 WORKSPACE_REFERENCE = re.compile(r"<workspace>(?:[\\/][^\r\n\t\"'<>|]*)?")
 
@@ -88,6 +103,17 @@ class QuarantineError(ValueError):
         self.code = code
 
 
+def credential_fingerprint(value: str) -> tuple[int, str]:
+    """Return a non-plaintext fingerprint suitable for exact leak detection."""
+
+    if not isinstance(value, str):
+        raise ValueError("selected credential must be text")
+    encoded = value.encode("utf-8")
+    if len(encoded) < 8 or len(encoded) > 4096:
+        raise ValueError("selected credential length is outside the audited range")
+    return len(encoded), hashlib.sha256(encoded).hexdigest()
+
+
 @dataclass(frozen=True)
 class SessionConversionPolicy:
     workspace_root: Path
@@ -96,6 +122,7 @@ class SessionConversionPolicy:
     heldout_manifest: Path | None = None
     max_text_bytes: int = 131_072
     max_record_bytes: int = 1_048_576
+    selected_credential_fingerprint: tuple[int, str] | None = None
 
     def __post_init__(self) -> None:
         if not self.workspace_root.is_absolute():
@@ -103,7 +130,23 @@ class SessionConversionPolicy:
         if self.max_text_bytes < 1 or self.max_record_bytes < self.max_text_bytes:
             raise ValueError("invalid session conversion size limits")
         if (self.heldout_fixtures_root is None) != (self.heldout_manifest is None):
-            raise ValueError("held-out fixture root and manifest must be configured together")
+            raise ValueError(
+                "held-out fixture root and manifest must be configured together"
+            )
+        fingerprint = self.selected_credential_fingerprint
+        if fingerprint is not None:
+            if not isinstance(fingerprint, tuple) or len(fingerprint) != 2:
+                raise ValueError("selected credential fingerprint is invalid")
+            byte_length, digest = fingerprint
+            if (
+                isinstance(byte_length, bool)
+                or not isinstance(byte_length, int)
+                or byte_length < 8
+                or byte_length > 4096
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError("selected credential fingerprint is invalid")
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -133,8 +176,14 @@ def _similarity(left: str, right: str) -> float:
     a_tokens = a.split()
     b_tokens = b.split()
     width = 3 if min(len(a_tokens), len(b_tokens)) >= 5 else 1
-    a_shingles = {tuple(a_tokens[index : index + width]) for index in range(len(a_tokens) - width + 1)}
-    b_shingles = {tuple(b_tokens[index : index + width]) for index in range(len(b_tokens) - width + 1)}
+    a_shingles = {
+        tuple(a_tokens[index : index + width])
+        for index in range(len(a_tokens) - width + 1)
+    }
+    b_shingles = {
+        tuple(b_tokens[index : index + width])
+        for index in range(len(b_tokens) - width + 1)
+    }
     union = a_shingles | b_shingles
     jaccard = len(a_shingles & b_shingles) / len(union) if union else 0.0
     return max(jaccard, SequenceMatcher(None, a, b, autojunk=False).ratio())
@@ -164,7 +213,9 @@ def _heldout_needles(path: Path) -> tuple[frozenset[str], frozenset[str]]:
         for key in ("plan_required_concepts", "tool_proposal_labels"):
             items = value.get(key)
             if isinstance(items, list):
-                requirements.update(_normalized_text(str(item)) for item in items if str(item).strip())
+                requirements.update(
+                    _normalized_text(str(item)) for item in items if str(item).strip()
+                )
     return frozenset(identifiers), frozenset(requirements)
 
 
@@ -172,7 +223,10 @@ class _SafetyGate:
     def __init__(self, policy: SessionConversionPolicy) -> None:
         self.policy = policy
         self.workspace = policy.workspace_root.resolve()
-        if policy.heldout_fixtures_root is not None and policy.heldout_manifest is not None:
+        if (
+            policy.heldout_fixtures_root is not None
+            and policy.heldout_manifest is not None
+        ):
             verify_heldout_manifest(
                 policy.heldout_cases,
                 policy.heldout_fixtures_root,
@@ -181,6 +235,23 @@ class _SafetyGate:
         self.workspace_windows = str(self.workspace).replace("/", "\\")
         self.workspace_posix = self.workspace.as_posix()
         self.identifiers, self.requirements = _heldout_needles(policy.heldout_cases)
+
+    def _contains_selected_credential(self, value: str) -> bool:
+        fingerprint = self.policy.selected_credential_fingerprint
+        if fingerprint is None:
+            return False
+        byte_length, expected_digest = fingerprint
+        for match in _CREDENTIAL_TOKEN.finditer(value):
+            token = match.group(0).encode("utf-8")
+            if len(token) < byte_length:
+                continue
+            for offset in range(len(token) - byte_length + 1):
+                digest = hashlib.sha256(
+                    token[offset : offset + byte_length]
+                ).hexdigest()
+                if hmac.compare_digest(digest, expected_digest):
+                    return True
+        return False
 
     def text(
         self, value: object, *, label: str, check_hidden_reasoning: bool = True
@@ -194,7 +265,9 @@ class _SafetyGate:
         if "[redacted:" in value:
             raise QuarantineError("official_sanitize_is_lossy")
         normalized = self._normalize_workspace_paths(value)
-        if any(pattern.search(normalized) for pattern in SECRET_PATTERNS):
+        if any(pattern.search(normalized) for pattern in SECRET_PATTERNS) or (
+            self._contains_selected_credential(normalized)
+        ):
             raise QuarantineError("secret_detected")
         if check_hidden_reasoning and HIDDEN_REASONING_MARKER.search(normalized):
             raise QuarantineError("hidden_reasoning_in_public_text")
@@ -202,7 +275,10 @@ class _SafetyGate:
         compact = _normalized_text(normalized)
         if any(identifier in folded for identifier in self.identifiers):
             raise QuarantineError("heldout_leakage")
-        if any(_similarity(requirement, compact) >= 0.86 for requirement in self.requirements):
+        if any(
+            _similarity(requirement, compact) >= 0.86
+            for requirement in self.requirements
+        ):
             raise QuarantineError("heldout_leakage")
         return normalized
 
@@ -306,7 +382,8 @@ class _SafetyGate:
         if WINDOWS_ABSOLUTE.search(normalized) or POSIX_ABSOLUTE.search(normalized):
             raise QuarantineError("absolute_path_outside_workspace")
         return WORKSPACE_REFERENCE.sub(
-            lambda match: self._normalize_workspace_reference(match.group(0)), normalized
+            lambda match: self._normalize_workspace_reference(match.group(0)),
+            normalized,
         )
 
     @staticmethod
@@ -322,7 +399,9 @@ class _SafetyGate:
         if any(part == ".." for part in parts):
             raise QuarantineError("workspace_escape")
         normalized = tuple(part for part in parts if part not in {"", "."})
-        return "<workspace>" if not normalized else "<workspace>/" + "/".join(normalized)
+        return (
+            "<workspace>" if not normalized else "<workspace>/" + "/".join(normalized)
+        )
 
 
 def _as_mapping(value: object, *, code: str) -> Mapping[str, Any]:
@@ -365,11 +444,16 @@ def _text_parts(
     return result
 
 
-def _validate_bash_input(value: Mapping[str, Any], gate: _SafetyGate) -> dict[str, object]:
+def _validate_bash_input(
+    value: Mapping[str, Any], gate: _SafetyGate
+) -> dict[str, object]:
     normalized = gate.value(value, label="bash_input")
     assert isinstance(normalized, dict)
     command = normalized.get("command")
-    if not isinstance(command, str) or normalized_command(command) not in ALLOWED_BASH_COMMANDS:
+    if (
+        not isinstance(command, str)
+        or normalized_command(command) not in ALLOWED_BASH_COMMANDS
+    ):
         raise QuarantineError("bash_command_not_allowed")
     return normalized
 
@@ -419,7 +503,9 @@ def _tool_interaction(
     )
 
 
-def _trajectory(messages: Sequence[object], gate: _SafetyGate) -> list[dict[str, object]]:
+def _trajectory(
+    messages: Sequence[object], gate: _SafetyGate
+) -> list[dict[str, object]]:
     trajectory: list[dict[str, object]] = []
     call_index = 0
     sequence = 0
@@ -513,7 +599,9 @@ def _staging_validators(
         if status not in {"PASS", "FAIL", "SKIP", "TIMEOUT"}:
             raise QuarantineError("validator_status_invalid")
         exit_code = item.get("exit_code")
-        if exit_code is not None and (isinstance(exit_code, bool) or not isinstance(exit_code, int)):
+        if exit_code is not None and (
+            isinstance(exit_code, bool) or not isinstance(exit_code, int)
+        ):
             raise QuarantineError("validator_exit_code_invalid")
         command = gate.text(item.get("command"), label="validator_command")
         if normalized_command(command) not in ALLOWED_VALIDATOR_COMMANDS:
@@ -537,7 +625,10 @@ def _staging_validators(
 
 def _public_outcome(value: object, gate: _SafetyGate) -> dict[str, object]:
     item = _as_mapping(value, code="public_outcome_missing")
-    if item.get("schema_version") != "anchor.public-outcome.v1" or item.get("status") != "completed":
+    if (
+        item.get("schema_version") != "anchor.public-outcome.v1"
+        or item.get("status") != "completed"
+    ):
         raise QuarantineError("public_outcome_invalid")
     allowed = {
         "schema_version": item["schema_version"],
@@ -596,7 +687,11 @@ def _final_diff(value: object, gate: _SafetyGate) -> list[dict[str, object]]:
         except (TypeError, ValueError) as error:
             raise QuarantineError("diff_count_invalid") from error
         status = str(item.get("status", "modified"))
-        if additions < 0 or deletions < 0 or status not in {"added", "deleted", "modified"}:
+        if (
+            additions < 0
+            or deletions < 0
+            or status not in {"added", "deleted", "modified"}
+        ):
             raise QuarantineError("diff_metadata_invalid")
         result.append(
             {
@@ -665,7 +760,10 @@ def _staging_trajectory(
                 labels.add("tool_path_missing")
             if tool == "bash":
                 command = tool_input.get("command")
-                if not isinstance(command, str) or normalized_command(command) not in ALLOWED_BASH_COMMANDS:
+                if (
+                    not isinstance(command, str)
+                    or normalized_command(command) not in ALLOWED_BASH_COMMANDS
+                ):
                     labels.add("bash_command_not_allowed")
             if tool in SEARCH_TOOLS:
                 try:
@@ -679,7 +777,9 @@ def _staging_trajectory(
             else:
                 raw_result = state.get(
                     "error",
-                    state.get("message", state.get("output", "tool call rejected by policy")),
+                    state.get(
+                        "message", state.get("output", "tool call rejected by policy")
+                    ),
                 )
             result = gate.text(raw_result, label=f"{tool or 'tool'}_result")
             call_index += 1
@@ -748,7 +848,9 @@ def _skill_provenance(value: object, gate: _SafetyGate) -> list[dict[str, object
     return result
 
 
-def _capture_quality(value: object, gate: _SafetyGate, labels: set[str]) -> dict[str, object]:
+def _capture_quality(
+    value: object, gate: _SafetyGate, labels: set[str]
+) -> dict[str, object]:
     item = _as_mapping(value, code="capture_quality_missing")
     allowed = {"agent_exit_code", "timed_out", "rejected_events", "error_codes"}
     if set(item) != allowed:
@@ -815,7 +917,9 @@ def convert_controlled_session(
     summary = info.get("summary")
     summary_diffs = summary.get("diffs") if isinstance(summary, Mapping) else None
     diff_source = capture.get("final_diff", summary_diffs)
-    opencode_version = gate.text(capture.get("opencode_version"), label="opencode_version")
+    opencode_version = gate.text(
+        capture.get("opencode_version"), label="opencode_version"
+    )
     if not re.fullmatch(r"\d+\.\d+\.\d+", opencode_version):
         raise QuarantineError("opencode_version_invalid")
     candidate: dict[str, object] = {
@@ -874,7 +978,9 @@ def convert_controlled_session_staging(
     sample_id = gate.text(capture.get("sample_id"), label="sample_id")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", sample_id):
         raise QuarantineError("sample_id_invalid")
-    opencode_version = gate.text(capture.get("opencode_version"), label="opencode_version")
+    opencode_version = gate.text(
+        capture.get("opencode_version"), label="opencode_version"
+    )
     if not re.fullmatch(r"\d+\.\d+\.\d+", opencode_version):
         raise QuarantineError("opencode_version_invalid")
 
@@ -884,7 +990,9 @@ def convert_controlled_session_staging(
     summary_diffs = summary.get("diffs") if isinstance(summary, Mapping) else None
     diff_source = capture.get("final_diff", summary_diffs)
     validators = _staging_validators(capture.get("validators"), gate, labels)
-    public_outcome = _staging_public_outcome(capture.get("public_outcome"), gate, labels)
+    public_outcome = _staging_public_outcome(
+        capture.get("public_outcome"), gate, labels
+    )
     final_diff = _staging_final_diff(diff_source, gate, labels)
     provenance = _skill_provenance(capture.get("skill_provenance"), gate)
     execution = _capture_quality(capture.get("quality"), gate, labels)
@@ -918,7 +1026,11 @@ def convert_controlled_session_staging(
 def quarantine_record(
     *, sample_id: str | None, code: str, export_bytes: bytes
 ) -> dict[str, object]:
-    safe_sample = sample_id if sample_id and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", sample_id) else None
+    safe_sample = (
+        sample_id
+        if sample_id and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", sample_id)
+        else None
+    )
     return {
         "schema_version": QUARANTINE_SCHEMA_VERSION,
         "sample_id": safe_sample,

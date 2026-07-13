@@ -1,6 +1,11 @@
 """Auditable OpenCode tool-execution validation layer."""
 
-from .config import build_opencode_config, write_opencode_config
+from .config import (
+    DEFAULT_PROVIDER,
+    OpenCodeProvider,
+    build_opencode_config,
+    write_opencode_config,
+)
 from .batch import (
     BatchStageResult,
     LiveBatchConfig,
@@ -32,7 +37,12 @@ from .models import (
     ValidationResult,
 )
 from .policy import ToolPolicy
-from .runner import AnchorSandboxOptions, ControlledSessionCapture, MockAgentExecutor, OpenCodeExecutor
+from .runner import (
+    AnchorSandboxOptions,
+    ControlledSessionCapture,
+    MockAgentExecutor,
+    OpenCodeExecutor,
+)
 from .route_preflight import (
     KimiRouteAudit,
     KimiRoutePlan,
@@ -61,6 +71,8 @@ __all__ = [
     "MockAgentExecutor",
     "LiveBatchConfig",
     "OpenCodeExecutor",
+    "OpenCodeProvider",
+    "DEFAULT_PROVIDER",
     "KimiRouteAudit",
     "KimiRoutePlan",
     "RoutePreflightError",

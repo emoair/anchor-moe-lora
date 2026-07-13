@@ -52,7 +52,9 @@ def _simple_config(path: Path) -> dict[str, Any]:
     return {str(key): item for key, item in value.items()}
 
 
-def _setting(args: argparse.Namespace, config: Mapping[str, Any], name: str, fallback: Any) -> Any:
+def _setting(
+    args: argparse.Namespace, config: Mapping[str, Any], name: str, fallback: Any
+) -> Any:
     cli_value = getattr(args, name, None)
     return cli_value if cli_value is not None else config.get(name, fallback)
 
@@ -69,15 +71,23 @@ def _as_bool(value: Any) -> bool:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Anchor-MoE-LoRA defensive data distillation")
+    parser = argparse.ArgumentParser(
+        description="Anchor-MoE-LoRA defensive data distillation"
+    )
     parser.add_argument(
         "command",
         nargs="?",
         choices=("run", "seeds", "probe", "models", "quota"),
         default="run",
     )
-    parser.add_argument("--config", type=Path, help="flat YAML or JSON config; never put secrets here")
-    parser.add_argument("--dry-run", action="store_true", help="use the deterministic offline mock teacher")
+    parser.add_argument(
+        "--config", type=Path, help="flat YAML or JSON config; never put secrets here"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="use the deterministic offline mock teacher",
+    )
     parser.add_argument("--base-url", dest="base_url")
     parser.add_argument("--fallback-base-url", dest="fallback_base_url")
     parser.add_argument("--model")
@@ -102,13 +112,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="select a zero-based entry returned by model discovery",
     )
-    parser.add_argument("--protocol", choices=("anthropic", "openai"))
+    parser.add_argument(
+        "--protocol", choices=("anthropic", "openai", "openai_responses")
+    )
     parser.add_argument("--no-fallback", action="store_true")
     parser.add_argument("--api-key-env", dest="api_key_env")
     parser.add_argument("--anthropic-version", dest="anthropic_version")
     parser.add_argument("--user-agent", dest="user_agent")
     parser.add_argument("--max-requests", dest="max_requests", type=int)
-    parser.add_argument("--max-output-tokens-total", dest="max_output_tokens_total", type=int)
+    parser.add_argument(
+        "--max-output-tokens-total", dest="max_output_tokens_total", type=int
+    )
     parser.add_argument("--max-tokens", dest="max_tokens", type=int)
     parser.add_argument("--timeout-seconds", dest="timeout_seconds", type=float)
     parser.add_argument("--max-retries", dest="max_retries", type=int)
@@ -118,14 +132,22 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
     )
     thinking = parser.add_mutually_exclusive_group()
-    thinking.add_argument("--thinking-enabled", dest="thinking_enabled", action="store_true")
-    thinking.add_argument("--no-thinking", dest="thinking_enabled", action="store_false")
+    thinking.add_argument(
+        "--thinking-enabled", dest="thinking_enabled", action="store_true"
+    )
+    thinking.add_argument(
+        "--no-thinking", dest="thinking_enabled", action="store_false"
+    )
     parser.set_defaults(thinking_enabled=None)
     parser.add_argument("--thinking-effort", dest="thinking_effort")
-    parser.add_argument("--thinking-budget-tokens", dest="thinking_budget_tokens", type=int)
+    parser.add_argument(
+        "--thinking-budget-tokens", dest="thinking_budget_tokens", type=int
+    )
     streaming = parser.add_mutually_exclusive_group()
     streaming.add_argument("--stream-openai", dest="stream_openai", action="store_true")
-    streaming.add_argument("--no-stream-openai", dest="stream_openai", action="store_false")
+    streaming.add_argument(
+        "--no-stream-openai", dest="stream_openai", action="store_false"
+    )
     parser.set_defaults(stream_openai=None)
     usage_stream = parser.add_mutually_exclusive_group()
     usage_stream.add_argument(
@@ -140,6 +162,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.set_defaults(stream_options_include_usage=None)
     parser.add_argument("--seed-count", dest="seed_count", type=int)
+    parser.add_argument("--seed-index-offset", dest="seed_index_offset", type=int)
+    parser.add_argument("--task-card-config", dest="task_card_config", type=Path)
     parser.add_argument("--concurrency", type=int)
     parser.add_argument("--sop-dir", dest="sop_dir", type=Path)
     parser.add_argument("--output-dir", dest="output_dir", type=Path)
@@ -147,7 +171,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _selection(args: argparse.Namespace, config: Mapping[str, Any]) -> ProviderSelection:
+def _selection(
+    args: argparse.Namespace, config: Mapping[str, Any]
+) -> ProviderSelection:
     spec = provider_spec(
         config,
         preset_name=args.provider,
@@ -188,8 +214,12 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
         fallback_protocol = "anthropic"
     elif str(configured_fallback) == "openai":
         fallback_protocol = "openai"
+    elif str(configured_fallback) == "openai_responses":
+        fallback_protocol = "openai_responses"
     else:
-        raise ValueError("fallback_protocol must be anthropic, openai, or null")
+        raise ValueError(
+            "fallback_protocol must be anthropic, openai, openai_responses, or null"
+        )
     if args.no_fallback:
         fallback_protocol = None
     fallback_base = str(
@@ -208,7 +238,9 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
         fallback_protocol=fallback_protocol,
         fallback_base_url=fallback_base,
         api_key_env=spec.api_key_env,
-        anthropic_version=str(_setting(args, config, "anthropic_version", "2023-06-01")),
+        anthropic_version=str(
+            _setting(args, config, "anthropic_version", "2023-06-01")
+        ),
         user_agent=str(_setting(args, config, "user_agent", "anchor-moe-lora/0.1")),
         max_requests=int(_setting(args, config, "max_requests", 4100)),
         max_output_tokens_total=int(
@@ -236,7 +268,9 @@ def _teacher(args: argparse.Namespace, config: Mapping[str, Any]) -> Teacher:
     )
 
 
-async def run_from_args(args: argparse.Namespace) -> PipelineReport | list[dict[str, Any]]:
+async def run_from_args(
+    args: argparse.Namespace,
+) -> PipelineReport | list[dict[str, Any]]:
     config = _simple_config(args.config.resolve()) if args.config else {}
     if args.command in {"models", "quota"}:
         spec = provider_spec(
@@ -254,7 +288,11 @@ async def run_from_args(args: argparse.Namespace) -> PipelineReport | list[dict[
             result["protocol"] = spec.protocol
             result["base_url"] = spec.base_url
             return [result]
-        return [query_quota(spec, timeout_seconds=float(config.get("quota_timeout_seconds", 20)))]
+        return [
+            query_quota(
+                spec, timeout_seconds=float(config.get("quota_timeout_seconds", 20))
+            )
+        ]
     teacher = _teacher(args, config)
     if args.command == "probe":
         probe = getattr(teacher, "probe", None)
@@ -263,11 +301,19 @@ async def run_from_args(args: argparse.Namespace) -> PipelineReport | list[dict[
         await probe()
         return [{"ok": True, "model": teacher.model, "protocol": teacher.protocol}]
     repo_root = Path(__file__).resolve().parents[3]
+    raw_task_card_config = _setting(args, config, "task_card_config", None)
+    task_card_config = None
+    if raw_task_card_config is not None:
+        task_card_config = Path(raw_task_card_config)
+        if not task_card_config.is_absolute():
+            task_card_config = repo_root / task_card_config
     pipeline = DistillationPipeline(
         teacher=teacher,
         sop_dir=Path(_setting(args, config, "sop_dir", repo_root / "skills")),
         output_dir=Path(_setting(args, config, "output_dir", repo_root / "data")),
         concurrency=int(_setting(args, config, "concurrency", 8)),
+        seed_index_offset=int(_setting(args, config, "seed_index_offset", 0)),
+        task_card_config=task_card_config,
     )
     seed_count = int(_setting(args, config, "seed_count", 12))
     if args.command == "seeds":

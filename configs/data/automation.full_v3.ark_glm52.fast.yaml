@@ -1,0 +1,71 @@
+# Operator-selected Volcengine Ark Coding Plan profile. The credential is read
+# only from the process environment (ARK_CODING_API_KEY); never store it here.
+# This profile deliberately shares data/automated_v3 with the prior teacher.
+# Every row records its own provider/model provenance, while the immutable
+# corpus contract remains identical and append-only.
+provider: custom-openai-responses
+protocol: openai_responses
+base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+model: glm-5-2-260617
+force_model: true
+discover_models: false
+api_key_env: ARK_CODING_API_KEY
+user_agent: claude-code/2.1.7
+
+sop_dir: skills
+output_dir: data/automated_v3
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+
+concurrency_stages: [10]
+stage_seed_counts: [128]
+raw_collection_target: 192
+minimum_gold_records_per_task: 128
+collection_policy: collect_then_partition
+
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 200
+max_requests: 1200
+max_output_tokens_total: 40000000
+quota_epoch_id: ark-glm52-full-v3-fast10-1
+max_failure_retries: 2
+max_stagnant_gate_rounds: 5
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 40
+    ESCALATE: 40
+    BLOCK: 40
+  security:
+    PASS: 60
+    BLOCK: 60
+
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/automated_v3
+artifact_validation_timeout_seconds: 30
+
+timeout_seconds: 600
+wall_clock_deadline_seconds: 3600
+max_retries: 1
+max_tokens: 128000
+thinking_enabled: true
+thinking_effort: max
+thinking_effort_seed: max
+thinking_effort_plan: max
+thinking_effort_tool_policy: max
+thinking_effort_frontend: max
+thinking_effort_review: max
+thinking_effort_security: max
+thinking_budget_tokens: 1024
+
+# The model list advertises 131,072 tokens, while the Responses request uses an
+# operator-verified max_output_tokens ceiling of 128,000. SSE lets long output
+# arrive incrementally while only public final text is retained.
+stream_openai: true
+stream_options_include_usage: false
+
+cooldown_seconds: 7200
+cooldown_poll_seconds: 60

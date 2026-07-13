@@ -1,0 +1,84 @@
+# Recommended bounded-retry collection profile for the next Ark GLM-5.2
+# shard. It targets 384 complete-chain attempts and overcollects toward five
+# strict-gold floors of 256. Credentials remain process-environment only
+# (ARK_CODING_API_KEY).
+provider: custom-openai-responses
+protocol: openai_responses
+base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+model: glm-5-2-260617
+force_model: true
+discover_models: false
+api_key_env: ARK_CODING_API_KEY
+user_agent: claude-code/2.1.7
+
+sop_dir: skills
+output_dir: data/automated_v3_shards/ark_max_retry2_offset300000_c10
+task_card_config: configs/data/task_cards.v1.yaml
+seed_index_offset: 300000
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+
+# This process owns ten concurrent requests. If multiple shards/processes run,
+# the external scheduler/operator must keep their summed active concurrency at
+# or below the provider ceiling of 30.
+concurrency_stages: [10]
+stage_seed_counts: [384]
+raw_collection_target: 384
+minimum_gold_records_per_task: 256
+collection_policy: collect_then_partition
+
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 200
+# A full logical chain costs 384 seed calls plus five task calls per seed:
+# 2,304 successful calls. Two request-local retries make 6,912 the strict
+# worst-case wire envelope, not the expected request count.
+max_requests: 6912
+# Match the worst-case wire envelope at 128K output tokens per request. This is
+# a guard ceiling; ordinary successful collection should remain far below it.
+max_output_tokens_total: 884736000
+quota_epoch_id: ark-glm52-max384-c10-retry2-window-1
+max_failure_retries: 2
+max_stagnant_gate_rounds: 5
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 40
+    ESCALATE: 40
+    BLOCK: 40
+  security:
+    PASS: 60
+    BLOCK: 60
+
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/automated_v3
+artifact_validation_timeout_seconds: 30
+
+timeout_seconds: 600
+# A 384-card, five-stage chain cannot finish reliably in a one-hour window at
+# max reasoning. Keep the provider's five-hour collection window and rely on
+# per-result durable appends for safe partial progress.
+wall_clock_deadline_seconds: 18000
+max_retries: 2
+max_tokens: 128000
+thinking_enabled: true
+thinking_effort: max
+thinking_effort_seed: max
+thinking_effort_plan: max
+thinking_effort_tool_policy: max
+thinking_effort_frontend: max
+thinking_effort_review: max
+thinking_effort_security: max
+thinking_budget_tokens: 1024
+# Keep streaming for this profile. At 128K, it avoids buffering the complete
+# response and exposes progress; do not switch transport mode without a
+# controlled provider probe proving equivalent terminal semantics.
+stream_openai: true
+stream_options_include_usage: false
+
+cooldown_seconds: 7200
+cooldown_poll_seconds: 60
+
+  max_failures: 200

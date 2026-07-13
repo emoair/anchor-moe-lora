@@ -63,7 +63,13 @@ def test_base_url_rejects_ambiguous_or_unsafe_values(value: str) -> None:
 
 def test_config_rejects_inline_credentials() -> None:
     with pytest.raises(ValueError, match="must not be stored in config"):
-        provider_spec({"provider": "custom-openai", "base_url": "https://example.com/v1", "api_key": "secret"})
+        provider_spec(
+            {
+                "provider": "custom-openai",
+                "base_url": "https://example.com/v1",
+                "api_key": "secret",
+            }
+        )
 
 
 def test_custom_provider_requires_url_and_valid_env_name() -> None:
@@ -94,6 +100,30 @@ def test_protocol_model_list_endpoints() -> None:
     assert model_list_endpoint("https://api.kimi.com/coding/", "anthropic") == (
         "https://api.kimi.com/coding/v1/models"
     )
+    assert (
+        model_list_endpoint(
+            "https://ark.cn-beijing.volces.com/api/coding/v3", "openai_responses"
+        )
+        == "https://ark.cn-beijing.volces.com/api/coding/v3/models"
+    )
+
+
+def test_custom_openai_responses_provider_preserves_ark_versioned_base() -> None:
+    spec = provider_spec(
+        {
+            "provider": "custom-openai-responses",
+            "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
+            "api_key_env": "ARK_TEST_KEY",
+        }
+    )
+    assert spec.protocol == "openai_responses"
+    assert spec.base_url == "https://ark.cn-beijing.volces.com/api/coding/v3"
+    assert spec.api_key_env == "ARK_TEST_KEY"
+
+
+def test_responses_full_endpoint_is_rejected_as_base_url() -> None:
+    with pytest.raises(ValueError, match="base URL"):
+        validate_base_url("https://ark.cn-beijing.volces.com/api/coding/v3/responses")
 
 
 def test_openai_discovery_reads_key_only_from_environment(monkeypatch) -> None:
@@ -102,7 +132,9 @@ def test_openai_discovery_reads_key_only_from_environment(monkeypatch) -> None:
     def fake_urlopen(request, timeout):
         captured["url"] = request.full_url
         captured["authorization"] = request.headers["Authorization"]
-        return _Response({"object": "list", "data": [{"id": "z"}, {"id": "a"}, {"id": "a"}]})
+        return _Response(
+            {"object": "list", "data": [{"id": "z"}, {"id": "a"}, {"id": "a"}]}
+        )
 
     monkeypatch.setenv("TEST_TEACHER_KEY", "secret-for-test")
     monkeypatch.setattr(module, "urlopen", fake_urlopen)
@@ -164,7 +196,9 @@ def test_discovery_failure_allows_manual_selection(monkeypatch) -> None:
 
 
 def test_force_model_skips_discovery(monkeypatch) -> None:
-    monkeypatch.setattr(module, "discover_models", lambda *args, **kwargs: pytest.fail("called"))
+    monkeypatch.setattr(
+        module, "discover_models", lambda *args, **kwargs: pytest.fail("called")
+    )
     spec = provider_spec({"provider": "kimi-code-openai"})
     selected = select_provider_model(
         spec,
@@ -209,7 +243,10 @@ def test_kimi_code_quota_is_explicitly_unsupported() -> None:
 
 def test_moonshot_capability_is_disabled_when_official_base_is_overridden() -> None:
     spec = provider_spec(
-        {"provider": "kimi-platform-openai", "base_url": "https://gateway.example.com/v1"}
+        {
+            "provider": "kimi-platform-openai",
+            "base_url": "https://gateway.example.com/v1",
+        }
     )
     assert query_quota(spec)["status"] == "unsupported"
 

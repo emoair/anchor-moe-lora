@@ -14,7 +14,12 @@ import time
 import threading
 from typing import Mapping, Protocol
 
-from .config import AGENT_ID, DEFAULT_MODEL, DEFAULT_VARIANT, PROVIDER_ID
+from .config import (
+    AGENT_ID,
+    DEFAULT_PROVIDER,
+    OpenCodeProvider,
+    SANDBOX_API_KEY_ENV,
+)
 from .behavioral_probe import run_behavioral_probe
 from .models import AgentExecution, PublicOutcome, SkillProvenance, ToolTraceEntry
 from .opencode_artifact import (
@@ -24,6 +29,7 @@ from .opencode_artifact import (
     verify_launch_identity,
 )
 from .policy import ToolPolicy
+from .responses_wire_probe import run_responses_wire_probe
 from .trace import (
     classify_error_metadata,
     digest_text,
@@ -36,6 +42,7 @@ from .session_export import (
     append_jsonl,
     convert_controlled_session,
     convert_controlled_session_staging,
+    credential_fingerprint,
     quarantine_record,
 )
 from .workspace import safe_sample_id
@@ -91,7 +98,9 @@ class ControlledSessionCapture:
         if self.staging_path is not None and not self.staging_path.is_absolute():
             raise ValueError("controlled session staging path must be absolute")
         if self.mode not in {"strict", "collect"}:
-            raise ValueError("controlled session capture mode must be strict or collect")
+            raise ValueError(
+                "controlled session capture mode must be strict or collect"
+            )
         if self.mode == "collect" and self.staging_path is None:
             raise ValueError("collect mode requires a staging path")
 
@@ -109,7 +118,10 @@ class AnchorSandboxOptions:
     timeout_seconds: int | None = None
 
     def __post_init__(self) -> None:
-        if self.linux_executable is not None and not self.linux_executable.is_absolute():
+        if (
+            self.linux_executable is not None
+            and not self.linux_executable.is_absolute()
+        ):
             raise ValueError("anchor sandbox linux_executable must be absolute")
         if self.wsl_distro is not None and not self.wsl_distro.strip():
             raise ValueError("anchor sandbox wsl_distro must not be blank")
@@ -121,8 +133,13 @@ class AnchorSandboxOptions:
             raise ValueError("anchor sandbox memory must be a positive size such as 4G")
         if self.cpus is not None and not _CPU_LIMIT.fullmatch(self.cpus):
             raise ValueError("anchor sandbox cpus must be a positive decimal")
-        for value, name in ((self.pids, "pids"), (self.timeout_seconds, "timeout_seconds")):
-            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
+        for value, name in (
+            (self.pids, "pids"),
+            (self.timeout_seconds, "timeout_seconds"),
+        ):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value < 1
+            ):
                 raise ValueError(f"anchor sandbox {name} must be a positive integer")
 
     def command_options(self) -> list[str]:
@@ -191,8 +208,7 @@ class AgentExecutor(Protocol):
         workspace: Path,
         config_path: Path,
         policy: ToolPolicy,
-    ) -> AgentExecution:
-        ...
+    ) -> AgentExecution: ...
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
@@ -224,12 +240,17 @@ class OpenCodeExecutor:
         patch_manifest: str | Path | None = None,
         session_capture: ControlledSessionCapture | None = None,
         sandbox_options: AnchorSandboxOptions | None = None,
+        provider: OpenCodeProvider = DEFAULT_PROVIDER,
     ) -> None:
+        if not isinstance(provider, OpenCodeProvider):
+            raise ValueError("provider must be an audited OpenCodeProvider")
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
+        self.provider = provider
         project_root = Path(__file__).resolve().parents[3]
         self.patch_manifest = Path(
-            patch_manifest or project_root / "patches" / "opencode" / "patch-manifest.json"
+            patch_manifest
+            or project_root / "patches" / "opencode" / "patch-manifest.json"
         ).resolve()
         self.session_capture = session_capture
         self.sandbox_options = sandbox_options or AnchorSandboxOptions()
@@ -237,7 +258,23 @@ class OpenCodeExecutor:
 
     @property
     def backend_name(self) -> str:
-        return "opencode-kimi-anchor-sandbox"
+        if self.provider == DEFAULT_PROVIDER:
+            return "opencode-kimi-anchor-sandbox"
+        return f"opencode-{self.provider.provider_id}-anchor-sandbox"
+
+    def api_key_present(self) -> bool:
+        value = self.extra_environment.get(
+            self.provider.key_env, os.environ.get(self.provider.key_env, "")
+        )
+        return bool(value.strip())
+
+    def _selected_credential_fingerprint(self) -> tuple[int, str] | None:
+        value = self.extra_environment.get(
+            self.provider.key_env, os.environ.get(self.provider.key_env, "")
+        )
+        if not value:
+            return None
+        return credential_fingerprint(value)
 
     def _resolved_executable(self) -> str | None:
         if os.name == "nt" and not Path(self.executable).suffix:
@@ -271,7 +308,7 @@ class OpenCodeExecutor:
         except (OSError, ValueError) as error:
             return False, str(error)
         environment = self._environment(config_path)
-        environment.pop("KIMI_CODE_API_KEY", None)
+        environment.pop(SANDBOX_API_KEY_ENV, None)
         try:
             verify_binary_identity(attestation)
             completed = subprocess.run(
@@ -307,6 +344,19 @@ class OpenCodeExecutor:
                 )
             if not passed:
                 return False, reason
+            if self.provider.is_responses:
+                with tempfile.TemporaryDirectory(
+                    prefix="opencode-responses-wire-probe-",
+                    dir=config_path.parent.parent,
+                ) as probe_root:
+                    passed, reason = run_responses_wire_probe(
+                        attestation.executable,
+                        probe_root=Path(probe_root),
+                        environment=environment,
+                        provider=self.provider,
+                    )
+                if not passed:
+                    return False, reason
             self._attestation = attestation.with_behavioral_probe()
             return True, reason
         except subprocess.TimeoutExpired:
@@ -323,6 +373,14 @@ class OpenCodeExecutor:
             directory.mkdir(parents=True, exist_ok=True)
         environment = os.environ.copy()
         environment.update(self.extra_environment)
+        source_key = environment.get(self.provider.key_env, "")
+        # Do not forward the provider-specific host variable.  The patched
+        # sandbox consumes a one-child alias, creates a Podman secret from it,
+        # and scrubs it before launching any other process.
+        environment.pop(self.provider.key_env, None)
+        environment.pop(SANDBOX_API_KEY_ENV, None)
+        if source_key:
+            environment[SANDBOX_API_KEY_ENV] = source_key
         environment.pop("OPENCODE_CONFIG_CONTENT", None)
         environment.update(
             {
@@ -366,11 +424,11 @@ class OpenCodeExecutor:
             str(config_path.resolve()),
             *self.sandbox_options.command_options(),
             "--model",
-            f"{PROVIDER_ID}/{DEFAULT_MODEL}",
+            f"{self.provider.provider_id}/{self.provider.model}",
             "--agent",
             AGENT_ID,
             "--variant",
-            DEFAULT_VARIANT,
+            self.provider.variant,
             "--title",
             f"anchor-distiller:{run_id}",
             prompt,
@@ -452,7 +510,9 @@ class OpenCodeExecutor:
                 start_new_session=os.name != "nt",
             )
         except OSError:
-            cleanup_code = self._cleanup_sandbox(sample_id=sample_id, workspace=workspace)
+            cleanup_code = self._cleanup_sandbox(
+                sample_id=sample_id, workspace=workspace
+            )
             launch_errors: tuple[str, ...] = ("anchor_sandbox_launch_failed",)
             if cleanup_code is not None:
                 launch_errors += (cleanup_code,)
@@ -463,7 +523,9 @@ class OpenCodeExecutor:
                 duration_ms=(time.perf_counter() - started) * 1000,
                 error_codes=launch_errors,
                 isolated_runtime_path=str(config_path.parent / "runtime"),
-                opencode_version=attestation.opencode_version if attestation is not None else None,
+                opencode_version=attestation.opencode_version
+                if attestation is not None
+                else None,
             )
         timed_out = False
         try:
@@ -523,7 +585,9 @@ class OpenCodeExecutor:
             controlled_export_path=str(export_path) if export_path else None,
             isolated_runtime_path=str(runtime_path),
             opencode_version=(
-                self._attestation.opencode_version if self._attestation is not None else None
+                self._attestation.opencode_version
+                if self._attestation is not None
+                else None
             ),
         )
 
@@ -549,11 +613,22 @@ class OpenCodeExecutor:
         sample_id: str,
         workspace: Path,
         validators: tuple[dict[str, object], ...],
+        final_diff: tuple[dict[str, object], ...] = (),
         skill_provenance: tuple[SkillProvenance, ...] = (),
     ) -> tuple[bool, str | None]:
-        runtime = Path(execution.isolated_runtime_path) if execution.isolated_runtime_path else None
-        export_path = Path(execution.controlled_export_path) if execution.controlled_export_path else None
-        export_bytes = export_path.read_bytes() if export_path and export_path.is_file() else b""
+        runtime = (
+            Path(execution.isolated_runtime_path)
+            if execution.isolated_runtime_path
+            else None
+        )
+        export_path = (
+            Path(execution.controlled_export_path)
+            if execution.controlled_export_path
+            else None
+        )
+        export_bytes = (
+            export_path.read_bytes() if export_path and export_path.is_file() else b""
+        )
         candidate: dict[str, object] | None = None
         staged_candidate: dict[str, object] | None = None
         failure_code: str | None = None
@@ -577,6 +652,7 @@ class OpenCodeExecutor:
                 "opencode_version": execution.opencode_version,
                 "validators": list(validators),
                 "public_outcome": _public_outcome_capture(outcome),
+                "final_diff": list(final_diff),
                 "skill_provenance": [asdict(item) for item in skill_provenance],
                 "quality": {
                     "agent_exit_code": execution.exit_code,
@@ -590,6 +666,9 @@ class OpenCodeExecutor:
                 heldout_cases=self.session_capture.heldout_cases,
                 heldout_fixtures_root=self.session_capture.heldout_fixtures_root,
                 heldout_manifest=self.session_capture.heldout_manifest,
+                selected_credential_fingerprint=(
+                    self._selected_credential_fingerprint()
+                ),
             )
             if self.session_capture.mode == "collect":
                 staged_candidate = convert_controlled_session_staging(
@@ -600,7 +679,9 @@ class OpenCodeExecutor:
                     export_data, capture, conversion_policy
                 )
         except (OSError, ValueError) as error:
-            failure_code = error.code if isinstance(error, QuarantineError) else "conversion_error"
+            failure_code = (
+                error.code if isinstance(error, QuarantineError) else "conversion_error"
+            )
         finally:
             cleanup_code = (
                 None
@@ -627,7 +708,11 @@ class OpenCodeExecutor:
                             export_bytes=export_bytes,
                         ),
                     )
-            prefix = "session_hard_reject_" if self.session_capture and self.session_capture.mode == "collect" else ""
+            prefix = (
+                "session_hard_reject_"
+                if self.session_capture and self.session_capture.mode == "collect"
+                else ""
+            )
             return False, prefix + code
         assert self.session_capture is not None
         with _CAPTURE_LOCK:

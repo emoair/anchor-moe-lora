@@ -1,0 +1,35 @@
+schema_version: anchor.opencode-live-batch.v1
+candidate_manifest: configs/tooling/execution_candidates_p0.yaml
+split_policy: configs/tooling/execution_split_policy_v1.yaml
+skill_registry: configs/data/skill_sources.yaml
+opencode_executable: artifacts/tooling/opencode-patched/opencode-anchor.exe
+workspace_root: runs/tooling-live-ark-glm52
+gold_output: artifacts/tooling/live_gold.ark_glm52.accepted.jsonl
+attempts_output: artifacts/tooling/live_attempts.ark_glm52.jsonl
+session_candidates: artifacts/tooling/session_candidates.ark_glm52.jsonl
+session_staging: artifacts/tooling/session_staging.ark_glm52.raw.jsonl
+session_quarantine: artifacts/tooling/session_quarantine.ark_glm52.jsonl
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+provider:
+  provider_id: anchor-ark-glm52
+  npm: "@ai-sdk/openai"
+  base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+  model: glm-5-2-260617
+  variant: max
+  key_env: ARK_CODING_API_KEY
+  route_host: ark.cn-beijing.volces.com
+concurrency_stages: [1]
+samples_per_stage: [1]
+anchor_sandbox:
+  linux_executable: artifacts/tooling/opencode-patched/linux-x64/opencode-anchor
+  wsl_distro: Ubuntu-22.04
+  supervisor: wsl-root-systemd
+  memory: 4G
+  cpus: 2
+  pids: 256
+  timeout_seconds: 900
+retain_workspace: false
+minimum_stage_success_rate: 0.8
+timeout_seconds: 900

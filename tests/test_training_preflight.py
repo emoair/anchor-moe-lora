@@ -13,6 +13,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from anchor_mvp.training.config import load_training_config  # noqa: E402
 from anchor_mvp.training.preflight import (  # noqa: E402
     build_preflight_report,
+    inspect_dataset_snapshot_manifest,
+    inspect_gate_datasets,
     inspect_training_artifact,
     verify_prior_smoke_gate,
 )
@@ -24,16 +26,22 @@ CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_smoke.yaml"
 def canonical_record(expert: str, identifier: str, *, live: bool = True) -> dict:
     if expert == "security_gate":
         assistant = "[BLOCK]"
-        output = {"decision": "BLOCK", "rationale": "Untrusted HTML reaches a DOM sink."}
+        output = {
+            "decision": "BLOCK",
+            "rationale": "Untrusted HTML reaches a DOM sink.",
+        }
     elif expert == "tool_policy":
         assistant = "APPROVE"
-        output = {"decision": "APPROVE", "rationale": "Only inert local labels are proposed."}
+        output = {
+            "decision": "APPROVE",
+            "rationale": "Only inert local labels are proposed.",
+        }
     elif expert == "planner":
         output = {
             "summary": "Produce one bounded component.",
             "steps": [{"id": "p1", "goal": "Implement", "deliverable": "Component"}],
         }
-        assistant = json.dumps(output)
+        assistant = json.dumps(output, ensure_ascii=False, sort_keys=True)
     else:
         assistant = "export const value = 1;"
         output = {"code": assistant}
@@ -76,7 +84,9 @@ def ready_dependencies() -> dict:
     }
 
 
-def fixture_config(tmp_path: Path, *, omit: str | None = None, live: bool = True) -> dict:
+def fixture_config(
+    tmp_path: Path, *, omit: str | None = None, live: bool = True
+) -> dict:
     config = copy.deepcopy(load_training_config(CONFIG))
     config["paths"]["project_root"] = "."
     mapping = {
@@ -212,6 +222,134 @@ def fixture_config(tmp_path: Path, *, omit: str | None = None, live: bool = True
     return config
 
 
+def snapshot_manifest_fixture(
+    tmp_path: Path,
+) -> tuple[dict, dict, Path, Path]:
+    config = fixture_config(tmp_path)
+    datasets = inspect_gate_datasets(config, tmp_path)
+    dataset_dir = tmp_path / "data" / "live_smoke"
+    expert_tasks = {
+        "planner": "plan",
+        "tool_policy": "tool_policy",
+        "frontend_gen": "frontend",
+        "frontend_review": "review",
+        "security_gate": "security",
+    }
+    files: dict[str, dict] = {}
+    digest_parts: list[str] = []
+    for expert, observed in datasets["reports"].items():
+        filename = Path(observed["path"]).name
+        files[expert] = {
+            "path": filename,
+            "records": observed["valid_records"],
+            "bytes": observed["bytes"],
+            "sha256": observed["sha256"],
+            "source_sha256": observed["sha256"],
+        }
+        digest_parts.append(
+            f"{expert}:{filename}:{observed['sha256']}:{observed['valid_records']}"
+        )
+    task_bank_path = dataset_dir / "task_bank.jsonl"
+    task_bank_path.write_text(
+        json.dumps({"alignment_id": "alignment-1", "card_id": "card-1"}) + "\n",
+        encoding="utf-8",
+    )
+    task_bank_digest = hashlib.sha256(task_bank_path.read_bytes()).hexdigest()
+    source_task_bank = {
+        "path": "task_bank.jsonl",
+        "records": 1,
+        "bytes": task_bank_path.stat().st_size,
+        "sha256": task_bank_digest,
+    }
+    task_bank_file = {**source_task_bank, "source_sha256": task_bank_digest}
+    digest_parts.append(f"task_bank:task_bank.jsonl:{task_bank_digest}:1")
+    manifest = {
+        "schema_version": "anchor.training-snapshot.v2",
+        "source_partition_manifest_sha256": "a" * 64,
+        "source_gate": {
+            "lineage_complete": True,
+            "complete_chain_count": 1,
+            "minimum_complete_chain_count": 1,
+            "complete_chain_count_sufficient": True,
+            "lineage_edge_error_count": 0,
+            "lineage_chain_error_count": 0,
+            "near_duplicate_gate": {"passed": True},
+            "task_card_coverage": {
+                "passed": True,
+                "cardinality_equal": True,
+                "complete_chain_count": 1,
+                "card_count": 1,
+                "unique_alignment_id_count": 1,
+            },
+            "task_bank_file": source_task_bank,
+            "gold_files": {
+                expert_tasks[expert]: {
+                    "path": entry["path"],
+                    "records": entry["records"],
+                    "bytes": entry["bytes"],
+                    "sha256": entry["source_sha256"],
+                }
+                for expert, entry in files.items()
+            },
+        },
+        "snapshot_sha256": hashlib.sha256("\n".join(digest_parts).encode()).hexdigest(),
+        "task_bank_file": task_bank_file,
+        "files": files,
+    }
+    manifest_path = dataset_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    sidecar_path = dataset_dir / "manifest.json.sha256"
+    sidecar_path.write_text(f"{manifest_digest}  manifest.json\n", encoding="ascii")
+    config["scale_gate"]["dataset_snapshot"] = {
+        "schema_version": "anchor.training-snapshot.v2",
+        "manifest": "data/live_smoke/manifest.json",
+        "sidecar": "data/live_smoke/manifest.json.sha256",
+        "minimum_records_per_expert": 1,
+    }
+    return config, datasets, manifest_path, task_bank_path
+
+
+def test_snapshot_preflight_binds_task_card_gate_and_task_bank(
+    tmp_path: Path,
+) -> None:
+    config, datasets, _manifest_path, _task_bank_path = snapshot_manifest_fixture(
+        tmp_path
+    )
+
+    report = inspect_dataset_snapshot_manifest(config, tmp_path, datasets)
+
+    assert report["passed"] is True
+    assert all(report["task_bank_checks"].values())
+
+
+def test_snapshot_preflight_rejects_task_card_cardinality_or_bank_drift(
+    tmp_path: Path,
+) -> None:
+    config, datasets, manifest_path, task_bank_path = snapshot_manifest_fixture(
+        tmp_path
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_gate"]["task_card_coverage"]["unique_alignment_id_count"] = 0
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    sidecar_path = manifest_path.with_name("manifest.json.sha256")
+    sidecar_path.write_text(
+        f"{hashlib.sha256(manifest_path.read_bytes()).hexdigest()}  manifest.json\n",
+        encoding="ascii",
+    )
+    task_bank_path.write_text(
+        task_bank_path.read_text(encoding="utf-8") + "\n", encoding="utf-8"
+    )
+
+    report = inspect_dataset_snapshot_manifest(config, tmp_path, datasets)
+
+    assert report["passed"] is False
+    assert (
+        "snapshot source_gate task-card coverage proof is invalid" in report["errors"]
+    )
+    assert "snapshot task bank binding failed" in report["errors"]
+
+
 def test_preflight_passes_complete_live_canonical_fixture(tmp_path: Path) -> None:
     config = fixture_config(tmp_path)
     report, cases = build_preflight_report(config, tmp_path, ready_dependencies())
@@ -227,6 +365,23 @@ def test_preflight_blocks_when_any_expert_file_is_missing(tmp_path: Path) -> Non
     assert report["passed"] is False
     assert report["gates"]["five_live_datasets_present"]["passed"] is False
     assert report["gates"]["canonical_schema_valid"]["passed"] is False
+
+
+def test_preflight_rejects_assistant_output_target_mismatch(tmp_path: Path) -> None:
+    config = fixture_config(tmp_path)
+    frontend_path = tmp_path / "data/live_smoke/data_frontend.jsonl"
+    frontend = json.loads(frontend_path.read_text(encoding="utf-8"))
+    frontend["messages"][-1]["content"] = "export const Tampered = () => null;"
+    frontend_path.write_text(
+        json.dumps(frontend, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+    report, _ = build_preflight_report(config, tmp_path, ready_dependencies())
+
+    assert report["passed"] is False
+    assert report["gates"]["canonical_schema_valid"]["passed"] is False
+    reports = report["gates"]["five_live_datasets_present"]["evidence"]["reports"]
+    assert "canonical target derived from output" in reports["frontend_gen"]["error"]
 
 
 def test_preflight_rejects_mock_teacher_records(tmp_path: Path) -> None:
@@ -298,7 +453,7 @@ def test_training_artifact_gate_rejects_wrong_quant_type_or_shard_size(
 
     report = inspect_training_artifact(config, tmp_path)
     assert report["passed"] is False
-    assert "NF4 training artifact contract failed: transformers_config" in report[
-        "errors"
-    ]
+    assert (
+        "NF4 training artifact contract failed: transformers_config" in report["errors"]
+    )
     assert "NF4 weight binding failed at index 0" in report["errors"]

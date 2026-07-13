@@ -80,7 +80,7 @@
         "manifest": "artifacts/formal_v3/dataset/manifest.json",
         "sidecar": "artifacts/formal_v3/dataset/manifest.json.sha256",
         "immutable": true,
-        "minimum_records_per_expert": 128
+        "minimum_records_per_expert": 256
       },
       "required_smoke_gate_manifest": "artifacts/formal_v3/smoke/manifests/smoke-gate-frontend_gen-r16.execute.json"
     }

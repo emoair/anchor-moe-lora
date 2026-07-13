@@ -4,27 +4,62 @@ from __future__ import annotations
 
 import asyncio
 import codecs
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+import hmac
+from http.client import IncompleteRead, RemoteDisconnected
 import json
 import os
 import random
 import re
 import threading
 import time
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Mapping, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .provider import validate_base_url
 
 
-APIProtocol = Literal["anthropic", "openai"]
+APIProtocol = Literal["anthropic", "openai", "openai_responses"]
+ThinkingEffort = Literal["low", "medium", "high", "xhigh", "max"]
+THINKING_EFFORTS: tuple[ThinkingEffort, ...] = (
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+)
+_RETRYABLE_HTTP_STATUSES = frozenset(
+    {408, 499, 500, 502, 503, 504, 520, 521, 522, 523, 524}
+)
 
 
 class TeacherError(RuntimeError):
     """A redacted teacher request failure."""
+
+
+class _RetryableTransportError(TeacherError):
+    """A redacted, request-local transport interruption safe to replay."""
+
+    def __init__(self, reason_code: str) -> None:
+        message = {
+            "responses_stream_ended_before_completed": (
+                "teacher Responses API stream ended before response.completed"
+            ),
+            "sse_stream_ended_before_done": ("teacher SSE stream ended before [DONE]"),
+            "sse_stream_read_interrupted": "teacher SSE stream read failed",
+            "incomplete_read": "teacher response connection ended before completion",
+            "remote_disconnected": "teacher response connection was interrupted",
+            "transport_timeout": "teacher request transport timed out",
+            "url_error": "teacher request transport URL error",
+            "connection_interrupted": "teacher request connection was interrupted",
+            "transport_os_error": "teacher request transport failed",
+        }.get(reason_code, "teacher request transport failed")
+        super().__init__(message)
+        self.reason_code = reason_code
 
 
 class BudgetExceeded(TeacherError):
@@ -77,6 +112,7 @@ class _ProtocolError(TeacherError):
         super().__init__(f"{protocol} endpoint returned HTTP {status}{suffix}")
         self.protocol = protocol
         self.status = status
+        self.detail = detail
         self.retry_after_seconds = retry_after_seconds
 
 
@@ -97,6 +133,17 @@ class Teacher(Protocol):
     def provider_provenance(self) -> dict[str, Any]: ...
 
     async def complete(self, *, system: str, user: str) -> str: ...
+
+
+class _CompletionText(str):
+    """A string-compatible result carrying request-scoped public metadata."""
+
+    completion: dict[str, Any]
+
+    def __new__(cls, text: str, completion: Mapping[str, Any] | None = None):
+        value = super().__new__(cls, text)
+        value.completion = dict(completion or {})
+        return value
 
 
 @dataclass
@@ -141,7 +188,7 @@ class CompatibleTeacher:
     temperature: float = 0.2
     max_tokens: int = 4096
     thinking_enabled: bool = True
-    thinking_effort: str = "medium"
+    thinking_effort: ThinkingEffort = "medium"
     thinking_budget_tokens: int = 1024
     stream_openai: bool = True
     stream_options_include_usage: bool = False
@@ -153,34 +200,52 @@ class CompatibleTeacher:
     discovery_status: str = "skipped"
     discovery_model_count: int = 0
     _budget: _Budget = field(init=False, repr=False)
+    _completion_context: ContextVar[dict[str, Any] | None] = field(
+        init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
-        if self.protocol not in ("anthropic", "openai"):
-            raise ValueError("protocol must be anthropic or openai")
-        if self.fallback_protocol not in (None, "anthropic", "openai"):
-            raise ValueError("fallback_protocol must be anthropic, openai, or None")
+        protocols = ("anthropic", "openai", "openai_responses")
+        if self.protocol not in protocols:
+            raise ValueError("protocol must be anthropic, openai, or openai_responses")
+        if self.fallback_protocol not in (None, *protocols):
+            raise ValueError(
+                "fallback_protocol must be anthropic, openai, openai_responses, or None"
+            )
         self.base_url = validate_base_url(self.base_url)
         self.fallback_base_url = validate_base_url(
             self.fallback_base_url, name="fallback_base_url"
         )
-        if self.max_requests < 1 or self.max_output_tokens_total < 1 or self.max_tokens < 1:
+        if (
+            self.max_requests < 1
+            or self.max_output_tokens_total < 1
+            or self.max_tokens < 1
+        ):
             raise ValueError("teacher budgets must be positive")
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
         if self.wall_clock_deadline_seconds <= 0:
             raise ValueError("wall_clock_deadline_seconds must be positive")
-        if self.max_retries < 0:
-            raise ValueError("max_retries cannot be negative")
-        allowed_efforts = {"low", "medium", "high", "xhigh", "max"}
-        if self.thinking_effort not in allowed_efforts:
-            raise ValueError(f"thinking_effort must be one of {sorted(allowed_efforts)}")
-        uses_anthropic = self.protocol == "anthropic" or self.fallback_protocol == "anthropic"
+        if not 0 <= self.max_retries <= 2:
+            raise ValueError("max_retries must be between 0 and 2")
+        if self.thinking_effort not in THINKING_EFFORTS:
+            raise ValueError(
+                f"thinking_effort must be one of {sorted(THINKING_EFFORTS)}"
+            )
+        uses_anthropic = (
+            self.protocol == "anthropic" or self.fallback_protocol == "anthropic"
+        )
         if self.thinking_enabled and uses_anthropic:
             if self.thinking_budget_tokens < 1024:
                 raise ValueError("thinking_budget_tokens must be at least 1024")
             if self.max_tokens <= self.thinking_budget_tokens:
-                raise ValueError("max_tokens must be greater than thinking_budget_tokens")
+                raise ValueError(
+                    "max_tokens must be greater than thinking_budget_tokens"
+                )
         self._budget = _Budget(self.max_requests, self.max_output_tokens_total)
+        self._completion_context = ContextVar(
+            f"anchor_teacher_completion_{id(self)}", default=None
+        )
 
     @property
     def generation_params(self) -> dict[str, Any]:
@@ -203,10 +268,11 @@ class CompatibleTeacher:
     def provider_provenance(self) -> dict[str, Any]:
         """Public provider resolution details; contains no credential value."""
 
-        return {
+        request_context = self._completion_context.get() or {}
+        result: dict[str, Any] = {
             "preset": self.provider_preset,
-            "base_url": self.base_url,
-            "protocol": self.protocol,
+            "base_url": request_context.get("base_url", self.base_url),
+            "protocol": request_context.get("protocol", self.protocol),
             "model": self.model,
             "model_source": self.model_source,
             "discovery": {
@@ -214,6 +280,13 @@ class CompatibleTeacher:
                 "model_count": self.discovery_model_count,
             },
         }
+        completion = request_context.get("completion")
+        if completion:
+            result["completion"] = dict(completion)
+        attempts = request_context.get("attempts")
+        if isinstance(attempts, Mapping):
+            result["attempts"] = dict(attempts)
+        return result
 
     @property
     def usage_snapshot(self) -> dict[str, int]:
@@ -223,7 +296,9 @@ class CompatibleTeacher:
                 "output_tokens": self._budget.output_tokens,
             }
 
-    def limit_remaining_budget(self, *, max_requests: int, max_output_tokens: int) -> None:
+    def limit_remaining_budget(
+        self, *, max_requests: int, max_output_tokens: int
+    ) -> None:
         """Apply a persisted scheduler's remaining budget to a fresh client."""
 
         if max_requests < 0 or max_output_tokens < 0:
@@ -251,64 +326,75 @@ class CompatibleTeacher:
         self._budget = owner._budget
 
     async def complete(self, *, system: str, user: str) -> str:
+        self._completion_context.set(None)
+        primary_protocol = self.protocol
+        primary_base_url = self.base_url
         try:
-            return await self._with_retries(self.protocol, self.base_url, system, user, self.max_tokens)
-        except _ProtocolError as error:
-            fallback_statuses = {400, 404, 405, 415}
-            if (
-                self.fallback_protocol is None
-                or self.fallback_protocol == self.protocol
-                or error.status not in fallback_statuses
-            ):
-                raise TeacherError(_redact(str(error))) from None
-            result = await self._with_retries(
-                self.fallback_protocol,
-                self.fallback_base_url,
-                system,
-                user,
-                self.max_tokens,
+            return await self._with_retries(
+                primary_protocol, primary_base_url, system, user, self.max_tokens
             )
-            self._activate_openai_fallback()
-            return result
+        except _ProtocolError as error:
+            # A task prompt may contain private code or user context. Never
+            # replay it to a second endpoint. Compatibility fallback is only
+            # established by probe(), whose prompts are fixed synthetic text.
+            raise TeacherError(_redact(str(error))) from None
 
     async def probe(self) -> str:
         """One minimal protocol/authentication probe, preserving Thinking mode."""
 
-        probe_tokens = (
-            min(self.max_tokens, self.thinking_budget_tokens + 1)
-            if self.thinking_enabled and self.protocol == "anthropic"
-            else min(32, self.max_tokens)
-        )
+        primary_protocol = self.protocol
+        primary_base_url = self.base_url
+        fallback_protocol = self.fallback_protocol
+        fallback_base_url = self.fallback_base_url
+        if self.thinking_enabled and primary_protocol == "anthropic":
+            probe_tokens = min(self.max_tokens, self.thinking_budget_tokens + 1)
+        elif self.thinking_enabled and primary_protocol in {
+            "openai",
+            "openai_responses",
+        }:
+            # Reasoning-capable OpenAI-compatible models may spend the initial
+            # tokens entirely on a non-public reasoning field. A 32-token cap
+            # can therefore authenticate successfully yet produce no final
+            # content, which is a false-negative protocol probe.
+            probe_tokens = min(4096, self.max_tokens)
+        else:
+            probe_tokens = min(32, self.max_tokens)
         try:
             return await self._with_retries(
-                self.protocol,
-                self.base_url,
+                primary_protocol,
+                primary_base_url,
                 "Return a minimal JSON health response.",
                 'Return exactly {"ok":true}.',
                 probe_tokens,
             )
         except _ProtocolError as error:
             if (
-                self.fallback_protocol != "openai"
-                or self.protocol == "openai"
-                or error.status not in {400, 404, 405, 415}
+                fallback_protocol is None
+                or fallback_protocol == primary_protocol
+                or not _is_explicit_compatibility_error(error)
             ):
                 raise TeacherError(_redact(str(error))) from None
+            if self.thinking_enabled and fallback_protocol == "anthropic":
+                fallback_tokens = min(self.max_tokens, self.thinking_budget_tokens + 1)
+            elif self.thinking_enabled:
+                fallback_tokens = min(4096, self.max_tokens)
+            else:
+                fallback_tokens = min(32, self.max_tokens)
             result = await self._with_retries(
-                "openai",
-                self.fallback_base_url,
+                fallback_protocol,
+                fallback_base_url,
                 "Return a minimal JSON health response.",
                 'Return exactly {"ok":true}.',
-                min(32, self.max_tokens),
+                fallback_tokens,
             )
-            self._activate_openai_fallback()
+            self._activate_fallback(fallback_protocol, fallback_base_url)
             return result
 
-    def _activate_openai_fallback(self) -> None:
+    def _activate_fallback(self, protocol: APIProtocol, base_url: str) -> None:
         """Latch a probe-confirmed compatibility fallback for later requests."""
 
-        self.protocol = "openai"
-        self.base_url = self.fallback_base_url
+        self.protocol = protocol
+        self.base_url = base_url
         self.fallback_protocol = None
 
     async def _with_retries(
@@ -320,32 +406,92 @@ class CompatibleTeacher:
         max_tokens: int,
     ) -> str:
         last_error: Exception | None = None
+        retry_reasons: list[str] = []
+        self._completion_context.set(
+            {
+                "protocol": protocol,
+                "base_url": base_url,
+                "completion": None,
+                "attempts": {
+                    "wire_attempts": 0,
+                    "retry_count": 0,
+                    "max_retries": self.max_retries,
+                    "retry_reasons": [],
+                },
+            }
+        )
         for attempt in range(self.max_retries + 1):
             try:
-                return await asyncio.to_thread(
+                result = await asyncio.to_thread(
                     self._request_sync, protocol, base_url, system, user, max_tokens
                 )
+                completion = (
+                    dict(result.completion)
+                    if isinstance(result, _CompletionText) and result.completion
+                    else None
+                )
+                self._completion_context.set(
+                    {
+                        "protocol": protocol,
+                        "base_url": base_url,
+                        "completion": completion,
+                        "attempts": {
+                            "wire_attempts": attempt + 1,
+                            "retry_count": attempt,
+                            "max_retries": self.max_retries,
+                            "retry_reasons": list(retry_reasons),
+                        },
+                    }
+                )
+                return str(result)
             except _ProtocolError as error:
                 if error.status in (402, 403, 429) and _is_quota_exhaustion(error):
                     raise ProviderQuotaExhausted(error.retry_after_seconds) from None
-                if error.status == 429 and (error.retry_after_seconds or 0) > 60:
+                if error.status == 429:
                     raise RateLimitError(error.retry_after_seconds) from None
-                if error.status not in (408, 409, 429) and error.status < 500:
+                if not _is_retryable_http_status(error.status):
                     raise
                 last_error = error
-            except (URLError, TimeoutError) as error:
-                last_error = TeacherError(f"{type(error).__name__} during teacher request")
+                reason_code = f"http_{error.status}"
+            except _RetryableTransportError as error:
+                last_error = error
+                reason_code = error.reason_code
+            except (
+                IncompleteRead,
+                RemoteDisconnected,
+                URLError,
+                TimeoutError,
+                ConnectionError,
+                OSError,
+            ) as error:
+                reason_code = _transport_reason_code(error)
+                last_error = _RetryableTransportError(reason_code)
+            observed_reasons = [*retry_reasons, reason_code]
+            self._completion_context.set(
+                {
+                    "protocol": protocol,
+                    "base_url": base_url,
+                    "completion": None,
+                    "attempts": {
+                        "wire_attempts": attempt + 1,
+                        "retry_count": attempt,
+                        "max_retries": self.max_retries,
+                        "retry_reasons": observed_reasons,
+                    },
+                }
+            )
             if attempt < self.max_retries:
+                retry_reasons.append(reason_code)
                 retry_after = (
                     last_error.retry_after_seconds
                     if isinstance(last_error, _ProtocolError)
                     and last_error.retry_after_seconds is not None
                     else 0.0
                 )
-                await asyncio.sleep(max(retry_after, min(8.0, (2**attempt) + random.random())))
-        if isinstance(last_error, _ProtocolError) and last_error.status == 429:
-            raise RateLimitError(last_error.retry_after_seconds) from None
-        raise TeacherError(_redact(f"teacher request failed after retries: {last_error}")) from None
+                await asyncio.sleep(_retry_delay_seconds(attempt, retry_after))
+        raise TeacherError(
+            _redact(f"teacher request failed after retries: {last_error}")
+        ) from None
 
     def _request_sync(
         self,
@@ -357,7 +503,9 @@ class CompatibleTeacher:
     ) -> str:
         api_key = os.environ.get(self.api_key_env)
         if not api_key:
-            raise TeacherError(f"credential environment variable {self.api_key_env} is not set")
+            raise TeacherError(
+                f"credential environment variable {self.api_key_env} is not set"
+            )
         self._budget.reserve_request()
         if protocol == "anthropic":
             endpoint = _anthropic_endpoint(base_url)
@@ -369,7 +517,9 @@ class CompatibleTeacher:
             }
             if self.thinking_enabled:
                 if max_tokens <= self.thinking_budget_tokens:
-                    raise TeacherError("max_tokens must be greater than thinking_budget_tokens")
+                    raise TeacherError(
+                        "max_tokens must be greater than thinking_budget_tokens"
+                    )
                 payload["thinking"] = {
                     "type": "enabled",
                     "budget_tokens": self.thinking_budget_tokens,
@@ -382,7 +532,7 @@ class CompatibleTeacher:
                 "anthropic-version": self.anthropic_version,
                 "User-Agent": self.user_agent,
             }
-        else:
+        elif protocol == "openai":
             endpoint = _openai_endpoint(base_url)
             payload = {
                 "model": self.model,
@@ -405,6 +555,28 @@ class CompatibleTeacher:
                 "Authorization": f"Bearer {api_key}",
                 "User-Agent": self.user_agent,
             }
+        else:
+            endpoint = _responses_endpoint(base_url)
+            # This transport intentionally declares no tools. Tool execution
+            # belongs to a separately sandboxed runtime, so any tool-shaped
+            # provider output below is rejected instead of entering provenance.
+            payload = {
+                "model": self.model,
+                "instructions": system,
+                "input": user,
+                "max_output_tokens": max_tokens,
+                "stream": self.stream_openai,
+                "store": False,
+            }
+            if self.thinking_enabled:
+                payload["reasoning"] = {"effort": self.thinking_effort}
+            else:
+                payload["temperature"] = self.temperature
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": self.user_agent,
+            }
         request = Request(
             endpoint,
             data=json.dumps(payload).encode("utf-8"),
@@ -420,20 +592,58 @@ class CompatibleTeacher:
                         deadline_at=deadline_at,
                         deadline_seconds=self.wall_clock_deadline_seconds,
                     )
+                    completion: dict[str, Any] = {}
+                    body = None
+                elif protocol == "openai_responses" and self.stream_openai:
+                    content, output_tokens, completion = (
+                        _openai_responses_stream_content(
+                            response,
+                            deadline_at=deadline_at,
+                            deadline_seconds=self.wall_clock_deadline_seconds,
+                            current_credential=api_key,
+                        )
+                    )
                     body = None
                 else:
                     body = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             # Never include response bodies: providers sometimes echo request metadata.
-            detail = _safe_http_error_detail(error, api_key=api_key, system=system, user=user)
-            retry_after = _parse_retry_after(error.headers.get("Retry-After") if error.headers else None)
+            detail = _safe_http_error_detail(
+                error, api_key=api_key, system=system, user=user
+            )
+            retry_after = _parse_retry_after(
+                error.headers.get("Retry-After") if error.headers else None
+            )
             raise _ProtocolError(protocol, error.code, detail, retry_after) from None
+        except _RetryableTransportError:
+            raise
+        except (
+            IncompleteRead,
+            RemoteDisconnected,
+            URLError,
+            TimeoutError,
+            ConnectionError,
+            OSError,
+        ) as error:
+            raise _RetryableTransportError(_transport_reason_code(error)) from None
         except json.JSONDecodeError:
             raise TeacherError("teacher response was not valid JSON") from None
         if body is not None:
-            content, output_tokens = _response_content(protocol, body)
-        self._budget.add_output(output_tokens if output_tokens is not None else max(1, len(content) // 4))
-        return content
+            if protocol == "openai_responses":
+                content, output_tokens, completion = _openai_responses_body_content(
+                    body,
+                    deadline_seconds=self.wall_clock_deadline_seconds,
+                    current_credential=api_key,
+                )
+            else:
+                content, output_tokens = _response_content(protocol, body)
+                completion = {}
+        if api_key and api_key in content:
+            raise TeacherError("teacher response contained current credential")
+        self._budget.add_output(
+            output_tokens if output_tokens is not None else max(1, len(content) // 4)
+        )
+        return _CompletionText(content, completion)
 
 
 @dataclass
@@ -571,13 +781,15 @@ class MockTeacher:
                     ],
                     "output": {
                         "language": "tsx",
-                        "code": "export function Dashboard(){return <main><h1>Project status</h1><p aria-live=\"polite\">Ready</p></main>}",
+                        "code": 'export function Dashboard(){return <main><h1>Project status</h1><p aria-live="polite">Ready</p></main>}',
                     },
                 }
             )
         if marker == "review":
             candidate = _section(user, "CANDIDATE CODE")
-            fixed = _repair_mock_candidate(candidate, _section(user, "KNOWN_BENIGN_DEFECT"))
+            fixed = _repair_mock_candidate(
+                candidate, _section(user, "KNOWN_BENIGN_DEFECT")
+            )
             return json.dumps(
                 {
                     "decision_trace": [
@@ -620,7 +832,9 @@ class MockTeacher:
                             if block
                             else "No executable payload is present; retain standard encoding and CSP controls."
                         ),
-                        "findings": ["DEFENSIVE_PLACEHOLDER_UNTRUSTED_CONTENT"] if block else [],
+                        "findings": ["DEFENSIVE_PLACEHOLDER_UNTRUSTED_CONTENT"]
+                        if block
+                        else [],
                     },
                 }
             )
@@ -631,7 +845,9 @@ def _response_content(protocol: APIProtocol, body: Any) -> tuple[str, int | None
     try:
         if protocol == "anthropic":
             blocks = body["content"]
-            content = "".join(str(block["text"]) for block in blocks if block.get("type") == "text")
+            content = "".join(
+                str(block["text"]) for block in blocks if block.get("type") == "text"
+            )
             tokens = body.get("usage", {}).get("output_tokens")
         else:
             content = str(body["choices"][0]["message"]["content"])
@@ -641,6 +857,415 @@ def _response_content(protocol: APIProtocol, body: Any) -> tuple[str, int | None
     if not content:
         raise TeacherError("teacher returned no text content")
     return content, int(tokens) if tokens is not None else None
+
+
+def _openai_responses_body_content(
+    body: Any,
+    *,
+    deadline_seconds: float = 0,
+    current_credential: str | None = None,
+) -> tuple[str, int | None, dict[str, Any]]:
+    """Extract public Responses API output without retaining model reasoning."""
+
+    if not isinstance(body, Mapping):
+        raise TeacherError("unexpected teacher response schema")
+    _raise_responses_terminal_failure(
+        body,
+        deadline_seconds=deadline_seconds,
+        current_credential=current_credential,
+    )
+    fragments, saw_undeclared_tool = _responses_output_items(body.get("output"))
+    if saw_undeclared_tool:
+        raise TeacherError(
+            "teacher Responses API returned tool output without declared tools"
+        )
+    if not fragments and isinstance(body.get("output_text"), str):
+        fragments.append(body["output_text"])
+    content = "".join(fragments)
+    if not content:
+        raise TeacherError("teacher Responses API returned no final text content")
+    usage = _public_usage(body.get("usage"))
+    output_tokens = usage.get("output_tokens")
+    completion = _responses_completion(
+        response_id=body.get("id"),
+        usage=usage,
+        current_credential=current_credential,
+    )
+    return content, output_tokens, completion
+
+
+_RESPONSES_FAILURE_STATUSES = frozenset(
+    {"failed", "incomplete", "cancelled", "canceled", "error"}
+)
+_RESPONSES_QUOTA_CODES = frozenset(
+    {
+        "account_quota_exhausted",
+        "billing_hard_limit_reached",
+        "insufficient_quota",
+        "quota_exceeded",
+        "quota_exhausted",
+        "usage_limit_exceeded",
+    }
+)
+_RESPONSES_RATE_LIMIT_CODES = frozenset(
+    {
+        "rate_limit_error",
+        "rate_limit_exceeded",
+        "request_rate_limit_exceeded",
+        "throttled",
+        "too_many_requests",
+    }
+)
+_RESPONSES_DEADLINE_CODES = frozenset(
+    {
+        "client_deadline_exceeded",
+        "deadline_exceeded",
+        "request_timed_out",
+        "request_timeout",
+        "timeout",
+    }
+)
+_SAFE_RESPONSE_METADATA = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
+_SECRET_LIKE_METADATA = re.compile(
+    r"(?:sk|key)-[A-Za-z0-9_-]{8,}|ark-[A-Za-z0-9][A-Za-z0-9_-]{20,127}",
+    flags=re.IGNORECASE,
+)
+_ACTIVE_METADATA_PREFIXES = (
+    "javascript:",
+    "data:",
+    "file:",
+    "http:",
+    "https:",
+    "powershell:",
+    "cmd:",
+)
+
+
+def _is_safe_response_metadata(
+    value: str,
+    *,
+    max_length: int,
+    current_credential: str | None = None,
+) -> bool:
+    normalized = value.casefold()
+    return (
+        len(value) <= max_length
+        and _SAFE_RESPONSE_METADATA.fullmatch(value) is not None
+        and _SECRET_LIKE_METADATA.search(value) is None
+        and not any(prefix in normalized for prefix in _ACTIVE_METADATA_PREFIXES)
+        and not (
+            current_credential is not None
+            and (
+                hmac.compare_digest(value, current_credential)
+                or current_credential in value
+            )
+        )
+    )
+
+
+def _raise_responses_terminal_failure(
+    value: Mapping[str, Any],
+    *,
+    forced_status: str | None = None,
+    deadline_seconds: float = 0,
+    current_credential: str | None = None,
+) -> None:
+    """Raise using only bounded status/code metadata, never provider prose."""
+
+    raw_status = value.get("status")
+    normalized_status = (
+        raw_status.strip().casefold() if isinstance(raw_status, str) else ""
+    )
+    error = value.get("error")
+    if forced_status is not None:
+        status = forced_status
+    elif normalized_status in _RESPONSES_FAILURE_STATUSES:
+        status = normalized_status
+    elif normalized_status and normalized_status != "completed":
+        status = (
+            normalized_status
+            if _is_safe_response_metadata(
+                normalized_status,
+                max_length=32,
+                current_credential=current_credential,
+            )
+            else "invalid"
+        )
+    elif error is not None:
+        status = "error"
+    else:
+        return
+    markers = _safe_responses_error_markers(
+        value, current_credential=current_credential
+    )
+    normalized_markers = {item.casefold().replace("-", "_") for item in markers}
+    if normalized_markers & _RESPONSES_QUOTA_CODES:
+        raise ProviderQuotaExhausted()
+    if normalized_markers & _RESPONSES_RATE_LIMIT_CODES:
+        raise RateLimitError()
+    if normalized_markers & _RESPONSES_DEADLINE_CODES:
+        raise ClientDeadlineExceeded(deadline_seconds)
+    code = markers[0] if markers else None
+    raise TeacherError(
+        "teacher Responses API terminal failure "
+        f"(status={status}; code={code or 'unknown'})"
+    )
+
+
+def _safe_responses_error_markers(
+    value: Mapping[str, Any], *, current_credential: str | None = None
+) -> list[str]:
+    sources: list[tuple[Mapping[str, Any], tuple[str, ...]]] = []
+    error = value.get("error")
+    if isinstance(error, Mapping):
+        sources.append((error, ("code", "type")))
+    sources.append((value, ("code",)))
+    result: list[str] = []
+    for source, keys in sources:
+        for key in keys:
+            candidate = source.get(key)
+            if not isinstance(candidate, (str, int)) or isinstance(candidate, bool):
+                continue
+            text = str(candidate)
+            if (
+                _is_safe_response_metadata(
+                    text,
+                    max_length=80,
+                    current_credential=current_credential,
+                )
+                and not (key == "type" and text.casefold().startswith("response."))
+                and text not in result
+            ):
+                result.append(text)
+    return result
+
+
+def _safe_responses_error_code(
+    value: Mapping[str, Any], *, current_credential: str | None = None
+) -> str | None:
+    markers = _safe_responses_error_markers(
+        value, current_credential=current_credential
+    )
+    return markers[0] if markers else None
+
+
+def _responses_output_items(value: Any) -> tuple[list[str], bool]:
+    fragments: list[str] = []
+    saw_undeclared_tool = False
+    if not isinstance(value, list):
+        return fragments, saw_undeclared_tool
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        item_type = str(item.get("type", ""))
+        normalized_type = item_type.casefold()
+        if "reasoning" in normalized_type or "thinking" in normalized_type:
+            continue
+        if normalized_type == "message":
+            blocks = item.get("content")
+            if not isinstance(blocks, list):
+                continue
+            for block in blocks:
+                if not isinstance(block, Mapping):
+                    continue
+                block_type = str(block.get("type", "")).casefold()
+                if block_type == "output_text" and isinstance(block.get("text"), str):
+                    fragments.append(block["text"])
+                elif block_type == "refusal" or any(
+                    marker in block_type for marker in ("reasoning", "thinking")
+                ):
+                    continue
+                else:
+                    saw_undeclared_tool = True
+            continue
+        # No tools were sent in the request. Treat every other public output
+        # item as an undeclared tool/unsupported active payload and fail closed.
+        saw_undeclared_tool = True
+    return fragments, saw_undeclared_tool
+
+
+def _public_usage(value: Any) -> dict[str, int]:
+    if not isinstance(value, Mapping):
+        return {}
+    result: dict[str, int] = {}
+    for key in ("input_tokens", "output_tokens", "total_tokens"):
+        item = value.get(key)
+        if (
+            isinstance(item, int)
+            and not isinstance(item, bool)
+            and 0 <= item <= 1_000_000_000_000
+        ):
+            result[key] = item
+    return result
+
+
+def _responses_completion(
+    *,
+    response_id: Any,
+    usage: Mapping[str, int],
+    current_credential: str | None = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    if isinstance(response_id, str) and _is_safe_response_metadata(
+        response_id,
+        max_length=128,
+        current_credential=current_credential,
+    ):
+        result["response_id"] = response_id
+    if usage:
+        result["usage"] = dict(usage)
+    return result
+
+
+def _openai_responses_stream_content(
+    response: Any,
+    *,
+    deadline_at: float | None = None,
+    deadline_seconds: float = 0,
+    current_credential: str | None = None,
+) -> tuple[str, int | None, dict[str, Any]]:
+    """Consume a successfully completed Responses SSE public-text stream."""
+
+    fragments: list[str] = []
+    text_delta_items: set[str] = set()
+    usage: dict[str, int] = {}
+    response_id: str | None = None
+    saw_completed = False
+    deadline_event = threading.Event()
+    completed_event = threading.Event()
+    timer: threading.Timer | None = None
+    if deadline_at is not None:
+
+        def close_at_deadline() -> None:
+            deadline_event.set()
+            _close_response_quietly(response)
+
+        timer = threading.Timer(
+            max(0.0, deadline_at - time.monotonic()), close_at_deadline
+        )
+        timer.daemon = True
+        timer.start()
+    try:
+        for data in _iter_sse_data(
+            response,
+            deadline_at=deadline_at,
+            deadline_seconds=deadline_seconds,
+            deadline_event=deadline_event,
+            stop_after_buffered=completed_event,
+        ):
+            if not data:
+                continue
+            if data == "[DONE]":
+                break
+            try:
+                event = json.loads(data)
+            except json.JSONDecodeError:
+                raise TeacherError("teacher SSE event was not valid JSON") from None
+            if not isinstance(event, Mapping):
+                continue
+            event_type = str(event.get("type", "")).casefold()
+            if saw_completed:
+                raise TeacherError(
+                    "teacher Responses API emitted an event after response.completed"
+                )
+            failure_status = {
+                "response.failed": "failed",
+                "response.incomplete": "incomplete",
+                "response.cancelled": "cancelled",
+                "response.canceled": "canceled",
+                "response.error": "error",
+                "error": "error",
+            }.get(event_type)
+            if failure_status is not None:
+                failure_source = event.get("response")
+                _raise_responses_terminal_failure(
+                    failure_source if isinstance(failure_source, Mapping) else event,
+                    forced_status=failure_status,
+                    deadline_seconds=deadline_seconds,
+                    current_credential=current_credential,
+                )
+            if "reasoning" in event_type or "thinking" in event_type:
+                continue
+            if event_type == "response.output_text.delta":
+                delta = event.get("delta")
+                if isinstance(delta, str):
+                    fragments.append(delta)
+                    text_delta_items.add(str(event.get("item_id", "")))
+                continue
+            if event_type == "response.output_text.done":
+                text = event.get("text")
+                item_id = str(event.get("item_id", ""))
+                if isinstance(text, str) and item_id not in text_delta_items:
+                    fragments.append(text)
+                continue
+            if event_type in {
+                "response.output_item.added",
+                "response.output_item.done",
+            }:
+                item = event.get("item")
+                if isinstance(item, Mapping):
+                    _, saw_undeclared_tool = _responses_output_items([item])
+                    if saw_undeclared_tool:
+                        raise TeacherError(
+                            "teacher Responses API returned tool output without "
+                            "declared tools"
+                        )
+                continue
+            if "_call" in event_type or ".call" in event_type or "tool" in event_type:
+                raise TeacherError(
+                    "teacher Responses API returned tool output without declared tools"
+                )
+            if event_type == "response.completed":
+                final_response = event.get("response")
+                if not isinstance(final_response, Mapping):
+                    raise TeacherError(
+                        "teacher Responses API completed event had invalid schema"
+                    )
+                _raise_responses_terminal_failure(
+                    final_response,
+                    deadline_seconds=deadline_seconds,
+                    current_credential=current_credential,
+                )
+                if isinstance(final_response.get("id"), str):
+                    response_id = final_response["id"]
+                usage = _public_usage(final_response.get("usage"))
+                final_fragments, saw_undeclared_tool = _responses_output_items(
+                    final_response.get("output")
+                )
+                if saw_undeclared_tool:
+                    raise TeacherError(
+                        "teacher Responses API returned tool output without "
+                        "declared tools"
+                    )
+                if not fragments:
+                    fragments.extend(final_fragments)
+                    if not fragments and isinstance(
+                        final_response.get("output_text"), str
+                    ):
+                        fragments.append(final_response["output_text"])
+                saw_completed = True
+                completed_event.set()
+                _close_response_quietly(response)
+    finally:
+        if timer is not None:
+            timer.cancel()
+    if not saw_completed:
+        raise _RetryableTransportError("responses_stream_ended_before_completed")
+    content = "".join(fragments)
+    if not content:
+        raise TeacherError(
+            "teacher Responses API stream returned no final text content"
+        )
+    output_tokens = usage.get("output_tokens")
+    return (
+        content,
+        output_tokens,
+        _responses_completion(
+            response_id=response_id,
+            usage=usage,
+            current_credential=current_credential,
+        ),
+    )
 
 
 def _openai_stream_content(
@@ -657,6 +1282,7 @@ def _openai_stream_content(
     saw_reasoning = False
     reasoning_chars = 0
     unknown_delta_keys: set[str] = set()
+    saw_done = False
     known_delta_keys = {
         "content",
         "reasoning_content",
@@ -667,16 +1293,14 @@ def _openai_stream_content(
     deadline_event = threading.Event()
     timer: threading.Timer | None = None
     if deadline_at is not None:
+
         def close_at_deadline() -> None:
             deadline_event.set()
-            close = getattr(response, "close", None)
-            if close is not None:
-                try:
-                    close()
-                except OSError:
-                    pass
+            _close_response_quietly(response)
 
-        timer = threading.Timer(max(0.0, deadline_at - time.monotonic()), close_at_deadline)
+        timer = threading.Timer(
+            max(0.0, deadline_at - time.monotonic()), close_at_deadline
+        )
         timer.daemon = True
         timer.start()
     try:
@@ -689,6 +1313,7 @@ def _openai_stream_content(
             if not data:
                 continue
             if data == "[DONE]":
+                saw_done = True
                 break
             try:
                 event = json.loads(data)
@@ -717,7 +1342,11 @@ def _openai_stream_content(
                     if key not in known_delta_keys and len(unknown_delta_keys) < 8:
                         unknown_delta_keys.add(_safe_metadata_key(str(key), limit=32))
                 # Count but deliberately never retain reasoning field values.
-                for reasoning_key in ("reasoning_content", "reasoning", "reasoning_details"):
+                for reasoning_key in (
+                    "reasoning_content",
+                    "reasoning",
+                    "reasoning_details",
+                ):
                     if reasoning_key in delta:
                         saw_reasoning = True
                         reasoning_chars += _reasoning_char_count(delta[reasoning_key])
@@ -727,6 +1356,8 @@ def _openai_stream_content(
     finally:
         if timer is not None:
             timer.cancel()
+    if not saw_done:
+        raise _RetryableTransportError("sse_stream_ended_before_done")
     content = "".join(fragments)
     if not content:
         diagnostics = [
@@ -738,7 +1369,9 @@ def _openai_stream_content(
             + (",".join(sorted(unknown_delta_keys)) if unknown_delta_keys else "none"),
         ]
         raise TeacherError(
-            "teacher SSE stream returned no final text content (" + "; ".join(diagnostics) + ")"
+            "teacher SSE stream returned no final text content ("
+            + "; ".join(diagnostics)
+            + ")"
         )
     return content, final_usage
 
@@ -764,16 +1397,28 @@ def _iter_sse_data(
     deadline_at: float | None = None,
     deadline_seconds: float = 0,
     deadline_event: threading.Event | None = None,
+    stop_after_buffered: threading.Event | None = None,
 ):
     decoder = codecs.getincrementaldecoder("utf-8")()
     buffer = ""
     reader = getattr(response, "read1", None) or response.read
     while True:
+        if stop_after_buffered is not None and stop_after_buffered.is_set():
+            break
         _check_stream_deadline(response, deadline_at, deadline_seconds, deadline_event)
-        chunk = reader(8192)
+        try:
+            chunk = reader(8192)
+        except (IncompleteRead, RemoteDisconnected, OSError, ValueError):
+            _check_stream_deadline(
+                response, deadline_at, deadline_seconds, deadline_event
+            )
+            raise _RetryableTransportError("sse_stream_read_interrupted") from None
         _check_stream_deadline(response, deadline_at, deadline_seconds, deadline_event)
         if not chunk:
-            buffer += decoder.decode(b"", final=True)
+            try:
+                buffer += decoder.decode(b"", final=True)
+            except UnicodeDecodeError:
+                raise _RetryableTransportError("sse_stream_read_interrupted") from None
             break
         if not isinstance(chunk, bytes):
             raise TeacherError("teacher SSE stream yielded non-byte data")
@@ -799,13 +1444,17 @@ def _check_stream_deadline(
         deadline_at is None or time.monotonic() <= deadline_at
     ):
         return
+    _close_response_quietly(response)
+    raise ClientDeadlineExceeded(seconds)
+
+
+def _close_response_quietly(response: Any) -> None:
     close = getattr(response, "close", None)
     if close is not None:
         try:
             close()
-        except OSError:
+        except (OSError, ValueError):
             pass
-    raise ClientDeadlineExceeded(seconds)
 
 
 def _is_quota_exhaustion(error: _ProtocolError) -> bool:
@@ -823,7 +1472,56 @@ def _is_quota_exhaustion(error: _ProtocolError) -> bool:
     )
 
 
-def _safe_http_error_detail(error: HTTPError, *, api_key: str, system: str, user: str) -> str:
+_EXPLICIT_FALLBACK_CODES = frozenset(
+    {
+        "authentication_scheme_not_supported",
+        "endpoint_not_found",
+        "invalid_api_version",
+        "invalid_authentication_scheme",
+        "invalid_content_type",
+        "protocol_not_supported",
+        "unknown_endpoint",
+        "unsupported_authentication_scheme",
+        "unsupported_endpoint",
+        "unsupported_media_type",
+        "unsupported_protocol",
+    }
+)
+_EXPLICIT_FALLBACK_PHRASES = (
+    "authentication scheme is not supported",
+    "endpoint is not supported",
+    "endpoint not found",
+    "protocol is not supported",
+    "unsupported authentication scheme",
+    "unsupported endpoint",
+    "unsupported media type",
+    "unsupported protocol",
+    "use the anthropic-compatible endpoint",
+    "use the openai-compatible endpoint",
+    "use the responses endpoint",
+)
+
+
+def _is_explicit_compatibility_error(error: _ProtocolError) -> bool:
+    """Allow fallback only for explicit protocol/auth-scheme incompatibility."""
+
+    if error.status not in {400, 401, 403, 404, 405, 415}:
+        return False
+    if error.status in {405, 415}:
+        return True
+    detail = error.detail.casefold()
+    metadata = {
+        match.group(1).replace("-", "_")
+        for match in re.finditer(r"(?:type|code)=([a-z0-9_.-]+)", detail)
+    }
+    return bool(metadata & _EXPLICIT_FALLBACK_CODES) or any(
+        phrase in detail for phrase in _EXPLICIT_FALLBACK_PHRASES
+    )
+
+
+def _safe_http_error_detail(
+    error: HTTPError, *, api_key: str, system: str, user: str
+) -> str:
     """Extract only allowlisted error metadata, with prompt/credential redaction."""
 
     try:
@@ -841,14 +1539,18 @@ def _safe_http_error_detail(error: HTTPError, *, api_key: str, system: str, user
         value = source.get(name)
         if not isinstance(value, (str, int)):
             continue
-        clean = _redact_prompt_fragments(str(value), api_key=api_key, system=system, user=user)
+        clean = _redact_prompt_fragments(
+            str(value), api_key=api_key, system=system, user=user
+        )
         clean = re.sub(r"[\x00-\x1f\x7f]+", " ", clean).strip()[:limit]
         if clean:
             parts.append(f"{name}={clean}")
     return "; ".join(parts)
 
 
-def _redact_prompt_fragments(value: str, *, api_key: str, system: str, user: str) -> str:
+def _redact_prompt_fragments(
+    value: str, *, api_key: str, system: str, user: str
+) -> str:
     value = value.replace(api_key, "[REDACTED]")
     for prompt in (system, user):
         if prompt:
@@ -876,6 +1578,36 @@ def _parse_retry_after(value: str | None) -> float | None:
         return None
 
 
+def _is_retryable_http_status(status: int) -> bool:
+    return status in _RETRYABLE_HTTP_STATUSES
+
+
+def _transport_reason_code(error: BaseException) -> str:
+    """Map a transport exception to bounded public provenance."""
+
+    if isinstance(error, IncompleteRead):
+        return "incomplete_read"
+    if isinstance(error, RemoteDisconnected):
+        return "remote_disconnected"
+    if isinstance(error, TimeoutError):
+        return "transport_timeout"
+    if isinstance(error, URLError):
+        return "url_error"
+    if isinstance(error, ConnectionError):
+        return "connection_interrupted"
+    return "transport_os_error"
+
+
+def _retry_delay_seconds(attempt: int, retry_after_seconds: float = 0.0) -> float:
+    """Return a bounded exponential delay with small per-request jitter."""
+
+    exponential = min(4.0, float(2**attempt))
+    provider_hint = min(8.0, max(0.0, retry_after_seconds))
+    floor = max(exponential, provider_hint)
+    jitter = random.random() * min(0.5, exponential * 0.25)
+    return min(8.0, floor + jitter)
+
+
 def _anthropic_endpoint(base_url: str) -> str:
     value = base_url.rstrip("/")
     return value if value.endswith("/v1/messages") else value + "/v1/messages"
@@ -885,17 +1617,36 @@ def _openai_endpoint(base_url: str) -> str:
     value = base_url.rstrip("/")
     if value.endswith("/chat/completions"):
         return value
-    if not value.endswith("/v1"):
+    # Some OpenAI-compatible gateways expose a versioned base other than v1
+    # (for example ``.../api/coding/v3``).  That version segment is already the
+    # API root and must not be followed by a second, invented ``/v1``.
+    if not re.search(r"/v\d+(?:\.\d+)?$", value, flags=re.IGNORECASE):
         value += "/v1"
     return value + "/chat/completions"
 
 
+def _responses_endpoint(base_url: str) -> str:
+    value = base_url.rstrip("/")
+    return value if value.endswith("/responses") else value + "/responses"
+
+
 def _redact(value: str) -> str:
-    for variable in ("KIMI_API_KEY", "ANCHOR_TEACHER_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+    for variable in (
+        "KIMI_API_KEY",
+        "ANCHOR_TEACHER_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         secret = os.environ.get(variable)
         if secret:
             value = value.replace(secret, "[REDACTED]")
-    return re.sub(r"\b(?:sk|key)-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", value)
+    return re.sub(
+        r"(?<![A-Za-z0-9_-])(?:(?:sk|key)-[A-Za-z0-9_-]{8,}|"
+        r"ark-[A-Za-z0-9][A-Za-z0-9_-]{20,127})(?![A-Za-z0-9_-])",
+        "[REDACTED]",
+        value,
+        flags=re.IGNORECASE,
+    )
 
 
 def _marker(text: str, name: str) -> str:
@@ -928,9 +1679,15 @@ def _repair_mock_candidate(candidate: str, defect: str) -> str:
     if "main landmark" in defect:
         fixed = re.sub(r"<div(?=[\s>])", "<main", candidate, count=1)
         closing = fixed.rfind("</div>")
-        return fixed[:closing] + "</main>" + fixed[closing + 6 :] if closing >= 0 else fixed
+        return (
+            fixed[:closing] + "</main>" + fixed[closing + 6 :]
+            if closing >= 0
+            else fixed
+        )
     if "page h1" in defect:
         fixed = re.sub(r"<div(?=[\s>])", "<h1", candidate, count=1)
         closing = fixed.find("</div>")
-        return fixed[:closing] + "</h1>" + fixed[closing + 6 :] if closing >= 0 else fixed
+        return (
+            fixed[:closing] + "</h1>" + fixed[closing + 6 :] if closing >= 0 else fixed
+        )
     return candidate + "\n/* repaired benign defect */"

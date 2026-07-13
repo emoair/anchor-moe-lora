@@ -10,4 +10,4 @@ gold_dir: data/automated_v3/partitions/gold
 # directory is not created at all while training_ready is false.
 readiness_report: runs/full-v3-snapshot/readiness.json
 snapshot_dir: artifacts/formal_v3/dataset
-expected_minimum_gold_records_per_expert: 128
+expected_minimum_gold_records_per_expert: 256

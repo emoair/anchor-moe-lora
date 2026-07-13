@@ -12,7 +12,7 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 
-ProviderProtocol = Literal["openai", "anthropic"]
+ProviderProtocol = Literal["openai", "openai_responses", "anthropic"]
 DiscoveryStatus = Literal[
     "success",
     "skipped",
@@ -130,6 +130,13 @@ PRESETS: dict[str, ProviderPreset] = {
         default_model=None,
         api_key_env="TEACHER_API_KEY",
     ),
+    "custom-openai-responses": ProviderPreset(
+        name="custom-openai-responses",
+        protocol="openai_responses",
+        base_url=None,
+        default_model=None,
+        api_key_env="TEACHER_API_KEY",
+    ),
     "custom-anthropic": ProviderPreset(
         name="custom-anthropic",
         protocol="anthropic",
@@ -140,13 +147,17 @@ PRESETS: dict[str, ProviderPreset] = {
 }
 
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_SECRET_CONFIG_KEYS = frozenset({"api_key", "apikey", "secret", "token", "authorization"})
+_SECRET_CONFIG_KEYS = frozenset(
+    {"api_key", "apikey", "secret", "token", "authorization"}
+)
 
 
 def reject_inline_secrets(config: Mapping[str, Any]) -> None:
     """Reject credential values in config; environment-variable names remain allowed."""
 
-    offending = sorted(str(key) for key in config if str(key).casefold() in _SECRET_CONFIG_KEYS)
+    offending = sorted(
+        str(key) for key in config if str(key).casefold() in _SECRET_CONFIG_KEYS
+    )
     if offending:
         raise ValueError(
             "credentials must not be stored in config; use api_key_env to name a process "
@@ -158,18 +169,32 @@ def validate_base_url(value: str, *, name: str = "base_url") -> str:
     """Return a canonical HTTP(S) base URL or reject ambiguous/natural-language input."""
 
     candidate = value.strip()
-    if candidate != value or not candidate or any(character.isspace() for character in candidate):
+    if (
+        candidate != value
+        or not candidate
+        or any(character.isspace() for character in candidate)
+    ):
         raise ValueError(f"{name} must be one absolute HTTP(S) URL without whitespace")
     parsed = urlsplit(candidate)
     if parsed.scheme not in {"http", "https"}:
         raise ValueError(f"{name} must start with http:// or https://")
-    if not parsed.hostname or parsed.username is not None or parsed.password is not None:
-        raise ValueError(f"{name} must contain a hostname and must not contain credentials")
+    if (
+        not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError(
+            f"{name} must contain a hostname and must not contain credentials"
+        )
     if parsed.query or parsed.fragment:
         raise ValueError(f"{name} must not contain a query string or fragment")
-    if parsed.path.casefold().endswith(("/chat/completions", "/messages", "/models")):
+    if parsed.path.casefold().endswith(
+        ("/chat/completions", "/messages", "/models", "/responses")
+    ):
         raise ValueError(f"{name} must be a base URL, not a full API endpoint")
-    return urlunsplit((parsed.scheme.casefold(), parsed.netloc, parsed.path or "", "", ""))
+    return urlunsplit(
+        (parsed.scheme.casefold(), parsed.netloc, parsed.path or "", "", "")
+    )
 
 
 def provider_spec(
@@ -187,32 +212,44 @@ def provider_spec(
     if requested_preset is None:
         # Migration path: historical flat configs were Kimi Code protocol configs.
         legacy_protocol = str(protocol or config.get("protocol", "anthropic"))
-        requested_preset = (
-            "kimi-code-anthropic" if legacy_protocol == "anthropic" else "kimi-code-openai"
-        )
+        if legacy_protocol == "anthropic":
+            requested_preset = "kimi-code-anthropic"
+        elif legacy_protocol == "openai":
+            requested_preset = "kimi-code-openai"
+        elif legacy_protocol == "openai_responses":
+            requested_preset = "custom-openai-responses"
+        else:
+            raise ValueError("protocol must be anthropic, openai, or openai_responses")
     if requested_preset not in PRESETS:
         raise ValueError(
             f"unknown provider preset {requested_preset!r}; choose one of {sorted(PRESETS)}"
         )
     preset = PRESETS[requested_preset]
     resolved_protocol = str(protocol or config.get("protocol", preset.protocol))
-    if resolved_protocol not in {"openai", "anthropic"}:
-        raise ValueError("protocol must be openai or anthropic")
+    if resolved_protocol not in {"openai", "openai_responses", "anthropic"}:
+        raise ValueError("protocol must be anthropic, openai, or openai_responses")
     if resolved_protocol != preset.protocol:
         raise ValueError(
             f"provider preset {requested_preset} requires protocol {preset.protocol}; "
             f"choose a {resolved_protocol} preset instead"
         )
-    resolved_base = base_url or _optional_text(config.get("base_url")) or preset.base_url
+    resolved_base = (
+        base_url or _optional_text(config.get("base_url")) or preset.base_url
+    )
     if resolved_base is None:
         raise ValueError(f"base_url is required for provider preset {requested_preset}")
-    resolved_env = api_key_env or _optional_text(config.get("api_key_env")) or preset.api_key_env
+    resolved_env = (
+        api_key_env or _optional_text(config.get("api_key_env")) or preset.api_key_env
+    )
     if not _ENV_NAME.fullmatch(resolved_env):
-        raise ValueError("api_key_env must be a valid process environment-variable name")
+        raise ValueError(
+            "api_key_env must be a valid process environment-variable name"
+        )
     validated_base = validate_base_url(resolved_base)
     quota_capability = (
         preset.quota_capability
-        if preset.base_url is not None and validated_base == validate_base_url(preset.base_url)
+        if preset.base_url is not None
+        and validated_base == validate_base_url(preset.base_url)
         else None
     )
     return ProviderSpec(
@@ -225,7 +262,9 @@ def provider_spec(
     )
 
 
-def discover_models(spec: ProviderSpec, *, timeout_seconds: float = 20.0) -> ModelDiscovery:
+def discover_models(
+    spec: ProviderSpec, *, timeout_seconds: float = 20.0
+) -> ModelDiscovery:
     """Fetch the provider's official protocol model-list endpoint without leaking its key."""
 
     endpoint = model_list_endpoint(spec.base_url, spec.protocol)
@@ -233,7 +272,7 @@ def discover_models(spec: ProviderSpec, *, timeout_seconds: float = 20.0) -> Mod
     if not api_key:
         return ModelDiscovery("missing_credential", endpoint)
     headers = {"Accept": "application/json", "User-Agent": "anchor-moe-lora/0.1"}
-    if spec.protocol == "openai":
+    if spec.protocol in {"openai", "openai_responses"}:
         headers["Authorization"] = f"Bearer {api_key}"
     else:
         headers["x-api-key"] = api_key
@@ -280,24 +319,41 @@ def select_provider_model(
     if force_model:
         model = explicit or spec.default_model
         if model is None:
-            raise ValueError("--force-model requires --model for a provider without a default")
+            raise ValueError(
+                "--force-model requires --model for a provider without a default"
+            )
         return ProviderSelection(
-            spec, model, "manual" if explicit else "preset_default", ModelDiscovery("skipped_force_model", None)
+            spec,
+            model,
+            "manual" if explicit else "preset_default",
+            ModelDiscovery("skipped_force_model", None),
         )
-    discovery = discover_models(spec, timeout_seconds=timeout_seconds) if discover else ModelDiscovery("skipped", None)
+    discovery = (
+        discover_models(spec, timeout_seconds=timeout_seconds)
+        if discover
+        else ModelDiscovery("skipped", None)
+    )
     if model_index is not None:
         if discovery.status != "success":
             raise ValueError("model_index requires successful model discovery")
         if model_index < 0 or model_index >= len(discovery.models):
-            raise ValueError(f"model_index must be between 0 and {len(discovery.models) - 1}")
-        return ProviderSelection(spec, discovery.models[model_index], "discovered_index", discovery)
+            raise ValueError(
+                f"model_index must be between 0 and {len(discovery.models) - 1}"
+            )
+        return ProviderSelection(
+            spec, discovery.models[model_index], "discovered_index", discovery
+        )
     if explicit:
         return ProviderSelection(spec, explicit, "manual", discovery)
     if spec.default_model:
         return ProviderSelection(spec, spec.default_model, "preset_default", discovery)
     if discovery.status == "success":
-        raise ValueError("models were discovered; choose one with --model or --model-index")
-    raise ValueError("no model selected; specify --model (discovery failure never blocks manual selection)")
+        raise ValueError(
+            "models were discovered; choose one with --model or --model-index"
+        )
+    raise ValueError(
+        "no model selected; specify --model (discovery failure never blocks manual selection)"
+    )
 
 
 def query_quota(spec: ProviderSpec, *, timeout_seconds: float = 20.0) -> dict[str, Any]:
@@ -341,7 +397,11 @@ def query_quota(spec: ProviderSpec, *, timeout_seconds: float = 20.0) -> dict[st
         }
     data = payload.get("data") if isinstance(payload, Mapping) else None
     if not isinstance(data, Mapping):
-        return {"status": "error", "capability": spec.quota_capability, "provider": spec.preset}
+        return {
+            "status": "error",
+            "capability": spec.quota_capability,
+            "provider": spec.preset,
+        }
     allowed = ("available_balance", "voucher_balance", "cash_balance")
     return {
         "status": "success",
@@ -368,7 +428,9 @@ def _model_ids(payload: Any) -> list[str]:
     identifiers = {
         str(item["id"]).strip()
         for item in payload["data"]
-        if isinstance(item, Mapping) and isinstance(item.get("id"), str) and item["id"].strip()
+        if isinstance(item, Mapping)
+        and isinstance(item.get("id"), str)
+        and item["id"].strip()
     }
     return sorted(identifiers)
 

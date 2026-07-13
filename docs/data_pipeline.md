@@ -226,11 +226,24 @@ records stage starts, held-out leakage results, budget stops, client deadlines,
 cooldowns, and completion. Dataset JSONL remains append-only; restarting skips completed
 seed/expert pairs.
 
-For bulk teacher collection, `collection_policy: collect_then_partition` changes only the
-soft-quality timing. Structurally valid, safe responses are appended first; deterministic
-oracle disagreement, duplicate prompts/IDs, generated-artifact validation failures, low
-coverage, and label-quota shortfalls do not trigger another provider round or discard a
-response.
+Wire usage uses a bounded group-commit checkpoint. The first request reservation is
+flushed immediately; subsequent activity is flushed after eight reservations, 4,096
+output tokens, five seconds, or any normal/terminal stage boundary. `status.json` records
+the configured `worst_case_requests` as `max(concurrency_stages) - 1`, the tighter
+`maximum_unpersisted_requests`, and the output-token threshold. Status writes use a
+temporary file, file `fsync`, and atomic replacement. All role clients that share one
+provider budget also share one logical pre-wire reservation tracker, so a long seed or
+planner request cannot disappear merely because the security wrapper is the deduplicated
+usage source.
+
+For bulk teacher collection, `collection_policy: collect_then_partition` appends every
+structurally valid, safe response before partitioning it. A stage advances only when the
+partition manifest is `training_ready`. Missing raw/task rows are retried without calling
+already-completed seed/expert pairs. Retry state is persisted in `status.json`; repeated
+format failures converge through `max_failure_retries`, the failure budget, or
+`max_stagnant_gate_rounds`. A safe but non-gold row is never overwritten: if no missing
+work can improve a coverage or label-quota shortfall, the stage terminates `gate_blocked`
+instead of falsely reporting `complete`.
 
 For deterministic tool-policy and security tasks, the teacher decision remains explicit as
 `provenance.teacher_observed_decision`; the local oracle supplies the authoritative target.
@@ -248,6 +261,9 @@ After collection, the runner atomically writes:
 - `automation/quality_staging.jsonl`, with retained records and recomputed quality labels;
 - `partitions/gold/data_<task>.jsonl`, the only training-eligible view;
 - `partitions/negative.jsonl`, safe but non-gold responses retained for analysis;
+- `partitions/oracle_label_only.jsonl`, trace-free deterministic labels for optional
+  weak classification supervision;
+- `partitions/task_bank.jsonl`, exactly one canonical card per complete strict chain;
 - `partitions/reject.jsonl`, content-free hashes and reason codes for hard rejects; and
 - `partitions/manifest.json`, including coverage, label quotas, hashes, and
   `training_ready`.
@@ -359,6 +375,108 @@ the same state directory fails closed. Its different quota epoch is for this
 operator window only, not a bypass for the state binding. The one supported legacy v1 to
 v2 migration preserves append-only rows, records old/new binding hashes and both targets,
 then resumes only missing raw rows. Every other binding change still fails closed.
+
+### Task bank, coverage matrix, and five-stage alignment
+
+`configs/data/task_cards.v1.yaml` defines 16 balanced **sampling templates** over
+nine axes: domain, interaction, layout, edge case, complexity, accessibility risk,
+tool posture, review defect, and security class. These templates are moulds, not
+final questions. Reusing a template at another global seed index never creates a
+new card by adding a slot suffix. For `self_synthetic` data, the pipeline materializes
+the final `card_id` from the accepted canonical requirement. For `swe_smith` and
+`swebench_heldout`, identity is bound to an immutable source SHA-256. Gold/model
+records never contain a gold patch or test oracle.
+
+Every accepted seed carries one pipeline-owned `card_id`, `template_id`, global
+`seed_index`, source binding, and canonical tags. The same `alignment_id =
+hash(seed_id + card_id)` must survive planner, tool-policy, frontend, review, and
+security. Failed or duplicate seed generation can retry only the same global slot;
+it cannot consume a fresh question to make the count look complete. A partition is
+eligible only when all of these counts are equal:
+
+```text
+unique final cards == unique alignment IDs == complete five-stage chains
+                   == task_bank.jsonl rows == every strict-gold stage row count
+```
+
+Near-duplicate detection runs on canonical requirements after a base chain is
+otherwise strict gold. It compares seeds, never the five per-stage prompts. The
+stable lower `(seed_index, seed_id)` is retained and a loser is moved as one complete
+five-record chain to negatives. `task_bank.jsonl` is then built only from the
+remaining complete chains. The partition manifest exposes the content-free coverage
+matrix, counts, and hashes; the immutable snapshot copies and binds the task bank as
+well as all five datasets.
+
+Previously accepted `variant-XX` and short-lived `-slot-XXXXXXXX` rows remain usable.
+Each is mapped to a unique `legacy_collected` card derived from its accepted seed ID
+and canonical requirement. They participate in the hard one-card/one-chain proof,
+but receive no invented nine-axis labels and do not contribute to nine-axis coverage.
+`swebench_heldout` cards are always excluded from training coverage and strict gold.
+
+Finally, a teacher classification disagreement with a deterministic policy/security
+oracle is not a distilled reasoning example. Such a row is excluded from strict gold,
+the complete-chain count, and the task bank. A trace-free, label-only view is exported
+to `partitions/oracle_label_only.jsonl` for optional weak classification supervision;
+it must never be treated as planner/reviewer SFT reasoning.
+
+### Ark GLM-5.2 384/256 monotonic expansion
+
+`configs/data/automation.full_v3.ark_glm52.max384.c8.yaml` is the formal Ark
+Responses profile for the expanded target. It keeps the append-only
+`data/automated_v3` corpus, runs one concurrency-8 stage to 384 seed/complete-chain
+attempts, and requires at least 256 strict-gold rows for each of the five task types.
+Its 2,400-request ceiling covers the 2,304 nominal seed-plus-five-task calls with a
+small bounded retry margin. The aggregate output budget is 307,200,000 tokens, exactly
+`2,400 × 128,000`, so it adds no earlier local ceiling beyond the per-request and API
+limits. Every worker uses `reasoning.effort=max`; the API key remains environment-only.
+
+The profile contains `monotonic_expansion_from`, an exact description of the prior
+concurrency-10, 192-raw, 128-gold contract. This declaration is not automatically
+accepted by status inspection, live collection, or partition refresh. The operator
+must stop every automation process and run the explicit, offline migration once:
+
+```powershell
+py -3.10 -m anchor_mvp.data.automation `
+  --config configs/data/automation.full_v3.ark_glm52.max384.c8.yaml `
+  --migrate-monotonic-expansion
+```
+
+The command makes no provider request and reads no credential. It succeeds only when
+the persisted v2 binding equals the declared source hash, all seed/raw/gold targets and
+budgets are non-decreasing, and every unlisted quality/workspace setting is unchanged.
+It atomically records the old/new contracts, archives the prior run metadata, resets the
+stage cursor to zero so existing append-only rows are reused, and removes the old
+partition from active status with `partition_stale_reason`. A fresh directory needs no
+migration; run the new profile directly. A source mismatch must be investigated rather
+than bypassed or repaired by deleting an unknown state directory.
+
+After migration, start or resume collection with the same immutable profile:
+
+```powershell
+$env:ARK_CODING_API_KEY = Read-Host -MaskInput "Ark Coding Plan key"
+py -3.10 -m anchor_mvp.data.automation `
+  --config configs/data/automation.full_v3.ark_glm52.max384.c8.yaml `
+  --wait-cooldown
+```
+
+After a quota window ends or new rows are appended, stop the live runner and safely
+recompute the partitions without a key or network call:
+
+```powershell
+Remove-Item Env:ARK_CODING_API_KEY -ErrorAction SilentlyContinue
+py -3.10 -m anchor_mvp.data.automation `
+  --config configs/data/automation.full_v3.ark_glm52.max384.c8.yaml `
+  --partition-only
+py -3.10 -m anchor_mvp.data.automation `
+  --config configs/data/automation.full_v3.ark_glm52.max384.c8.yaml `
+  --status-only
+```
+
+`--partition-only` rebuilds staging, gold/negative/reject files and the manifest, then
+atomically refreshes `status.partition` and clears the stale marker. Exit code `3` means
+the refresh was valid but the 256-per-task strict-gold gate is not yet satisfied; it is
+not permission to train. Only `training_ready: true` may proceed to the immutable
+snapshot gate.
 
 The scripts contain ASCII only and read credentials solely from the current process
 environment. No real unattended batch is launched by tests or repository setup.

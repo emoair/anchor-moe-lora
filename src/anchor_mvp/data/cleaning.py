@@ -26,6 +26,11 @@ _ACTIVE_PAYLOADS: tuple[re.Pattern[str], ...] = (
 
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(
+        r"(?<![A-Za-z0-9_-])ark-[A-Za-z0-9][A-Za-z0-9_-]{20,127}"
+        r"(?![A-Za-z0-9_-])",
+        re.IGNORECASE,
+    ),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.IGNORECASE),
@@ -74,15 +79,23 @@ def build_inert_security_fixture(
 
     fixture = _SECURITY_FIXTURES[index % len(_SECURITY_FIXTURES)]
     marker = str(fixture["marker"])
-    candidate = f"{reviewed_code.rstrip()}\n\n/* {marker} descriptor-only; never execute */"
-    if contains_active_payload(candidate):  # defensive invariant; fixture text must remain inert
-        raise DataValidationError("security fixture generator produced active payload material")
+    candidate = (
+        f"{reviewed_code.rstrip()}\n\n/* {marker} descriptor-only; never execute */"
+    )
+    if contains_active_payload(
+        candidate
+    ):  # defensive invariant; fixture text must remain inert
+        raise DataValidationError(
+            "security fixture generator produced active payload material"
+        )
     output = {
         "decision": fixture["decision"],
         "rationale": fixture["rationale"],
         "findings": list(fixture["findings"]),
     }
-    canonical = json.dumps(output, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        output, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     manifest = {
         "generator": SECURITY_FIXTURE_GENERATOR_VERSION,
         "fixture_id": fixture["fixture_id"],
@@ -112,9 +125,13 @@ def deterministic_security_fixture_oracle(
         source = reviewed_code[: -len(suffix)]
         candidate, output, manifest = build_inert_security_fixture(source, index)
         if candidate != reviewed_code:
-            raise DataValidationError("security fixture is not a canonical deterministic suffix")
+            raise DataValidationError(
+                "security fixture is not a canonical deterministic suffix"
+            )
         return output, manifest
-    raise DataValidationError("security reviewed_code lacks a recognized inert fixture suffix")
+    raise DataValidationError(
+        "security reviewed_code lacks a recognized inert fixture suffix"
+    )
 
 
 def extract_json_object(raw: str) -> dict[str, Any]:
@@ -160,7 +177,10 @@ def extract_frontend_payload(raw: str) -> tuple[dict[str, Any], str]:
 
 def contains_active_payload(value: Any) -> bool:
     if isinstance(value, Mapping):
-        return any(contains_active_payload(key) or contains_active_payload(item) for key, item in value.items())
+        return any(
+            contains_active_payload(key) or contains_active_payload(item)
+            for key, item in value.items()
+        )
     if isinstance(value, (list, tuple)):
         return any(contains_active_payload(item) for item in value)
     if isinstance(value, str):
@@ -178,12 +198,58 @@ def sanitize_security_seed(seed: SeedDemand) -> SeedDemand:
         request=request,
         category=seed.category,
         tags=seed.tags,
+        card_id=seed.card_id,
+        seed_index=seed.seed_index,
+        template_id=seed.template_id,
+        source_kind=seed.source_kind,
+        source_digest=seed.source_digest,
     )
+
+
+def redact_active_payload_material(value: Any) -> tuple[Any, int]:
+    """Replace executable payload markers in descriptive teacher structures.
+
+    This is intentionally used only for non-code planning/policy records.  It
+    preserves the teacher's surrounding explanation while ensuring that an
+    otherwise defensive mention such as ``avoid eval(...)`` cannot place a
+    live payload marker in the training corpus.  Code-producing stages remain
+    fail-closed and are never passed through this redactor.
+    """
+
+    if isinstance(value, Mapping):
+        redacted: dict[Any, Any] = {}
+        total = 0
+        for key, item in value.items():
+            clean_item, count = redact_active_payload_material(item)
+            redacted[key] = clean_item
+            total += count
+        return redacted, total
+    if isinstance(value, list):
+        redacted_items: list[Any] = []
+        total = 0
+        for item in value:
+            clean_item, count = redact_active_payload_material(item)
+            redacted_items.append(clean_item)
+            total += count
+        return redacted_items, total
+    if isinstance(value, tuple):
+        clean_items, total = redact_active_payload_material(list(value))
+        return tuple(clean_items), total
+    if not isinstance(value, str):
+        return value, 0
+    text = value
+    total = 0
+    for pattern in _ACTIVE_PAYLOADS:
+        text, count = pattern.subn("[DEFENSIVE_ACTIVE_CONTENT_PLACEHOLDER]", text)
+        total += count
+    return text, total
 
 
 def validate_safe_payload(task_type: TaskType, payload: Mapping[str, Any]) -> None:
     if contains_secret_material(payload):
-        raise DataValidationError(f"{task_type} record contains credential-like material")
+        raise DataValidationError(
+            f"{task_type} record contains credential-like material"
+        )
     if task_type in ("frontend", "review"):
         output = payload.get("output", {})
         code = output.get("code", "") if isinstance(output, Mapping) else ""
@@ -196,10 +262,14 @@ def validate_safe_payload(task_type: TaskType, payload: Mapping[str, Any]) -> No
             f"{task_type} records may contain defensive labels, not active payloads"
         )
     if task_type == "security" and contains_active_payload(payload):
-        raise DataValidationError("security records may contain labels/placeholders, not active payloads")
+        raise DataValidationError(
+            "security records may contain labels/placeholders, not active payloads"
+        )
     if task_type == "security":
         raw_input = payload.get("input", {})
-        reviewed_code = raw_input.get("reviewed_code", "") if isinstance(raw_input, Mapping) else ""
+        reviewed_code = (
+            raw_input.get("reviewed_code", "") if isinstance(raw_input, Mapping) else ""
+        )
         if isinstance(reviewed_code, str) and any(
             pattern.search(reviewed_code) for pattern in _SECURITY_REVIEWED_CODE_FORMS
         ):
@@ -207,7 +277,9 @@ def validate_safe_payload(task_type: TaskType, payload: Mapping[str, Any]) -> No
                 "security reviewed_code must use safe code or inert placeholders"
             )
     if task_type == "review" and contains_active_payload(payload):
-        raise DataValidationError("review records may contain bugs, not active payloads")
+        raise DataValidationError(
+            "review records may contain bugs, not active payloads"
+        )
 
 
 def contains_secret_material(value: Any) -> bool:

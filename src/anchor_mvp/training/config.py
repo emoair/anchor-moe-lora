@@ -346,9 +346,9 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             snapshot.get("minimum_records_per_expert"),
             "scale_gate.dataset_snapshot.minimum_records_per_expert",
         )
-        if minimum < 128:
+        if minimum < 256:
             raise ConfigError(
-                "formal-v3 immutable snapshots require at least 128 records per expert"
+                "formal-v3 immutable snapshots require at least 256 records per expert"
             )
 
 

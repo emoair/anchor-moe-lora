@@ -42,6 +42,14 @@ FILE_NAMES = {
     "frontend_review": "data_review.jsonl",
     "security_gate": "data_security.jsonl",
 }
+TASK_NAMES = {
+    "planner": "plan",
+    "tool_policy": "tool_policy",
+    "frontend_gen": "frontend",
+    "frontend_review": "review",
+    "security_gate": "security",
+}
+FORMAL_MINIMUM = 256
 
 
 def test_formal_v3_profiles_bind_only_future_immutable_full_v3_snapshot() -> None:
@@ -68,18 +76,14 @@ def test_formal_v3_profiles_bind_only_future_immutable_full_v3_snapshot() -> Non
             "manifest": "artifacts/formal_v3/dataset/manifest.json",
             "sidecar": "artifacts/formal_v3/dataset/manifest.json.sha256",
             "immutable": True,
-            "minimum_records_per_expert": 128,
+            "minimum_records_per_expert": FORMAL_MINIMUM,
         }
         for paths in (
             profile["scale_gate"]["required_datasets"].values(),
-            *(
-                entry["datasets"]
-                for entry in profile["adapters"].values()
-            ),
+            *(entry["datasets"] for entry in profile["adapters"].values()),
         ):
             assert all(
-                value.startswith("artifacts/formal_v3/dataset/")
-                for value in paths
+                value.startswith("artifacts/formal_v3/dataset/") for value in paths
             )
 
 
@@ -105,6 +109,15 @@ def test_formal_v3_requires_immutable_snapshot_contract() -> None:
         validate_training_config(invalid)
 
 
+def test_formal_v3_rejects_legacy_128_record_contract() -> None:
+    profile = load_training_config(COMMON)
+    legacy = copy.deepcopy(profile)
+    legacy["scale_gate"]["dataset_snapshot"]["minimum_records_per_expert"] = 128
+
+    with pytest.raises(ConfigError, match="at least 256 records per expert"):
+        validate_training_config(legacy)
+
+
 @pytest.mark.parametrize("rank", [1, 6, 8, 12, 16])
 def test_adaptive_rank_menu_is_trainable(rank: int) -> None:
     selected = select_adapter(load_training_config(PROFILES["E"]), "planner", rank)
@@ -112,7 +125,9 @@ def test_adaptive_rank_menu_is_trainable(rank: int) -> None:
     assert selected["lora"]["alpha"] == 2 * rank
 
 
-def _snapshot_fixture(tmp_path: Path) -> tuple[dict, dict]:
+def _snapshot_fixture(
+    tmp_path: Path, *, records_per_expert: int = FORMAL_MINIMUM
+) -> tuple[dict, dict]:
     dataset_dir = tmp_path / "artifacts" / "formal_v3" / "dataset"
     dataset_dir.mkdir(parents=True)
     reports: dict[str, dict] = {}
@@ -125,23 +140,75 @@ def _snapshot_fixture(tmp_path: Path) -> tuple[dict, dict]:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         reports[expert] = {
             "path": str(path.resolve()),
-            "valid_records": 128,
+            "valid_records": records_per_expert,
             "sha256": digest,
             "bytes": path.stat().st_size,
         }
         manifest_files[expert] = {
             "path": name,
-            "records": 128,
+            "records": records_per_expert,
             "bytes": path.stat().st_size,
             "sha256": digest,
-            "source_sha256": hashlib.sha256(f"source:{expert}".encode()).hexdigest(),
+            "source_sha256": digest,
         }
-        digest_parts.append(f"{expert}:{name}:{digest}:128")
+        digest_parts.append(f"{expert}:{name}:{digest}:{records_per_expert}")
+    task_bank_path = dataset_dir / "task_bank.jsonl"
+    task_bank_path.write_text(
+        "".join(
+            json.dumps(
+                {
+                    "alignment_id": f"alignment-{index}",
+                    "card_id": f"card-{index}",
+                }
+            )
+            + "\n"
+            for index in range(records_per_expert)
+        ),
+        encoding="utf-8",
+    )
+    task_bank_digest = hashlib.sha256(task_bank_path.read_bytes()).hexdigest()
+    task_bank_source = {
+        "path": "task_bank.jsonl",
+        "records": records_per_expert,
+        "bytes": task_bank_path.stat().st_size,
+        "sha256": task_bank_digest,
+    }
+    task_bank_file = {**task_bank_source, "source_sha256": task_bank_digest}
+    digest_parts.append(
+        f"task_bank:task_bank.jsonl:{task_bank_digest}:{records_per_expert}"
+    )
     snapshot_sha = hashlib.sha256("\n".join(digest_parts).encode()).hexdigest()
     manifest = {
         "schema_version": "anchor.training-snapshot.v2",
         "source_partition_manifest_sha256": "a" * 64,
+        "source_gate": {
+            "lineage_complete": True,
+            "complete_chain_count": records_per_expert,
+            "minimum_complete_chain_count": records_per_expert,
+            "complete_chain_count_sufficient": True,
+            "lineage_edge_error_count": 0,
+            "lineage_chain_error_count": 0,
+            "near_duplicate_gate": {"passed": True},
+            "task_card_coverage": {
+                "passed": True,
+                "cardinality_equal": True,
+                "complete_chain_count": records_per_expert,
+                "card_count": records_per_expert,
+                "unique_alignment_id_count": records_per_expert,
+            },
+            "task_bank_file": task_bank_source,
+            "gold_files": {
+                TASK_NAMES[expert]: {
+                    "path": entry["path"],
+                    "records": entry["records"],
+                    "bytes": entry["bytes"],
+                    "sha256": entry["source_sha256"],
+                }
+                for expert, entry in manifest_files.items()
+            },
+        },
         "snapshot_sha256": snapshot_sha,
+        "task_bank_file": task_bank_file,
         "files": manifest_files,
     }
     manifest_path = dataset_dir / "manifest.json"
@@ -162,6 +229,57 @@ def test_immutable_snapshot_manifest_verifies_every_binding(tmp_path: Path) -> N
     assert all(all(checks.values()) for checks in report["file_checks"].values())
 
 
+def test_immutable_snapshot_manifest_rejects_legacy_128_record_snapshot(
+    tmp_path: Path,
+) -> None:
+    config, datasets = _snapshot_fixture(tmp_path, records_per_expert=128)
+
+    report = inspect_dataset_snapshot_manifest(config, tmp_path, datasets)
+
+    assert report["passed"] is False
+    assert "snapshot source_gate lineage proof is invalid" in report["errors"]
+    assert all(
+        checks["minimum_records"] is False for checks in report["file_checks"].values()
+    )
+
+
+def test_immutable_snapshot_manifest_requires_lineage_proof(tmp_path: Path) -> None:
+    config, datasets = _snapshot_fixture(tmp_path)
+    manifest_path = tmp_path / "artifacts/formal_v3/dataset/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("source_gate")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    (manifest_path.parent / "manifest.json.sha256").write_text(
+        f"{manifest_digest}  manifest.json\n", encoding="ascii"
+    )
+
+    report = inspect_dataset_snapshot_manifest(config, tmp_path, datasets)
+
+    assert report["passed"] is False
+    assert "snapshot source_gate lineage proof is missing" in report["errors"]
+
+
+def test_immutable_snapshot_manifest_rejects_source_gold_binding_tamper(
+    tmp_path: Path,
+) -> None:
+    config, datasets = _snapshot_fixture(tmp_path)
+    manifest_path = tmp_path / "artifacts/formal_v3/dataset/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_gate"]["gold_files"]["frontend"]["sha256"] = "f" * 64
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    (manifest_path.parent / "manifest.json.sha256").write_text(
+        f"{manifest_digest}  manifest.json\n", encoding="ascii"
+    )
+
+    report = inspect_dataset_snapshot_manifest(config, tmp_path, datasets)
+
+    assert report["passed"] is False
+    assert report["file_checks"]["frontend_gen"]["source_gate_gold_binding"] is False
+    assert "snapshot manifest binding failed for frontend_gen" in report["errors"]
+
+
 def test_immutable_snapshot_manifest_rejects_sidecar_or_file_drift(
     tmp_path: Path,
 ) -> None:
@@ -178,16 +296,18 @@ def test_launcher_is_safe_by_default_and_serializes_five_specialists() -> None:
         encoding="utf-8"
     )
     assert '[string]$Arm = "preflight"' in launcher
-    assert '[switch]$Execute' in launcher
+    assert "[switch]$Execute" in launcher
     assert "formal-v3-training.lock" in launcher
     assert "SKIP verified completed job" in launcher
-    assert 'Arm $ExpectedArm requires -AllocationManifest' in launcher
+    assert "Arm $ExpectedArm requires -AllocationManifest" in launcher
     assert "foreach ($Entry in $Ranks.GetEnumerator())" in launcher
     assert "partial/stale output exists" in launcher
     assert "automatic exact resume is not supported" in launcher
 
 
-@pytest.mark.skipif(shutil.which("powershell.exe") is None, reason="PowerShell required")
+@pytest.mark.skipif(
+    shutil.which("powershell.exe") is None, reason="PowerShell required"
+)
 def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
     tmp_path: Path,
 ) -> None:
@@ -242,9 +362,7 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
             "security_gate": 3,
         },
     }
-    base["attempted_allocations"] = [
-        {"selected_ranks": dict(base["selected_ranks"])}
-    ]
+    base["attempted_allocations"] = [{"selected_ranks": dict(base["selected_ranks"])}]
 
     def write_allocation(value: dict) -> None:
         allocation.write_text(json.dumps(value), encoding="utf-8")
@@ -294,9 +412,7 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
         "minimize_peak_vram",
     ]
     base["selected_ranks"] = {expert: 4 for expert in FILE_NAMES}
-    base["attempted_allocations"] = [
-        {"selected_ranks": dict(base["selected_ranks"])}
-    ]
+    base["attempted_allocations"] = [{"selected_ranks": dict(base["selected_ranks"])}]
     base["materialized_trainable_parameters"] = 649_216 * 20
     write_allocation(base)
     uniform_command = list(command)
@@ -311,9 +427,7 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
     assert not lock.exists()
 
     base["selected_ranks"]["frontend_gen"] = 6
-    base["attempted_allocations"] = [
-        {"selected_ranks": dict(base["selected_ranks"])}
-    ]
+    base["attempted_allocations"] = [{"selected_ranks": dict(base["selected_ranks"])}]
     base["materialized_trainable_parameters"] = 649_216 * 22
     base["mechanism_id"] = "forged-mechanism"
     write_allocation(base)

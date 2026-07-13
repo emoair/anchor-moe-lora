@@ -9,6 +9,7 @@ from typing import Callable, Mapping, Sequence
 
 import yaml
 
+from .config import DEFAULT_PROVIDER, OpenCodeProvider
 from .gold import merge_gold_jsonl
 from .harness import ToolingHarness
 from .models import GoldRecord, SampleSpec, sample_contract_sha256
@@ -39,7 +40,10 @@ def _sha256(path: Path) -> str:
 def _positive_integer_sequence(value: object, *, name: str) -> tuple[int, ...]:
     if not isinstance(value, (list, tuple)) or not value:
         raise ValueError(f"{name} must be a non-empty list of positive integers")
-    if any(isinstance(item, bool) or not isinstance(item, int) or item < 1 for item in value):
+    if any(
+        isinstance(item, bool) or not isinstance(item, int) or item < 1
+        for item in value
+    ):
         raise ValueError(f"{name} must contain only positive integers")
     return tuple(value)
 
@@ -73,6 +77,7 @@ class LiveBatchConfig:
     skill_registry: Path
     workspace_root: Path
     gold_output: Path
+    provider: OpenCodeProvider = DEFAULT_PROVIDER
     opencode_executable: Path | None = None
     attempts_output: Path | None = None
     session_candidates: Path | None = None
@@ -96,12 +101,18 @@ class LiveBatchConfig:
     timeout_seconds: float = 900.0
 
     def __post_init__(self) -> None:
+        if not isinstance(self.provider, OpenCodeProvider):
+            raise ValueError("provider must be an audited OpenCodeProvider")
         concurrency = _positive_integer_sequence(
             self.concurrency_stages, name="concurrency_stages"
         )
-        samples = _positive_integer_sequence(self.samples_per_stage, name="samples_per_stage")
+        samples = _positive_integer_sequence(
+            self.samples_per_stage, name="samples_per_stage"
+        )
         if len(samples) != len(concurrency):
-            raise ValueError("samples_per_stage must have one positive value per concurrency stage")
+            raise ValueError(
+                "samples_per_stage must have one positive value per concurrency stage"
+            )
         AnchorSandboxOptions(
             linux_executable=self.sandbox_linux_executable,
             wsl_distro=self.sandbox_wsl_distro,
@@ -118,7 +129,9 @@ class LiveBatchConfig:
             or not isinstance(self.max_iterations, int)
             or self.max_iterations < 1
         ):
-            raise ValueError("max_iterations must be a positive integer when configured")
+            raise ValueError(
+                "max_iterations must be a positive integer when configured"
+            )
 
     @classmethod
     def load(cls, project_root: str | Path, path: str | Path) -> "LiveBatchConfig":
@@ -138,13 +151,16 @@ class LiveBatchConfig:
             name="samples_per_stage",
         )
         if len(samples) != len(concurrency):
-            raise ValueError("samples_per_stage must have one positive value per concurrency stage")
+            raise ValueError(
+                "samples_per_stage must have one positive value per concurrency stage"
+            )
         success_rate = float(loaded.get("minimum_stage_success_rate", 1.0))
         if not 0.0 <= success_rate <= 1.0:
             raise ValueError("minimum_stage_success_rate must be between 0 and 1")
-        if not isinstance(loaded.get("attempts_output"), str) or not str(
-            loaded["attempts_output"]
-        ).strip():
+        if (
+            not isinstance(loaded.get("attempts_output"), str)
+            or not str(loaded["attempts_output"]).strip()
+        ):
             raise ValueError("attempts_output must be a project-relative path")
         capture_names = (
             "session_candidates",
@@ -153,8 +169,13 @@ class LiveBatchConfig:
             "heldout_fixtures_root",
             "heldout_manifest",
         )
-        if not all(isinstance(loaded.get(name), str) and str(loaded[name]).strip() for name in capture_names):
-            raise ValueError("batch config requires complete controlled session capture paths")
+        if not all(
+            isinstance(loaded.get(name), str) and str(loaded[name]).strip()
+            for name in capture_names
+        ):
+            raise ValueError(
+                "batch config requires complete controlled session capture paths"
+            )
         sandbox = loaded.get("anchor_sandbox", {})
         if not isinstance(sandbox, Mapping):
             raise ValueError("anchor_sandbox must be an object when configured")
@@ -179,30 +200,52 @@ class LiveBatchConfig:
         retain_workspace = loaded.get("retain_workspace", False)
         if not isinstance(retain_workspace, bool):
             raise ValueError("retain_workspace must be a boolean")
+        provider = (
+            DEFAULT_PROVIDER
+            if loaded.get("provider") is None
+            else OpenCodeProvider.from_mapping(loaded["provider"])
+        )
         return cls(
-            candidate_manifest=_project_path(root, loaded.get("candidate_manifest"), "candidate_manifest"),
-            split_policy=_project_path(root, loaded.get("split_policy"), "split_policy"),
-            skill_registry=_project_path(root, loaded.get("skill_registry"), "skill_registry"),
+            candidate_manifest=_project_path(
+                root, loaded.get("candidate_manifest"), "candidate_manifest"
+            ),
+            split_policy=_project_path(
+                root, loaded.get("split_policy"), "split_policy"
+            ),
+            skill_registry=_project_path(
+                root, loaded.get("skill_registry"), "skill_registry"
+            ),
             opencode_executable=_project_path(
                 root, loaded.get("opencode_executable"), "opencode_executable"
             ),
-            workspace_root=_project_path(root, loaded.get("workspace_root"), "workspace_root"),
+            workspace_root=_project_path(
+                root, loaded.get("workspace_root"), "workspace_root"
+            ),
             gold_output=_project_path(root, loaded.get("gold_output"), "gold_output"),
+            provider=provider,
             attempts_output=_project_path(
                 root, loaded.get("attempts_output"), "attempts_output"
             ),
-            session_candidates=_project_path(root, loaded["session_candidates"], "session_candidates"),
+            session_candidates=_project_path(
+                root, loaded["session_candidates"], "session_candidates"
+            ),
             session_staging=_project_path(
                 root,
-                loaded.get("session_staging", "artifacts/tooling/session_staging.raw.jsonl"),
+                loaded.get(
+                    "session_staging", "artifacts/tooling/session_staging.raw.jsonl"
+                ),
                 "session_staging",
             ),
-            session_quarantine=_project_path(root, loaded["session_quarantine"], "session_quarantine"),
+            session_quarantine=_project_path(
+                root, loaded["session_quarantine"], "session_quarantine"
+            ),
             heldout_cases=_project_path(root, loaded["heldout_cases"], "heldout_cases"),
             heldout_fixtures_root=_project_path(
                 root, loaded["heldout_fixtures_root"], "heldout_fixtures_root"
             ),
-            heldout_manifest=_project_path(root, loaded["heldout_manifest"], "heldout_manifest"),
+            heldout_manifest=_project_path(
+                root, loaded["heldout_manifest"], "heldout_manifest"
+            ),
             sandbox_linux_executable=linux_executable,
             sandbox_wsl_distro=optional_text("wsl_distro"),
             sandbox_supervisor=optional_text("supervisor"),
@@ -333,7 +376,9 @@ def load_candidate_samples(
         if sample_id.casefold() in heldout_identifiers:
             raise ValueError(f"candidate task id collides with held-out: {sample_id}")
         seen.add(sample_id)
-        source = _project_path(root, value.get("source_dir"), f"tasks[{index}].source_dir")
+        source = _project_path(
+            root, value.get("source_dir"), f"tasks[{index}].source_dir"
+        )
         if not source.is_dir():
             raise ValueError(f"candidate source directory is missing: {source}")
         prompt = str(value.get("task", "")).strip()
@@ -349,8 +394,12 @@ def load_candidate_samples(
                     f"candidate requirement must be inside its fixture: {sample_id}"
                 ) from exc
             requirement_prompt = requirement.read_text(encoding="utf-8").strip()
-            if prompt and " ".join(prompt.split()) != " ".join(requirement_prompt.split()):
-                raise ValueError(f"candidate task disagrees with fixture requirement: {sample_id}")
+            if prompt and " ".join(prompt.split()) != " ".join(
+                requirement_prompt.split()
+            ):
+                raise ValueError(
+                    f"candidate task disagrees with fixture requirement: {sample_id}"
+                )
             prompt = requirement_prompt
         if not prompt:
             raise ValueError(f"candidate task is empty: {sample_id}")
@@ -361,24 +410,41 @@ def load_candidate_samples(
             raise ValueError(f"candidate prompt leaks a held-out input: {sample_id}")
         source_ids = tuple(str(item) for item in value.get("skill_sources", []))
         composed, provenance = registry.compose_execution_prompt(prompt, source_ids)
-        required = tuple(str(item) for item in value.get("required_validations", ["build"]))
-        if not required or any(item not in {"build", "test", "lint"} for item in required):
+        required = tuple(
+            str(item) for item in value.get("required_validations", ["build"])
+        )
+        if not required or any(
+            item not in {"build", "test", "lint"} for item in required
+        ):
             raise ValueError(f"invalid required validations: {sample_id}")
         protected = _load_protected_files(
-            source, value.get("protected_files"), label=f"tasks[{index}].protected_files"
+            source,
+            value.get("protected_files"),
+            label=f"tasks[{index}].protected_files",
         )
         input_files = _load_protected_files(
             source, value.get("input_files"), label=f"tasks[{index}].input_files"
         )
         protected_paths = {path for path, _ in protected}
         if protected_paths.intersection(path for path, _ in input_files):
-            raise ValueError(f"candidate input and protected paths overlap: {sample_id}")
+            raise ValueError(
+                f"candidate input and protected paths overlap: {sample_id}"
+            )
         if "package.json" not in protected_paths:
             raise ValueError(f"candidate must protect package.json: {sample_id}")
-        if requirement_relative is not None and requirement_relative not in protected_paths:
-            raise ValueError(f"candidate must protect its requirement file: {sample_id}")
-        if "test" in required and not any(path.startswith("test/") for path in protected_paths):
-            raise ValueError(f"candidate must protect at least one test file: {sample_id}")
+        if (
+            requirement_relative is not None
+            and requirement_relative not in protected_paths
+        ):
+            raise ValueError(
+                f"candidate must protect its requirement file: {sample_id}"
+            )
+        if "test" in required and not any(
+            path.startswith("test/") for path in protected_paths
+        ):
+            raise ValueError(
+                f"candidate must protect at least one test file: {sample_id}"
+            )
         requires_changes = value.get("requires_changes", False)
         if not isinstance(requires_changes, bool):
             raise ValueError(f"candidate requires_changes must be boolean: {sample_id}")
@@ -459,7 +525,9 @@ def run_live_batch(
             or capture.mode != "collect"
             or not callable(getattr(executor, "finalize_capture", None))
         ):
-            raise ValueError("collection_mode requires collect-mode controlled session capture")
+            raise ValueError(
+                "collection_mode requires collect-mode controlled session capture"
+            )
     if not 1 <= max_stages <= len(config.concurrency_stages):
         raise ValueError(
             f"max_stages must be between 1 and {len(config.concurrency_stages)}"
@@ -468,7 +536,9 @@ def run_live_batch(
     selected_sample_counts = config.samples_per_stage[:max_stages]
     required_count = sum(selected_sample_counts)
     if len(samples) < required_count:
-        raise ValueError(f"batch needs {required_count} candidates, found {len(samples)}")
+        raise ValueError(
+            f"batch needs {required_count} candidates, found {len(samples)}"
+        )
     policy = ToolPolicy(
         max_iterations=config.max_iterations,
         timeout_seconds=config.timeout_seconds,
@@ -489,14 +559,19 @@ def run_live_batch(
         # content-free failure record, so sibling samples continue without leaking
         # exception strings or partially collected model output.
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            futures = {pool.submit(harness.run_sample, sample): sample for sample in stage_samples}
+            futures = {
+                pool.submit(harness.run_sample, sample): sample
+                for sample in stage_samples
+            }
             failures = 0
             for future in as_completed(futures):
                 try:
                     completed.append(future.result())
                 except Exception:  # noqa: BLE001 - per-sample isolation boundary
                     failures += 1
-                    completed.append(_isolated_failure_record(futures[future], executor, policy))
+                    completed.append(
+                        _isolated_failure_record(futures[future], executor, policy)
+                    )
         records = tuple(sorted(completed, key=lambda item: item.sample_id))
         if on_stage is not None and records:
             on_stage(records)
@@ -504,7 +579,10 @@ def run_live_batch(
         rate = success_count / count
         if collection_mode:
             hard_rejects = sum(
-                any(code.startswith("session_hard_reject_") for code in record.error_codes)
+                any(
+                    code.startswith("session_hard_reject_")
+                    for code in record.error_codes
+                )
                 for record in records
             )
             passed = failures == 0 and hard_rejects == 0

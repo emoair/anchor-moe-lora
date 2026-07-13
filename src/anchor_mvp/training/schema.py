@@ -43,21 +43,31 @@ def validate_record(record: Any, *, source: str = "<record>") -> str:
 
     messages = record.get("messages")
     if not isinstance(messages, list) or len(messages) < 2:
-        raise DatasetValidationError(f"{source}: messages must contain at least user and assistant turns")
+        raise DatasetValidationError(
+            f"{source}: messages must contain at least user and assistant turns"
+        )
     roles: list[str] = []
     for index, message in enumerate(messages):
         if not isinstance(message, Mapping):
-            raise DatasetValidationError(f"{source}: messages[{index}] must be an object")
+            raise DatasetValidationError(
+                f"{source}: messages[{index}] must be an object"
+            )
         role, content = message.get("role"), message.get("content")
         if role not in ROLES:
-            raise DatasetValidationError(f"{source}: messages[{index}].role must be one of {ROLES}")
+            raise DatasetValidationError(
+                f"{source}: messages[{index}].role must be one of {ROLES}"
+            )
         if not isinstance(content, str) or not content.strip():
-            raise DatasetValidationError(f"{source}: messages[{index}].content must be non-empty text")
+            raise DatasetValidationError(
+                f"{source}: messages[{index}].content must be non-empty text"
+            )
         roles.append(role)
     if "user" not in roles:
         raise DatasetValidationError(f"{source}: at least one user turn is required")
     if roles[-1] != "assistant":
-        raise DatasetValidationError(f"{source}: the final message must be the training target (assistant)")
+        raise DatasetValidationError(
+            f"{source}: the final message must be the training target (assistant)"
+        )
 
     provenance = record.get("provenance")
     if not isinstance(provenance, Mapping):
@@ -75,10 +85,14 @@ def validate_record(record: Any, *, source: str = "<record>") -> str:
 
     trace = record.get("decision_trace")
     if not isinstance(trace, list) or not trace:
-        raise DatasetValidationError(f"{source}: decision_trace must be a non-empty list")
+        raise DatasetValidationError(
+            f"{source}: decision_trace must be a non-empty list"
+        )
     for index, step in enumerate(trace):
         if not isinstance(step, Mapping):
-            raise DatasetValidationError(f"{source}: decision_trace[{index}] must be an object")
+            raise DatasetValidationError(
+                f"{source}: decision_trace[{index}] must be an object"
+            )
         for field in ("check", "evidence", "action"):
             value = step.get(field)
             if not isinstance(value, str) or not value.strip():
@@ -89,32 +103,40 @@ def validate_record(record: Any, *, source: str = "<record>") -> str:
     output = record.get("output")
     if not isinstance(output, Mapping):
         raise DatasetValidationError(f"{source}: output must be an object")
+    assistant = messages[-1]["content"]
     if expert == "planner":
         summary = output.get("summary")
         steps = output.get("steps")
         if not isinstance(summary, str) or not summary.strip():
-            raise DatasetValidationError(f"{source}: planner output.summary is required")
+            raise DatasetValidationError(
+                f"{source}: planner output.summary is required"
+            )
         if not isinstance(steps, list) or not steps:
             raise DatasetValidationError(f"{source}: planner output.steps is required")
-
-    if expert == "tool_policy":
-        assistant = str(messages[-1]["content"]).strip()
+        try:
+            canonical_target = json.dumps(output, ensure_ascii=False, sort_keys=True)
+        except (TypeError, ValueError) as exc:
+            raise DatasetValidationError(
+                f"{source}: planner output must be JSON serializable"
+            ) from exc
+    elif expert == "tool_policy":
         decision = output.get("decision")
         rationale = output.get("rationale")
-        if decision not in TOOL_POLICY_LABELS or assistant != decision:
+        if decision not in TOOL_POLICY_LABELS:
             raise DatasetValidationError(
-                f"{source}: tool_policy target must exactly match one of {TOOL_POLICY_LABELS}"
+                f"{source}: tool_policy output.decision must be one of {TOOL_POLICY_LABELS}"
             )
         if not isinstance(rationale, str) or not rationale.strip():
-            raise DatasetValidationError(f"{source}: tool_policy output.rationale is required")
-
-    if expert in ("frontend_gen", "frontend_review", "code_review"):
+            raise DatasetValidationError(
+                f"{source}: tool_policy output.rationale is required"
+            )
+        canonical_target = str(decision)
+    elif expert in ("frontend_gen", "frontend_review", "code_review"):
         code = output.get("code")
         if not isinstance(code, str) or not code.strip():
             raise DatasetValidationError(f"{source}: {expert} output.code is required")
-
-    if expert in ("security_gate", "security_audit"):
-        assistant = str(messages[-1]["content"])
+        canonical_target = code.strip()
+    else:
         present = [label for label in SECURITY_LABELS if label in assistant]
         if len(present) != 1:
             raise DatasetValidationError(
@@ -127,7 +149,15 @@ def validate_record(record: Any, *, source: str = "<record>") -> str:
                 f"{source}: output.decision must match the assistant security label"
             )
         if not isinstance(rationale, str) or not rationale.strip():
-            raise DatasetValidationError(f"{source}: security output.rationale is required")
+            raise DatasetValidationError(
+                f"{source}: security output.rationale is required"
+            )
+        canonical_target = f"[{decision}]"
+    if assistant != canonical_target:
+        raise DatasetValidationError(
+            f"{source}: final assistant message must exactly match the canonical "
+            "target derived from output"
+        )
     return str(expert)
 
 
@@ -159,7 +189,9 @@ def validate_jsonl(
     allowed = set(allowed_experts) if allowed_experts is not None else set(EXPERTS)
     unknown_allowed = allowed - set(EXPERTS)
     if unknown_allowed:
-        raise DatasetValidationError(f"unknown allowed experts: {sorted(unknown_allowed)}")
+        raise DatasetValidationError(
+            f"unknown allowed experts: {sorted(unknown_allowed)}"
+        )
 
     counts: Counter[str] = Counter()
     seen_ids: set[str] = set()

@@ -10,12 +10,15 @@ MODULES = {
     "data": "anchor_mvp.data",
     "train": "anchor_mvp.training",
     "benchmark": "anchor_mvp.benchmark",
+    "swebench": "anchor_mvp.swebench",
 }
 
 
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in MODULES:
-        print("usage: python -m anchor_mvp {data|train|benchmark} [arguments...]")
+        print(
+            "usage: python -m anchor_mvp {data|train|benchmark|swebench} [arguments...]"
+        )
         return 2
     command = sys.argv.pop(1)
     runpy.run_module(MODULES[command], run_name="__main__")

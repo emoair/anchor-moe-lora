@@ -27,30 +27,52 @@ class MutationManifest:
         return asdict(self)
 
 
-def mutate_frontend_code(code: str, *, source_record_id: str) -> tuple[str, MutationManifest]:
+def mutate_frontend_code(
+    code: str,
+    *,
+    source_record_id: str,
+    preferred_rule: str | None = None,
+) -> tuple[str, MutationManifest]:
     """Apply the first deterministic allowlisted accessibility mutation."""
 
     if not code.strip():
         raise MutationUnavailableError("frontend source code is empty")
     before_hash = sha256(code.encode("utf-8")).hexdigest()
 
-    # Preferred rule: remove exactly one literal aria-label, creating a local a11y defect.
-    aria = re.compile(r"\s+aria-label\s*=\s*([\"'])[^\"']+\1", re.IGNORECASE)
-    candidate, count = aria.subn("", code, count=1)
-    if count:
-        rule = "remove_literal_aria_label"
-        defect = "One literal aria-label was removed; restore an accurate accessible name."
-    else:
-        # Safe fallback: degrade one semantic landmark while preserving balanced JSX/text.
-        candidate, open_count = re.subn(r"<main(?=[\s>])", "<div", code, count=1, flags=re.IGNORECASE)
-        if open_count:
-            candidate, close_count = re.subn(
-                r"</main\s*>", "</div>", candidate, count=1, flags=re.IGNORECASE
+    allowed = (
+        "remove_literal_aria_label",
+        "semantic_main_to_div",
+        "semantic_h1_to_div",
+    )
+    if preferred_rule is not None and preferred_rule not in allowed:
+        raise MutationUnavailableError("preferred mutation rule is not allowlisted")
+    rules = (preferred_rule,) if preferred_rule is not None else allowed
+    candidate = code
+    count = 0
+    rule = ""
+    defect = ""
+    for candidate_rule in rules:
+        if candidate_rule == "remove_literal_aria_label":
+            aria = re.compile(r"\s+aria-label\s*=\s*([\"'])[^\"']+\1", re.IGNORECASE)
+            candidate, count = aria.subn("", code, count=1)
+            defect = "One literal aria-label was removed; restore an accurate accessible name."
+        elif candidate_rule == "semantic_main_to_div":
+            candidate, open_count = re.subn(
+                r"<main(?=[\s>])", "<div", code, count=1, flags=re.IGNORECASE
             )
-            if close_count != 1:
-                raise MutationUnavailableError("main landmark is not textually balanced")
-            count = open_count + close_count
-            rule = "semantic_main_to_div"
+            if open_count:
+                candidate, close_count = re.subn(
+                    r"</main\s*>",
+                    "</div>",
+                    candidate,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+                if close_count != 1:
+                    raise MutationUnavailableError(
+                        "main landmark is not textually balanced"
+                    )
+                count = open_count + close_count
             defect = "A main landmark was replaced by a generic div; restore semantic main markup."
         else:
             candidate, open_count = re.subn(
@@ -58,17 +80,31 @@ def mutate_frontend_code(code: str, *, source_record_id: str) -> tuple[str, Muta
             )
             if open_count:
                 candidate, close_count = re.subn(
-                    r"</h1\s*>", "</div>", candidate, count=1, flags=re.IGNORECASE
+                    r"</h1\s*>",
+                    "</div>",
+                    candidate,
+                    count=1,
+                    flags=re.IGNORECASE,
                 )
                 if close_count != 1:
-                    raise MutationUnavailableError("h1 heading is not textually balanced")
+                    raise MutationUnavailableError(
+                        "h1 heading is not textually balanced"
+                    )
                 count = open_count + close_count
-                rule = "semantic_h1_to_div"
-                defect = "A page h1 was replaced by a generic div; restore the heading semantic."
-            else:
-                raise MutationUnavailableError(
-                    "no allowlisted aria-label, main landmark, or h1 mutation applies"
-                )
+            defect = (
+                "A page h1 was replaced by a generic div; restore the heading semantic."
+            )
+        if count:
+            rule = candidate_rule
+            break
+    if not count:
+        if preferred_rule is not None:
+            raise MutationUnavailableError(
+                f"preferred allowlisted mutation {preferred_rule} is unavailable"
+            )
+        raise MutationUnavailableError(
+            "no allowlisted aria-label, main landmark, or h1 mutation applies"
+        )
 
     after_hash = sha256(candidate.encode("utf-8")).hexdigest()
     if after_hash == before_hash:

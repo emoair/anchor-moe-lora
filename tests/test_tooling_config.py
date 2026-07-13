@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
 
-from anchor_mvp.tooling import ToolPolicy, build_opencode_config
-from anchor_mvp.tooling.config import validate_base_url
+import pytest
+
+from anchor_mvp.tooling import OpenCodeProvider, ToolPolicy, build_opencode_config
+from anchor_mvp.tooling.config import SANDBOX_API_KEY_ENV, validate_base_url
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,3 +60,54 @@ def test_invalid_or_descriptive_urls_are_rejected_before_requests():
             pass
         else:
             raise AssertionError(f"URL should have been rejected: {value}")
+
+
+def _ark_provider() -> OpenCodeProvider:
+    return OpenCodeProvider(
+        provider_id="anchor-ark-glm52",
+        npm="@ai-sdk/openai",
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="glm-5-2-260617",
+        variant="max",
+        key_env="ARK_CODING_API_KEY",
+        route_host="ark.cn-beijing.volces.com",
+    )
+
+
+def test_ark_glm52_uses_responses_with_max_and_a_value_less_sandbox_key_alias():
+    provider = _ark_provider()
+    generated = build_opencode_config(ToolPolicy(), provider=provider)
+    configured = generated["provider"][provider.provider_id]
+
+    assert generated["model"] == "anchor-ark-glm52/glm-5-2-260617"
+    assert configured["npm"] == "@ai-sdk/openai"
+    assert configured["options"] == {
+        "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "apiKey": f"{{env:{SANDBOX_API_KEY_ENV}}}",
+        "setCacheKey": False,
+    }
+    model = configured["models"][provider.model]
+    assert model["variants"] == {"max": {"reasoningEffort": "max"}}
+    assert model["limit"] == {"context": 128000, "output": 32768}
+    assert "interleaved" not in model
+    serialized = json.dumps(generated)
+    assert "ARK_CODING_API_KEY" not in serialized
+    assert "reasoningSummary" not in serialized
+    assert '"store"' not in serialized
+    assert '"include"' not in serialized
+
+
+def test_provider_contract_rejects_unverified_fields_and_route_mismatch():
+    value = {
+        "provider_id": "anchor-ark-glm52",
+        "npm": "@ai-sdk/openai",
+        "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "model": "glm-5-2-260617",
+        "variant": "max",
+        "key_env": "ARK_CODING_API_KEY",
+        "route_host": "ark.cn-beijing.volces.com",
+    }
+    with pytest.raises(ValueError, match="unverified fields"):
+        OpenCodeProvider.from_mapping({**value, "headers": {"x": "y"}})
+    with pytest.raises(ValueError, match="route_host"):
+        OpenCodeProvider.from_mapping({**value, "route_host": "example.com"})

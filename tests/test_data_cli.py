@@ -64,7 +64,9 @@ def test_cli_exposes_timeout_and_retry_policy() -> None:
     assert teacher.stream_options_include_usage is True
 
 
-def test_models_command_reports_missing_key_without_request(capsys, monkeypatch) -> None:
+def test_models_command_reports_missing_key_without_request(
+    capsys, monkeypatch
+) -> None:
     monkeypatch.delenv("KIMI_API_KEY", raising=False)
     assert main(["models", "--provider", "kimi-code-openai"]) == 0
     report = json.loads(capsys.readouterr().out)[0]
@@ -99,3 +101,27 @@ def test_force_model_builds_custom_provider_without_discovery() -> None:
         "model_source": "manual",
         "discovery": {"status": "skipped_force_model", "model_count": 0},
     }
+
+
+def test_cli_builds_openai_responses_transport_for_ark_base() -> None:
+    args = build_parser().parse_args(
+        [
+            "run",
+            "--provider",
+            "custom-openai-responses",
+            "--base-url",
+            "https://ark.cn-beijing.volces.com/api/coding/v3",
+            "--api-key-env",
+            "ARK_TEST_KEY",
+            "--model",
+            "ark-model-id",
+            "--force-model",
+            "--protocol",
+            "openai_responses",
+        ]
+    )
+    teacher = _teacher(args, {})
+    assert isinstance(teacher, CompatibleTeacher)
+    assert teacher.protocol == "openai_responses"
+    assert teacher.base_url == "https://ark.cn-beijing.volces.com/api/coding/v3"
+    assert teacher.api_key_env == "ARK_TEST_KEY"

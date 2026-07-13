@@ -59,9 +59,17 @@ def validate_frontend_revision_payload(payload: Mapping[str, Any]) -> None:
     """Validate a builder revision example paired with a public REVISE verdict."""
 
     reject_hidden_reasoning_keys(payload)
-    expected = {"schema_version", "requirement", "current_code", "review_verdict", "revised_code"}
+    expected = {
+        "schema_version",
+        "requirement",
+        "current_code",
+        "review_verdict",
+        "revised_code",
+    }
     if set(payload) != expected:
-        raise DataValidationError("frontend revision v2 payload has missing or extra keys")
+        raise DataValidationError(
+            "frontend revision v2 payload has missing or extra keys"
+        )
     if payload.get("schema_version") != REVIEW_LOOP_DATA_SCHEMA_VERSION:
         raise DataValidationError("frontend revision v2 schema_version mismatch")
     for key in ("requirement", "current_code", "revised_code"):
@@ -122,6 +130,11 @@ class SeedDemand:
     request: str
     category: str = "standard"
     tags: tuple[str, ...] = ()
+    card_id: str | None = None
+    seed_index: int | None = None
+    template_id: str | None = None
+    source_kind: str | None = None
+    source_digest: str | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "SeedDemand":
@@ -129,19 +142,103 @@ class SeedDemand:
         title = str(value.get("title", "Untitled request")).strip()
         if not request:
             raise DataValidationError("seed request is empty")
-        seed_id = str(value.get("seed_id") or stable_id("seed", normalized_text(request)))
-        tags = tuple(str(item).strip() for item in value.get("tags", []) if str(item).strip())
+        seed_id = str(
+            value.get("seed_id") or stable_id("seed", normalized_text(request))
+        )
+        tags = tuple(
+            str(item).strip() for item in value.get("tags", []) if str(item).strip()
+        )
+        raw_card_id = value.get("card_id")
+        card_id = str(raw_card_id).strip() if raw_card_id is not None else None
+        if card_id == "":
+            raise DataValidationError("seed card_id cannot be empty")
+        raw_seed_index = value.get("seed_index")
+        seed_index = None
+        if raw_seed_index is not None:
+            if (
+                isinstance(raw_seed_index, bool)
+                or not isinstance(raw_seed_index, int)
+                or raw_seed_index < 0
+            ):
+                raise DataValidationError("seed seed_index must be non-negative")
+            seed_index = raw_seed_index
+        if (card_id is None) is not (seed_index is None):
+            raise DataValidationError(
+                "seed card_id and seed_index must appear together"
+            )
+        raw_template_id = value.get("template_id")
+        template_id = (
+            str(raw_template_id).strip() if raw_template_id is not None else None
+        )
+        if template_id == "":
+            raise DataValidationError("seed template_id cannot be empty")
+        raw_source_kind = value.get("source_kind")
+        source_kind = (
+            str(raw_source_kind).strip() if raw_source_kind is not None else None
+        )
+        if source_kind == "":
+            raise DataValidationError("seed source_kind cannot be empty")
+        if (template_id is None) is not (source_kind is None):
+            raise DataValidationError(
+                "seed template_id and source_kind must appear together"
+            )
+        raw_source_digest = value.get("source_digest")
+        source_digest = (
+            str(raw_source_digest).strip().casefold()
+            if raw_source_digest is not None
+            else None
+        )
+        if template_id is not None:
+            if card_id is None or seed_index is None:
+                raise DataValidationError(
+                    "canonical seed task-card fields require card_id and seed_index"
+                )
+            if source_kind not in {
+                "self_synthetic",
+                "swe_smith",
+                "swebench_heldout",
+            }:
+                raise DataValidationError("seed source_kind is invalid")
+            if source_kind == "self_synthetic" and source_digest is not None:
+                raise DataValidationError(
+                    "self-synthetic seed cannot claim an external source digest"
+                )
+            if source_kind != "self_synthetic" and not (
+                isinstance(source_digest, str)
+                and re.fullmatch(r"[0-9a-f]{64}", source_digest)
+            ):
+                raise DataValidationError(
+                    "external seed requires an immutable source digest"
+                )
+        elif source_digest is not None:
+            raise DataValidationError(
+                "legacy seed cannot claim canonical source metadata"
+            )
         return cls(
             seed_id=seed_id,
             title=title,
             request=request,
             category=str(value.get("category", "standard")).strip() or "standard",
             tags=tags,
+            card_id=card_id,
+            seed_index=seed_index,
+            template_id=template_id,
+            source_kind=source_kind,
+            source_digest=source_digest,
         )
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["tags"] = list(self.tags)
+        if self.card_id is None:
+            result.pop("card_id")
+            result.pop("seed_index")
+        if self.template_id is None:
+            result.pop("template_id")
+            result.pop("source_kind")
+            result.pop("source_digest")
+        elif self.source_digest is None:
+            result.pop("source_digest")
         return result
 
 
@@ -180,7 +277,9 @@ class DecisionStep:
             action=str(value.get("action", "")).strip(),
         )
         if not all((step.check, step.evidence, step.action)):
-            raise DataValidationError("decision_trace entries need check, evidence, and action")
+            raise DataValidationError(
+                "decision_trace entries need check, evidence, and action"
+            )
         if any(len(item) > 600 for item in (step.check, step.evidence, step.action)):
             raise DataValidationError("decision_trace entry is too long")
         return step
@@ -231,7 +330,11 @@ class DistilledRecord:
         raw_trace = payload.get("decision_trace")
         if not isinstance(raw_trace, list) or not raw_trace:
             raise DataValidationError("decision_trace must be a non-empty list")
-        trace = tuple(DecisionStep.from_mapping(item) for item in raw_trace if isinstance(item, Mapping))
+        trace = tuple(
+            DecisionStep.from_mapping(item)
+            for item in raw_trace
+            if isinstance(item, Mapping)
+        )
         if len(trace) != len(raw_trace):
             raise DataValidationError("every decision_trace item must be an object")
         output = payload.get("output")
@@ -245,16 +348,20 @@ class DistilledRecord:
             payload,
             canonical_task_input=canonical_task_input,
         )
-        if task_type == "review" and normalized_text(str(clean_input["candidate_code"])) == normalized_text(
-            str(clean_output["code"])
-        ):
-            raise DataValidationError("review output.code must repair, not repeat, candidate_code")
+        if task_type == "review" and normalized_text(
+            str(clean_input["candidate_code"])
+        ) == normalized_text(str(clean_output["code"])):
+            raise DataValidationError(
+                "review output.code must repair, not repeat, candidate_code"
+            )
         if task_type == "security":
             assistant_content = f"[{clean_output['decision']}]"
         elif task_type == "tool_policy":
             assistant_content = str(clean_output["decision"])
         elif task_type == "plan":
-            assistant_content = json.dumps(clean_output, ensure_ascii=False, sort_keys=True)
+            assistant_content = json.dumps(
+                clean_output, ensure_ascii=False, sort_keys=True
+            )
         else:
             assistant_content = str(clean_output["code"]).strip()
         canonical_user = user_content.replace("\r\n", "\n").replace("\r", "\n").strip()
@@ -274,7 +381,9 @@ class DistilledRecord:
         if provider_provenance:
             provenance["teacher"]["provider"] = dict(provider_provenance)
         if provenance_extra:
-            provenance.update({str(key): value for key, value in provenance_extra.items()})
+            provenance.update(
+                {str(key): value for key, value in provenance_extra.items()}
+            )
         return cls(
             id=stable_id("record", identity),
             expert=EXPERT_BY_TASK[task_type],
@@ -296,7 +405,10 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
             f"{task_type} output contains non-allowlisted keys: {', '.join(sorted(unexpected))}"
         )
     if task_type == "plan":
-        if not isinstance(output.get("summary"), str) or not str(output["summary"]).strip():
+        if (
+            not isinstance(output.get("summary"), str)
+            or not str(output["summary"]).strip()
+        ):
             raise DataValidationError("plan output requires a concise summary")
         steps = output.get("steps")
         if not isinstance(steps, list) or not steps:
@@ -327,7 +439,10 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
             raise DataValidationError(
                 "tool_policy output decision must be APPROVE, BLOCK, or ESCALATE"
             )
-        if not isinstance(output.get("rationale"), str) or not str(output["rationale"]).strip():
+        if (
+            not isinstance(output.get("rationale"), str)
+            or not str(output["rationale"]).strip()
+        ):
             raise DataValidationError("tool_policy output requires a concise rationale")
         labels = output.get("proposal_labels", [])
         if not isinstance(labels, list) or any(
@@ -336,19 +451,27 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
             raise DataValidationError("tool_policy proposal_labels must be strings")
     elif task_type in ("frontend", "review"):
         required = "code"
-        if not isinstance(output.get(required), str) or not str(output[required]).strip():
+        if (
+            not isinstance(output.get(required), str)
+            or not str(output[required]).strip()
+        ):
             raise DataValidationError(f"{task_type} output requires non-empty code")
     elif task_type == "security":
         decision = output.get("decision")
         if decision not in ("BLOCK", "PASS"):
             raise DataValidationError("security output decision must be BLOCK or PASS")
-        if not isinstance(output.get("rationale"), str) or not str(output["rationale"]).strip():
+        if (
+            not isinstance(output.get("rationale"), str)
+            or not str(output["rationale"]).strip()
+        ):
             raise DataValidationError("security output requires a concise rationale")
         findings = output.get("findings", [])
         if not isinstance(findings, list) or any(
             not isinstance(item, str) or not item.strip() for item in findings
         ):
-            raise DataValidationError("security output findings must be inert label strings")
+            raise DataValidationError(
+                "security output findings must be inert label strings"
+            )
 
 
 def canonical_input(
@@ -375,8 +498,10 @@ def canonical_input(
         proposals = raw_input.get("tool_proposals")
         if not isinstance(plan, Mapping):
             raise DataValidationError("tool_policy input requires the upstream plan")
-        if not isinstance(proposals, list) or not proposals or any(
-            not isinstance(item, Mapping) for item in proposals
+        if (
+            not isinstance(proposals, list)
+            or not proposals
+            or any(not isinstance(item, Mapping) for item in proposals)
         ):
             raise DataValidationError("tool_policy input requires inert tool_proposals")
         clean = {
@@ -397,7 +522,9 @@ def canonical_input(
         if not isinstance(plan, Mapping):
             raise DataValidationError("frontend input requires the upstream plan")
         if not isinstance(tool_policy, Mapping):
-            raise DataValidationError("frontend input requires the upstream tool_policy output")
+            raise DataValidationError(
+                "frontend input requires the upstream tool_policy output"
+            )
         clean = {
             "requirement": seed.request,
             "plan": dict(plan),

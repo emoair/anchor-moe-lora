@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 from hashlib import sha256
 import json
 import re
 import sys
+import threading
+import time
 from pathlib import Path
+from urllib.error import URLError
 
 import pytest
 
@@ -13,6 +17,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+import anchor_mvp.data.teacher as teacher_module  # noqa: E402
 from anchor_mvp.data.pipeline import (  # noqa: E402
     DistillationPipeline,
     _ensure_frontend_public_trace,
@@ -27,7 +32,12 @@ from anchor_mvp.data.prompts import task_prompt  # noqa: E402
 from anchor_mvp.data.prompts import seed_prompt  # noqa: E402
 from anchor_mvp.data.schema import SeedDemand  # noqa: E402
 from anchor_mvp.data.sops import load_sop  # noqa: E402
-from anchor_mvp.data.teacher import MockTeacher  # noqa: E402
+from anchor_mvp.data.teacher import (  # noqa: E402
+    CompatibleTeacher,
+    MockTeacher,
+    ProviderQuotaExhausted,
+    RateLimitError,
+)
 from anchor_mvp.training.schema import validate_jsonl  # noqa: E402
 
 
@@ -70,11 +80,16 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
         path = tmp_path / f"data_{task}.jsonl"
         report = validate_jsonl(path, allowed_experts=[expert])
         assert report["valid_records"] == 4
-        records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        records = [
+            json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+        ]
         assert all(record["provenance"]["template_sha256"] for record in records)
-        assert all(record["provenance"]["teacher"]["protocol"] == "mock" for record in records)
         assert all(
-            record["provenance"]["teacher"]["generation_params"]["thinking_enabled"] is False
+            record["provenance"]["teacher"]["protocol"] == "mock" for record in records
+        )
+        assert all(
+            record["provenance"]["teacher"]["generation_params"]["thinking_enabled"]
+            is False
             for record in records
         )
         if task == "plan":
@@ -82,15 +97,33 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
         if task == "tool_policy":
             plan_ids = {
                 json.loads(line)["id"]
-                for line in (tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines()
+                for line in (tmp_path / "data_plan.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
             }
-            assert all(record["messages"][-1]["content"] in {"APPROVE", "BLOCK", "ESCALATE"} for record in records)
-            assert all(record["provenance"]["source_plan_record_id"] in plan_ids for record in records)
-            assert all(record["provenance"]["tool_proposals"]["executed"] is False for record in records)
+            assert all(
+                record["messages"][-1]["content"] in {"APPROVE", "BLOCK", "ESCALATE"}
+                for record in records
+            )
+            assert all(
+                record["provenance"]["source_plan_record_id"] in plan_ids
+                for record in records
+            )
+            assert all(
+                record["provenance"]["tool_proposals"]["executed"] is False
+                for record in records
+            )
             assert [record["output"]["decision"] for record in records] == [
-                "APPROVE", "ESCALATE", "BLOCK", "APPROVE"
+                "APPROVE",
+                "ESCALATE",
+                "BLOCK",
+                "APPROVE",
             ]
-            assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
+            assert all(
+                record["provenance"]["label_oracle"]["decision"]
+                == record["output"]["decision"]
+                for record in records
+            )
             assert all(
                 record["provenance"]["teacher_observed_decision"]
                 in {"APPROVE", "BLOCK", "ESCALATE"}
@@ -105,16 +138,32 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
                 for record in records
             )
         if task == "frontend":
-            assert all(record["provenance"]["source_plan_record_id"] for record in records)
-            assert all(record["provenance"]["source_tool_policy_record_id"] for record in records)
+            assert all(
+                record["provenance"]["source_plan_record_id"] for record in records
+            )
+            assert all(
+                record["provenance"]["source_tool_policy_record_id"]
+                for record in records
+            )
             assert all(record["input"]["plan"]["steps"] for record in records)
-            assert all(record["input"]["tool_policy"]["decision"] in {"APPROVE", "BLOCK", "ESCALATE"} for record in records)
+            assert all(
+                record["input"]["tool_policy"]["decision"]
+                in {"APPROVE", "BLOCK", "ESCALATE"}
+                for record in records
+            )
         if task == "review":
-            assert all("CANDIDATE CODE:" in record["messages"][0]["content"] for record in records)
-            assert all("KNOWN_BENIGN_DEFECT:" in record["messages"][0]["content"] for record in records)
+            assert all(
+                "CANDIDATE CODE:" in record["messages"][0]["content"]
+                for record in records
+            )
+            assert all(
+                "KNOWN_BENIGN_DEFECT:" in record["messages"][0]["content"]
+                for record in records
+            )
             assert all(
                 record["input"]["candidate_code"] in record["messages"][0]["content"]
-                and record["input"]["known_benign_defect"] in record["messages"][0]["content"]
+                and record["input"]["known_benign_defect"]
+                in record["messages"][0]["content"]
                 for record in records
             )
             assert all(
@@ -128,7 +177,9 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
             )
             frontend_records = {
                 json.loads(line)["id"]: json.loads(line)
-                for line in (tmp_path / "data_frontend.jsonl").read_text(encoding="utf-8").splitlines()
+                for line in (tmp_path / "data_frontend.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
             }
             assert all(
                 record["provenance"]["source_frontend_record_id"] in frontend_records
@@ -136,30 +187,48 @@ def test_mock_pipeline_is_canonical_safe_and_resumable(tmp_path: Path) -> None:
                 and record["provenance"]["mutation"]["count"] >= 1
                 and record["provenance"]["mutation"]["sha256_before"]
                 == sha256(
-                    frontend_records[record["provenance"]["source_frontend_record_id"]]["output"]["code"].encode()
+                    frontend_records[record["provenance"]["source_frontend_record_id"]][
+                        "output"
+                    ]["code"].encode()
                 ).hexdigest()
                 and record["provenance"]["mutation"]["sha256_after"]
                 == sha256(record["input"]["candidate_code"].encode()).hexdigest()
                 for record in records
             )
         if task == "security":
-            assert all("REVIEWED CODE:" in record["messages"][0]["content"] for record in records)
+            assert all(
+                "REVIEWED CODE:" in record["messages"][0]["content"]
+                for record in records
+            )
             assert all(
                 record["input"]["reviewed_code"] in record["messages"][0]["content"]
                 for record in records
             )
             assert [record["output"]["decision"] for record in records] == [
-                "PASS", "BLOCK", "PASS", "BLOCK"
+                "PASS",
+                "BLOCK",
+                "PASS",
+                "BLOCK",
             ]
-            assert all(record["provenance"]["security_fixture"]["active_payload_present"] is False for record in records)
-            assert all(record["provenance"]["label_oracle"]["decision"] == record["output"]["decision"] for record in records)
+            assert all(
+                record["provenance"]["security_fixture"]["active_payload_present"]
+                is False
+                for record in records
+            )
+            assert all(
+                record["provenance"]["label_oracle"]["decision"]
+                == record["output"]["decision"]
+                for record in records
+            )
             assert all(
                 record["provenance"]["teacher_observed_decision"] in {"PASS", "BLOCK"}
                 for record in records
             )
             review_ids = {
                 json.loads(line)["id"]
-                for line in (tmp_path / "data_review.jsonl").read_text(encoding="utf-8").splitlines()
+                for line in (tmp_path / "data_review.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
             }
             assert all(
                 record["provenance"]["source_review_record_id"] in review_ids
@@ -219,6 +288,89 @@ def test_seed_generation_deduplicates(tmp_path: Path) -> None:
     assert len({seed.seed_id for seed in seeds}) == 5
 
 
+def test_request_local_retries_keep_one_seed_alignment_and_write_one_record(
+    tmp_path: Path, monkeypatch
+) -> None:
+    seed = SeedDemand(
+        "seed-retry-1",
+        "Retry fixture",
+        "Build an accessible catalog with stable empty states.",
+    )
+    (tmp_path / "seeds.jsonl").write_text(
+        json.dumps(seed.to_dict(), ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    teacher = CompatibleTeacher(max_retries=2, fallback_protocol=None)
+    calls: list[tuple[str, str]] = []
+
+    def fake_request(protocol, base_url, system, user, max_tokens):
+        calls.append((system, user))
+        if len(calls) <= 2:
+            raise URLError("transient fixture interruption")
+        return teacher_module._CompletionText(
+            json.dumps(
+                {
+                    "decision_trace": [
+                        {
+                            "check": "Requirement decomposition",
+                            "evidence": "The public request defines the required UI states.",
+                            "action": "Produce one bounded implementation plan.",
+                        }
+                    ],
+                    "output": {
+                        "summary": "Build the requested accessible catalog.",
+                        "steps": [
+                            {
+                                "id": "P1",
+                                "goal": "Define semantic structure",
+                                "deliverable": "Catalog landmarks and empty states",
+                            }
+                        ],
+                        "constraints": ["Keep behavior deterministic"],
+                    },
+                }
+            )
+        )
+
+    monkeypatch.setattr(teacher, "_request_sync", fake_request)
+    monkeypatch.setattr(teacher_module, "_retry_delay_seconds", lambda *args: 0.0)
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=1,
+    )
+
+    first = asyncio.run(pipeline.run(seed_count=1, tasks=["plan"]))
+    assert first.errors == ()
+    assert first.written_by_task == {"plan": 1}
+    assert len(calls) == 3
+    assert len(set(calls)) == 1
+    records = [
+        json.loads(line)
+        for line in (tmp_path / "data_plan.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert len(records) == 1
+    assert records[0]["provenance"]["seed_id"] == seed.seed_id
+    assert records[0]["provenance"]["teacher"]["provider"]["attempts"] == {
+        "wire_attempts": 3,
+        "retry_count": 2,
+        "max_retries": 2,
+        "retry_reasons": ["url_error", "url_error"],
+    }
+
+    resumed = asyncio.run(pipeline.run(seed_count=1, tasks=["plan"]))
+    assert resumed.written_by_task == {"plan": 0}
+    assert resumed.skipped_by_task == {"plan": 1}
+    assert len(calls) == 3
+    assert (
+        len((tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines())
+        == 1
+    )
+
+
 def test_quarantined_seed_is_excluded_before_teacher_task_call(tmp_path: Path) -> None:
     class CountingTeacher(MockTeacher):
         def __init__(self) -> None:
@@ -269,21 +421,28 @@ def test_seed_prompt_uses_deterministic_stratified_variants() -> None:
 
 
 class _UnsafeSeedTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.seed_calls = 0
+
     async def complete(self, *, system: str, user: str) -> str:
         if "ANCHOR_TASK: seed" in user:
+            self.seed_calls += 1
             return '{"title":"unsafe","request":"render <script> directly","category":"unsafe","tags":[]}'
         return await super().complete(system=system, user=user)
 
 
 def test_active_seed_material_is_never_persisted(tmp_path: Path) -> None:
+    teacher = _UnsafeSeedTeacher()
     pipeline = DistillationPipeline(
-        teacher=_UnsafeSeedTeacher(),
+        teacher=teacher,
         sop_dir=ROOT / "skills",
         output_dir=tmp_path,
         concurrency=1,
     )
-    with pytest.raises(RuntimeError, match="unique seeds"):
+    with pytest.raises(ValueError, match="active payload"):
         asyncio.run(pipeline.generate_seeds(1))
+    assert teacher.seed_calls == 1
     assert not (tmp_path / "seeds.jsonl").exists()
 
 
@@ -294,7 +453,11 @@ class _CountingMockTeacher(MockTeacher):
 
     async def complete(self, *, system: str, user: str) -> str:
         marker = next(
-            (line.split(":", 1)[1].strip() for line in user.splitlines() if line.startswith("ANCHOR_TASK:")),
+            (
+                line.split(":", 1)[1].strip()
+                for line in user.splitlines()
+                if line.startswith("ANCHOR_TASK:")
+            ),
             "",
         )
         self.task_calls.append(marker)
@@ -366,8 +529,16 @@ def test_five_stage_resume_preserves_legacy_live_rows(tmp_path: Path) -> None:
     )
     seed = asyncio.run(pipeline.generate_seeds(1))[0]
     legacy = {
-        "frontend": ("legacy_frontend", "frontend_gen", {"code": "<main>legacy</main>"}),
-        "review": ("legacy_review", "code_review", {"code": "<main>legacy reviewed</main>"}),
+        "frontend": (
+            "legacy_frontend",
+            "frontend_gen",
+            {"code": "<main>legacy</main>"},
+        ),
+        "review": (
+            "legacy_review",
+            "code_review",
+            {"code": "<main>legacy reviewed</main>"},
+        ),
         "security": (
             "legacy_security",
             "security_audit",
@@ -430,7 +601,10 @@ def test_frontend_prompt_requires_non_empty_public_trace() -> None:
 def test_frontend_missing_teacher_trace_gets_attributed_contract_trace() -> None:
     payload: dict[str, object] = {
         "decision_trace": [],
-        "output": {"language": "tsx", "code": "export const Card = () => <main>Ready</main>"},
+        "output": {
+            "language": "tsx",
+            "code": "export const Card = () => <main>Ready</main>",
+        },
     }
     source = _ensure_frontend_public_trace(payload)
     assert source == "pipeline_contract_fallback"
@@ -441,7 +615,10 @@ def test_frontend_missing_teacher_trace_gets_attributed_contract_trace() -> None
 @pytest.mark.parametrize(
     ("payload", "source"),
     [
-        ({"code": "export default function A(){}", "language": "tsx"}, "top_level_code"),
+        (
+            {"code": "export default function A(){}", "language": "tsx"},
+            "top_level_code",
+        ),
         ({"output": "export default function B(){}"}, "output_string"),
         ({"output": {"artifact": "export default function C(){}"}}, "output_artifact"),
     ],
@@ -452,3 +629,505 @@ def test_frontend_code_only_shapes_are_normalized(
     assert _normalize_frontend_payload(payload) == source
     assert isinstance(payload["output"], dict)
     assert payload["output"]["code"].startswith("export")  # type: ignore[index,union-attr]
+
+
+def _prompt_index(user: str) -> int:
+    return int(
+        next(
+            line.split(":", 1)[1].strip()
+            for line in user.splitlines()
+            if line.startswith("SEED_INDEX:")
+        )
+    )
+
+
+class _PartialSeedTerminalTeacher(MockTeacher):
+    def __init__(self, terminal: RateLimitError) -> None:
+        super().__init__()
+        self.terminal = terminal
+        self.first_success_ready = asyncio.Event()
+
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: seed" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        if index == 0:
+            result = await super().complete(system=system, user=user)
+            self.first_success_ready.set()
+            return result
+        if index == 1:
+            await self.first_success_ready.wait()
+            raise self.terminal
+        await self.first_success_ready.wait()
+        await asyncio.sleep(0.02)
+        raise ValueError("non-terminal fixture failure")
+
+
+@pytest.mark.parametrize(
+    ("terminal", "expected_type", "retry_after"),
+    [
+        (RateLimitError(7), RateLimitError, 7),
+        (ProviderQuotaExhausted(11), ProviderQuotaExhausted, 11),
+    ],
+)
+def test_seed_generation_persists_completed_rows_before_terminal_and_resumes(
+    tmp_path: Path,
+    terminal: RateLimitError,
+    expected_type: type[RateLimitError],
+    retry_after: float,
+) -> None:
+    interrupted = DistillationPipeline(
+        teacher=_PartialSeedTerminalTeacher(terminal),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=3,
+    )
+
+    with pytest.raises(expected_type) as captured:
+        asyncio.run(interrupted.generate_seeds(3))
+
+    assert captured.value.retry_after_seconds == retry_after
+    partial = [
+        json.loads(line)
+        for line in (tmp_path / "seeds.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(partial) == 1
+    assert "variant 0" in partial[0]["request"]
+
+    resumed = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+    seeds = asyncio.run(resumed.generate_seeds(3))
+    assert len(seeds) == 3
+    assert len({seed.seed_id for seed in seeds}) == 3
+    assert seeds[0].seed_id == partial[0]["seed_id"]
+    assert len((tmp_path / "seeds.jsonl").read_text(encoding="utf-8").splitlines()) == 3
+
+
+class _IncrementalPlanTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.active = 0
+        self.max_active = 0
+        self.two_started = asyncio.Event()
+        self.first_returned = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: plan" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        if self.active >= 2:
+            self.two_started.set()
+        try:
+            if index == 0:
+                await self.two_started.wait()
+                result = await super().complete(system=system, user=user)
+                self.first_returned.set()
+                return result
+            await self.release.wait()
+            return await super().complete(system=system, user=user)
+        finally:
+            self.active -= 1
+
+
+def test_task_distillation_appends_each_completion_and_honors_concurrency(
+    tmp_path: Path,
+) -> None:
+    seed_pipeline = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=3,
+    )
+    asyncio.run(seed_pipeline.generate_seeds(3))
+    teacher = _IncrementalPlanTeacher()
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+
+    async def exercise() -> None:
+        running = asyncio.create_task(pipeline.run(seed_count=3, tasks=["plan"]))
+        await asyncio.wait_for(teacher.first_returned.wait(), timeout=1)
+        path = tmp_path / "data_plan.jsonl"
+        for _ in range(100):
+            if (
+                path.exists()
+                and len(path.read_text(encoding="utf-8").splitlines()) == 1
+            ):
+                break
+            await asyncio.sleep(0.001)
+        assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+        assert not running.done()
+        assert teacher.max_active == 2
+        teacher.release.set()
+        report = await asyncio.wait_for(running, timeout=1)
+        assert report.written_by_task == {"plan": 3}
+
+    asyncio.run(exercise())
+    assert (
+        len((tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines())
+        == 3
+    )
+
+
+class _PartialPlanQuotaTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.first_success_ready = asyncio.Event()
+        self.frontend_calls = 0
+
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: frontend" in user:
+            self.frontend_calls += 1
+        if "ANCHOR_TASK: plan" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        if index == 0:
+            result = await super().complete(system=system, user=user)
+            self.first_success_ready.set()
+            return result
+        if index == 1:
+            await self.first_success_ready.wait()
+            raise ProviderQuotaExhausted(13)
+        await self.first_success_ready.wait()
+        await asyncio.sleep(0.02)
+        raise ValueError("non-terminal fixture failure")
+
+
+def test_task_quota_keeps_partial_record_reports_deterministically_and_resumes(
+    tmp_path: Path,
+) -> None:
+    initial = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=3,
+    )
+    seeds = asyncio.run(initial.generate_seeds(3))
+    teacher = _PartialPlanQuotaTeacher()
+    interrupted = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=3,
+    )
+
+    report = asyncio.run(interrupted.run(seed_count=3, tasks=["plan", "frontend"]))
+
+    assert report.written_by_task == {"plan": 1, "frontend": 0}
+    assert report.skipped_by_task == {"plan": 0, "frontend": 0}
+    assert teacher.frontend_calls == 0
+    assert report.rate_limited is True
+    assert report.provider_quota_exhausted is True
+    assert report.retry_after_seconds == 13
+    assert report.errors == (
+        f"plan:{seeds[1].seed_id}: ProviderQuotaExhausted: "
+        "provider explicitly reported quota exhausted",
+        f"plan:{seeds[2].seed_id}: ValueError: non-terminal fixture failure",
+    )
+    assert (
+        len((tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines())
+        == 1
+    )
+
+    resumed = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+    resumed_report = asyncio.run(resumed.run(seed_count=3, tasks=["plan"]))
+    assert resumed_report.errors == ()
+    assert resumed_report.written_by_task == {"plan": 2}
+    assert resumed_report.skipped_by_task == {"plan": 1}
+    assert (
+        len((tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines())
+        == 3
+    )
+
+
+class _OutOfOrderFailureTeacher(MockTeacher):
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: plan" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        await asyncio.sleep(0.01 if index == 0 else 0)
+        raise ValueError(f"failure-{index}")
+
+
+def test_task_error_report_order_is_seed_deterministic(tmp_path: Path) -> None:
+    initial = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+    seeds = asyncio.run(initial.generate_seeds(2))
+    pipeline = DistillationPipeline(
+        teacher=_OutOfOrderFailureTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+
+    report = asyncio.run(pipeline.run(seed_count=2, tasks=["plan"]))
+
+    assert report.errors == (
+        f"plan:{seeds[0].seed_id}: ValueError: failure-0",
+        f"plan:{seeds[1].seed_id}: ValueError: failure-1",
+    )
+
+
+class _InFlightSeedQuotaTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.inflight_started = threading.Event()
+        self.release_inflight = threading.Event()
+        self.inflight_returned = threading.Event()
+        self.started_indices: list[int] = []
+
+    def _slow_seed(self) -> str:
+        self.inflight_started.set()
+        if not self.release_inflight.wait(timeout=1):
+            raise AssertionError("quota branch did not release in-flight request")
+        time.sleep(0.02)
+        self.inflight_returned.set()
+        return json.dumps(
+            {
+                "title": "Durable in-flight seed",
+                "request": "Build an accessible local task board with clear empty states.",
+                "category": "standard",
+                "tags": ["task-board"],
+            }
+        )
+
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: seed" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        self.started_indices.append(index)
+        if index == 0:
+            return await asyncio.to_thread(self._slow_seed)
+        while not self.inflight_started.is_set():
+            await asyncio.sleep(0)
+        self.release_inflight.set()
+        raise ProviderQuotaExhausted(17)
+
+
+def test_seed_quota_waits_for_uncancellable_to_thread_and_persists_success(
+    tmp_path: Path,
+) -> None:
+    teacher = _InFlightSeedQuotaTeacher()
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+
+    with pytest.raises(ProviderQuotaExhausted):
+        asyncio.run(pipeline.generate_seeds(5))
+
+    assert teacher.inflight_returned.is_set()
+    assert sorted(teacher.started_indices) == [0, 1]
+    persisted = (tmp_path / "seeds.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(persisted) == 1
+    assert json.loads(persisted[0])["title"] == "Durable in-flight seed"
+
+
+class _InFlightPlanQuotaTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.inflight_started = threading.Event()
+        self.release_inflight = threading.Event()
+
+    def _slow_wire(self) -> None:
+        self.inflight_started.set()
+        if not self.release_inflight.wait(timeout=1):
+            raise AssertionError("quota branch did not release in-flight request")
+        time.sleep(0.02)
+
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: plan" not in user:
+            return await super().complete(system=system, user=user)
+        index = _prompt_index(user)
+        if index == 0:
+            await asyncio.to_thread(self._slow_wire)
+            return await super().complete(system=system, user=user)
+        while not self.inflight_started.is_set():
+            await asyncio.sleep(0)
+        self.release_inflight.set()
+        raise ProviderQuotaExhausted(19)
+
+
+def test_task_quota_waits_for_uncancellable_to_thread_and_persists_success(
+    tmp_path: Path,
+) -> None:
+    initial = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+    asyncio.run(initial.generate_seeds(2))
+    pipeline = DistillationPipeline(
+        teacher=_InFlightPlanQuotaTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+
+    report = asyncio.run(pipeline.run(seed_count=2, tasks=["plan"]))
+
+    assert report.provider_quota_exhausted is True
+    assert report.written_by_task == {"plan": 1}
+    assert (
+        len((tmp_path / "data_plan.jsonl").read_text(encoding="utf-8").splitlines())
+        == 1
+    )
+
+
+def test_seed_index_offset_makes_parallel_shard_prompts_disjoint(
+    tmp_path: Path,
+) -> None:
+    class CapturingTeacher(MockTeacher):
+        def __init__(self) -> None:
+            super().__init__()
+            self.seed_users: list[str] = []
+
+        async def complete(self, *, system: str, user: str) -> str:
+            if "ANCHOR_TASK: seed" in user:
+                self.seed_users.append(user)
+            return await super().complete(system=system, user=user)
+
+    teacher = CapturingTeacher()
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path / "shard",
+        concurrency=2,
+        seed_index_offset=100_000,
+    )
+
+    assert len(asyncio.run(pipeline.generate_seeds(2))) == 2
+    assert sorted(_prompt_index(prompt) for prompt in teacher.seed_users) == [
+        100_000,
+        100_001,
+    ]
+
+
+def test_seed_index_offset_cannot_be_negative(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="seed_index_offset"):
+        DistillationPipeline(
+            teacher=MockTeacher(),
+            sop_dir=ROOT / "skills",
+            output_dir=tmp_path,
+            seed_index_offset=-1,
+        )
+
+
+class _BarrierRouteTeacher(MockTeacher):
+    def __init__(self) -> None:
+        super().__init__()
+        self._route_context: ContextVar[dict[str, str] | None] = ContextVar(
+            "test_pipeline_route", default=None
+        )
+        self.first_route_ready = asyncio.Event()
+        self.second_route_ready = asyncio.Event()
+
+    @property
+    def provider_provenance(self) -> dict[str, object]:
+        route = self._route_context.get()
+        if route is None:
+            return super().provider_provenance
+        return {
+            "preset": "barrier-fixture",
+            "base_url": route["base_url"],
+            "protocol": route["protocol"],
+            "model": self.model,
+            "model_source": "fixture",
+            "request_marker": route["request_marker"],
+            "discovery": {"status": "skipped", "model_count": 0},
+        }
+
+    async def complete(self, *, system: str, user: str) -> str:
+        result = await super().complete(system=system, user=user)
+        if "ANCHOR_TASK: plan" not in user:
+            return result
+        index = _prompt_index(user)
+        route = {
+            "base_url": f"https://route-{index}.example/v1",
+            "protocol": "openai" if index == 0 else "openai_responses",
+            "request_marker": f"route-{index}",
+        }
+        self._route_context.set(route)
+        if index == 0:
+            self.first_route_ready.set()
+            await self.second_route_ready.wait()
+        else:
+            await self.first_route_ready.wait()
+            # Deliberately mutate the shared defaults before request zero is
+            # allowed to return. Its ContextVar must remain route zero.
+            self.base_url = route["base_url"]
+            self.protocol = route["protocol"]
+            self.second_route_ready.set()
+        return result
+
+
+def test_record_route_uses_one_request_local_snapshot_under_barrier(
+    tmp_path: Path,
+) -> None:
+    seed_pipeline = DistillationPipeline(
+        teacher=MockTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+    asyncio.run(seed_pipeline.generate_seeds(2))
+    teacher = _BarrierRouteTeacher()
+    pipeline = DistillationPipeline(
+        teacher=teacher,
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=2,
+    )
+
+    report = asyncio.run(pipeline.run(seed_count=2, tasks=["plan"]))
+
+    assert report.errors == ()
+    records = [
+        json.loads(line)
+        for line in (tmp_path / "data_plan.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    observed = set()
+    for record in records:
+        top = record["provenance"]["teacher"]
+        provider = top["provider"]
+        assert top["base_url"] == provider["base_url"]
+        assert top["protocol"] == provider["protocol"]
+        observed.add(
+            (
+                provider["request_marker"],
+                provider["base_url"],
+                provider["protocol"],
+            )
+        )
+    assert observed == {
+        ("route-0", "https://route-0.example/v1", "openai"),
+        (
+            "route-1",
+            "https://route-1.example/v1",
+            "openai_responses",
+        ),
+    }

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 
 from anchor_mvp.data import snapshot as snapshot_module
+from anchor_mvp.data.cleaning import build_inert_security_fixture
+from anchor_mvp.data.mutator import mutate_frontend_code
 from anchor_mvp.data.snapshot import EXPERTS, SnapshotConfig, prepare_snapshot
 from anchor_mvp.handoff import HandoffConfig
 from anchor_mvp.training.manifest import sha256_file
@@ -14,27 +16,89 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _record(expert: str, marker: str) -> dict:
+    requirement = f"request {marker}"
+    plan_output = {"summary": marker, "steps": ["implement", "verify"]}
+    tool_output = {"decision": "APPROVE", "rationale": marker}
+    frontend_code = (
+        f'export const Marker = () => <main aria-label="fixture">{marker}</main>;'
+    )
     output: dict = {}
+    record_input: dict = {"requirement": requirement}
     assistant = marker
     if expert == "planner":
-        output = {"summary": marker, "steps": ["implement", "verify"]}
+        output = plan_output
+        assistant = json.dumps(output, ensure_ascii=False, sort_keys=True)
     elif expert == "tool_policy":
         assistant = "APPROVE"
-        output = {"decision": "APPROVE", "rationale": marker}
-    elif expert in {"frontend_gen", "frontend_review"}:
-        output = {"code": f"export const marker = {marker!r};"}
+        output = tool_output
+        record_input.update(
+            {"plan": plan_output, "tool_proposals": [{"kind": "read_only"}]}
+        )
+    elif expert == "frontend_gen":
+        output = {"code": frontend_code}
+        record_input.update({"plan": plan_output, "tool_policy": tool_output})
+        assistant = output["code"].strip()
+    elif expert == "frontend_review":
+        candidate, mutation = mutate_frontend_code(
+            frontend_code, source_record_id="frontend_gen-id"
+        )
+        output = {"code": frontend_code}
+        record_input.update(
+            {
+                "candidate_code": candidate.strip(),
+                "known_benign_defect": mutation.known_benign_defect.strip(),
+            }
+        )
+        assistant = output["code"].strip()
     elif expert == "security_gate":
-        assistant = f"[PASS] {marker}"
-        output = {"decision": "PASS", "rationale": marker}
+        candidate, output, _fixture = build_inert_security_fixture(frontend_code, 0)
+        record_input["reviewed_code"] = candidate.strip()
+        assistant = f"[{output['decision']}]"
+    provenance = {"generator": "unit-test", "seed_id": "seed-fixture"}
+    if expert == "tool_policy":
+        provenance["source_plan_record_id"] = "planner-id"
+    elif expert == "frontend_gen":
+        provenance.update(
+            {
+                "source_plan_record_id": "planner-id",
+                "source_tool_policy_record_id": "tool_policy-id",
+            }
+        )
+    elif expert == "frontend_review":
+        _candidate, mutation = mutate_frontend_code(
+            frontend_code, source_record_id="frontend_gen-id"
+        )
+        provenance.update(
+            {
+                "source_frontend_record_id": "frontend_gen-id",
+                "mutation": mutation.to_dict(),
+            }
+        )
+    elif expert == "security_gate":
+        _candidate, expected_output, fixture = build_inert_security_fixture(
+            frontend_code, 0
+        )
+        provenance.update(
+            {
+                "source_review_record_id": "frontend_review-id",
+                "security_fixture": fixture,
+                "label_oracle": {
+                    "oracle": "anchor-security-fixture-gold-v1",
+                    "decision": expected_output["decision"],
+                    "sha256": fixture["gold_sha256"],
+                },
+            }
+        )
     return {
         "schema_version": "1.0",
         "id": f"{expert}-id",
         "expert": expert,
         "messages": [
-            {"role": "user", "content": f"request {marker}"},
+            {"role": "user", "content": requirement},
             {"role": "assistant", "content": assistant},
         ],
-        "provenance": {"generator": "unit-test"},
+        "input": record_input,
+        "provenance": provenance,
         "decision_trace": [
             {"check": "contract", "evidence": "fixture", "action": "accept"}
         ],
@@ -68,12 +132,32 @@ def _fixture(
         _write_jsonl(collection / filename, records)
         _write_jsonl(gold / filename, records)
         counts[task] = 1
+    gold_files = {
+        task: {
+            "path": filename,
+            "records": counts[task],
+            "bytes": (gold / filename).stat().st_size,
+            "sha256": sha256_file(gold / filename),
+        }
+        for _expert, (task, filename) in names.items()
+    }
     quality_staging = collection / "automation" / "quality_staging.jsonl"
     negative = collection / "partitions" / "negative.jsonl"
     reject = collection / "partitions" / "reject.jsonl"
+    task_bank = collection / "partitions" / "task_bank.jsonl"
     _write_jsonl(quality_staging, [{"partition_index": index} for index in range(5)])
     _write_jsonl(negative, [])
     _write_jsonl(reject, [])
+    _write_jsonl(
+        task_bank,
+        [
+            {
+                "alignment_id": "alignment-fixture",
+                "card_id": "card-fixture",
+                "seed_id": "seed-fixture",
+            }
+        ],
+    )
     heldout_gate = {
         "status": "PASS",
         "passed": True,
@@ -99,6 +183,7 @@ def _fixture(
         "reject_reason_counts": {},
         "reject_rate": 0.0,
         "gold_by_task": counts,
+        "gold_files": gold_files,
         "gold_label_counts": {},
         "label_quota_errors": [],
         "coverage_complete": ready,
@@ -106,6 +191,30 @@ def _fixture(
         "raw_by_task": {task: 1 for task in counts},
         "raw_collection_complete": True,
         "raw_collection_shortfalls": {},
+        "lineage_complete": True,
+        "complete_chain_count": 1,
+        "minimum_complete_chain_count": 1,
+        "complete_chain_count_sufficient": True,
+        "lineage_edge_error_count": 0,
+        "lineage_edge_errors_by_edge": {},
+        "lineage_edge_errors": [],
+        "lineage_chain_error_count": 0,
+        "lineage_chain_errors_by_code": {},
+        "lineage_chain_errors": [],
+        "near_duplicate_gate": {"passed": True, "policy_id": "fixture-v1"},
+        "task_card_coverage": {
+            "passed": True,
+            "cardinality_equal": True,
+            "complete_chain_count": 1,
+            "card_count": 1,
+            "unique_alignment_id_count": 1,
+        },
+        "task_bank_file": {
+            "path": "task_bank.jsonl",
+            "records": 1,
+            "bytes": task_bank.stat().st_size,
+            "sha256": sha256_file(task_bank),
+        },
         "training_ready": ready,
         "heldout_gate": heldout_gate,
         "quality_staging_sha256": sha256_file(quality_staging),
@@ -160,6 +269,189 @@ def test_not_ready_writes_metadata_report_only_and_never_freezes(
     assert "PRIVATE_HELDOUT_BODY" not in persisted
 
 
+def test_snapshot_fails_closed_when_v2_partition_lacks_lineage_proof(
+    tmp_path: Path,
+) -> None:
+    config = _fixture(tmp_path)
+    manifest = json.loads(config.partition_manifest.read_text(encoding="utf-8"))
+    for field in (
+        "lineage_complete",
+        "complete_chain_count",
+        "minimum_complete_chain_count",
+        "complete_chain_count_sufficient",
+        "lineage_edge_error_count",
+        "lineage_edge_errors_by_edge",
+        "lineage_edge_errors",
+        "lineage_chain_error_count",
+        "lineage_chain_errors_by_code",
+        "lineage_chain_errors",
+    ):
+        manifest.pop(field)
+    config.partition_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+    status = json.loads(config.automation_status.read_text(encoding="utf-8"))
+    status["partition"] = manifest
+    config.automation_status.write_text(json.dumps(status), encoding="utf-8")
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert result["status"] == "blocked"
+    assert "partition_complete_chain_count_invalid" in result["blockers"]
+    assert "partition_lineage_edge_summary_invalid" in result["blockers"]
+    assert "partition_lineage_chain_summary_invalid" in result["blockers"]
+    assert "partition_lineage_incomplete" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_fails_closed_when_partition_lacks_gold_file_bindings(
+    tmp_path: Path,
+) -> None:
+    config = _fixture(tmp_path)
+    manifest = json.loads(config.partition_manifest.read_text(encoding="utf-8"))
+    manifest.pop("gold_files")
+    config.partition_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+    status = json.loads(config.automation_status.read_text(encoding="utf-8"))
+    status["partition"] = manifest
+    config.automation_status.write_text(json.dumps(status), encoding="utf-8")
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "partition_gold_file_bindings_invalid" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_rejects_gold_file_drift_from_partition_binding(
+    tmp_path: Path,
+) -> None:
+    config = _fixture(tmp_path)
+    plan_path = config.gold_dir / "data_plan.jsonl"
+    plan_path.write_text(plan_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "gold_file_binding_mismatch:planner" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_requires_near_duplicate_and_task_card_cardinality_gates(
+    tmp_path: Path,
+) -> None:
+    config = _fixture(tmp_path)
+    manifest = json.loads(config.partition_manifest.read_text(encoding="utf-8"))
+    manifest["near_duplicate_gate"]["passed"] = False
+    manifest["task_card_coverage"]["unique_alignment_id_count"] = 0
+    config.partition_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+    status = json.loads(config.automation_status.read_text(encoding="utf-8"))
+    status["partition"] = manifest
+    config.automation_status.write_text(json.dumps(status), encoding="utf-8")
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "partition_near_duplicate_gate_not_passed" in result["blockers"]
+    assert "partition_task_card_coverage_invalid" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_rejects_task_bank_drift_from_partition_binding(
+    tmp_path: Path,
+) -> None:
+    config = _fixture(tmp_path)
+    task_bank = config.partition_manifest.parent / "task_bank.jsonl"
+    task_bank.write_text(task_bank.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "task_bank_file_binding_mismatch" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_detects_task_bank_change_during_validation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _fixture(tmp_path)
+    task_bank = config.partition_manifest.parent / "task_bank.jsonl"
+    original = snapshot_module._validate_task_bank_jsonl
+    changed = False
+
+    def mutate_after_validation(path: Path) -> int:
+        nonlocal changed
+        result = original(path)
+        if path == task_bank and not changed:
+            path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            changed = True
+        return result
+
+    monkeypatch.setattr(
+        snapshot_module, "_validate_task_bank_jsonl", mutate_after_validation
+    )
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "task_bank_file_changed_during_read" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_detects_gold_change_during_validation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _fixture(tmp_path)
+    original = snapshot_module.validate_jsonl
+    changed = False
+
+    def mutate_after_validation(path: Path, *args, **kwargs):
+        nonlocal changed
+        result = original(path, *args, **kwargs)
+        if (
+            path.name == "data_plan.jsonl"
+            and path.parent == config.gold_dir
+            and not changed
+        ):
+            path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            changed = True
+        return result
+
+    monkeypatch.setattr(snapshot_module, "validate_jsonl", mutate_after_validation)
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "gold_file_changed_during_read:planner" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_recomputes_lineage_from_strict_gold_files(tmp_path: Path) -> None:
+    config = _fixture(tmp_path)
+    security_path = config.gold_dir / "data_security.jsonl"
+    security = json.loads(security_path.read_text(encoding="utf-8"))
+    security["provenance"]["source_review_record_id"] = "missing-review-id"
+    _write_jsonl(security_path, [security])
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "partition_lineage_recompute_mismatch" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
+def test_snapshot_rejects_assistant_output_target_mismatch(tmp_path: Path) -> None:
+    config = _fixture(tmp_path)
+    frontend_path = config.gold_dir / "data_frontend.jsonl"
+    frontend = json.loads(frontend_path.read_text(encoding="utf-8"))
+    frontend["messages"][-1]["content"] = "export const Tampered = () => null;"
+    _write_jsonl(frontend_path, [frontend])
+
+    result = prepare_snapshot(config)
+
+    assert result["training_ready"] is False
+    assert "gold_schema_invalid:frontend_gen" in result["blockers"]
+    assert not config.snapshot_dir.exists()
+
+
 def test_ready_snapshot_is_atomic_hashed_and_idempotent(tmp_path: Path) -> None:
     config = _fixture(tmp_path)
     result = prepare_snapshot(config)
@@ -171,6 +463,21 @@ def test_ready_snapshot_is_atomic_hashed_and_idempotent(tmp_path: Path) -> None:
     sidecar = config.snapshot_dir / "manifest.json.sha256"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema_version"] == "anchor.training-snapshot.v2"
+    assert manifest["source_gate"]["lineage_complete"] is True
+    assert manifest["source_gate"]["complete_chain_count"] == 1
+    assert manifest["source_gate"]["minimum_complete_chain_count"] == 1
+    assert manifest["source_gate"]["lineage_edge_error_count"] == 0
+    assert manifest["source_gate"]["lineage_chain_error_count"] == 0
+    assert manifest["source_gate"]["near_duplicate_gate"]["passed"] is True
+    assert manifest["source_gate"]["task_card_coverage"]["cardinality_equal"] is True
+    assert manifest["source_gate"]["task_bank_file"]["records"] == 1
+    assert set(manifest["source_gate"]["gold_files"]) == {
+        "plan",
+        "tool_policy",
+        "frontend",
+        "review",
+        "security",
+    }
     assert tuple(manifest["files"]) == EXPERTS
     assert manifest["source_partition_manifest_sha256"] == sha256_file(
         config.partition_manifest
@@ -184,6 +491,14 @@ def test_ready_snapshot_is_atomic_hashed_and_idempotent(tmp_path: Path) -> None:
         expected_parts.append(
             f"{expert}:{item['path']}:{item['sha256']}:{item['records']}"
         )
+    task_bank = manifest["task_bank_file"]
+    assert task_bank["path"] == "task_bank.jsonl"
+    assert task_bank["records"] == 1
+    assert task_bank["source_sha256"] == task_bank["sha256"]
+    assert sha256_file(config.snapshot_dir / task_bank["path"]) == task_bank["sha256"]
+    expected_parts.append(
+        f"task_bank:{task_bank['path']}:{task_bank['sha256']}:{task_bank['records']}"
+    )
     assert (
         manifest["snapshot_sha256"]
         == hashlib.sha256("\n".join(expected_parts).encode()).hexdigest()
@@ -289,14 +604,18 @@ def test_checked_in_full_v3_configs_bind_new_state_and_immutable_paths() -> None
     snapshot = SnapshotConfig.load(
         ROOT / "configs" / "orchestration" / "full_v3_snapshot.yaml"
     )
-    assert snapshot.expected_minimum_gold_records_per_expert == 128
+    assert snapshot.expected_minimum_gold_records_per_expert == 256
     assert snapshot.snapshot_dir == ROOT / "artifacts" / "formal_v3" / "dataset"
 
     handoff = HandoffConfig(
         ROOT / "configs" / "orchestration" / "distill_train_handoff_v3.yaml"
     )
     assert handoff.state_dir == ROOT / "runs" / "distill-train-handoff-v3"
-    assert handoff.snapshot["minimum_records_per_expert"] == 128
+    assert handoff.snapshot["minimum_records_per_expert"] == 256
+    assert handoff.distillation["automation_config"] == (
+        "configs/data/automation.full_v3.ark_glm52.max384.c8.yaml"
+    )
+    assert handoff.distillation["credential_env"] == "ARK_CODING_API_KEY"
     assert set(handoff.snapshot["datasets"].values()) == {
         "artifacts/formal_v3/dataset/data_plan.jsonl",
         "artifacts/formal_v3/dataset/data_tool_policy.jsonl",

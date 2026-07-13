@@ -78,6 +78,26 @@ def test_checked_in_batch_preflight_defaults_to_one_sandboxed_stage_and_no_heldo
     assert {path for path, _ in samples[0].input_files} == {"src/status-list.js"}
 
 
+def test_ark_batch_profile_has_independent_outputs_and_responses_provider():
+    kimi = LiveBatchConfig.load(
+        ROOT, ROOT / "configs/tooling/opencode_distillation_ramp.yaml"
+    )
+    ark = LiveBatchConfig.load(
+        ROOT, ROOT / "configs/tooling/opencode_distillation_ramp.ark_glm52.yaml"
+    )
+
+    assert ark.provider.provider_id == "anchor-ark-glm52"
+    assert ark.provider.npm == "@ai-sdk/openai"
+    assert ark.provider.model == "glm-5-2-260617"
+    assert ark.provider.variant == "max"
+    assert ark.provider.key_env == "ARK_CODING_API_KEY"
+    assert ark.provider.route_host == "ark.cn-beijing.volces.com"
+    assert ark.attempts_output != kimi.attempts_output
+    assert ark.session_staging != kimi.session_staging
+    assert ark.session_candidates != kimi.session_candidates
+    assert ark.session_quarantine != kimi.session_quarantine
+
+
 def test_stage_one_fixture_rejects_bug_and_accepts_the_required_repair(tmp_path):
     source = ROOT / "fixtures/execution/sidex-fixture-v0-status-list"
     fixture = tmp_path / "fixture"
@@ -136,9 +156,7 @@ def test_split_policy_rejects_changed_heldout_input(tmp_path):
             {
                 "schema_version": "anchor.execution-split-policy.v1",
                 "candidate_inputs": ["candidate.yaml"],
-                "heldout_inputs": [
-                    {"path": "heldout.jsonl", "sha256": "0" * 64}
-                ],
+                "heldout_inputs": [{"path": "heldout.jsonl", "sha256": "0" * 64}],
             }
         ),
         encoding="utf-8",
@@ -191,7 +209,12 @@ def test_failure_in_one_sample_is_isolated_from_siblings(tmp_path):
 
     assert len(stages) == 2
     assert sum(len(stage.records) for stage in stages) == 3
-    failed = next(record for stage in stages for record in stage.records if record.sample_id == "s-1")
+    failed = next(
+        record
+        for stage in stages
+        for record in stage.records
+        if record.sample_id == "s-1"
+    )
     assert failed.success is False
     assert failed.error_codes == ("isolated_sample_exception", "public_outcome_missing")
     assert sum(record.success for stage in stages for record in stage.records) == 2
@@ -303,7 +326,9 @@ def test_collection_stage_does_not_apply_strict_quality_success_rate(tmp_path):
     )
     from anchor_mvp.tooling import SampleSpec
 
-    samples = tuple(SampleSpec(f"collect-{index}", "task", source) for index in range(2))
+    samples = tuple(
+        SampleSpec(f"collect-{index}", "task", source) for index in range(2)
+    )
     capture = ControlledSessionCapture(
         candidates_path=(tmp_path / "candidates.jsonl").resolve(),
         quarantine_path=(tmp_path / "quarantine.jsonl").resolve(),

@@ -12,9 +12,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from anchor_mvp.tooling import (  # noqa: E402
     AnchorSandboxOptions,
+    DEFAULT_PROVIDER,
     LiveBatchConfig,
     ControlledSessionCapture,
     OpenCodeExecutor,
+    OpenCodeProvider,
     KimiRoutePlan,
     RouteMode,
     RoutePreflightError,
@@ -34,7 +36,9 @@ from anchor_mvp.tooling import (  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run audited isolated OpenCode gold samples")
+    parser = argparse.ArgumentParser(
+        description="Run audited isolated OpenCode gold samples"
+    )
     parser.add_argument(
         "--batch-config",
         type=Path,
@@ -87,6 +91,13 @@ def parse_args() -> argparse.Namespace:
         / "opencode-anchor.exe",
         help="Explicit patched OpenCode binary; the global PATH binary is never used",
     )
+    parser.add_argument("--provider-id", default=DEFAULT_PROVIDER.provider_id)
+    parser.add_argument("--provider-npm", default=DEFAULT_PROVIDER.npm)
+    parser.add_argument("--provider-base-url", default=DEFAULT_PROVIDER.base_url)
+    parser.add_argument("--provider-model", default=DEFAULT_PROVIDER.model)
+    parser.add_argument("--provider-variant", default=DEFAULT_PROVIDER.variant)
+    parser.add_argument("--provider-key-env", default=DEFAULT_PROVIDER.key_env)
+    parser.add_argument("--provider-route-host", default=DEFAULT_PROVIDER.route_host)
     parser.add_argument(
         "--sandbox-linux-executable",
         type=Path,
@@ -118,8 +129,8 @@ def parse_args() -> argparse.Namespace:
         choices=("prompt", "current", "direct", "abort"),
         default="prompt",
         help=(
-            "Kimi IPv4 route policy: prompt interactively, keep current routes, "
-            "temporarily add only Kimi /32 direct routes, or abort"
+            "Provider IPv4 route policy: prompt interactively, keep current routes, "
+            "temporarily add only provider-host /32 direct routes, or abort"
         ),
     )
     parser.add_argument(
@@ -145,10 +156,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT
-        / "artifacts"
-        / "tooling"
-        / "live_gold.accepted.jsonl",
+        default=PROJECT_ROOT / "artifacts" / "tooling" / "live_gold.accepted.jsonl",
     )
     parser.add_argument(
         "--attempts-output",
@@ -188,7 +196,9 @@ def patched_preflight(
     runs = PROJECT_ROOT / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="opencode-preflight-", dir=runs) as raw:
-        config_path = write_opencode_config(Path(raw) / "opencode.json", policy)
+        config_path = write_opencode_config(
+            Path(raw) / "opencode.json", policy, provider=executor.provider
+        )
         return executor.probe_patched(config_path)
 
 
@@ -199,6 +209,7 @@ def route_preflight(
         plan = prepare_kimi_route_plan(
             distro=executor.sandbox_options.wsl_distro,
             requested_mode=route_mode,
+            host=executor.provider.route_host,
             stdin=sys.stdin,
             stdout=sys.stdout,
         )
@@ -206,17 +217,35 @@ def route_preflight(
         if error.code == "route_mode_abort":
             print("Live run aborted before any API request.", file=sys.stderr)
             return None
-        print(f"Live run refused: Kimi route preflight failed: {error.code}", file=sys.stderr)
+        print(
+            f"Live run refused: provider route preflight failed: {error.code}",
+            file=sys.stderr,
+        )
         return None
     print(f"route_mode={plan.mode}")
     return plan
+
+
+def single_provider(args: argparse.Namespace) -> OpenCodeProvider:
+    return OpenCodeProvider(
+        provider_id=args.provider_id,
+        npm=args.provider_npm,
+        base_url=args.provider_base_url,
+        model=args.provider_model,
+        variant=args.provider_variant,
+        key_env=args.provider_key_env,
+        route_host=args.provider_route_host,
+    )
 
 
 def main() -> int:
     args = parse_args()
     if args.batch_config:
         if any((args.sample_id, args.source, args.prompt_file, args.skill)):
-            print("--batch-config cannot be combined with single-sample inputs", file=sys.stderr)
+            print(
+                "--batch-config cannot be combined with single-sample inputs",
+                file=sys.stderr,
+            )
             return 2
         config = LiveBatchConfig.load(PROJECT_ROOT, args.batch_config)
         if args.max_stages > len(config.concurrency_stages):
@@ -235,6 +264,7 @@ def main() -> int:
             executable=str(config.opencode_executable),
             session_capture=config.controlled_capture(mode=args.capture_mode),
             sandbox_options=config.anchor_sandbox_options(),
+            provider=config.provider,
         )
         policy = ToolPolicy(
             max_iterations=config.max_iterations,
@@ -263,7 +293,7 @@ def main() -> int:
             )
             print(f"opencode_available={executor.available()}")
             print("patched_capability=not-run-in-dry-run")
-            print(f"api_key_present={bool(os.environ.get('KIMI_CODE_API_KEY'))}")
+            print(f"api_key_present={executor.api_key_present()}")
             return 0
         route_plan = route_preflight(executor, args.route_mode)
         if route_plan is None:
@@ -275,10 +305,14 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        if not executor.available() or not os.environ.get("KIMI_CODE_API_KEY"):
-            print("OpenCode and process-local KIMI_CODE_API_KEY are required.", file=sys.stderr)
+        if not executor.available() or not executor.api_key_present():
+            print(
+                f"OpenCode and process-local {config.provider.key_env} are required.",
+                file=sys.stderr,
+            )
             return 2
         try:
+
             def persist_stage(records):
                 if args.capture_mode == "collect":
                     merge_attempts_jsonl(records, config.attempts_output)
@@ -300,7 +334,7 @@ def main() -> int:
                 )
         except RoutePreflightError as error:
             print(
-                f"Live run refused: temporary Kimi route failed: {error.code}",
+                f"Live run refused: temporary provider route failed: {error.code}",
                 file=sys.stderr,
             )
             return 2
@@ -316,14 +350,27 @@ def main() -> int:
         )
         return 0 if batch_run_succeeded(stages, args.max_stages) else 1
 
+    try:
+        provider = single_provider(args)
+    except ValueError as error:
+        print(f"Invalid provider configuration: {error}", file=sys.stderr)
+        return 2
     executor = OpenCodeExecutor(
         executable=str(args.opencode_executable),
         session_capture=ControlledSessionCapture(
             args.session_candidates.resolve(),
             args.session_quarantine.resolve(),
-            (PROJECT_ROOT / "configs" / "benchmark" / "heldout_cases_v1.jsonl").resolve(),
+            (
+                PROJECT_ROOT / "configs" / "benchmark" / "heldout_cases_v1.jsonl"
+            ).resolve(),
             (PROJECT_ROOT / "examples" / "benchmark" / "fixtures").resolve(),
-            (PROJECT_ROOT / "artifacts" / "benchmark" / "heldout_v1" / "manifest.json").resolve(),
+            (
+                PROJECT_ROOT
+                / "artifacts"
+                / "benchmark"
+                / "heldout_v1"
+                / "manifest.json"
+            ).resolve(),
             staging_path=args.session_staging.resolve(),
             mode=args.capture_mode,
         ),
@@ -336,6 +383,7 @@ def main() -> int:
             pids=args.sandbox_pids,
             timeout_seconds=args.sandbox_timeout_seconds,
         ),
+        provider=provider,
     )
     policy = ToolPolicy(
         max_iterations=args.max_iterations,
@@ -352,7 +400,7 @@ def main() -> int:
         print("Add --confirm-live only after reviewing source, prompt, and policy.")
         print(f"opencode_available={executor.available()}")
         print("patched_capability=not-run-in-dry-run")
-        print(f"api_key_present={bool(os.environ.get('KIMI_CODE_API_KEY'))}")
+        print(f"api_key_present={executor.api_key_present()}")
         return 0
     route_plan = route_preflight(executor, args.route_mode)
     if route_plan is None:
@@ -367,15 +415,17 @@ def main() -> int:
     if not executor.available():
         print("OpenCode is not installed or not on PATH.", file=sys.stderr)
         return 2
-    if not os.environ.get("KIMI_CODE_API_KEY"):
-        print("KIMI_CODE_API_KEY is not set in this process.", file=sys.stderr)
+    if not executor.api_key_present():
+        print(f"{provider.key_env} is not set in this process.", file=sys.stderr)
         return 2
     if any(name not in {"build", "test", "lint"} for name in args.required):
         print("--required accepts only build, test, and lint", file=sys.stderr)
         return 2
     task = args.prompt_file.read_text(encoding="utf-8")
     registry = SkillSourceRegistry(PROJECT_ROOT, args.skill_registry)
-    prompt, skill_provenance = registry.compose_execution_prompt(task, tuple(args.skill))
+    prompt, skill_provenance = registry.compose_execution_prompt(
+        task, tuple(args.skill)
+    )
     try:
         with route_plan.activate():
             record = ToolingHarness(
@@ -394,7 +444,7 @@ def main() -> int:
             )
     except RoutePreflightError as error:
         print(
-            f"Live run refused: temporary Kimi route failed: {error.code}",
+            f"Live run refused: temporary provider route failed: {error.code}",
             file=sys.stderr,
         )
         return 2
@@ -409,7 +459,9 @@ def main() -> int:
     if args.capture_mode == "collect":
         return (
             1
-            if any(code.startswith("session_hard_reject_") for code in record.error_codes)
+            if any(
+                code.startswith("session_hard_reject_") for code in record.error_codes
+            )
             else 0
         )
     return 0 if record.success else 1

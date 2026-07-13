@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import yaml
 
+from .automation import _evaluate_gold_lineage
 from .cleaning import contains_secret_material
 from ..training.manifest import sha256_file
 from ..training.schema import DatasetValidationError, iter_jsonl, validate_jsonl
@@ -29,6 +30,7 @@ PARTITION_SCHEMA = "anchor.automation-partition-manifest.v2"
 LEGACY_PARTITION_SCHEMA = "anchor.automation-partition-manifest.v1"
 READINESS_SCHEMA = "anchor.training-snapshot-readiness.v1"
 SNAPSHOT_SCHEMA = "anchor.training-snapshot.v2"
+TASK_BANK_FILENAME = "task_bank.jsonl"
 
 EXPERT_SOURCES = {
     "planner": ("plan", "data_plan.jsonl"),
@@ -182,6 +184,87 @@ def _safe_nonnegative(value: object) -> int | None:
     return value
 
 
+def _count_mapping_total(value: object) -> int | None:
+    if not isinstance(value, Mapping):
+        return None
+    total = 0
+    for key, item in value.items():
+        count = _safe_nonnegative(item)
+        if not isinstance(key, str) or not key or count is None:
+            return None
+        total += count
+    return total
+
+
+def _source_gate_lineage_valid(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    complete = _safe_nonnegative(value.get("complete_chain_count"))
+    minimum = _safe_nonnegative(value.get("minimum_complete_chain_count"))
+    return bool(
+        value.get("lineage_complete") is True
+        and value.get("complete_chain_count_sufficient") is True
+        and complete is not None
+        and minimum is not None
+        and minimum >= 1
+        and complete >= minimum
+        and _safe_nonnegative(value.get("lineage_edge_error_count")) == 0
+        and _safe_nonnegative(value.get("lineage_chain_error_count")) == 0
+    )
+
+
+def _task_card_coverage_valid(
+    value: object, *, complete_chain_count: int | None
+) -> bool:
+    if not isinstance(value, Mapping) or complete_chain_count is None:
+        return False
+    coverage_chain_count = _safe_nonnegative(value.get("complete_chain_count"))
+    card_count = _safe_nonnegative(value.get("card_count"))
+    unique_alignment_id_count = _safe_nonnegative(
+        value.get("unique_alignment_id_count")
+    )
+    return bool(
+        value.get("passed") is True
+        and value.get("cardinality_equal") is True
+        and coverage_chain_count == complete_chain_count
+        and card_count == complete_chain_count
+        and unique_alignment_id_count == complete_chain_count
+    )
+
+
+def _task_bank_binding_valid(
+    value: object, *, complete_chain_count: int | None
+) -> bool:
+    return bool(
+        isinstance(value, Mapping)
+        and set(value) == {"path", "records", "bytes", "sha256"}
+        and value.get("path") == TASK_BANK_FILENAME
+        and Path(str(value.get("path"))).name == value.get("path")
+        and _safe_nonnegative(value.get("records")) == complete_chain_count
+        and _safe_nonnegative(value.get("bytes")) is not None
+        and _is_sha256(value.get("sha256"))
+    )
+
+
+def _source_gate_task_card_valid(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    complete_chain_count = _safe_nonnegative(value.get("complete_chain_count"))
+    near_duplicate_gate = value.get("near_duplicate_gate")
+    return bool(
+        isinstance(near_duplicate_gate, Mapping)
+        and near_duplicate_gate.get("passed") is True
+        and _task_card_coverage_valid(
+            value.get("task_card_coverage"),
+            complete_chain_count=complete_chain_count,
+        )
+        and _task_bank_binding_valid(
+            value.get("task_bank_file"),
+            complete_chain_count=complete_chain_count,
+        )
+    )
+
+
 def _is_sha256(value: object) -> bool:
     return (
         isinstance(value, str)
@@ -190,11 +273,42 @@ def _is_sha256(value: object) -> bool:
     )
 
 
-def _snapshot_digest(files: Mapping[str, Mapping[str, Any]]) -> str:
+def _file_binding(path: Path, filename: str) -> dict[str, Any]:
+    return {
+        "path": filename,
+        "records": _count_nonempty(path),
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+    }
+
+
+def _validate_task_bank_jsonl(path: Path) -> int:
+    records = 0
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            value = json.loads(line)
+            if not isinstance(value, Mapping):
+                raise ValueError("task bank rows must be JSON objects")
+            records += 1
+    return records
+
+
+def _snapshot_digest(
+    files: Mapping[str, Mapping[str, Any]],
+    task_bank_file: Mapping[str, Any],
+) -> str:
     parts = [
         f"{expert}:{files[expert]['path']}:{files[expert]['sha256']}:{files[expert]['records']}"
         for expert in EXPERTS
     ]
+    parts.append(
+        "task_bank:"
+        f"{task_bank_file['path']}:"
+        f"{task_bank_file['sha256']}:"
+        f"{task_bank_file['records']}"
+    )
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
@@ -274,6 +388,125 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
     ):
         block("partition_minimum_gold_exceeds_raw_target")
 
+    known_minimums = [value for value in minimums.values() if value is not None]
+    expected_complete_chain_minimum = (
+        max(known_minimums) if len(known_minimums) == len(EXPERTS) else None
+    )
+    complete_chain_count = _safe_nonnegative(partition.get("complete_chain_count"))
+    declared_complete_chain_minimum = _safe_nonnegative(
+        partition.get("minimum_complete_chain_count")
+    )
+    if complete_chain_count is None:
+        block("partition_complete_chain_count_invalid")
+    if (
+        expected_complete_chain_minimum is None
+        or declared_complete_chain_minimum != expected_complete_chain_minimum
+    ):
+        block("partition_complete_chain_minimum_mismatch")
+    complete_chain_count_sufficient = bool(
+        complete_chain_count is not None
+        and expected_complete_chain_minimum is not None
+        and complete_chain_count >= expected_complete_chain_minimum
+    )
+    if (
+        partition.get("complete_chain_count_sufficient")
+        is not complete_chain_count_sufficient
+    ):
+        block("partition_complete_chain_sufficiency_mismatch")
+    if not complete_chain_count_sufficient:
+        block("partition_complete_chain_count_below_target")
+
+    near_duplicate_gate = partition.get("near_duplicate_gate")
+    if (
+        not isinstance(near_duplicate_gate, Mapping)
+        or near_duplicate_gate.get("passed") is not True
+    ):
+        block("partition_near_duplicate_gate_not_passed")
+    task_card_coverage = partition.get("task_card_coverage")
+    if not _task_card_coverage_valid(
+        task_card_coverage,
+        complete_chain_count=complete_chain_count,
+    ):
+        block("partition_task_card_coverage_invalid")
+    declared_task_bank_file = partition.get("task_bank_file")
+    if not _task_bank_binding_valid(
+        declared_task_bank_file,
+        complete_chain_count=complete_chain_count,
+    ):
+        block("partition_task_bank_binding_invalid")
+
+    task_bank_source = config.partition_manifest.parent / TASK_BANK_FILENAME
+    task_bank_before: dict[str, Any] | None = None
+    task_bank_after: dict[str, Any] | None = None
+    task_bank_schema_valid = False
+    if not task_bank_source.is_file() or task_bank_source.is_symlink():
+        block("task_bank_file_missing_or_invalid")
+    else:
+        try:
+            task_bank_before = _file_binding(task_bank_source, TASK_BANK_FILENAME)
+        except OSError:
+            block("task_bank_file_missing_or_invalid")
+        if task_bank_before != declared_task_bank_file:
+            block("task_bank_file_binding_mismatch")
+        try:
+            parsed_task_bank_records = _validate_task_bank_jsonl(task_bank_source)
+            task_bank_schema_valid = True
+            if (
+                task_bank_before is None
+                or parsed_task_bank_records != task_bank_before["records"]
+            ):
+                block("task_bank_file_count_mismatch")
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            block("task_bank_file_invalid")
+        try:
+            task_bank_after = _file_binding(task_bank_source, TASK_BANK_FILENAME)
+        except OSError:
+            block("task_bank_file_changed_during_read")
+        if task_bank_after != task_bank_before:
+            block("task_bank_file_changed_during_read")
+        if (
+            task_bank_after is None
+            or task_bank_after["records"] != complete_chain_count
+        ):
+            block("task_bank_file_count_mismatch")
+
+    edge_errors = partition.get("lineage_edge_errors")
+    edge_error_count = _safe_nonnegative(partition.get("lineage_edge_error_count"))
+    edge_error_mapping_total = _count_mapping_total(
+        partition.get("lineage_edge_errors_by_edge")
+    )
+    if (
+        not isinstance(edge_errors, list)
+        or edge_error_count is None
+        or edge_error_count != len(edge_errors)
+        or edge_error_mapping_total != edge_error_count
+    ):
+        block("partition_lineage_edge_summary_invalid")
+
+    chain_errors = partition.get("lineage_chain_errors")
+    chain_error_count = _safe_nonnegative(partition.get("lineage_chain_error_count"))
+    chain_error_mapping_total = _count_mapping_total(
+        partition.get("lineage_chain_errors_by_code")
+    )
+    if (
+        not isinstance(chain_errors, list)
+        or chain_error_count is None
+        or chain_error_count != len(chain_errors)
+        or chain_error_mapping_total != chain_error_count
+    ):
+        block("partition_lineage_chain_summary_invalid")
+
+    computed_lineage_complete = bool(
+        edge_error_count == 0
+        and edge_error_mapping_total == 0
+        and chain_error_count == 0
+        and chain_error_mapping_total == 0
+    )
+    if partition.get("lineage_complete") is not computed_lineage_complete:
+        block("partition_lineage_completion_mismatch")
+    if not computed_lineage_complete:
+        block("partition_lineage_incomplete")
+
     gold_by_task_raw = partition.get("gold_by_task")
     gold_by_task = gold_by_task_raw if isinstance(gold_by_task_raw, Mapping) else {}
     normalized_gold: dict[str, int | None] = {}
@@ -288,6 +521,28 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
     known_gold = [item for item in normalized_gold.values() if item is not None]
     if len(known_gold) != len(EXPERTS) or declared_gold != sum(known_gold):
         block("partition_gold_total_mismatch")
+
+    raw_gold_files = partition.get("gold_files")
+    declared_gold_files: dict[str, Mapping[str, Any]] = {}
+    if not isinstance(raw_gold_files, Mapping) or set(raw_gold_files) != {
+        task for task, _filename in EXPERT_SOURCES.values()
+    }:
+        block("partition_gold_file_bindings_invalid")
+    else:
+        for _expert, (task, filename) in EXPERT_SOURCES.items():
+            item = raw_gold_files.get(task)
+            valid = bool(
+                isinstance(item, Mapping)
+                and set(item) == {"path", "records", "bytes", "sha256"}
+                and item.get("path") == filename
+                and _safe_nonnegative(item.get("records")) == normalized_gold.get(task)
+                and _safe_nonnegative(item.get("bytes")) is not None
+                and _is_sha256(item.get("sha256"))
+            )
+            if not valid:
+                block(f"partition_gold_binding_invalid:{task}")
+                continue
+            declared_gold_files[task] = item
     if (
         None in {staged_count, declared_gold, negative_count, reject_count}
         or staged_count != declared_gold + negative_count + reject_count
@@ -421,17 +676,20 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
         block("heldout_gate_not_passed")
 
     files: dict[str, dict[str, Any]] = {}
+    gold_records_by_task: dict[str, list[dict[str, Any]]] = {
+        task: [] for task, _filename in EXPERT_SOURCES.values()
+    }
     all_ids: set[str] = set()
     duplicate_ids = 0
     for expert, (task, filename) in EXPERT_SOURCES.items():
         source = config.gold_dir / filename
-        records = _count_nonempty(source)
+        before_binding = _file_binding(source, filename) if source.is_file() else None
         metadata: dict[str, Any] = {
             "path": filename,
             "exists": source.is_file(),
-            "records": records,
-            "bytes": source.stat().st_size if source.is_file() else 0,
-            "sha256": sha256_file(source) if source.is_file() else None,
+            "records": before_binding["records"] if before_binding else 0,
+            "bytes": before_binding["bytes"] if before_binding else 0,
+            "sha256": before_binding["sha256"] if before_binding else None,
             "schema_valid": False,
             "secret_scan_passed": False,
         }
@@ -439,6 +697,8 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
         if not source.is_file():
             block(f"gold_file_missing:{expert}")
             continue
+        if before_binding != declared_gold_files.get(task):
+            block(f"gold_file_binding_mismatch:{expert}")
         try:
             validation = validate_jsonl(source, allowed_experts=[expert])
             metadata["schema_valid"] = validation.get("ok") is True
@@ -446,6 +706,8 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             for _line_number, record in iter_jsonl(source):
                 if contains_secret_material(record):
                     has_secret = True
+                if isinstance(record, Mapping):
+                    gold_records_by_task[task].append(dict(record))
                 identifier = str(record.get("id", ""))
                 if identifier in all_ids:
                     duplicate_ids += 1
@@ -455,11 +717,47 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
                 block(f"gold_secret_detected:{expert}")
         except (OSError, DatasetValidationError, ValueError):
             block(f"gold_schema_invalid:{expert}")
+        try:
+            post_binding = _file_binding(source, filename)
+        except OSError:
+            post_binding = before_binding
+            block(f"gold_file_changed_during_read:{expert}")
+        if post_binding != before_binding:
+            block(f"gold_file_changed_during_read:{expert}")
+        if post_binding is not None:
+            metadata.update(post_binding)
         declared = normalized_gold.get(task)
-        if declared is None or records != declared:
+        if (
+            declared is None
+            or post_binding is None
+            or post_binding["records"] != declared
+        ):
             block(f"gold_file_count_mismatch:{expert}")
     if duplicate_ids:
         block("gold_cross_expert_duplicate_ids")
+
+    if len(known_minimums) == len(EXPERTS):
+        recomputed_lineage = _evaluate_gold_lineage(
+            gold_records_by_task,
+            {task: int(value) for task, value in minimums.items() if value is not None},
+        )
+        lineage_summary_fields = (
+            "lineage_complete",
+            "complete_chain_count",
+            "minimum_complete_chain_count",
+            "complete_chain_count_sufficient",
+            "lineage_edge_error_count",
+            "lineage_edge_errors_by_edge",
+            "lineage_chain_error_count",
+            "lineage_chain_errors_by_code",
+        )
+        if any(
+            partition.get(field) != recomputed_lineage[field]
+            for field in lineage_summary_fields
+        ):
+            block("partition_lineage_recompute_mismatch")
+    else:
+        block("partition_lineage_recompute_unavailable")
 
     capacity: dict[str, dict[str, int | None]] = {}
     actual_raw_by_task: dict[str, int] = {}
@@ -528,6 +826,20 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             "partition_complete": partition.get("partition_complete") is True,
             "rejects_quarantined": partition.get("rejects_quarantined") is True,
             "gold_integrity_ok": partition.get("gold_integrity_ok") is True,
+            "lineage_complete": computed_lineage_complete,
+            "complete_chain_count": complete_chain_count,
+            "minimum_complete_chain_count": declared_complete_chain_minimum,
+            "complete_chain_count_sufficient": complete_chain_count_sufficient,
+            "lineage_edge_error_count": edge_error_count,
+            "lineage_chain_error_count": chain_error_count,
+            "near_duplicate_gate_passed": bool(
+                isinstance(near_duplicate_gate, Mapping)
+                and near_duplicate_gate.get("passed") is True
+            ),
+            "task_card_coverage_passed": _task_card_coverage_valid(
+                task_card_coverage,
+                complete_chain_count=complete_chain_count,
+            ),
             "label_quota_error_count": len(quota_errors)
             if isinstance(quota_errors, list)
             else None,
@@ -540,6 +852,14 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             "coverage_unreachable_without_overcollection_or_lower_gold_target": unreachable,
         },
         "files": files,
+        "task_bank_file": {
+            "path": TASK_BANK_FILENAME,
+            "exists": task_bank_source.is_file() and not task_bank_source.is_symlink(),
+            "records": task_bank_after.get("records", 0) if task_bank_after else 0,
+            "bytes": task_bank_after.get("bytes", 0) if task_bank_after else 0,
+            "sha256": task_bank_after.get("sha256") if task_bank_after else None,
+            "schema_valid": task_bank_schema_valid,
+        },
         "cross_expert_duplicate_id_count": duplicate_ids,
         "blockers": blockers,
         "snapshot": None,
@@ -558,6 +878,13 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
                 "sha256": files[expert]["sha256"],
             }
             for expert, (_task, filename) in EXPERT_SOURCES.items()
+        },
+        "task_bank_file": {
+            "source": task_bank_source,
+            "path": TASK_BANK_FILENAME,
+            "records": task_bank_after.get("records") if task_bank_after else None,
+            "bytes": task_bank_after.get("bytes") if task_bank_after else None,
+            "sha256": task_bank_after.get("sha256") if task_bank_after else None,
         },
         "heldout_gate": heldout_public,
     }
@@ -578,8 +905,59 @@ def _verify_frozen_snapshot(
     manifest = _read_mapping(manifest_path)
     if manifest is None or manifest.get("schema_version") != SNAPSHOT_SCHEMA:
         raise SnapshotPreparationError("snapshot_manifest_invalid")
+    if not _source_gate_lineage_valid(manifest.get("source_gate")):
+        raise SnapshotPreparationError("snapshot_source_lineage_invalid")
+    source_gate = manifest.get("source_gate")
+    assert isinstance(source_gate, Mapping)
+    if not _source_gate_task_card_valid(source_gate):
+        raise SnapshotPreparationError("snapshot_source_task_card_gate_invalid")
+    source_gold_files = source_gate.get("gold_files")
+    if not isinstance(source_gold_files, Mapping) or set(source_gold_files) != {
+        task for task, _filename in EXPERT_SOURCES.values()
+    }:
+        raise SnapshotPreparationError("snapshot_source_gold_binding_invalid")
     if manifest.get("source_partition_manifest_sha256") != expected_partition_sha256:
         raise SnapshotPreparationError("snapshot_source_partition_conflict")
+    source_task_bank_file = source_gate.get("task_bank_file")
+    task_bank_item = manifest.get("task_bank_file")
+    if (
+        not isinstance(task_bank_item, Mapping)
+        or set(task_bank_item)
+        != {"path", "records", "bytes", "sha256", "source_sha256"}
+        or task_bank_item.get("path") != TASK_BANK_FILENAME
+        or task_bank_item.get("source_sha256") != task_bank_item.get("sha256")
+    ):
+        raise SnapshotPreparationError("snapshot_task_bank_binding_invalid")
+    task_bank_path = output_dir / TASK_BANK_FILENAME
+    if not task_bank_path.is_file() or task_bank_path.is_symlink():
+        raise SnapshotPreparationError("snapshot_task_bank_missing")
+    try:
+        task_bank_before = _file_binding(task_bank_path, TASK_BANK_FILENAME)
+        task_bank_records = _validate_task_bank_jsonl(task_bank_path)
+        task_bank_after = _file_binding(task_bank_path, TASK_BANK_FILENAME)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise SnapshotPreparationError("snapshot_task_bank_invalid") from error
+    if task_bank_before != task_bank_after:
+        raise SnapshotPreparationError("snapshot_task_bank_changed_during_read")
+    expected_task_bank_copy = {
+        "path": task_bank_item.get("path"),
+        "records": task_bank_item.get("records"),
+        "bytes": task_bank_item.get("bytes"),
+        "sha256": task_bank_item.get("sha256"),
+    }
+    if (
+        task_bank_after != expected_task_bank_copy
+        or task_bank_records != task_bank_item.get("records")
+        or not isinstance(source_task_bank_file, Mapping)
+        or dict(source_task_bank_file)
+        != {
+            "path": TASK_BANK_FILENAME,
+            "records": task_bank_item.get("records"),
+            "bytes": task_bank_item.get("bytes"),
+            "sha256": task_bank_item.get("source_sha256"),
+        }
+    ):
+        raise SnapshotPreparationError("snapshot_task_bank_binding_invalid")
     raw_files = manifest.get("files")
     if not isinstance(raw_files, Mapping) or tuple(raw_files) != EXPERTS:
         raise SnapshotPreparationError("snapshot_file_binding_invalid")
@@ -601,8 +979,22 @@ def _verify_frozen_snapshot(
         if _count_nonempty(dataset) != item.get("records"):
             raise SnapshotPreparationError("snapshot_dataset_count_mismatch")
         validate_jsonl(dataset, allowed_experts=[expert])
+        task, filename = EXPERT_SOURCES[expert]
+        source_binding = source_gold_files.get(task)
+        if (
+            not isinstance(source_binding, Mapping)
+            or dict(source_binding)
+            != {
+                "path": filename,
+                "records": item.get("records"),
+                "bytes": item.get("bytes"),
+                "sha256": item.get("source_sha256"),
+            }
+            or item.get("source_sha256") != item.get("sha256")
+        ):
+            raise SnapshotPreparationError("snapshot_source_gold_binding_invalid")
         files[expert] = item
-    if _snapshot_digest(files) != manifest.get("snapshot_sha256"):
+    if _snapshot_digest(files, task_bank_item) != manifest.get("snapshot_sha256"):
         raise SnapshotPreparationError("snapshot_digest_mismatch")
     return dict(manifest), manifest_sha
 
@@ -653,6 +1045,46 @@ def _freeze(
                 "source_sha256": copied_sha,
             }
 
+        private_task_bank = private.get("task_bank_file")
+        if not isinstance(private_task_bank, Mapping):
+            raise SnapshotPreparationError("freeze_inputs_invalid")
+        task_bank_source = private_task_bank.get("source")
+        task_bank_filename = private_task_bank.get("path")
+        if (
+            not isinstance(task_bank_source, Path)
+            or task_bank_filename != TASK_BANK_FILENAME
+        ):
+            raise SnapshotPreparationError("freeze_inputs_invalid")
+        expected_task_bank_binding = {
+            "path": TASK_BANK_FILENAME,
+            "records": private_task_bank.get("records"),
+            "bytes": private_task_bank.get("bytes"),
+            "sha256": private_task_bank.get("sha256"),
+        }
+        complete_chain_count = _safe_nonnegative(
+            private["partition"].get("complete_chain_count")
+        )
+        if not _task_bank_binding_valid(
+            expected_task_bank_binding,
+            complete_chain_count=complete_chain_count,
+        ):
+            raise SnapshotPreparationError("freeze_inputs_invalid")
+        task_bank_destination = temporary / TASK_BANK_FILENAME
+        shutil.copyfile(task_bank_source, task_bank_destination)
+        copied_task_bank_binding = _file_binding(
+            task_bank_destination, TASK_BANK_FILENAME
+        )
+        if (
+            copied_task_bank_binding != expected_task_bank_binding
+            or _validate_task_bank_jsonl(task_bank_destination)
+            != expected_task_bank_binding["records"]
+        ):
+            raise SnapshotPreparationError("task_bank_changed_during_copy")
+        manifest_task_bank_file = {
+            **copied_task_bank_binding,
+            "source_sha256": copied_task_bank_binding["sha256"],
+        }
+
         if sha256_file(config.partition_manifest) != partition_sha:
             raise SnapshotPreparationError("partition_changed_during_copy")
         status_sha = private.get("automation_status_sha256")
@@ -666,6 +1098,11 @@ def _freeze(
                 "sha256"
             ):
                 raise SnapshotPreparationError("source_changed_during_copy")
+        if (
+            _file_binding(task_bank_source, TASK_BANK_FILENAME)
+            != expected_task_bank_binding
+        ):
+            raise SnapshotPreparationError("task_bank_changed_during_copy")
 
         manifest: dict[str, Any] = {
             "schema_version": SNAPSHOT_SCHEMA,
@@ -674,7 +1111,9 @@ def _freeze(
             "source_automation_status_sha256": status_sha,
             "selection": "all strict-gold partition records; no resampling",
             "total_records": sum(item["records"] for item in manifest_files.values()),
-            "snapshot_sha256": _snapshot_digest(manifest_files),
+            "snapshot_sha256": _snapshot_digest(
+                manifest_files, manifest_task_bank_file
+            ),
             "source_gate": {
                 "raw_collection_target": private["partition"].get(
                     "raw_collection_target"
@@ -684,12 +1123,33 @@ def _freeze(
                 ),
                 "collection_policy": private["partition"].get("collection_policy"),
                 "gold_count": private["partition"].get("gold_count"),
+                "gold_files": private["partition"].get("gold_files"),
                 "partition_complete": private["partition"].get("partition_complete"),
                 "rejects_quarantined": private["partition"].get("rejects_quarantined"),
                 "reject_count": private["partition"].get("reject_count"),
                 "gold_integrity_ok": private["partition"].get("gold_integrity_ok"),
+                "lineage_complete": private["partition"].get("lineage_complete"),
+                "complete_chain_count": private["partition"].get(
+                    "complete_chain_count"
+                ),
+                "minimum_complete_chain_count": private["partition"].get(
+                    "minimum_complete_chain_count"
+                ),
+                "complete_chain_count_sufficient": private["partition"].get(
+                    "complete_chain_count_sufficient"
+                ),
+                "lineage_edge_error_count": private["partition"].get(
+                    "lineage_edge_error_count"
+                ),
+                "lineage_chain_error_count": private["partition"].get(
+                    "lineage_chain_error_count"
+                ),
+                "near_duplicate_gate": private["partition"].get("near_duplicate_gate"),
+                "task_card_coverage": private["partition"].get("task_card_coverage"),
+                "task_bank_file": private["partition"].get("task_bank_file"),
                 "heldout_gate": private["heldout_gate"],
             },
+            "task_bank_file": manifest_task_bank_file,
             "files": manifest_files,
         }
         manifest_path = temporary / "manifest.json"

@@ -83,8 +83,12 @@ were atomically frozen (or an identical existing freeze was verified) under
 means the preparation configuration itself is invalid.
 
 After a freeze exists, `configs/orchestration/distill_train_handoff_v3.yaml` binds the
-coordinator to that immutable directory and a distinct state directory. It still requires
-the strict patched-OpenCode execution proof. A collect-first sample placed in the negative
-partition is not accepted execution gold, and snapshot readiness never substitutes for
-that gate. The referenced `formal_v3_lowmem_common.yaml` must independently exist and
-pass its training preflight before any GPU job can start.
+coordinator to that immutable directory, a distinct state directory, and the
+`automation.full_v3.ark_glm52.max384.c8.yaml` 384-raw/256-gold/c8 collection contract.
+Snapshot preparation, handoff, and formal-v3 training all require 256 complete-chain
+records per expert. A legacy 128-record snapshot is rejected even when its hashes are
+self-consistent. The coordinator still requires the strict patched-OpenCode execution
+proof. A collect-first sample placed in the negative partition is not accepted execution
+gold, and snapshot readiness never substitutes for that gate. The referenced
+`formal_v3_lowmem_common.yaml` must independently exist and pass its training preflight
+before any GPU job can start.

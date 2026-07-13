@@ -1,13 +1,90 @@
 from __future__ import annotations
 
+from difflib import unified_diff
 from pathlib import Path
 
-from .config import write_opencode_config
-from .models import GoldRecord, SampleSpec, ToolTraceEntry, sample_contract_sha256
+from .config import DEFAULT_PROVIDER, OpenCodeProvider, write_opencode_config
+from .models import (
+    FileChange,
+    GoldRecord,
+    SampleSpec,
+    ToolTraceEntry,
+    sample_contract_sha256,
+)
 from .policy import ToolPolicy
 from .runner import AgentExecutor
 from .validation import run_validations_with_output
 from .workspace import WorkspaceManager, diff_snapshots, snapshot_files
+
+
+def _capture_final_diff(
+    source: Path, workspace: Path, changes: tuple[FileChange, ...]
+) -> tuple[dict[str, object], ...]:
+    """Render the harness-observed file changes for controlled session capture."""
+
+    result: list[dict[str, object]] = []
+    for change in changes:
+        before_path = source / change.path
+        after_path = workspace / change.path
+        before_bytes = (
+            before_path.read_bytes() if change.before_sha256 is not None else b""
+        )
+        after_bytes = (
+            after_path.read_bytes() if change.after_sha256 is not None else b""
+        )
+        try:
+            before_text = before_bytes.decode("utf-8")
+            after_text = after_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            patch = f"Binary files a/{change.path} and b/{change.path} differ"
+            additions = deletions = 0
+        else:
+            fromfile = (
+                "/dev/null" if change.operation == "added" else f"a/{change.path}"
+            )
+            tofile = (
+                "/dev/null" if change.operation == "deleted" else f"b/{change.path}"
+            )
+            raw_patch_lines = unified_diff(
+                before_text.splitlines(keepends=True),
+                after_text.splitlines(keepends=True),
+                fromfile=fromfile,
+                tofile=tofile,
+            )
+            patch_lines: list[str] = []
+            for raw_line in raw_patch_lines:
+                has_line_ending = raw_line.endswith(("\n", "\r"))
+                line = raw_line.rstrip("\r\n")
+                patch_lines.append(line)
+                if (
+                    not has_line_ending
+                    and line.startswith(("+", "-", " "))
+                    and not line.startswith(("+++", "---"))
+                ):
+                    patch_lines.append(r"\ No newline at end of file")
+            if not patch_lines:
+                # Empty-file creation/deletion and EOF-newline-only changes still need
+                # explicit evidence instead of falling through as final_diff_missing.
+                patch_lines = [f"--- {fromfile}", f"+++ {tofile}"]
+            patch = "\n".join(patch_lines)
+            additions = sum(
+                line.startswith("+") and not line.startswith("+++")
+                for line in patch_lines
+            )
+            deletions = sum(
+                line.startswith("-") and not line.startswith("---")
+                for line in patch_lines
+            )
+        result.append(
+            {
+                "file": change.path,
+                "patch": patch,
+                "additions": additions,
+                "deletions": deletions,
+                "status": change.operation,
+            }
+        )
+    return tuple(result)
 
 
 class ToolingHarness:
@@ -24,16 +101,29 @@ class ToolingHarness:
         self.policy = policy or ToolPolicy()
         self.retain_workspace = retain_workspace
 
+    def _provider(self) -> OpenCodeProvider:
+        provider = getattr(self.executor, "provider", DEFAULT_PROVIDER)
+        if not isinstance(provider, OpenCodeProvider):
+            raise ValueError("executor provider is not an audited OpenCodeProvider")
+        return provider
+
     def run_sample(self, sample: SampleSpec) -> GoldRecord:
         workspace = self.workspaces.prepare(sample.sample_id, sample.source_dir)
         try:
-            config_path = write_opencode_config(workspace / ".anchor" / "opencode.json", self.policy)
+            config_path = write_opencode_config(
+                workspace / ".anchor" / "opencode.json",
+                self.policy,
+                provider=self._provider(),
+            )
             before = snapshot_files(workspace)
             expected_protected = dict(sample.protected_files)
             expected_contract = dict(sample.protected_files + sample.input_files)
             preflight_contract_errors = (
                 ("fixture_contract_hash_mismatch",)
-                if any(before.get(path) != digest for path, digest in expected_contract.items())
+                if any(
+                    before.get(path) != digest
+                    for path, digest in expected_contract.items()
+                )
                 else ()
             )
             execution = self.executor.run(
@@ -45,14 +135,17 @@ class ToolingHarness:
             )
             after_agent = snapshot_files(workspace)
             changes = diff_snapshots(before, after_agent)
+            final_diff = _capture_final_diff(
+                sample.source_dir.resolve(), workspace, changes
+            )
             protected_change_errors = (
                 ("protected_fixture_modified",)
                 if any(change.path in expected_protected for change in changes)
                 else ()
             )
             try:
-                validations, validation_trace, validation_capture = run_validations_with_output(
-                    workspace, self.policy
+                validations, validation_trace, validation_capture = (
+                    run_validations_with_output(workspace, self.policy)
                 )
                 validation_errors: tuple[str, ...] = ()
             except ValueError:
@@ -69,10 +162,13 @@ class ToolingHarness:
                     sample_id=sample.sample_id,
                     workspace=workspace,
                     validators=validation_capture,
+                    final_diff=final_diff,
                     skill_provenance=sample.skill_provenance,
                 )
                 if not captured:
-                    capture_errors = (capture_code or "controlled_session_capture_failed",)
+                    capture_errors = (
+                        capture_code or "controlled_session_capture_failed",
+                    )
 
             offset = len(execution.trace)
             resequenced_validation_trace = tuple(
@@ -114,7 +210,9 @@ class ToolingHarness:
             if execution.public_outcome is None:
                 errors = tuple(dict.fromkeys(errors + ("public_outcome_missing",)))
             elif execution.public_outcome.status != "completed":
-                errors = tuple(dict.fromkeys(errors + ("public_outcome_not_completed",)))
+                errors = tuple(
+                    dict.fromkeys(errors + ("public_outcome_not_completed",))
+                )
             success = (
                 execution.exit_code == 0
                 and not execution.timed_out
@@ -134,7 +232,8 @@ class ToolingHarness:
                 timeout_seconds=self.policy.timeout_seconds,
                 agent_exit_code=execution.exit_code,
                 timed_out=execution.timed_out,
-                duration_ms=execution.duration_ms + sum(item.duration_ms for item in validations),
+                duration_ms=execution.duration_ms
+                + sum(item.duration_ms for item in validations),
                 validations=validations,
                 tool_trace=trace,
                 changed_files=changes,

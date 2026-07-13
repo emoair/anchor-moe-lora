@@ -19,11 +19,72 @@ REQUIRED_EXPERTS = (
     "frontend_review",
     "security_gate",
 )
+EXPERT_TASKS = {
+    "planner": "plan",
+    "tool_policy": "tool_policy",
+    "frontend_gen": "frontend",
+    "frontend_review": "review",
+    "security_gate": "security",
+}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+TASK_BANK_FILENAME = "task_bank.jsonl"
 
 
 def _gate(passed: bool, **evidence: Any) -> dict[str, Any]:
     return {"passed": bool(passed), "evidence": evidence}
+
+
+def _safe_nonnegative(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _task_card_coverage_valid(
+    value: object, *, complete_chain_count: int | None
+) -> bool:
+    if not isinstance(value, Mapping) or complete_chain_count is None:
+        return False
+    return bool(
+        value.get("passed") is True
+        and value.get("cardinality_equal") is True
+        and _safe_nonnegative(value.get("complete_chain_count")) == complete_chain_count
+        and _safe_nonnegative(value.get("card_count")) == complete_chain_count
+        and _safe_nonnegative(value.get("unique_alignment_id_count"))
+        == complete_chain_count
+    )
+
+
+def _task_bank_source_binding_valid(
+    value: object, *, complete_chain_count: int | None
+) -> bool:
+    return bool(
+        isinstance(value, Mapping)
+        and set(value) == {"path", "records", "bytes", "sha256"}
+        and value.get("path") == TASK_BANK_FILENAME
+        and _safe_nonnegative(value.get("records")) == complete_chain_count
+        and _safe_nonnegative(value.get("bytes")) is not None
+        and isinstance(value.get("sha256"), str)
+        and bool(_SHA256_RE.fullmatch(value["sha256"]))
+    )
+
+
+def _task_bank_binding(path: Path) -> dict[str, Any]:
+    records = 0
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            value = json.loads(line)
+            if not isinstance(value, Mapping):
+                raise ValueError("task bank rows must be JSON objects")
+            records += 1
+    return {
+        "path": TASK_BANK_FILENAME,
+        "records": records,
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+    }
 
 
 def _dataset_stats(path: Path, expected_expert: str) -> dict[str, Any]:
@@ -35,10 +96,24 @@ def _dataset_stats(path: Path, expected_expert: str) -> dict[str, Any]:
         identifiers.append(str(record["id"]))
         assistant_lengths.append(len(str(record["messages"][-1]["content"]).strip()))
         provenance = record.get("provenance", {})
-        teacher = provenance.get("teacher", {}) if isinstance(provenance, Mapping) else {}
-        model = str(teacher.get("model", "")).strip().casefold() if isinstance(teacher, Mapping) else ""
-        base_url = str(teacher.get("base_url", "")).strip().casefold() if isinstance(teacher, Mapping) else ""
-        if model and model not in {"mock", "mock-teacher", "fixture"} and not base_url.startswith("mock:"):
+        teacher = (
+            provenance.get("teacher", {}) if isinstance(provenance, Mapping) else {}
+        )
+        model = (
+            str(teacher.get("model", "")).strip().casefold()
+            if isinstance(teacher, Mapping)
+            else ""
+        )
+        base_url = (
+            str(teacher.get("base_url", "")).strip().casefold()
+            if isinstance(teacher, Mapping)
+            else ""
+        )
+        if (
+            model
+            and model not in {"mock", "mock-teacher", "fixture"}
+            and not base_url.startswith("mock:")
+        ):
             live_records += 1
     count = len(assistant_lengths)
     return {
@@ -64,7 +139,11 @@ def inspect_gate_datasets(config: Mapping[str, Any], root: Path) -> dict[str, An
     all_ids: list[str] = []
     for expert in REQUIRED_EXPERTS:
         relative = required.get(expert)
-        path = (root / relative).resolve() if isinstance(relative, str) else root / "<missing>"
+        path = (
+            (root / relative).resolve()
+            if isinstance(relative, str)
+            else root / "<missing>"
+        )
         if not isinstance(relative, str) or not path.is_file():
             reports[expert] = {
                 "path": str(path),
@@ -77,7 +156,12 @@ def inspect_gate_datasets(config: Mapping[str, Any], root: Path) -> dict[str, An
             stats = _dataset_stats(path, expert)
             identifiers = stats.pop("ids")
             all_ids.extend(identifiers)
-            reports[expert] = {"path": str(path), "exists": True, "valid": True, **stats}
+            reports[expert] = {
+                "path": str(path),
+                "exists": True,
+                "valid": True,
+                **stats,
+            }
         except (DatasetValidationError, OSError, ValueError) as exc:
             reports[expert] = {
                 "path": str(path),
@@ -89,14 +173,20 @@ def inspect_gate_datasets(config: Mapping[str, Any], root: Path) -> dict[str, An
     duplicate_count = len(all_ids) - len(set(all_ids))
     complete = all(report.get("exists") for report in reports.values())
     schemas_valid = complete and all(report.get("valid") for report in reports.values())
-    live = schemas_valid and all(report.get("all_records_live") for report in reports.values())
+    live = schemas_valid and all(
+        report.get("all_records_live") for report in reports.values()
+    )
     nonempty = schemas_valid and all(
-        report.get("assistant_target_chars", {}).get("empty") == 0 for report in reports.values()
+        report.get("assistant_target_chars", {}).get("empty") == 0
+        for report in reports.values()
     )
     digest_parts = [
-        f"{expert}:{reports[expert].get('sha256', 'missing')}" for expert in REQUIRED_EXPERTS
+        f"{expert}:{reports[expert].get('sha256', 'missing')}"
+        for expert in REQUIRED_EXPERTS
     ]
-    snapshot_sha256 = hashlib.sha256("\n".join(digest_parts).encode("utf-8")).hexdigest()
+    snapshot_sha256 = hashlib.sha256(
+        "\n".join(digest_parts).encode("utf-8")
+    ).hexdigest()
     return {
         "reports": reports,
         "snapshot_sha256": snapshot_sha256,
@@ -128,7 +218,9 @@ def inspect_dataset_snapshot_manifest(
     }
     errors: list[str] = report["errors"]
     if sidecar_path != Path(str(manifest_path) + ".sha256"):
-        errors.append("snapshot sidecar must be manifest.json.sha256 beside the manifest")
+        errors.append(
+            "snapshot sidecar must be manifest.json.sha256 beside the manifest"
+        )
     if not manifest_path.is_file():
         errors.append("immutable snapshot manifest is missing")
     if not sidecar_path.is_file():
@@ -152,12 +244,81 @@ def inspect_dataset_snapshot_manifest(
         if not isinstance(source_sha, str) or not _SHA256_RE.fullmatch(source_sha):
             errors.append("source partition manifest SHA-256 is missing or invalid")
 
+        minimum = int(snapshot_config["minimum_records_per_expert"])
+        source_gate = value.get("source_gate")
+        source_gold_files: Mapping[str, Any] = {}
+        source_task_bank_file: Mapping[str, Any] = {}
+        source_complete_chain_count: int | None = None
+        if not isinstance(source_gate, Mapping):
+            errors.append("snapshot source_gate lineage proof is missing")
+        else:
+            complete_chain_count = source_gate.get("complete_chain_count")
+            source_complete_chain_count = _safe_nonnegative(complete_chain_count)
+            minimum_complete_chain_count = source_gate.get(
+                "minimum_complete_chain_count"
+            )
+            valid_chain_count = (
+                isinstance(complete_chain_count, int)
+                and not isinstance(complete_chain_count, bool)
+                and complete_chain_count >= minimum
+            )
+            valid_chain_minimum = (
+                isinstance(minimum_complete_chain_count, int)
+                and not isinstance(minimum_complete_chain_count, bool)
+                and minimum_complete_chain_count == minimum
+            )
+            lineage_edge_error_count = source_gate.get("lineage_edge_error_count")
+            lineage_chain_error_count = source_gate.get("lineage_chain_error_count")
+            zero_lineage_errors = all(
+                isinstance(count, int) and not isinstance(count, bool) and count == 0
+                for count in (
+                    lineage_edge_error_count,
+                    lineage_chain_error_count,
+                )
+            )
+            if not (
+                source_gate.get("lineage_complete") is True
+                and source_gate.get("complete_chain_count_sufficient") is True
+                and valid_chain_count
+                and valid_chain_minimum
+                and zero_lineage_errors
+            ):
+                errors.append("snapshot source_gate lineage proof is invalid")
+            raw_source_gold_files = source_gate.get("gold_files")
+            if not isinstance(raw_source_gold_files, Mapping) or set(
+                raw_source_gold_files
+            ) != set(EXPERT_TASKS.values()):
+                errors.append("snapshot source_gate gold file bindings are invalid")
+            else:
+                source_gold_files = raw_source_gold_files
+            near_duplicate_gate = source_gate.get("near_duplicate_gate")
+            if (
+                not isinstance(near_duplicate_gate, Mapping)
+                or near_duplicate_gate.get("passed") is not True
+            ):
+                errors.append("snapshot source_gate near-duplicate proof is invalid")
+            if not _task_card_coverage_valid(
+                source_gate.get("task_card_coverage"),
+                complete_chain_count=source_complete_chain_count,
+            ):
+                errors.append(
+                    "snapshot source_gate task-card coverage proof is invalid"
+                )
+            raw_source_task_bank = source_gate.get("task_bank_file")
+            if not _task_bank_source_binding_valid(
+                raw_source_task_bank,
+                complete_chain_count=source_complete_chain_count,
+            ):
+                errors.append("snapshot source_gate task bank binding is invalid")
+            else:
+                assert isinstance(raw_source_task_bank, Mapping)
+                source_task_bank_file = raw_source_task_bank
+
         files = value.get("files")
         if not isinstance(files, Mapping) or set(files) != set(REQUIRED_EXPERTS):
             errors.append("snapshot manifest files must map exactly the five experts")
             files = {}
 
-        minimum = int(snapshot_config["minimum_records_per_expert"])
         digest_parts: list[str] = []
         file_checks: dict[str, Any] = {}
         for expert in REQUIRED_EXPERTS:
@@ -175,8 +336,12 @@ def inspect_dataset_snapshot_manifest(
                 and Path(relative).name == relative
             )
             checks["safe_basename"] = safe_basename
-            configured = (root / config["scale_gate"]["required_datasets"][expert]).resolve()
-            bound = (manifest_path.parent / relative).resolve() if safe_basename else None
+            configured = (
+                root / config["scale_gate"]["required_datasets"][expert]
+            ).resolve()
+            bound = (
+                (manifest_path.parent / relative).resolve() if safe_basename else None
+            )
             checks["configured_path"] = bound == configured
             checks["observed_path"] = observed.get("path") == str(configured)
             checks["sha256"] = entry.get("sha256") == observed.get("sha256")
@@ -190,6 +355,16 @@ def inspect_dataset_snapshot_manifest(
             checks["source_sha256"] = isinstance(
                 entry.get("source_sha256"), str
             ) and bool(_SHA256_RE.fullmatch(entry["source_sha256"]))
+            source_binding = source_gold_files.get(EXPERT_TASKS[expert])
+            checks["source_gate_gold_binding"] = bool(
+                isinstance(source_binding, Mapping)
+                and set(source_binding) == {"path", "records", "bytes", "sha256"}
+                and source_binding.get("path") == relative
+                and source_binding.get("records") == entry.get("records")
+                and source_binding.get("bytes") == entry.get("bytes")
+                and source_binding.get("sha256") == entry.get("source_sha256")
+                and entry.get("source_sha256") == entry.get("sha256")
+            )
             if not all(checks.values()):
                 errors.append(f"snapshot manifest binding failed for {expert}")
             file_checks[expert] = checks
@@ -202,9 +377,94 @@ def inspect_dataset_snapshot_manifest(
                     f"{expert}:{relative}:{entry['sha256']}:{entry['records']}"
                 )
 
+        task_bank_entry = value.get("task_bank_file")
+        task_bank_checks: dict[str, bool] = {}
+        if not isinstance(task_bank_entry, Mapping):
+            errors.append("snapshot manifest task bank binding is missing")
+        else:
+            relative = task_bank_entry.get("path")
+            safe_basename = (
+                relative == TASK_BANK_FILENAME
+                and isinstance(relative, str)
+                and Path(relative).name == relative
+            )
+            task_bank_checks["safe_basename"] = safe_basename
+            task_bank_path = manifest_path.parent / TASK_BANK_FILENAME
+            task_bank_checks["regular_file"] = bool(
+                task_bank_path.is_file() and not task_bank_path.is_symlink()
+            )
+            task_bank_checks["schema"] = set(task_bank_entry) == {
+                "path",
+                "records",
+                "bytes",
+                "sha256",
+                "source_sha256",
+            }
+            observed_before: dict[str, Any] | None = None
+            observed_after: dict[str, Any] | None = None
+            if task_bank_checks["regular_file"]:
+                try:
+                    observed_before = _task_bank_binding(task_bank_path)
+                    observed_after = _task_bank_binding(task_bank_path)
+                except (
+                    OSError,
+                    UnicodeDecodeError,
+                    json.JSONDecodeError,
+                    ValueError,
+                ):
+                    observed_before = None
+                    observed_after = None
+            task_bank_checks["readable"] = observed_before is not None
+            task_bank_checks["unchanged_during_read"] = bool(
+                observed_before is not None and observed_before == observed_after
+            )
+            declared_copy_binding = {
+                "path": task_bank_entry.get("path"),
+                "records": task_bank_entry.get("records"),
+                "bytes": task_bank_entry.get("bytes"),
+                "sha256": task_bank_entry.get("sha256"),
+            }
+            task_bank_checks["copy_binding"] = bool(
+                observed_after is not None and observed_after == declared_copy_binding
+            )
+            task_bank_checks["source_sha256"] = bool(
+                isinstance(task_bank_entry.get("source_sha256"), str)
+                and _SHA256_RE.fullmatch(task_bank_entry["source_sha256"])
+                and task_bank_entry.get("source_sha256")
+                == task_bank_entry.get("sha256")
+            )
+            task_bank_checks["source_gate_binding"] = bool(
+                source_task_bank_file
+                and dict(source_task_bank_file)
+                == {
+                    "path": TASK_BANK_FILENAME,
+                    "records": task_bank_entry.get("records"),
+                    "bytes": task_bank_entry.get("bytes"),
+                    "sha256": task_bank_entry.get("source_sha256"),
+                }
+            )
+            task_bank_checks["cardinality"] = bool(
+                _safe_nonnegative(task_bank_entry.get("records"))
+                == source_complete_chain_count
+            )
+            if not all(task_bank_checks.values()):
+                errors.append("snapshot task bank binding failed")
+            if (
+                safe_basename
+                and isinstance(task_bank_entry.get("sha256"), str)
+                and isinstance(task_bank_entry.get("records"), int)
+                and not isinstance(task_bank_entry.get("records"), bool)
+            ):
+                digest_parts.append(
+                    "task_bank:"
+                    f"{relative}:"
+                    f"{task_bank_entry['sha256']}:"
+                    f"{task_bank_entry['records']}"
+                )
+
         computed_snapshot = (
             hashlib.sha256("\n".join(digest_parts).encode()).hexdigest()
-            if len(digest_parts) == len(REQUIRED_EXPERTS)
+            if len(digest_parts) == len(REQUIRED_EXPERTS) + 1
             else None
         )
         if value.get("snapshot_sha256") != computed_snapshot:
@@ -216,9 +476,16 @@ def inspect_dataset_snapshot_manifest(
                 "declared_snapshot_sha256": value.get("snapshot_sha256"),
                 "computed_snapshot_sha256": computed_snapshot,
                 "file_checks": file_checks,
+                "task_bank_checks": task_bank_checks,
             }
         )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ) as exc:
         errors.append(f"{type(exc).__name__}: {exc}")
     report["passed"] = not errors
     return report
@@ -238,7 +505,9 @@ def inspect_base_artifact(
         "deep_checksum": deep_checksum,
     }
     if not manifest_path.is_file() or not weight_path.is_file():
-        report.update({"passed": False, "error": "base manifest or weight file is missing"})
+        report.update(
+            {"passed": False, "error": "base manifest or weight file is missing"}
+        )
         return report
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -248,19 +517,26 @@ def inspect_base_artifact(
         manifest_sha = verification.get("sha256")
         observed_sha = sha256_file(weight_path) if deep_checksum else manifest_sha
         checks = {
-            "repo_id": manifest.get("repo_id") == config["model"]["id"] == expected["repo_id"],
-            "revision": manifest.get("revision") == config["model"]["revision"] == expected["revision"],
+            "repo_id": manifest.get("repo_id")
+            == config["model"]["id"]
+            == expected["repo_id"],
+            "revision": manifest.get("revision")
+            == config["model"]["revision"]
+            == expected["revision"],
             "manifest_sha256": manifest_sha == expected_sha,
             "observed_sha256": observed_sha == expected_sha,
             "bytes": observed_size == verification.get("bytes") == expected["bytes"],
-            "lfs_oid_verified": verification.get("matches_hugging_face_lfs_oid") is True,
+            "lfs_oid_verified": verification.get("matches_hugging_face_lfs_oid")
+            is True,
         }
         report.update(
             {
                 "passed": all(checks.values()),
                 "checks": checks,
                 "sha256": observed_sha,
-                "checksum_source": "deep-file-hash" if deep_checksum else "verified-download-manifest",
+                "checksum_source": "deep-file-hash"
+                if deep_checksum
+                else "verified-download-manifest",
                 "bytes": observed_size,
                 "revision": manifest.get("revision"),
                 "repo_id": manifest.get("repo_id"),
@@ -292,7 +568,9 @@ def inspect_training_artifact(
     if local_dir != (root / config["model"]["local_path"]).resolve():
         errors.append("training artifact local path does not match model.local_path")
     if manifest_path.parent != local_dir:
-        errors.append("NF4 export manifest must be inside the training artifact directory")
+        errors.append(
+            "NF4 export manifest must be inside the training artifact directory"
+        )
     for required in (manifest_path, config_path, index_path):
         if not required.is_file():
             errors.append(f"required NF4 artifact file is missing: {required.name}")
@@ -303,7 +581,9 @@ def inspect_training_artifact(
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         model_config = json.loads(config_path.read_text(encoding="utf-8"))
         index = json.loads(index_path.read_text(encoding="utf-8"))
-        if not all(isinstance(item, Mapping) for item in (manifest, model_config, index)):
+        if not all(
+            isinstance(item, Mapping) for item in (manifest, model_config, index)
+        ):
             errors.append("NF4 manifest, config, and index must be JSON objects")
             return report
 
@@ -323,8 +603,7 @@ def inspect_training_artifact(
             "quantization_manifest": isinstance(quant, Mapping)
             and quant.get("type") == config["quantization"]["quant_type"] == "nf4"
             and quant.get("double_quant") is config["quantization"]["double_quant"]
-            and quant.get("compute_dtype")
-            == config["quantization"]["compute_dtype"]
+            and quant.get("compute_dtype") == config["quantization"]["compute_dtype"]
             and quant.get("storage_dtype")
             == config["quantization"]["quant_storage_dtype"],
             "transformers_config": isinstance(model_quant, Mapping)
@@ -337,8 +616,7 @@ def inspect_training_artifact(
             and model_quant.get("bnb_4bit_quant_storage") == "bfloat16"
             and model_quant.get("llm_int8_enable_fp32_cpu_offload") is False,
             "frozen_peft_contract": config["quantization"]["freeze_base_model"] is True
-            and config["model"]["training_format"]
-            == "transformers_or_peft_4bit"
+            and config["model"]["training_format"] == "transformers_or_peft_4bit"
             and config["model"]["load_strategy"] == "prequantized_peft_4bit",
         }
         for name, passed in checks.items():
@@ -378,7 +656,8 @@ def inspect_training_artifact(
                 _SHA256_RE.fullmatch(declared_sha)
             )
             sha_matches = bool(
-                not deep_checksum or (exists and sha_shape and sha256_file(shard) == declared_sha)
+                not deep_checksum
+                or (exists and sha_shape and sha256_file(shard) == declared_sha)
             )
             if not all((safe_name, exists, size_matches, sha_shape, sha_matches)):
                 errors.append(f"NF4 weight binding failed at index {position}")
@@ -397,9 +676,13 @@ def inspect_training_artifact(
             )
 
         weight_map = index.get("weight_map")
-        index_names = set(weight_map.values()) if isinstance(weight_map, Mapping) else set()
+        index_names = (
+            set(weight_map.values()) if isinstance(weight_map, Mapping) else set()
+        )
         metadata = index.get("metadata")
-        index_total = metadata.get("total_size") if isinstance(metadata, Mapping) else None
+        index_total = (
+            metadata.get("total_size") if isinstance(metadata, Mapping) else None
+        )
         quant_state_present = bool(
             isinstance(weight_map, Mapping)
             and any("quant_state.bitsandbytes__nf4" in str(key) for key in weight_map)
@@ -412,7 +695,8 @@ def inspect_training_artifact(
             "total_size_plausible": isinstance(index_total, int)
             and not isinstance(index_total, bool)
             and 0 < index_total <= declared_total
-            and declared_total - index_total <= max(16 * 1024 * 1024, declared_total // 100),
+            and declared_total - index_total
+            <= max(16 * 1024 * 1024, declared_total // 100),
             "nf4_quant_state": quant_state_present,
         }
         for name, passed in index_checks.items():
@@ -429,18 +713,30 @@ def inspect_training_artifact(
                 ),
             }
         )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ) as exc:
         errors.append(f"{type(exc).__name__}: {exc}")
     report["passed"] = not errors
     return report
 
 
-def load_heldout_cases(config: Mapping[str, Any], root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def load_heldout_cases(
+    config: Mapping[str, Any], root: Path
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     path = (root / config["scale_gate"]["heldout_cases"]).resolve()
     cases: list[dict[str, Any]] = []
     errors: list[str] = []
     if not path.is_file():
-        return cases, {"path": str(path), "passed": False, "errors": ["file is missing"]}
+        return cases, {
+            "path": str(path),
+            "passed": False,
+            "errors": ["file is missing"],
+        }
     seen: set[str] = set()
     try:
         for line_number, value in iter_jsonl(path):
@@ -448,8 +744,16 @@ def load_heldout_cases(config: Mapping[str, Any], root: Path) -> tuple[list[dict
             if not isinstance(value, Mapping):
                 errors.append(f"{source}: case must be an object")
                 continue
-            identifier, expert, prompt = value.get("id"), value.get("expert"), value.get("prompt")
-            if not isinstance(identifier, str) or not identifier.strip() or identifier in seen:
+            identifier, expert, prompt = (
+                value.get("id"),
+                value.get("expert"),
+                value.get("prompt"),
+            )
+            if (
+                not isinstance(identifier, str)
+                or not identifier.strip()
+                or identifier in seen
+            ):
                 errors.append(f"{source}: id must be unique non-empty text")
                 continue
             seen.add(identifier)
@@ -475,7 +779,9 @@ def load_heldout_cases(config: Mapping[str, Any], root: Path) -> tuple[list[dict
         errors.append(str(exc))
     covered = {case["expert"] for case in cases}
     if covered != set(REQUIRED_EXPERTS):
-        errors.append(f"held-out cases must cover all experts; covered={sorted(covered)}")
+        errors.append(
+            f"held-out cases must cover all experts; covered={sorted(covered)}"
+        )
     return cases, {
         "path": str(path),
         "passed": not errors,
@@ -518,17 +824,31 @@ def build_preflight_report(
         and free_host_memory >= minimum_free_host
     )
     gates = {
-        "five_live_datasets_present": _gate(datasets["complete"], reports=datasets["reports"]),
+        "five_live_datasets_present": _gate(
+            datasets["complete"], reports=datasets["reports"]
+        ),
         "canonical_schema_valid": _gate(datasets["schemas_valid"]),
         "real_teacher_samples": _gate(datasets["all_records_live"]),
         "assistant_targets_nonempty": _gate(datasets["assistant_targets_nonempty"]),
-        "dataset_ids_unique": _gate(datasets["cross_file_duplicate_ids"] == 0, duplicates=datasets["cross_file_duplicate_ids"]),
+        "dataset_ids_unique": _gate(
+            datasets["cross_file_duplicate_ids"] == 0,
+            duplicates=datasets["cross_file_duplicate_ids"],
+        ),
         "base_revision_and_checksum": _gate(bool(base.get("passed")), report=base),
         "training_nf4_artifact": _gate(
             bool(training_artifact.get("passed")), report=training_artifact
         ),
-        "training_dependencies": _gate(bool(dependencies.get("ready")), missing=dependencies.get("missing", []), incompatible=dependencies.get("incompatible", [])),
-        "gpu_free_vram": _gate(gpu_passed, free_gib=free_vram, required_gib=minimum_free, device=device.get("name")),
+        "training_dependencies": _gate(
+            bool(dependencies.get("ready")),
+            missing=dependencies.get("missing", []),
+            incompatible=dependencies.get("incompatible", []),
+        ),
+        "gpu_free_vram": _gate(
+            gpu_passed,
+            free_gib=free_vram,
+            required_gib=minimum_free,
+            device=device.get("name"),
+        ),
         "host_free_memory": _gate(
             host_memory_passed,
             free_gib=free_host_memory,
@@ -569,17 +889,28 @@ def verify_prior_smoke_gate(
     relative = config["scale_gate"]["required_smoke_gate_manifest"]
     path = (root / relative).resolve()
     if not path.is_file():
-        return {"passed": False, "path": str(path), "error": "executed smoke-gate manifest is missing"}
+        return {
+            "passed": False,
+            "path": str(path),
+            "error": "executed smoke-gate manifest is missing",
+        }
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         checks = {
             "stage": value.get("stage") == "smoke-gate",
             "mode": value.get("mode") == "execute",
             "gate_passed": value.get("smoke_gate", {}).get("passed") is True,
-            "base_revision": value.get("base_model_revision") == config["model"]["revision"],
-            "dataset_snapshot": value.get("preflight", {}).get("dataset_snapshot_sha256")
+            "base_revision": value.get("base_model_revision")
+            == config["model"]["revision"],
+            "dataset_snapshot": value.get("preflight", {}).get(
+                "dataset_snapshot_sha256"
+            )
             == preflight.get("dataset_snapshot_sha256"),
         }
         return {"passed": all(checks.values()), "path": str(path), "checks": checks}
     except (OSError, ValueError, TypeError) as exc:
-        return {"passed": False, "path": str(path), "error": f"{type(exc).__name__}: {exc}"}
+        return {
+            "passed": False,
+            "path": str(path),
+            "error": f"{type(exc).__name__}: {exc}",
+        }

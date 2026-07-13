@@ -1,0 +1,87 @@
+# Formal Ark GLM-5.2 collection expansion: 384 complete-chain attempts are
+# overcollected to make five strict-gold floors of 256 reachable. Credentials
+# remain process-environment only (ARK_CODING_API_KEY).
+provider: custom-openai-responses
+protocol: openai_responses
+base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+model: glm-5-2-260617
+force_model: true
+discover_models: false
+api_key_env: ARK_CODING_API_KEY
+user_agent: claude-code/2.1.7
+
+sop_dir: skills
+output_dir: data/automated_v3
+task_card_config: configs/data/task_cards.v1.yaml
+seed_index_offset: 0
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+
+# One bounded stage: seed target and final raw target are both 384, with eight
+# concurrent requests. All five task partitions must independently retain at
+# least 256 strict-gold complete-chain rows.
+concurrency_stages: [8]
+stage_seed_counts: [384]
+raw_collection_target: 384
+minimum_gold_records_per_task: 256
+collection_policy: collect_then_partition
+
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 200
+# 384 seed calls plus five task calls per chain require up to 2,304 requests;
+# 2,400 leaves a small bounded transport/retry margin across two quota windows.
+max_requests: 2400
+# Match the full request ceiling at 128K output tokens per request so this
+# aggregate guard cannot stop collection before a request/API limit does.
+max_output_tokens_total: 307200000
+quota_epoch_id: ark-glm52-max384-c8-window-1
+max_failure_retries: 2
+max_stagnant_gate_rounds: 5
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 40
+    ESCALATE: 40
+    BLOCK: 40
+  security:
+    PASS: 60
+    BLOCK: 60
+
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/automated_v3
+artifact_validation_timeout_seconds: 30
+
+timeout_seconds: 600
+wall_clock_deadline_seconds: 3600
+max_retries: 1
+max_tokens: 128000
+thinking_enabled: true
+thinking_effort: max
+thinking_effort_seed: max
+thinking_effort_plan: max
+thinking_effort_tool_policy: max
+thinking_effort_frontend: max
+thinking_effort_review: max
+thinking_effort_security: max
+thinking_budget_tokens: 1024
+stream_openai: true
+stream_options_include_usage: false
+
+cooldown_seconds: 7200
+cooldown_poll_seconds: 60
+
+# This declaration does not weaken ordinary status binding. It names exactly
+# one prior c10/192-raw/128-gold contract and is used only by the explicit
+# --migrate-monotonic-expansion command. Every unlisted binding field must
+# remain byte-for-byte equivalent after canonicalization or migration fails.
+monotonic_expansion_from:
+  concurrency_stages: [10]
+  stage_seed_counts: [128]
+  raw_collection_target: 192
+  minimum_gold_records_per_task: 128
+  max_requests: 1200
+  max_output_tokens_total: 40000000
+  max_failures: 200

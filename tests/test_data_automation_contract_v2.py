@@ -24,6 +24,27 @@ from anchor_mvp.data.sops import load_sop  # noqa: E402
 from anchor_mvp.data.teacher import MockTeacher  # noqa: E402
 
 
+class _DiverseSeedTeacher(MockTeacher):
+    async def complete(self, *, system: str, user: str) -> str:
+        raw = await super().complete(system=system, user=user)
+        if "ANCHOR_TASK: security" in user:
+            payload = json.loads(raw)
+            payload["output"]["decision"] = (
+                "BLOCK" if "security_class:safe_negative" in user else "PASS"
+            )
+            return json.dumps(payload)
+        if "ANCHOR_TASK: seed" not in user:
+            return raw
+        payload = json.loads(raw)
+        brief = next(
+            line.removeprefix("REQUIRED_VARIATION_BRIEF: ")
+            for line in user.splitlines()
+            if line.startswith("REQUIRED_VARIATION_BRIEF: ")
+        )
+        payload["request"] = f"Create this bounded local component: {brief}"
+        return json.dumps(payload)
+
+
 def _config(tmp_path: Path, **overrides: object) -> AutomationConfig:
     values: dict[str, object] = {
         "sop_dir": ROOT / "skills",
@@ -47,7 +68,7 @@ def _config(tmp_path: Path, **overrides: object) -> AutomationConfig:
 def _distill(settings: AutomationConfig, count: int) -> None:
     report = asyncio.run(
         DistillationPipeline(
-            teacher=MockTeacher(),
+            teacher=_DiverseSeedTeacher(),
             sop_dir=settings.sop_dir,
             output_dir=settings.output_dir,
         ).run(seed_count=count)
@@ -62,13 +83,16 @@ def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
     )
 
 
-def test_raw_overcollection_makes_one_quality_negative_reachable(tmp_path: Path) -> None:
+def test_raw_overcollection_reaches_gold_floor_but_broken_lineage_blocks_training(
+    tmp_path: Path,
+) -> None:
     settings = _config(
         tmp_path,
         raw_collection_target=3,
-        minimum_gold_records_per_task={task: 2 for task in (
-            "plan", "tool_policy", "frontend", "review", "security"
-        )},
+        minimum_gold_records_per_task={
+            task: 2
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
     )
     _distill(settings, 3)
 
@@ -91,7 +115,18 @@ def test_raw_overcollection_makes_one_quality_negative_reachable(tmp_path: Path)
     assert manifest["gold_by_task"]["tool_policy"] == 2
     assert manifest["negative_count"] == 1
     assert manifest["coverage_complete"] is True
-    assert manifest["training_ready"] is True
+    # Raw headroom still makes every independent expert's two-row gold floor
+    # reachable. However, the frontend for this negative tool-policy row still
+    # references it, so the strict-gold DAG is intentionally broken. Coverage
+    # alone must never override the lineage gate.
+    assert manifest["complete_chain_count"] == 2
+    assert manifest["complete_chain_count_sufficient"] is True
+    assert manifest["lineage_complete"] is False
+    assert manifest["lineage_edge_errors_by_edge"] == {"tool_policy->frontend": 1}
+    assert {error["code"] for error in manifest["lineage_edge_errors"]} == {
+        "source_not_strict_gold"
+    }
+    assert manifest["training_ready"] is False
     assert manifest["unresolved_disagreements_by_task"] == {"tool_policy": 1}
 
     legacy_strict = _config(settings.output_dir)
@@ -111,41 +146,100 @@ def test_raw_gold_contract_resume_is_explicit_and_other_changes_fail_closed(
         quota_epoch_id="legacy-window",
     )
     legacy_runner = AutomationRunner(config=legacy, teacher=MockTeacher())
+    legacy_runner.status.update(
+        {
+            "state": "complete",
+            "stage_index": 1,
+            "stages": [{"index": 0, "gate": {"passed": True}}],
+            "completed_at": "2026-07-13T00:00:00+00:00",
+            "partition": {"training_ready": True},
+            "partition_refreshed_at": "2026-07-13T00:00:00+00:00",
+        }
+    )
     legacy_runner._save_status()
+    legacy_bytes = legacy.status_path.read_bytes()
 
     overcollection = _config(
         tmp_path,
         stage_seed_counts=(2,),
         raw_collection_target=3,
-        minimum_gold_records_per_task={task: 2 for task in (
-            "plan", "tool_policy", "frontend", "review", "security"
-        )},
+        minimum_gold_records_per_task={
+            task: 2
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
         quota_epoch_id="overcollection-window",
     )
     assert overcollection.legacy_status_binding_sha256 == legacy.status_binding_sha256
     assert overcollection.status_binding_sha256 != legacy.status_binding_sha256
 
-    resumed = AutomationRunner(config=overcollection, teacher=MockTeacher())
+    with pytest.raises(ValueError, match="explicit monotonic expansion"):
+        AutomationRunner(config=overcollection, teacher=MockTeacher())
+    assert legacy.status_path.read_bytes() == legacy_bytes
+
+    equivalent = _config(
+        tmp_path,
+        stage_seed_counts=(2,),
+        raw_collection_target=2,
+        minimum_gold_records_per_task={
+            task: 2
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
+        quota_epoch_id="legacy-window",
+    )
+    resumed = AutomationRunner(config=equivalent, teacher=MockTeacher())
     migration = resumed.status["migration_history"][-1]
     assert migration["migration_type"] == "raw_gold_contract_v1_to_v2"
-    assert migration["raw_collection_target"] == 3
-    assert migration["minimum_gold_records_per_task"]["frontend"] == 2
-    assert migration["resume_policy"] == (
-        "preserve_append_only_rows_and_resume_missing_raw_rows"
+    assert migration["source_contract"]["raw_collection_target"] == 2
+    assert (
+        migration["target_contract"]["minimum_gold_records_per_task"]["frontend"] == 2
     )
-    assert resumed.status["config_binding_sha256"] == overcollection.status_binding_sha256
+    assert migration["resume_policy"] == (
+        "fresh_run_stage_zero_after_equivalent_contract_proof"
+    )
+    assert resumed.status["config_binding_sha256"] == equivalent.status_binding_sha256
+    assert resumed.status["state"] == "ready"
+    assert resumed.status["stage_index"] == 0
+    assert resumed.status["stages"] == []
+    assert "partition" not in resumed.status
+    assert resumed.status["run_history"][-1]["partition"]["training_ready"] is True
 
     incompatible = _config(
         tmp_path,
         stage_seed_counts=(3,),
         raw_collection_target=4,
-        minimum_gold_records_per_task={task: 2 for task in (
-            "plan", "tool_policy", "frontend", "review", "security"
-        )},
+        minimum_gold_records_per_task={
+            task: 2
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
         quota_epoch_id="incompatible-window",
     )
     with pytest.raises(ValueError, match="config binding mismatch"):
         AutomationRunner(config=incompatible, teacher=MockTeacher())
+
+
+def test_legacy_binding_migration_rejects_gold_floor_contraction_without_writes(
+    tmp_path: Path,
+) -> None:
+    legacy = _config(tmp_path, stage_seed_counts=(2,))
+    runner = AutomationRunner(config=legacy, teacher=MockTeacher())
+    runner._save_status()
+    before = legacy.status_path.read_bytes()
+    floors = {
+        task: 2 for task in ("plan", "tool_policy", "frontend", "review", "security")
+    }
+    floors["review"] = 1
+    contracted = _config(
+        tmp_path,
+        stage_seed_counts=(2,),
+        raw_collection_target=2,
+        minimum_gold_records_per_task=floors,
+    )
+    assert contracted.legacy_status_binding_sha256 == legacy.status_binding_sha256
+
+    with pytest.raises(ValueError, match="cannot reduce the implicit raw/gold floor"):
+        AutomationRunner(config=contracted, teacher=MockTeacher())
+
+    assert legacy.status_path.read_bytes() == before
 
 
 def test_isolated_secret_reject_is_quarantined_without_blocking_clean_gold(
@@ -155,19 +249,22 @@ def test_isolated_secret_reject_is_quarantined_without_blocking_clean_gold(
         tmp_path,
         stage_seed_counts=(2,),
         raw_collection_target=2,
-        minimum_gold_records_per_task={task: 1 for task in (
-            "plan", "tool_policy", "frontend", "review", "security"
-        )},
+        minimum_gold_records_per_task={
+            task: 1
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
     )
     _distill(settings, 2)
     frontend_path = settings.output_dir / "data_frontend.jsonl"
     records = [
-        json.loads(line) for line in frontend_path.read_text(encoding="utf-8").splitlines()
+        json.loads(line)
+        for line in frontend_path.read_text(encoding="utf-8").splitlines()
     ]
     secret = json.loads(json.dumps(records[0]))
     secret["id"] = "isolated-secret-record"
     secret["messages"][0]["content"] += "\nISOLATED AUDIT COPY"
     secret["output"]["code"] += "\n// api_key=sk-example-secret-value-123456"
+    secret["messages"][-1]["content"] = secret["output"]["code"].strip()
     records.append(secret)
     _write_jsonl(frontend_path, records)
 
@@ -191,9 +288,10 @@ def test_malformed_collection_replaces_any_stale_ready_manifest(tmp_path: Path) 
         tmp_path,
         stage_seed_counts=(1,),
         raw_collection_target=1,
-        minimum_gold_records_per_task={task: 1 for task in (
-            "plan", "tool_policy", "frontend", "review", "security"
-        )},
+        minimum_gold_records_per_task={
+            task: 1
+            for task in ("plan", "tool_policy", "frontend", "review", "security")
+        },
     )
     _distill(settings, 1)
     assert partition_collected_records(settings)["training_ready"] is True

@@ -17,9 +17,9 @@ execution:
   concurrency_stages: [1]
 
 distillation:
-  automation_config: configs/data/automation.full_v3.fast.yaml
+  automation_config: configs/data/automation.full_v3.ark_glm52.max384.c8.yaml
   status_path: data/automated_v3/automation/status.json
-  credential_env: KIMI_API_KEY
+  credential_env: ARK_CODING_API_KEY
   dry_run_terminal_state: provider_quota_exhausted
   dry_run_quota_epoch: offline-full-v3-handoff-check
 
@@ -32,7 +32,7 @@ snapshot:
     frontend_gen: artifacts/formal_v3/dataset/data_frontend.jsonl
     frontend_review: artifacts/formal_v3/dataset/data_review.jsonl
     security_gate: artifacts/formal_v3/dataset/data_security.jsonl
-  minimum_records_per_expert: 128
+  minimum_records_per_expert: 256
   heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
   heldout_fixtures_root: examples/benchmark/fixtures
   heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json

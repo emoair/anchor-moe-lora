@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Awaitable, Callable, Iterable
 
 from .cleaning import (
     build_inert_security_fixture,
@@ -13,6 +14,7 @@ from .cleaning import (
     contains_secret_material,
     extract_frontend_payload,
     extract_json_object,
+    redact_active_payload_material,
     sanitize_security_seed,
     validate_safe_payload,
 )
@@ -30,7 +32,19 @@ from .schema import (
 )
 from .sops import load_sop_directory
 from .storage import JsonlStore, SeedStore, completed_seed_ids
-from .teacher import ClientDeadlineExceeded, ProviderQuotaExhausted, RateLimitError, Teacher
+from .teacher import (
+    ClientDeadlineExceeded,
+    ProviderQuotaExhausted,
+    RateLimitError,
+    Teacher,
+    TeacherError,
+)
+from .task_cards import (
+    TaskCardCatalog,
+    assignment_for_card,
+    assignment_for_seed,
+    load_task_card_catalog,
+)
 
 
 class UpstreamDependencyError(RuntimeError):
@@ -115,17 +129,30 @@ class DistillationPipeline:
         sop_dir: str | Path,
         output_dir: str | Path,
         concurrency: int = 8,
+        seed_index_offset: int = 0,
+        task_card_config: str | Path | None = None,
+        progress_callback: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         if concurrency < 1:
             raise ValueError("concurrency must be at least 1")
+        if seed_index_offset < 0:
+            raise ValueError("seed_index_offset cannot be negative")
         self.teacher = teacher
         self.sops = load_sop_directory(sop_dir)
         self.output_dir = Path(output_dir).expanduser().resolve()
+        self.concurrency = concurrency
+        self.seed_index_offset = seed_index_offset
+        self.task_cards: TaskCardCatalog = load_task_card_catalog(task_card_config)
         self.semaphore = asyncio.Semaphore(concurrency)
+        self.progress_callback = progress_callback
 
     async def _complete(self, *, system: str, user: str) -> str:
         async with self.semaphore:
             return await self.teacher.complete(system=system, user=user)
+
+    async def _checkpoint_progress(self) -> None:
+        if self.progress_callback is not None:
+            await self.progress_callback()
 
     async def generate_seeds(self, count: int) -> list[SeedDemand]:
         if count < 0:
@@ -133,39 +160,145 @@ class DistillationPipeline:
         store = SeedStore(self.output_dir / "seeds.jsonl")
         seeds = [SeedDemand.from_mapping(item) for item in store.records]
         fingerprints = set(store.request_fingerprints)
-        next_index = len(seeds)
+        # Persisted global indices make crash/resume and out-of-order async
+        # completion independent of JSONL append order. Legacy rows reserve the
+        # historical prefix but never receive fabricated nine-axis metadata.
+        used_indices = {
+            seed.seed_index for seed in seeds if seed.seed_index is not None
+        }
+        legacy_count = sum(seed.seed_index is None for seed in seeds)
+        used_indices.update(
+            range(self.seed_index_offset, self.seed_index_offset + legacy_count)
+        )
+        next_index = self.seed_index_offset
+
+        def take_indices(amount: int) -> tuple[int, ...]:
+            nonlocal next_index
+            selected: list[int] = []
+            while len(selected) < amount:
+                if next_index not in used_indices:
+                    selected.append(next_index)
+                    used_indices.add(next_index)
+                next_index += 1
+            return tuple(selected)
+
+        pending_indices = list(take_indices(max(count - len(seeds), 0)))
         rounds = 0
-        while len(seeds) < count and rounds < 5:
-            missing = count - len(seeds)
-            indices = range(next_index, next_index + missing)
-            next_index += missing
+        while pending_indices and rounds < 5:
+            retry_indices: list[int] = []
 
             async def create(index: int) -> tuple[int, SeedDemand]:
-                system, user = seed_prompt(index)
-                payload = extract_json_object(await self._complete(system=system, user=user))
+                template = self.task_cards.template_for_index(index)
+                system, user = seed_prompt(index, card=template)
+                payload = extract_json_object(
+                    await self._complete(system=system, user=user)
+                )
                 if contains_active_payload(payload):
                     raise ValueError("seed contains active payload material")
                 if contains_secret_material(payload):
                     raise ValueError("seed contains credential-like material")
-                return index, SeedDemand.from_mapping(payload)
+                candidate = SeedDemand.from_mapping(payload)
+                assignment = assignment_for_card(
+                    template,
+                    self.task_cards,
+                    seed_index=index,
+                    requirement=candidate.request,
+                )
+                return index, SeedDemand(
+                    seed_id=candidate.seed_id,
+                    title=candidate.title,
+                    request=candidate.request,
+                    category=candidate.category,
+                    tags=assignment.tags,
+                    card_id=assignment.card_id,
+                    seed_index=index,
+                    template_id=assignment.template_id,
+                    source_kind=assignment.source_kind,
+                    source_digest=assignment.source_digest,
+                )
 
-            results = await asyncio.gather(*(create(index) for index in indices), return_exceptions=True)
-            quota_errors = [
-                result for result in results if isinstance(result, ProviderQuotaExhausted)
+            remaining_indices = iter(pending_indices)
+            quota_errors: list[ProviderQuotaExhausted] = []
+            rate_limits: list[RateLimitError] = []
+            deadlines: list[ClientDeadlineExceeded] = []
+            terminal_errors: list[Exception] = []
+            terminal_seen = asyncio.Event()
+
+            async def seed_worker() -> None:
+                while not terminal_seen.is_set():
+                    try:
+                        index = next(remaining_indices)
+                    except StopIteration:
+                        return
+                    try:
+                        _, seed = await create(index)
+                    except ProviderQuotaExhausted as error:
+                        quota_errors.append(error)
+                        terminal_seen.set()
+                    except RateLimitError as error:
+                        rate_limits.append(error)
+                        terminal_seen.set()
+                    except ClientDeadlineExceeded as error:
+                        deadlines.append(error)
+                        terminal_seen.set()
+                    except (TeacherError, ValueError) as error:
+                        # The teacher owns the only transport retry loop.  Once
+                        # it exhausts that bounded request-local allowance, or
+                        # the returned seed fails schema/safety validation, do
+                        # not silently replay the prompt in this outer loop.
+                        terminal_errors.append(error)
+                        terminal_seen.set()
+                    except Exception as error:
+                        # Unknown implementation/runtime failures are not a
+                        # reason to replay a paid teacher request. Duplicate
+                        # successful questions are handled separately below.
+                        terminal_errors.append(error)
+                        terminal_seen.set()
+                    else:
+                        fingerprint = stable_id(
+                            "request", normalized_text(seed.request)
+                        )
+                        if fingerprint in fingerprints:
+                            retry_indices.append(index)
+                            continue
+                        try:
+                            appended = store.append(seed.to_dict())
+                        except BaseException:
+                            terminal_seen.set()
+                            raise
+                        if appended:
+                            fingerprints.add(fingerprint)
+                            seeds.append(seed)
+                            await self._checkpoint_progress()
+                        else:
+                            retry_indices.append(index)
+
+            worker_tasks = [
+                asyncio.create_task(seed_worker())
+                for _ in range(min(self.concurrency, len(pending_indices)))
             ]
+            worker_results = await asyncio.gather(*worker_tasks, return_exceptions=True)
+            fatal = next(
+                (
+                    result
+                    for result in worker_results
+                    if isinstance(result, BaseException)
+                    and not isinstance(result, asyncio.CancelledError)
+                ),
+                None,
+            )
+            if fatal is not None:
+                raise fatal
+
             if quota_errors:
                 retry_values = [
                     item.retry_after_seconds
                     for item in quota_errors
                     if item.retry_after_seconds is not None
                 ]
-                raise ProviderQuotaExhausted(max(retry_values) if retry_values else None)
-            rate_limits = [
-                result
-                for result in results
-                if isinstance(result, RateLimitError)
-                and not isinstance(result, ProviderQuotaExhausted)
-            ]
+                raise ProviderQuotaExhausted(
+                    max(retry_values) if retry_values else None
+                )
             if rate_limits:
                 retry_values = [
                     item.retry_after_seconds
@@ -173,22 +306,16 @@ class DistillationPipeline:
                     if item.retry_after_seconds is not None
                 ]
                 raise RateLimitError(max(retry_values) if retry_values else None)
-            deadlines = [result for result in results if isinstance(result, ClientDeadlineExceeded)]
             if deadlines:
                 raise deadlines[0]
-            for result in results:
-                if isinstance(result, BaseException):
-                    continue
-                _, seed = result
-                fingerprint = stable_id("request", normalized_text(seed.request))
-                if fingerprint in fingerprints:
-                    continue
-                if store.append(seed.to_dict()):
-                    fingerprints.add(fingerprint)
-                    seeds.append(seed)
+            if terminal_errors:
+                raise terminal_errors[0]
+            pending_indices = sorted(set(retry_indices))
             rounds += 1
         if len(seeds) < count:
-            raise RuntimeError(f"teacher produced only {len(seeds)} unique seeds after retries")
+            raise RuntimeError(
+                f"teacher produced only {len(seeds)} unique seeds after retries"
+            )
         return seeds[:count]
 
     async def run(
@@ -213,7 +340,8 @@ class DistillationPipeline:
         retry_after_seconds: float | None = None
         client_deadline = False
         provider_quota_exhausted = False
-        for task_type in selected:
+        terminal_task_index: int | None = None
+        for task_index, task_type in enumerate(selected):
             store = JsonlStore(self.output_dir / f"data_{task_type}.jsonl")
             completed = completed_seed_ids(store.records)
             pending = [
@@ -224,24 +352,45 @@ class DistillationPipeline:
             skipped[task_type] = len(seeds) - len(pending)
 
             async def distill(index: int, original_seed: SeedDemand) -> DistilledRecord:
-                seed = sanitize_security_seed(original_seed) if task_type == "security" else original_seed
+                seed = (
+                    sanitize_security_seed(original_seed)
+                    if task_type == "security"
+                    else original_seed
+                )
+                canonical_index = (
+                    seed.seed_index if seed.seed_index is not None else index
+                )
                 task_input: dict[str, Any] | None = None
-                provenance_extra: dict[str, object] | None = None
+                card_assignment = assignment_for_seed(seed, self.task_cards)
+                provenance_extra: dict[str, object] = card_assignment.provenance(
+                    seed.seed_id
+                )
                 known_benign_defect: str | None = None
                 authoritative_output: dict[str, Any] | None = None
                 if task_type == "tool_policy":
                     plan_source = self._upstream_record("plan", seed.seed_id)
-                    proposals, proposal_manifest = generate_inert_tool_proposals(seed, index)
-                    authoritative_output, oracle_manifest = deterministic_tool_policy_oracle(proposals)
+                    posture = (
+                        card_assignment.axes.get("tool_posture")
+                        if card_assignment.axes is not None
+                        else None
+                    )
+                    proposals, proposal_manifest = generate_inert_tool_proposals(
+                        seed, canonical_index, variant=posture
+                    )
+                    authoritative_output, oracle_manifest = (
+                        deterministic_tool_policy_oracle(proposals)
+                    )
                     task_input = {
                         "plan": dict(plan_source["output"]),
                         "tool_proposals": proposals,
                     }
-                    provenance_extra = {
-                        "source_plan_record_id": str(plan_source["id"]),
-                        "tool_proposals": proposal_manifest,
-                        "label_oracle": oracle_manifest,
-                    }
+                    provenance_extra.update(
+                        {
+                            "source_plan_record_id": str(plan_source["id"]),
+                            "tool_proposals": proposal_manifest,
+                            "label_oracle": oracle_manifest,
+                        }
+                    )
                 elif task_type == "frontend":
                     plan_source = self._upstream_record("plan", seed.seed_id)
                     policy_source = self._upstream_record("tool_policy", seed.seed_id)
@@ -249,55 +398,113 @@ class DistillationPipeline:
                         "plan": dict(plan_source["output"]),
                         "tool_policy": dict(policy_source["output"]),
                     }
-                    provenance_extra = {
-                        "source_plan_record_id": str(plan_source["id"]),
-                        "source_tool_policy_record_id": str(policy_source["id"]),
-                    }
+                    provenance_extra.update(
+                        {
+                            "source_plan_record_id": str(plan_source["id"]),
+                            "source_tool_policy_record_id": str(policy_source["id"]),
+                        }
+                    )
                 elif task_type == "review":
                     source = self._upstream_record("frontend", seed.seed_id)
+                    preferred_rule = (
+                        card_assignment.axes.get("review_defect")
+                        if card_assignment.axes is not None
+                        else None
+                    )
                     candidate, manifest = mutate_frontend_code(
                         str(source["output"]["code"]),
                         source_record_id=str(source["id"]),
+                        preferred_rule=preferred_rule,
                     )
                     known_benign_defect = manifest.known_benign_defect
                     task_input = {
                         "candidate_code": candidate,
                         "known_benign_defect": known_benign_defect,
                     }
-                    provenance_extra = {
-                        "source_frontend_record_id": str(source["id"]),
-                        "mutation": manifest.to_dict(),
-                    }
+                    provenance_extra.update(
+                        {
+                            "source_frontend_record_id": str(source["id"]),
+                            "mutation": manifest.to_dict(),
+                        }
+                    )
                 elif task_type == "security":
                     source = self._upstream_record("review", seed.seed_id)
-                    reviewed_code, authoritative_output, fixture_manifest = build_inert_security_fixture(
-                        str(source["output"]["code"]), index
+                    security_class = (
+                        card_assignment.axes.get("security_class")
+                        if card_assignment.axes is not None
+                        else None
+                    )
+                    fixture_index = {"benign_boundary": 0, "safe_negative": 1}.get(
+                        str(security_class), canonical_index
+                    )
+                    reviewed_code, authoritative_output, fixture_manifest = (
+                        build_inert_security_fixture(
+                            str(source["output"]["code"]), fixture_index
+                        )
                     )
                     task_input = {"reviewed_code": reviewed_code}
-                    provenance_extra = {
-                        "source_review_record_id": str(source["id"]),
-                        "security_fixture": fixture_manifest,
-                        "label_oracle": {
-                            "oracle": "anchor-security-fixture-gold-v1",
-                            "decision": authoritative_output["decision"],
-                            "sha256": fixture_manifest["gold_sha256"],
-                        },
-                    }
+                    provenance_extra.update(
+                        {
+                            "source_review_record_id": str(source["id"]),
+                            "security_fixture": fixture_manifest,
+                            "label_oracle": {
+                                "oracle": "anchor-security-fixture-gold-v1",
+                                "decision": authoritative_output["decision"],
+                                "sha256": fixture_manifest["gold_sha256"],
+                            },
+                        }
+                    )
                 system, user = task_prompt(
                     task_type,
                     seed,
                     self.sops[task_type],
-                    index,
+                    canonical_index,
                     task_input=task_input,
                     known_benign_defect=known_benign_defect,
                 )
                 raw_response = await self._complete(system=system, user=user)
+                # Snapshot request-local route metadata immediately after the
+                # completion. CompatibleTeacher stores this in a ContextVar;
+                # its shared default route may be changed concurrently by a
+                # successful compatibility probe.
+                provider_provenance = dict(self.teacher.provider_provenance)
+                route_base_url = provider_provenance.get("base_url")
+                route_protocol = provider_provenance.get("protocol")
+                teacher_base_url = (
+                    route_base_url
+                    if isinstance(route_base_url, str) and route_base_url
+                    else self.teacher.base_url
+                )
+                teacher_protocol = (
+                    route_protocol
+                    if isinstance(route_protocol, str) and route_protocol
+                    else self.teacher.protocol
+                )
                 if task_type == "frontend":
                     payload, extraction = extract_frontend_payload(raw_response)
-                    provenance_extra = dict(provenance_extra or {})
+                    provenance_extra = dict(provenance_extra)
                     provenance_extra["payload_extraction"] = extraction
                 else:
                     payload = extract_json_object(raw_response)
+                if task_type in ("plan", "tool_policy"):
+                    sanitized_payload, redaction_count = redact_active_payload_material(
+                        payload
+                    )
+                    if not isinstance(sanitized_payload, dict):
+                        raise ValueError(
+                            "sanitized teacher payload must remain an object"
+                        )
+                    payload = sanitized_payload
+                    if redaction_count:
+                        provenance_extra = dict(provenance_extra or {})
+                        provenance_extra["active_payload_redaction"] = {
+                            "count": redaction_count,
+                            "replacement": "DEFENSIVE_ACTIVE_CONTENT_PLACEHOLDER",
+                            "raw_response_sha256": sha256(
+                                raw_response.encode("utf-8")
+                            ).hexdigest(),
+                            "content_retained": False,
+                        }
                 if authoritative_output is not None:
                     # The local oracle defines the training target, but a valid
                     # teacher disagreement is still useful negative evidence.
@@ -305,10 +512,12 @@ class DistillationPipeline:
                     # the target; never turn a corrupt response into apparent gold.
                     observed_output = payload.get("output")
                     if not isinstance(observed_output, dict):
-                        raise ValueError("teacher classification output must be an object")
+                        raise ValueError(
+                            "teacher classification output must be an object"
+                        )
                     validate_output(task_type, observed_output)
                     validate_safe_payload(task_type, payload)
-                    provenance_extra = dict(provenance_extra or {})
+                    provenance_extra = dict(provenance_extra)
                     observed_decision = str(observed_output["decision"])
                     decision = str(authoritative_output["decision"])
                     teacher_agrees = observed_decision == decision
@@ -344,13 +553,13 @@ class DistillationPipeline:
                         ]
                 if task_type == "frontend":
                     normalization = _normalize_frontend_payload(payload)
-                    frontend_provenance: dict[str, object] = provenance_extra or {}
+                    frontend_provenance: dict[str, object] = provenance_extra
                     frontend_provenance["payload_normalization"] = normalization
                     provenance_extra = frontend_provenance
                 validate_safe_payload(task_type, payload)
                 if task_type == "frontend":
                     trace_source = _ensure_frontend_public_trace(payload)
-                    frontend_provenance = provenance_extra or {}
+                    frontend_provenance = provenance_extra
                     frontend_provenance["decision_trace_source"] = trace_source
                     provenance_extra = frontend_provenance
                 if task_input is not None:
@@ -364,38 +573,102 @@ class DistillationPipeline:
                     seed=seed,
                     sop=self.sops[task_type],
                     teacher_model=self.teacher.model,
-                    teacher_base_url=self.teacher.base_url,
-                    teacher_protocol=self.teacher.protocol,
+                    teacher_base_url=teacher_base_url,
+                    teacher_protocol=teacher_protocol,
                     generation_params=self.teacher.generation_params,
-                    provider_provenance=self.teacher.provider_provenance,
+                    provider_provenance=provider_provenance,
                     template_sha256=template_sha256(task_type),
                     canonical_task_input=task_input,
                     provenance_extra=provenance_extra,
                 )
 
-            results = await asyncio.gather(
-                *(distill(index, seed) for index, seed in pending),
-                return_exceptions=True,
-            )
+            remaining_jobs = iter(enumerate(pending))
             task_written = 0
-            for (_, seed), result in zip(pending, results):
-                if isinstance(result, BaseException):
-                    errors.append(f"{task_type}:{seed.seed_id}: {type(result).__name__}: {result}")
-                    if isinstance(result, RateLimitError):
-                        rate_limited = True
-                        if result.retry_after_seconds is not None:
-                            retry_after_seconds = max(
-                                retry_after_seconds or 0.0,
-                                result.retry_after_seconds,
-                            )
-                    if isinstance(result, ProviderQuotaExhausted):
-                        provider_quota_exhausted = True
-                    if isinstance(result, ClientDeadlineExceeded):
-                        client_deadline = True
-                    continue
-                if store.append(result.to_dict()):
-                    task_written += 1
+            task_errors: dict[int, str] = {}
+            stage_rate_limits: list[RateLimitError] = []
+            stage_deadlines: list[ClientDeadlineExceeded] = []
+            terminal_seen = asyncio.Event()
+
+            async def task_worker() -> None:
+                nonlocal task_written
+                while not terminal_seen.is_set():
+                    try:
+                        position, (index, seed) = next(remaining_jobs)
+                    except StopIteration:
+                        return
+                    try:
+                        result: DistilledRecord | Exception = await distill(index, seed)
+                    except Exception as error:
+                        result = error
+                    if isinstance(result, BaseException):
+                        task_errors[position] = (
+                            f"{task_type}:{seed.seed_id}: "
+                            f"{type(result).__name__}: {result}"
+                        )
+                        if isinstance(result, RateLimitError):
+                            stage_rate_limits.append(result)
+                            terminal_seen.set()
+                        if isinstance(result, ClientDeadlineExceeded):
+                            stage_deadlines.append(result)
+                            terminal_seen.set()
+                        continue
+                    try:
+                        appended = store.append(result.to_dict())
+                    except BaseException:
+                        terminal_seen.set()
+                        raise
+                    if appended:
+                        # Count only durable, deduplicated appends.  Updating as
+                        # each future completes makes long batches observable
+                        # and crash/resume safe without weakening stage order.
+                        task_written += 1
+                        await self._checkpoint_progress()
+
+            worker_tasks = [
+                asyncio.create_task(task_worker())
+                for _ in range(min(self.concurrency, len(pending)))
+            ]
+            worker_results = await asyncio.gather(*worker_tasks, return_exceptions=True)
+            fatal = next(
+                (
+                    result
+                    for result in worker_results
+                    if isinstance(result, BaseException)
+                    and not isinstance(result, asyncio.CancelledError)
+                ),
+                None,
+            )
+            if fatal is not None:
+                raise fatal
+
+            if stage_rate_limits:
+                rate_limited = True
+                provider_quota_exhausted = provider_quota_exhausted or any(
+                    isinstance(error, ProviderQuotaExhausted)
+                    for error in stage_rate_limits
+                )
+                retry_values = [
+                    error.retry_after_seconds
+                    for error in stage_rate_limits
+                    if error.retry_after_seconds is not None
+                ]
+                if retry_values:
+                    retry_after_seconds = max(retry_after_seconds or 0.0, *retry_values)
+            if stage_deadlines:
+                client_deadline = True
+
+            errors.extend(task_errors[position] for position in sorted(task_errors))
             written[task_type] = task_written
+            if rate_limited or client_deadline:
+                terminal_task_index = task_index
+                break
+
+        if terminal_task_index is not None:
+            # Keep the report shape stable while making it explicit that no
+            # downstream stage was attempted after the terminal signal.
+            for task_type in selected[terminal_task_index + 1 :]:
+                written[task_type] = 0
+                skipped[task_type] = 0
         return PipelineReport(
             requested_seeds=seed_count,
             available_seeds=len(seeds),
@@ -430,7 +703,9 @@ class DistillationPipeline:
             raise UpstreamDependencyError(
                 f"{task_type} record for seed {seed_id} has no successful output"
             )
-        if task_type in ("frontend", "review") and not isinstance(output.get("code"), str):
+        if task_type in ("frontend", "review") and not isinstance(
+            output.get("code"), str
+        ):
             raise UpstreamDependencyError(
                 f"{task_type} record for seed {seed_id} has no successful output.code"
             )

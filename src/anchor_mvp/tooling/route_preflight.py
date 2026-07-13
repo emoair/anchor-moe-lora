@@ -43,6 +43,7 @@ _VIRTUAL_DEVICE_PREFIXES = (
 _SECRET_ENV_NAMES = (
     "ANCHOR_TEACHER_API_KEY",
     "ANTHROPIC_API_KEY",
+    "ARK_CODING_API_KEY",
     "KIMI_API_KEY",
     "KIMI_CODE_API_KEY",
     "OPENAI_API_KEY",
@@ -94,9 +95,7 @@ class KimiRouteAudit:
     physical_default: DefaultRoute | None
 
 
-CommandRunner = Callable[
-    [Sequence[str], float], subprocess.CompletedProcess[str]
-]
+CommandRunner = Callable[[Sequence[str], float], subprocess.CompletedProcess[str]]
 Resolver = Callable[[str], tuple[ipaddress.IPv4Address, ...]]
 
 
@@ -174,7 +173,8 @@ def _exclusive_route_lock(distro: str) -> Iterator[None]:
                 import fcntl
 
                 fcntl.flock(  # type: ignore[attr-defined]
-                    handle.fileno(), fcntl.LOCK_UN  # type: ignore[attr-defined]
+                    handle.fileno(),
+                    fcntl.LOCK_UN,  # type: ignore[attr-defined]
                 )
 
 
@@ -253,7 +253,7 @@ def _json_rows(stdout: str, *, code: str) -> list[dict[str, object]]:
 
 
 class WslKimiRoutePreflight:
-    """Inspect and temporarily override only Kimi IPv4 host routes in one WSL distro."""
+    """Inspect and temporarily override one provider's IPv4 routes in one WSL distro."""
 
     def __init__(
         self,
@@ -304,9 +304,7 @@ class WslKimiRoutePreflight:
         if destination != address:
             raise RoutePreflightError("route_destination_mismatch")
         gateway = _ipv4(row.get("gateway"), code="route_gateway_invalid")
-        source = _ipv4(
-            row.get("prefsrc", row.get("src")), code="route_source_invalid"
-        )
+        source = _ipv4(row.get("prefsrc", row.get("src")), code="route_source_invalid")
         device = _device(row.get("dev"))
         return RoutePath(
             destination=address,
@@ -378,9 +376,7 @@ class WslKimiRoutePreflight:
             if not route.is_virtual and route.gateway is not None
         )
         best_metric = candidates[0].metric if candidates else None
-        best = tuple(
-            route for route in candidates if route.metric == best_metric
-        )
+        best = tuple(route for route in candidates if route.metric == best_metric)
         physical = best[0] if len(best) == 1 else None
         return KimiRouteAudit(
             host=self.host,
@@ -394,9 +390,7 @@ class WslKimiRoutePreflight:
     def _snapshot_exact_route(
         self, address: ipaddress.IPv4Address
     ) -> tuple[str, ...] | None:
-        result = self._ip(
-            "-4", "-o", "route", "show", "exact", f"{address}/32"
-        )
+        result = self._ip("-4", "-o", "route", "show", "exact", f"{address}/32")
         lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         if not lines:
             return None
@@ -406,7 +400,9 @@ class WslKimiRoutePreflight:
             tokens = shlex.split(lines[0], posix=True)
         except ValueError as error:
             raise RoutePreflightError("exact_route_snapshot_invalid") from error
-        if not tokens or any(not _SAFE_ROUTE_TOKEN_RE.fullmatch(item) for item in tokens):
+        if not tokens or any(
+            not _SAFE_ROUTE_TOKEN_RE.fullmatch(item) for item in tokens
+        ):
             raise RoutePreflightError("exact_route_snapshot_invalid")
         try:
             destination = ipaddress.IPv4Network(tokens[0], strict=False)
@@ -435,9 +431,7 @@ class WslKimiRoutePreflight:
                     conflict = True
                     continue
                 if snapshot is None:
-                    self._ip(
-                        "-4", "route", "del", f"{address}/32", root=True
-                    )
+                    self._ip("-4", "route", "del", f"{address}/32", root=True)
                 else:
                     self._ip("-4", "route", "replace", *snapshot, root=True)
             except RoutePreflightError:
@@ -551,7 +545,7 @@ def _matches_direct_snapshot(
 def render_route_audit(audit: KimiRouteAudit) -> str:
     addresses = ",".join(str(value) for value in audit.ipv4_addresses)
     lines = [
-        "kimi_route_preflight=no_api_request",
+        "provider_route_preflight=no_api_request",
         f"host={audit.host} distro={audit.distro} ipv4={addresses}",
     ]
     for route in audit.current_routes:
@@ -594,7 +588,7 @@ def choose_route_mode(
         else "unavailable: no physical default candidate"
     )
     stdout.write(
-        "Select Kimi route mode:\n"
+        "Select provider route mode:\n"
         "  [1/current] keep current routing\n"
         f"  [2/direct] {direct_text}\n"
         "  [3/abort] stop before any API request\n"
@@ -635,6 +629,7 @@ def prepare_kimi_route_plan(
     *,
     distro: str | None,
     requested_mode: RouteMode,
+    host: str = KIMI_API_HOST,
     stdin: TextIO = sys.stdin,
     stdout: TextIO = sys.stdout,
     preflight: WslKimiRoutePreflight | None = None,
@@ -647,7 +642,9 @@ def prepare_kimi_route_plan(
         raise RoutePreflightError("route_mode_required_for_non_tty")
     if distro is None:
         raise RoutePreflightError("wsl_distro_required_for_route_preflight")
-    inspector = preflight or WslKimiRoutePreflight(distro)
+    inspector = preflight or WslKimiRoutePreflight(distro, host=host)
+    if inspector.host != host:
+        raise RoutePreflightError("route_host_mismatch")
     audit = inspector.inspect()
     stdout.write(render_route_audit(audit) + "\n")
     stdout.flush()

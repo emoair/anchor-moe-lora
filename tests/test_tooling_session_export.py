@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from anchor_mvp.tooling.session_export import (
     SessionConversionPolicy,
     convert_controlled_session,
     convert_controlled_session_staging,
+    credential_fingerprint,
     quarantine_record,
 )
 from anchor_mvp.tooling.session_partition import partition_staging_jsonl
@@ -194,7 +196,9 @@ def _collect_capture() -> dict[str, object]:
     return capture
 
 
-def test_controlled_export_retains_safe_tool_results_and_drops_reasoning(tmp_path: Path):
+def test_controlled_export_retains_safe_tool_results_and_drops_reasoning(
+    tmp_path: Path,
+):
     policy, workspace = _policy(tmp_path)
     candidate = convert_controlled_session(_export(workspace), _capture(), policy)
 
@@ -219,7 +223,10 @@ def test_controlled_export_retains_safe_tool_results_and_drops_reasoning(tmp_pat
     assert results[0]["content"].endswith("export const value = 1;</file>")
     assert results[3]["content"] == "TAP version 13\n# pass 3\n# fail 0"
     assert calls[0]["input"]["filePath"] == "<workspace>/src/status-list.js"
-    assert all(result["sequence"] == call["sequence"] + 1 for call, result in zip(calls, results))
+    assert all(
+        result["sequence"] == call["sequence"] + 1
+        for call, result in zip(calls, results)
+    )
     serialized = json.dumps(candidate, ensure_ascii=False)
     assert "private model reasoning" not in serialized
     assert str(workspace) not in serialized
@@ -258,6 +265,56 @@ def test_secret_in_dropped_reasoning_still_quarantines_entire_capture(tmp_path: 
         convert_controlled_session(exported, _capture(), policy)
 
 
+def test_bare_ark_credential_shape_quarantines_entire_capture(tmp_path: Path):
+    policy, workspace = _policy(tmp_path)
+    exported = _export(workspace)
+    synthetic_ark = "ark-" + "a1" * 18
+    exported["messages"][1]["parts"][2]["state"]["output"] = synthetic_ark
+
+    with pytest.raises(QuarantineError, match="secret_detected"):
+        convert_controlled_session(exported, _capture(), policy)
+
+    exported["messages"][1]["parts"][2]["state"]["output"] = "ark-project-name"
+    candidate = convert_controlled_session(exported, _capture(), policy)
+    assert candidate["sample_id"] == "controlled-session-001"
+
+
+def test_selected_credential_exact_match_is_detected_from_fingerprint(
+    tmp_path: Path,
+):
+    policy, workspace = _policy(tmp_path)
+    selected = "pv-live-0123456789-ExactSyntheticValue"
+    policy = replace(
+        policy,
+        selected_credential_fingerprint=credential_fingerprint(selected),
+    )
+    exported = _export(workspace)
+    exported["messages"][1]["parts"][2]["state"]["output"] = (
+        f"tool returned prefix{selected}suffix"
+    )
+
+    assert selected not in repr(policy)
+    with pytest.raises(QuarantineError, match="secret_detected"):
+        convert_controlled_session(exported, _capture(), policy)
+
+
+@pytest.mark.parametrize(
+    "fingerprint",
+    [
+        (7, "0" * 64),
+        (8, "not-a-sha256"),
+        [8, "0" * 64],
+    ],
+)
+def test_selected_credential_fingerprint_is_strictly_validated(
+    tmp_path: Path, fingerprint: object
+):
+    policy, _ = _policy(tmp_path)
+
+    with pytest.raises(ValueError, match="selected credential fingerprint is invalid"):
+        replace(policy, selected_credential_fingerprint=fingerprint)
+
+
 def test_user_instruction_may_forbid_chain_of_thought_without_being_a_leak(
     tmp_path: Path,
 ):
@@ -289,15 +346,19 @@ def test_hidden_reasoning_marker_in_assistant_public_text_is_quarantined(
 def test_workspace_escape_in_tool_input_quarantines_capture(tmp_path: Path):
     policy, workspace = _policy(tmp_path)
     exported = _export(workspace)
-    exported["messages"][1]["parts"][2]["state"]["input"]["filePath"] = (
-        str(tmp_path / "outside.txt")
+    exported["messages"][1]["parts"][2]["state"]["input"]["filePath"] = str(
+        tmp_path / "outside.txt"
     )
 
-    with pytest.raises(QuarantineError, match="absolute_path_outside_workspace|workspace_escape"):
+    with pytest.raises(
+        QuarantineError, match="absolute_path_outside_workspace|workspace_escape"
+    ):
         convert_controlled_session(exported, _capture(), policy)
 
 
-def test_container_workspace_paths_are_normalized_without_allowing_escape(tmp_path: Path):
+def test_container_workspace_paths_are_normalized_without_allowing_escape(
+    tmp_path: Path,
+):
     policy, workspace = _policy(tmp_path)
     exported = _export(workspace)
     source = exported["messages"][1]["parts"][2]
@@ -375,9 +436,21 @@ def test_v2_contract_retains_write_and_workspace_search_results(tmp_path: Path):
     exported = _export(workspace)
     source = workspace / "src" / "status-list.js"
     extra = [
-        ("write", {"filePath": str(source), "content": "export const ok = true"}, "Wrote file"),
-        ("grep", {"pattern": "export\\s+const", "path": str(workspace / "src")}, "src/status-list.js:1"),
-        ("glob", {"pattern": "**/*.js", "path": str(workspace / "src")}, "src/status-list.js"),
+        (
+            "write",
+            {"filePath": str(source), "content": "export const ok = true"},
+            "Wrote file",
+        ),
+        (
+            "grep",
+            {"pattern": "export\\s+const", "path": str(workspace / "src")},
+            "src/status-list.js:1",
+        ),
+        (
+            "glob",
+            {"pattern": "**/*.js", "path": str(workspace / "src")},
+            "src/status-list.js",
+        ),
         ("list", {"path": str(workspace / "src")}, "status-list.js"),
     ]
     parts = exported["messages"][1]["parts"]
@@ -396,7 +469,9 @@ def test_v2_contract_retains_write_and_workspace_search_results(tmp_path: Path):
 
     candidate = convert_controlled_session(exported, _capture(), policy)
     calls = [item for item in candidate["trajectory"] if item["type"] == "tool_call"]
-    results = [item for item in candidate["trajectory"] if item["type"] == "tool_result"]
+    results = [
+        item for item in candidate["trajectory"] if item["type"] == "tool_result"
+    ]
     assert [item["tool"] for item in calls][-4:] == ["write", "grep", "glob", "list"]
     assert calls[-4]["input"]["filePath"] == "<workspace>/src/status-list.js"
     assert calls[-3]["input"]["path"] == "<workspace>/src"
@@ -434,7 +509,9 @@ def test_collect_mode_retains_failed_quality_as_labels(tmp_path: Path):
     policy, workspace = _policy(tmp_path)
     exported = _export(workspace)
     capture = _collect_capture()
-    capture["validators"][1].update(status="FAIL", exit_code=1, stderr="one test failed")
+    capture["validators"][1].update(
+        status="FAIL", exit_code=1, stderr="one test failed"
+    )
     capture["public_outcome"]["status"] = "partial"
 
     staged = convert_controlled_session_staging(exported, capture, policy)
@@ -472,7 +549,9 @@ def test_collect_mode_retains_policy_rejected_tool_pair(tmp_path: Path):
         convert_controlled_session_staging(exported, capture, policy)
 
 
-def test_collect_then_filter_partitions_gold_negative_and_content_free_reject(tmp_path: Path):
+def test_collect_then_filter_partitions_gold_negative_and_content_free_reject(
+    tmp_path: Path,
+):
     policy, workspace = _policy(tmp_path)
     good = convert_controlled_session_staging(
         _export(workspace), _collect_capture(), policy

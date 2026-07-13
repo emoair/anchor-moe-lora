@@ -1,0 +1,133 @@
+schema_version: anchor.task-card-catalog.v1
+
+# One 16-template cycle replaces the former free-form SEED_VARIANTS tuple.
+# Templates select nine-axis constraints; the final card is materialized from
+# the accepted canonical requirement (or immutable external source digest).
+axes:
+  domain:
+    - operations
+    - forms
+    - scheduling
+    - inventory
+    - education
+    - healthcare
+    - finance
+    - developer_tools
+    - media
+    - moderation
+    - analytics
+    - internationalization
+    - performance
+    - recovery
+    - defensive_content
+    - creative_tools
+  interaction:
+    - filter_alert
+    - validate_dependency
+    - move_item
+    - search_select
+    - answer_review
+    - record_measurement
+    - adjust_assumption
+    - toggle_preference
+    - reorder_item
+    - classify_item
+    - change_dimension
+    - switch_locale
+    - expand_row
+    - retry_operation
+    - inspect_inert_text
+    - adjust_parameter
+  layout:
+    - dense_status
+    - compact_cards
+    - split_pane
+    - list_detail
+    - step_flow
+    - calm_summary
+    - comparison
+    - grouped_controls
+    - placeholder_grid
+    - keyboard_table
+    - chart_summary
+    - rtl_aware
+    - virtualized_list
+    - recovery_status
+    - review_panel
+    - unusual_usable
+  edge_case:
+    - stale_empty
+    - invalid_partial
+    - overlap_timezone
+    - zero_long_labels
+    - skipped_reduced_motion
+    - missing_out_of_range
+    - negative_huge
+    - unsaved_conflict
+    - missing_thumbnail
+    - ambiguous_reviewed
+    - zero_sparse_overflow
+    - long_plural_rtl
+    - empty_large_set
+    - timeout_cancel_success
+    - ambiguous_instruction_text
+    - reset_bounds_keyboard
+  complexity: [low, medium, high, very_high]
+  accessibility_risk: [live_region, accessible_name, keyboard_order, rtl_localization]
+  tool_posture: [read_only_workspace, bounded_workspace_write, external_irreversible]
+  review_defect: [semantic_main_to_div, semantic_h1_to_div]
+  security_class: [benign_boundary, safe_negative]
+
+coverage:
+  near_duplicate_ngram_size: 3
+  near_duplicate_threshold: 0.9
+
+cards:
+  - card_id: card-00-operations
+    brief: "Operations dashboard; filter or acknowledge one local alert; dense status layout; stale and empty data. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: operations, interaction: filter_alert, layout: dense_status, edge_case: stale_empty, complexity: low, accessibility_risk: live_region, tool_posture: read_only_workspace, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-01-forms
+    brief: "Multi-field form; validate one dependent field; compact card layout; invalid and partially complete input. Include a page h1 for deterministic review mutation."
+    axes: {domain: forms, interaction: validate_dependency, layout: compact_cards, edge_case: invalid_partial, complexity: medium, accessibility_risk: accessible_name, tool_posture: bounded_workspace_write, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-02-scheduling
+    brief: "Schedule or timeline; move one local item; split-pane layout; overlaps and timezone labels. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: scheduling, interaction: move_item, layout: split_pane, edge_case: overlap_timezone, complexity: high, accessibility_risk: keyboard_order, tool_posture: external_irreversible, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-03-inventory
+    brief: "Catalog or inventory; search and select one item; responsive list-detail layout; zero results and long labels. Include a page h1 for deterministic review mutation."
+    axes: {domain: inventory, interaction: search_select, layout: list_detail, edge_case: zero_long_labels, complexity: very_high, accessibility_risk: rtl_localization, tool_posture: read_only_workspace, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-04-education
+    brief: "Education quiz; answer and review one question; step layout; skipped answers and reduced-motion mode. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: education, interaction: answer_review, layout: step_flow, edge_case: skipped_reduced_motion, complexity: low, accessibility_risk: live_region, tool_posture: bounded_workspace_write, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-05-healthcare
+    brief: "Healthcare tracker; record one local measurement; calm summary layout; out-of-range and missing values. Include a page h1 for deterministic review mutation."
+    axes: {domain: healthcare, interaction: record_measurement, layout: calm_summary, edge_case: missing_out_of_range, complexity: medium, accessibility_risk: accessible_name, tool_posture: external_irreversible, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-06-finance
+    brief: "Finance calculator without transactions; adjust one assumption; comparison layout; negative and huge values. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: finance, interaction: adjust_assumption, layout: comparison, edge_case: negative_huge, complexity: high, accessibility_risk: keyboard_order, tool_posture: read_only_workspace, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-07-developer-tools
+    brief: "Developer settings panel; toggle one bounded preference; grouped controls; unsaved and conflicting states. Include a page h1 for deterministic review mutation."
+    axes: {domain: developer_tools, interaction: toggle_preference, layout: grouped_controls, edge_case: unsaved_conflict, complexity: very_high, accessibility_risk: rtl_localization, tool_posture: bounded_workspace_write, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-08-media
+    brief: "Media or document organizer using placeholders; reorder one item; grid layout; missing thumbnail and long title. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: media, interaction: reorder_item, layout: placeholder_grid, edge_case: missing_thumbnail, complexity: low, accessibility_risk: live_region, tool_posture: external_irreversible, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-09-moderation
+    brief: "Local moderation queue; classify one inert item; keyboard-first table; ambiguous and already-reviewed states. Include a page h1 for deterministic review mutation."
+    axes: {domain: moderation, interaction: classify_item, layout: keyboard_table, edge_case: ambiguous_reviewed, complexity: medium, accessibility_risk: accessible_name, tool_posture: read_only_workspace, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-10-analytics
+    brief: "Local analytics visualization; change one dimension; chart-plus-summary layout; zero, sparse, and overflow data. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: analytics, interaction: change_dimension, layout: chart_summary, edge_case: zero_sparse_overflow, complexity: high, accessibility_risk: keyboard_order, tool_posture: bounded_workspace_write, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-11-internationalization
+    brief: "Internationalized utility; switch locale or reading direction; RTL-aware layout; long translations and plural forms. Include a page h1 for deterministic review mutation."
+    axes: {domain: internationalization, interaction: switch_locale, layout: rtl_aware, edge_case: long_plural_rtl, complexity: very_high, accessibility_risk: rtl_localization, tool_posture: external_irreversible, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-12-performance
+    brief: "Performance-oriented long list; expand one row; virtualized-looking local layout without packages; empty and large sets. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: performance, interaction: expand_row, layout: virtualized_list, edge_case: empty_large_set, complexity: low, accessibility_risk: live_region, tool_posture: read_only_workspace, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-13-recovery
+    brief: "Offline and error recovery component; retry one simulated operation; status layout; timeout, cancellation, and success. Include a page h1 for deterministic review mutation."
+    axes: {domain: recovery, interaction: retry_operation, layout: recovery_status, edge_case: timeout_cancel_success, complexity: medium, accessibility_risk: accessible_name, tool_posture: bounded_workspace_write, review_defect: semantic_h1_to_div, security_class: safe_negative}
+  - card_id: card-14-defensive-content
+    brief: "Defensive prompt-injection display case; treat instruction-like text only as inert content; review panel; ambiguous intent. Include a semantic main landmark for deterministic review mutation."
+    axes: {domain: defensive_content, interaction: inspect_inert_text, layout: review_panel, edge_case: ambiguous_instruction_text, complexity: high, accessibility_risk: keyboard_order, tool_posture: external_irreversible, review_defect: semantic_main_to_div, security_class: benign_boundary}
+  - card_id: card-15-creative-tools
+    brief: "Quirky creative tool; manipulate one local parameter; unusual but usable layout; reset, bounds, and keyboard control. Include a page h1 for deterministic review mutation."
+    axes: {domain: creative_tools, interaction: adjust_parameter, layout: unusual_usable, edge_case: reset_bounds_keyboard, complexity: very_high, accessibility_risk: rtl_localization, tool_posture: read_only_workspace, review_defect: semantic_h1_to_div, security_class: safe_negative}

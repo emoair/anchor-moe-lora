@@ -8,14 +8,18 @@ from anchor_mvp.tooling import (
     AnchorSandboxOptions,
     ControlledSessionCapture,
     OpenCodeExecutor,
+    OpenCodeProvider,
     ToolPolicy,
 )
 from anchor_mvp.tooling.opencode_artifact import BinaryAttestation, sha256_file
 from anchor_mvp.tooling.models import PublicDecisionStep, PublicOutcome
 from anchor_mvp.tooling.runner import _public_outcome_capture
+from anchor_mvp.tooling.session_export import credential_fingerprint
 
 
-def _attested_executor(tmp_path: Path, *, windows_shim: bool = False) -> OpenCodeExecutor:
+def _attested_executor(
+    tmp_path: Path, *, windows_shim: bool = False
+) -> OpenCodeExecutor:
     suffix = ".cmd" if windows_shim else ".exe" if os.name == "nt" else ""
     executable = tmp_path / f"opencode{suffix}"
     executable.write_bytes(b"audited-test-binary")
@@ -50,9 +54,7 @@ def test_public_outcome_capture_uses_only_json_native_collections():
     assert captured == {
         "schema_version": "anchor.public-outcome.v1",
         "status": "completed",
-        "decision_trace": [
-            {"check": "test", "evidence": "passed", "action": "finish"}
-        ],
+        "decision_trace": [{"check": "test", "evidence": "passed", "action": "finish"}],
         "repair_summaries": ["Repaired the controlled fixture."],
         "final_summary": "done",
     }
@@ -80,6 +82,64 @@ def test_live_environment_is_isolated_and_preserves_real_client_identity(tmp_pat
     assert "OPENCODE_CONFIG_CONTENT" not in environment
     assert environment["XDG_DATA_HOME"].startswith(str(tmp_path))
     assert environment["XDG_CACHE_HOME"].startswith(str(tmp_path))
+
+
+def test_provider_key_is_aliased_only_in_the_child_environment(monkeypatch, tmp_path):
+    provider = OpenCodeProvider(
+        provider_id="anchor-ark-glm52",
+        npm="@ai-sdk/openai",
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="glm-5-2-260617",
+        variant="max",
+        key_env="ARK_CODING_API_KEY",
+        route_host="ark.cn-beijing.volces.com",
+    )
+    monkeypatch.setenv("ARK_CODING_API_KEY", "test-process-only")
+    monkeypatch.setenv("KIMI_CODE_API_KEY", "stale-wrong-provider-key")
+    executor = OpenCodeExecutor(provider=provider)
+
+    environment = executor._environment(tmp_path / "opencode.json")
+
+    assert executor.api_key_present() is True
+    assert "ARK_CODING_API_KEY" not in environment
+    assert environment["KIMI_CODE_API_KEY"] == "test-process-only"
+
+
+def test_selected_provider_key_is_reduced_to_nonplaintext_fingerprint(tmp_path):
+    selected = "provider-value-ExactSyntheticCredential-012345"
+    executor = OpenCodeExecutor(
+        extra_environment={"KIMI_CODE_API_KEY": selected},
+    )
+
+    fingerprint = executor._selected_credential_fingerprint()
+
+    assert fingerprint == credential_fingerprint(selected)
+    assert selected not in repr(fingerprint)
+
+
+def test_command_uses_configured_provider_model_and_variant(tmp_path):
+    provider = OpenCodeProvider(
+        provider_id="anchor-ark-glm52",
+        npm="@ai-sdk/openai",
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="glm-5-2-260617",
+        variant="max",
+        key_env="ARK_CODING_API_KEY",
+        route_host="ark.cn-beijing.volces.com",
+    )
+    executor = _attested_executor(tmp_path)
+    executor.provider = provider
+
+    argv = executor.command(
+        sample_id="ark-wire",
+        prompt="No call",
+        workspace=tmp_path,
+        config_path=tmp_path / "opencode.json",
+    )
+
+    assert argv[argv.index("--model") + 1] == "anchor-ark-glm52/glm-5-2-260617"
+    assert argv[argv.index("--variant") + 1] == "max"
+    assert executor.backend_name == "opencode-anchor-ark-glm52-anchor-sandbox"
 
 
 def test_missing_opencode_returns_auditable_failure_without_api_call(tmp_path):
@@ -158,7 +218,9 @@ def test_command_pins_audited_thinking_variant_without_printing_reasoning(tmp_pa
     assert argv[1:3] == ["anchor", "run"]
     assert argv[argv.index("--run-id") + 1] == "thinking"
     assert argv[argv.index("--workspace") + 1] == str(tmp_path.resolve())
-    assert argv[argv.index("--config") + 1] == str((tmp_path / "opencode.json").resolve())
+    assert argv[argv.index("--config") + 1] == str(
+        (tmp_path / "opencode.json").resolve()
+    )
     assert argv[argv.index("--linux-executable") + 1] == str(linux)
     assert argv[argv.index("--wsl-distro") + 1] == "Ubuntu-22.04"
     assert argv[argv.index("--supervisor") + 1] == "wsl-root-systemd"
@@ -308,9 +370,7 @@ def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):
     outcome = {
         "schema_version": "anchor.public-outcome.v1",
         "status": "completed",
-        "decision_trace": [
-            {"check": "test", "evidence": "passed", "action": "finish"}
-        ],
+        "decision_trace": [{"check": "test", "evidence": "passed", "action": "finish"}],
         "repair_summaries": [],
         "final_summary": "done",
     }
@@ -329,7 +389,9 @@ def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):
         def communicate(self, timeout=None):
             return stdout, ""
 
-    monkeypatch.setattr("anchor_mvp.tooling.runner.subprocess.Popen", lambda *a, **k: FakeProcess())
+    monkeypatch.setattr(
+        "anchor_mvp.tooling.runner.subprocess.Popen", lambda *a, **k: FakeProcess()
+    )
     calls: list[list[str]] = []
 
     def fake_run(command, *args, **kwargs):
@@ -412,9 +474,15 @@ def test_collect_capture_lands_before_strict_success_even_when_tools_rejected(
         "sample_id": "collect-rejected",
         "quality": {"labels": ["tool_rejected"]},
     }
+    observed_capture = {}
+
+    def fake_staging_conversion(export_data, capture, policy):
+        observed_capture.update(capture)
+        return staged
+
     monkeypatch.setattr(
         "anchor_mvp.tooling.runner.convert_controlled_session_staging",
-        lambda *args, **kwargs: staged,
+        fake_staging_conversion,
     )
     monkeypatch.setattr(
         "anchor_mvp.tooling.runner.convert_controlled_session",
@@ -429,10 +497,20 @@ def test_collect_capture_lands_before_strict_success_even_when_tools_rejected(
         sample_id="collect-rejected",
         workspace=tmp_path,
         validators=(),
+        final_diff=(
+            {
+                "file": "index.js",
+                "patch": "--- a/index.js\n+++ b/index.js\n@@ -1 +1 @@\n-old\n+new",
+                "additions": 1,
+                "deletions": 1,
+                "status": "modified",
+            },
+        ),
     )
 
     assert captured is True
     assert code is None
+    assert observed_capture["final_diff"][0]["file"] == "index.js"
     assert json.loads(staging.read_text()) == staged
     assert not candidates.exists()
     assert not runtime.exists()

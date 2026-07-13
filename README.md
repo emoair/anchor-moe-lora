@@ -7,7 +7,7 @@ application-level DAG.
 
 The repository and distribution name are `anchor-moe-lora`. The Python import
 package remains `anchor_mvp`, while the prepared Conda environment remains
-`anchor-mvp`. The verified local checkout is `D:\LLM\anchor-moe-lora`.
+`anchor-mvp`. Commands below assume the repository root as the working directory.
 
 中文端到端使用、密钥防泄漏、Provider、自动蒸馏、OpenCode execution gold 与
 常见故障处理见 [简中快速上手](QUICKSTART.zh-CN.md)。当前 OpenCode live 门禁也以该文档为准。
@@ -40,7 +40,7 @@ The prepared environment is isolated from Anaconda `base`:
 
 ```powershell
 conda activate anchor-mvp
-cd D:\LLM\anchor-moe-lora
+cd <repo>
 python -m pip install -e .
 python -m pytest
 ```
@@ -182,3 +182,6 @@ This project builds on openly shared Skills, adapter research, model/training st
 and serving tools. Directly vendored assets, research inspiration, and infrastructure
 dependencies are credited separately in [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md),
 with pinned commits and original license locations where applicable.
+The isolated SWE task-card importer records its SWE-bench/SWE-smith source policy and
+official upstream acknowledgements in
+[docs/swebench_metadata_import.md](docs/swebench_metadata_import.md).
