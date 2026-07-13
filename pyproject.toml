@@ -36,9 +36,13 @@ anchor-train = "anchor_mvp.training.cli:main"
 anchor-benchmark = "anchor_mvp.benchmark.cli:main"
 anchor-heldout = "anchor_mvp.benchmark.heldout_cli:main"
 anchor-swebench = "anchor_mvp.swebench.cli:main"
+anchor-ccswitch-metadata = "anchor_mvp.integrations.ccswitch_metadata.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"anchor_mvp.integrations.ccswitch_metadata" = ["fixtures/*.json", "NOTICE.txt"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

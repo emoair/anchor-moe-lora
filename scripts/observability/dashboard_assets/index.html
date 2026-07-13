@@ -1,0 +1,2056 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title data-i18n="page.title"></title>
+  <style>
+    :root {
+      --bg: #050706;
+      --surface: #0a0e0c;
+      --surface-2: #101612;
+      --line: #203128;
+      --line-bright: #355443;
+      --text: #d6e4dc;
+      --muted: #7e9989;
+      --green: #73f6a5;
+      --green-dim: #224e33;
+      --cyan: #66d9ef;
+      --amber: #ffd166;
+      --red: #ff6b6b;
+      --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 85% 0%, rgba(115, 246, 165, .08), transparent 28rem),
+        linear-gradient(rgba(115, 246, 165, .015) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, 100% 4px, auto;
+      font-family: var(--sans);
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      width: min(1560px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 5px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow, .mono, .metric-value, .stage-count, .terminal, table {
+      font-family: var(--mono);
+    }
+
+    .eyebrow {
+      margin-bottom: 6px;
+      color: var(--green);
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      font-weight: 650;
+      letter-spacing: -.035em;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: max-content;
+      padding-top: 7px;
+    }
+
+    .pulse {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 5px rgba(255, 209, 102, .1);
+    }
+
+    .pulse.live {
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(115, 246, 165, .1);
+    }
+
+    .connection-copy { text-align: right; }
+    .connection-state { font: 12px var(--mono); }
+    .connection-time { margin-top: 3px; color: var(--muted); font: 11px var(--mono); }
+
+    .refresh {
+      min-height: 38px;
+      padding: 0 13px;
+      color: var(--green);
+      background: transparent;
+      border: 1px solid var(--line-bright);
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .refresh:hover, .refresh:focus-visible {
+      background: rgba(115, 246, 165, .08);
+      outline: 2px solid var(--green);
+      outline-offset: 2px;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 24px 0 10px;
+      color: var(--muted);
+      font: 11px var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .section-label::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: var(--line);
+    }
+
+    .control-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, .78fr) minmax(640px, 2.2fr);
+      gap: 12px;
+    }
+
+    .control-card {
+      padding: 16px;
+      background: rgba(10, 14, 12, .96);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    .control-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .control-title h2 { margin: 0; font: 600 13px var(--mono); letter-spacing: .05em; }
+
+    .process-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .process-cell {
+      min-height: 69px;
+      padding: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+
+    .process-cell span { display: block; color: var(--muted); font: 9px var(--mono); text-transform: uppercase; }
+    .process-cell strong { display: block; margin-top: 9px; color: var(--green); font: 12px var(--mono); overflow-wrap: anywhere; }
+
+    .control-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+
+    .control-button {
+      min-height: 36px;
+      padding: 0 11px;
+      color: var(--text);
+      background: #111a14;
+      border: 1px solid var(--line-bright);
+      border-radius: 4px;
+      cursor: pointer;
+      font: 10px var(--mono);
+    }
+
+    .control-button.primary { color: #041008; background: var(--green); border-color: var(--green); font-weight: 700; }
+    .control-button.danger { color: var(--red); border-color: rgba(255, 107, 107, .38); }
+    .control-button:disabled { opacity: .35; cursor: not-allowed; }
+    .control-button:not(:disabled):focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+    .control-message {
+      min-height: 35px;
+      margin-top: 12px;
+      padding: 9px 10px;
+      color: var(--muted);
+      background: #060907;
+      border-left: 2px solid var(--line-bright);
+      font: 10px/1.5 var(--mono);
+      overflow-wrap: anywhere;
+    }
+
+    .control-message.error { color: var(--red); border-color: var(--red); }
+    .control-message.ok { color: var(--green); border-color: var(--green); }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .field { display: grid; gap: 5px; min-width: 0; }
+    .field.wide { grid-column: span 2; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: var(--muted); font: 9px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+
+    .field input, .field select {
+      width: 100%;
+      height: 36px;
+      padding: 0 9px;
+      color: var(--text);
+      background: #060907;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font: 10px var(--mono);
+    }
+
+    .field input:focus, .field select:focus { outline: 1px solid var(--green); border-color: var(--green); }
+
+    .check-row { display: flex; align-items: center; gap: 8px; min-height: 36px; color: var(--muted); font: 10px var(--mono); }
+    .check-row input { width: 16px; height: 16px; accent-color: var(--green); }
+
+    details.advanced { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+    details.advanced summary { color: var(--amber); cursor: pointer; font: 10px var(--mono); }
+    details.advanced .form-grid { margin-top: 10px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      position: relative;
+      min-height: 116px;
+      padding: 16px;
+      overflow: hidden;
+      background: linear-gradient(145deg, rgba(16, 22, 18, .95), rgba(8, 12, 10, .98));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    .metric::after {
+      content: "";
+      position: absolute;
+      right: -22px;
+      bottom: -30px;
+      width: 72px;
+      height: 72px;
+      border: 1px solid rgba(115, 246, 165, .08);
+      transform: rotate(45deg);
+    }
+
+    .metric-name { color: var(--muted); font: 11px var(--mono); text-transform: uppercase; }
+    .metric-value { margin-top: 15px; color: var(--green); font-size: clamp(20px, 2vw, 29px); }
+    .metric-note { margin-top: 8px; color: var(--muted); font: 10px var(--mono); }
+    .metric-note.unknown { color: var(--amber); }
+
+    .shard-list { display: grid; gap: 12px; }
+
+    .shard {
+      background: rgba(10, 14, 12, .96);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .shard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 16px;
+      background: rgba(16, 22, 18, .7);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .shard-title { display: flex; align-items: center; gap: 10px; }
+    .shard-title h2 { margin: 0; font: 600 14px var(--mono); }
+
+    .state-pill {
+      padding: 3px 8px;
+      color: var(--muted);
+      background: rgba(126, 153, 137, .08);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font: 10px var(--mono);
+      text-transform: uppercase;
+    }
+
+    .state-pill.running, .state-pill.complete { color: var(--green); border-color: var(--green-dim); }
+    .state-pill.stale { color: var(--amber); border-color: rgba(255, 209, 102, .3); }
+    .updated { color: var(--muted); font: 10px var(--mono); }
+
+    .shard-body {
+      display: grid;
+      grid-template-columns: minmax(460px, 1.6fr) minmax(370px, 1fr);
+      gap: 0;
+    }
+
+    .stage-zone, .detail-zone { padding: 17px 16px; }
+    .detail-zone { border-left: 1px solid var(--line); }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stage {
+      padding: 12px 11px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+    }
+
+    .stage-name { color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .stage-count { margin-top: 8px; font-size: 18px; }
+    .stage-denom { color: var(--muted); font-size: 10px; }
+
+    .bar {
+      height: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+      background: #19221c;
+      border-radius: 2px;
+    }
+
+    .bar-fill {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-dim), var(--green));
+      transition: width .35s ease;
+    }
+
+    .chain-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 11px 12px;
+      color: var(--muted);
+      background: rgba(115, 246, 165, .035);
+      border: 1px solid var(--line);
+      font: 11px var(--mono);
+    }
+
+    .chain-value { color: var(--green); font-size: 17px; }
+
+    .telemetry-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    .telemetry-table td { padding: 5px 0; border-bottom: 1px dotted var(--line); }
+    .telemetry-table td:first-child { color: var(--muted); }
+    .telemetry-table td:last-child { text-align: right; }
+    .unknown-text { color: var(--amber); }
+
+    .budget-row { margin-top: 11px; }
+    .budget-label { display: flex; justify-content: space-between; color: var(--muted); font: 10px var(--mono); }
+
+    .error-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .error-chip {
+      padding: 3px 6px;
+      color: var(--red);
+      background: rgba(255, 107, 107, .06);
+      border: 1px solid rgba(255, 107, 107, .2);
+      border-radius: 3px;
+      font: 9px var(--mono);
+    }
+
+    .terminal {
+      min-height: 210px;
+      max-height: 340px;
+      overflow: auto;
+      background: #030504;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: inset 0 1px 22px rgba(0, 0, 0, .65);
+    }
+
+    .terminal-head {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 12px;
+      background: rgba(10, 14, 12, .98);
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .terminal-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .log-lines { padding: 9px 12px 14px; }
+
+    .log {
+      display: grid;
+      grid-template-columns: 85px 80px 110px minmax(0, 1fr);
+      gap: 10px;
+      padding: 4px 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .log + .log { border-top: 1px solid rgba(32, 49, 40, .34); }
+    .log-level { color: var(--cyan); }
+    .log-level.warning { color: var(--amber); }
+    .log-detail { color: var(--text); overflow-wrap: anywhere; }
+
+    .privacy {
+      margin-top: 14px;
+      color: var(--muted);
+      font: 10px/1.6 var(--mono);
+    }
+
+    .diagnostic-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+
+    .diagnostic-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .diagnostic-head h2 { margin: 0; font-size: 14px; }
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .diagnostic-cell {
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid rgba(32, 49, 40, .72);
+      border-radius: 8px;
+      background: rgba(6, 12, 9, .52);
+    }
+
+    .diagnostic-cell span { display: block; color: var(--muted); font-size: 9px; }
+    .diagnostic-cell strong { display: block; margin-top: 4px; overflow-wrap: anywhere; font-size: 11px; }
+    .diagnostic-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .diagnostic-reason { padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--amber); font: 10px var(--mono); }
+    .diagnostic-ok { color: var(--green); }
+
+    .empty {
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      font: 11px var(--mono);
+    }
+
+    @media (max-width: 1180px) {
+      .control-layout { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .shard-body { grid-template-columns: 1fr; }
+      .detail-zone { border-top: 1px solid var(--line); border-left: 0; }
+    }
+
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1560px); padding-top: 14px; }
+      .topbar { flex-direction: column; }
+      .connection { width: 100%; justify-content: space-between; }
+      .connection-copy { text-align: left; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .field.wide { grid-column: span 2; }
+      .stage-grid { grid-template-columns: repeat(2, 1fr); }
+      .shard-body { display: block; }
+      .updated { display: none; }
+      .log { grid-template-columns: 70px 70px minmax(0, 1fr); }
+      .log-event { display: none; }
+      .diagnostic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow" data-i18n="brand.eyebrow"></div>
+        <h1 data-i18n="header.title"></h1>
+        <p class="subtitle" data-i18n="header.subtitle"></p>
+      </div>
+      <div class="connection">
+        <span id="pulse" class="pulse" aria-hidden="true"></span>
+        <div class="connection-copy" aria-live="polite">
+          <div id="connection-state" class="connection-state" data-i18n="connection.connecting"></div>
+          <div id="connection-time" class="connection-time">--</div>
+        </div>
+        <button id="language-toggle" class="refresh" type="button" data-i18n-title="language.switch_title"></button>
+        <button id="refresh" class="refresh" type="button" data-i18n="action.refresh"></button>
+      </div>
+    </header>
+
+    <div class="section-label" data-i18n="section.control"></div>
+    <section class="control-layout" data-i18n-aria-label="aria.control">
+      <article class="control-card">
+        <div class="control-title">
+          <h2 data-i18n="control.process_workload"></h2>
+          <span id="ownership" class="state-pill" data-i18n="ownership.local_only"></span>
+        </div>
+        <div class="process-grid">
+          <div class="process-cell"><span data-i18n="control.process_state"></span><strong id="process-state" data-i18n="status.idle"></strong></div>
+          <div class="process-cell"><span data-i18n="control.workload_state"></span><strong id="workload-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.exit_code"></span><strong id="exit-code" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.credential"></span><strong id="credential-state" data-i18n="credential.not_loaded"></strong></div>
+          <div class="process-cell"><span data-i18n="control.run_id"></span><strong id="run-id" data-i18n="common.none"></strong></div>
+          <div class="process-cell"><span data-i18n="control.reconnect"></span><strong id="reconnect-state">0 / 0</strong></div>
+        </div>
+        <div class="control-actions">
+          <button id="start-control" class="control-button primary" type="button" data-i18n="action.start"></button>
+          <button id="stop-control" class="control-button danger" type="button" disabled data-i18n="action.stop"></button>
+          <button id="continue-control" class="control-button" type="button" disabled data-i18n="action.continue"></button>
+          <button id="clear-key" class="control-button" type="button" data-i18n="action.clear_key"></button>
+        </div>
+        <div id="control-message" class="control-message" aria-live="polite" data-i18n="control.local_notice"></div>
+      </article>
+
+      <article class="control-card">
+        <div class="control-title"><h2 data-i18n="profile.title"></h2><span class="state-pill" data-i18n="profile.strict_input"></span></div>
+        <div id="catalog-status" class="control-message" data-i18n="catalog.loading"></div>
+        <form id="control-form" autocomplete="off">
+          <div class="form-grid">
+            <div class="field wide">
+              <label for="base-config" data-i18n="field.base_config"></label>
+              <select id="base-config" required></select>
+            </div>
+            <div class="field wide">
+              <label for="task-card-config" data-i18n="field.task_card"></label>
+              <select id="task-card-config" required></select>
+            </div>
+            <div class="field wide">
+              <label for="output-dir" data-i18n="field.output_dir"></label>
+              <input id="output-dir" value="data/control_shards/" required spellcheck="false">
+            </div>
+            <div class="field">
+              <label for="seed-offset" data-i18n="field.seed_offset"></label>
+              <input id="seed-offset" type="number" min="0" step="1" value="400000" required>
+            </div>
+            <div class="field">
+              <label for="concurrency" data-i18n="field.concurrency"></label>
+              <input id="concurrency" type="number" min="1" max="64" step="1" value="8" required>
+            </div>
+            <div class="field wide">
+              <label for="provider-preset" data-i18n="field.provider_preset"></label>
+              <select id="provider-preset"><option value="manual" data-i18n="common.manual_override"></option></select>
+            </div>
+            <div class="field wide">
+              <label for="model-preset" data-i18n="field.model_preset"></label>
+              <select id="model-preset"><option value="manual" data-i18n="common.manual_override"></option></select>
+            </div>
+            <div class="field wide">
+              <label for="base-url" data-i18n="field.base_url"></label>
+              <input id="base-url" type="url" value="https://ark.cn-beijing.volces.com/api/coding/v3" required spellcheck="false">
+            </div>
+            <div class="field">
+              <label for="protocol" data-i18n="field.protocol"></label>
+              <select id="protocol">
+                <option value="openai_responses" data-i18n="protocol.openai_responses"></option>
+                <option value="openai" data-i18n="protocol.openai"></option>
+                <option value="anthropic" data-i18n="protocol.anthropic"></option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="force-model" data-i18n="field.selection"></label>
+              <div class="check-row"><input id="force-model" type="checkbox" checked><span data-i18n="field.force_model"></span></div>
+            </div>
+            <div class="field wide">
+              <label for="model-id" data-i18n="field.model_id"></label>
+              <input id="model-id" list="model-options" value="glm-5-2-260617" required spellcheck="false">
+              <datalist id="model-options"></datalist>
+            </div>
+            <div class="field wide">
+              <label for="api-key" data-i18n="field.api_key"></label>
+              <input id="api-key" type="password" required autocomplete="new-password" spellcheck="false">
+            </div>
+          </div>
+
+          <details class="advanced">
+            <summary data-i18n="advanced.title"></summary>
+            <div class="form-grid">
+              <div class="field"><label for="timeout-seconds" data-i18n="field.timeout"></label><input id="timeout-seconds" type="number" min="1" value="600"></div>
+              <div class="field"><label for="max-retries" data-i18n="field.retries"></label><input id="max-retries" type="number" min="0" max="10" value="2"></div>
+              <div class="field"><label for="reconnect-attempts" data-i18n="field.reconnects"></label><input id="reconnect-attempts" type="number" min="0" max="20" value="1"></div>
+              <div class="field"><label for="reconnect-backoff" data-i18n="field.reconnect_backoff"></label><input id="reconnect-backoff" type="number" min="0.1" step="0.1" value="10"></div>
+              <div class="field"><label for="cooldown-seconds" data-i18n="field.cooldown"></label><input id="cooldown-seconds" type="number" min="1" value="7200"></div>
+              <div class="field"><label for="cooldown-poll" data-i18n="field.cooldown_poll"></label><input id="cooldown-poll" type="number" min="1" value="60"></div>
+              <div class="field"><label for="wall-clock" data-i18n="field.wall_clock"></label><input id="wall-clock" type="number" min="1" value="3600"></div>
+              <div class="field"><label for="discovery-timeout" data-i18n="field.discovery_timeout"></label><input id="discovery-timeout" type="number" min="1" max="120" value="20"></div>
+              <div class="field wide"><label for="network-route" data-i18n="field.network_route"></label><select id="network-route"><option value="direct" data-i18n="network.direct"></option><option value="inherit" data-i18n="network.inherit"></option></select><span id="proxy-warning" class="metric-note" data-i18n="network.pending"></span></div>
+              <div class="field wide"><label for="request-budget" data-i18n="field.request_budget"></label><input id="request-budget" type="number" min="1" value="2400"></div>
+              <div class="field wide"><label for="token-budget" data-i18n="field.token_budget"></label><input id="token-budget" type="number" min="1" value="307200000"></div>
+              <div class="field full"><div class="check-row"><input id="wait-cooldown" type="checkbox" checked><span data-i18n="field.wait_cooldown"></span></div></div>
+            </div>
+          </details>
+
+          <div class="control-actions">
+            <button id="probe-models" class="control-button" type="button" data-i18n="action.probe"></button>
+            <button id="attach-monitor" class="control-button" type="button" data-i18n="action.attach"></button>
+            <button id="check-catalog" class="control-button" type="button" data-i18n="action.check_catalog"></button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <div class="section-label" data-i18n="section.diagnostics"></div>
+    <section class="diagnostic-card" data-i18n-aria-label="aria.diagnostics">
+      <div class="diagnostic-head">
+        <h2 id="diagnostic-summary" data-i18n="diagnostic.waiting"></h2>
+        <span id="diagnostic-observed" class="state-pill">--</span>
+      </div>
+      <div class="diagnostic-grid">
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.backend_connection"></span><strong id="diagnostic-backend" data-i18n="connection.connecting"></strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.collector"></span><strong id="diagnostic-collector">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.process"></span><strong id="diagnostic-process">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.ownership"></span><strong id="diagnostic-ownership">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.last_success"></span><strong id="diagnostic-last-success">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.failures"></span><strong id="diagnostic-failures">0</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.next_retry"></span><strong id="diagnostic-next-retry">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.reconnect"></span><strong id="diagnostic-reconnect">--</strong></div>
+        <div class="diagnostic-cell"><span data-i18n="diagnostic.last_exit"></span><strong id="diagnostic-last-exit">--</strong></div>
+      </div>
+      <div id="diagnostic-reasons" class="diagnostic-reasons" aria-live="polite"></div>
+    </section>
+
+    <div class="section-label" data-i18n="section.snapshot"></div>
+    <section id="summary" class="summary-grid" data-i18n-aria-label="aria.snapshot"></section>
+
+    <div class="section-label" data-i18n="section.pipeline"></div>
+    <section id="shards" class="shard-list" data-i18n-aria-label="aria.pipeline"></section>
+
+    <div class="section-label" data-i18n="section.events"></div>
+    <section class="terminal" data-i18n-aria-label="aria.events">
+      <div class="terminal-head"><span class="terminal-dot"></span><span data-i18n="terminal.uri"></span></div>
+      <div id="logs" class="log-lines"></div>
+    </section>
+    <p class="privacy" data-i18n="privacy.notice"></p>
+  </main>
+
+  <script>
+    "use strict";
+
+    const I18N = Object.freeze({
+      en: Object.freeze({
+        "page.title": "Anchor · Distillation Telemetry",
+        "brand.eyebrow": "anchor / telemetry",
+        "header.title": "Distillation Control Surface",
+        "header.subtitle": "read-only · provider usage · content-free · 2 s polling",
+        "language.switch_title": "Switch interface language",
+        "language.next": "中文",
+        "connection.connecting": "CONNECTING",
+        "connection.live_control": "LIVE / LOCAL CONTROL",
+        "connection.live_readonly": "LIVE / READ-ONLY",
+        "connection.disconnected": "DISCONNECTED",
+        "connection.disconnected_backend": "Disconnected from dashboard backend",
+        "connection.reconnected": "Reconnected after {duration}",
+        "connection.snapshot": "snapshot {time}",
+        "connection.snapshot_unavailable": "snapshot unavailable",
+        "action.refresh": "REFRESH",
+        "action.start": "START NEW SHARD",
+        "action.stop": "STOP",
+        "action.continue": "CONTINUE EXACT RUN",
+        "action.clear_key": "CLEAR KEY",
+        "action.probe": "PROBE / LOAD MODELS",
+        "action.attach": "ATTACH READ-ONLY MONITOR",
+        "action.check_catalog": "CHECK PINNED DIFF",
+        "action.graceful_stop": "GRACEFUL STOP",
+        "action.continue_immutable": "CONTINUE IMMUTABLE RUN",
+        "action.clear_credential": "CLEAR CREDENTIAL",
+        "action.model_discovery": "MODEL DISCOVERY",
+        "action.attach_readonly": "ATTACH READ-ONLY",
+        "action.progress": "{action} ...",
+        "action.ok": "{action} · OK",
+        "action.failed": "{action} · {error}",
+        "section.control": "Local control plane",
+        "section.diagnostics": "Connection / unknown reason",
+        "section.snapshot": "Global snapshot",
+        "section.pipeline": "Shard pipeline",
+        "section.events": "Content-free event stream",
+        "aria.control": "Local distillation control plane",
+        "aria.diagnostics": "Content-free connection and telemetry diagnostics",
+        "aria.snapshot": "Global distillation metrics",
+        "aria.pipeline": "Shard progress",
+        "aria.events": "Metadata event terminal",
+        "control.process_workload": "PROCESS / WORKLOAD",
+        "control.process_state": "process state",
+        "control.workload_state": "workload state",
+        "control.exit_code": "exit code",
+        "control.credential": "credential",
+        "control.run_id": "run id",
+        "control.reconnect": "reconnect",
+        "control.local_notice": "Control endpoints are local-only. Continue always reuses the immutable effective config.",
+        "control.error": "CONTROL ERROR · {code}",
+        "control.options_unavailable": "CONTROL OPTIONS · unavailable",
+        "control.lifecycle_metadata": "control lifecycle metadata",
+        "diagnostic.waiting": "Waiting for the first diagnostic snapshot",
+        "diagnostic.backend_connection": "dashboard backend",
+        "diagnostic.collector": "collector alive",
+        "diagnostic.process": "worker process alive",
+        "diagnostic.ownership": "ownership",
+        "diagnostic.last_success": "last successful snapshot",
+        "diagnostic.failures": "consecutive fetch failures",
+        "diagnostic.next_retry": "next dashboard retry",
+        "diagnostic.reconnect": "worker reconnect",
+        "diagnostic.last_exit": "last exit / signal",
+        "diagnostic.observed": "diagnostic {time}",
+        "diagnostic.running": "Running normally",
+        "diagnostic.normal_warming": "Running normally; rolling window warming",
+        "diagnostic.attention": "Attention required; see finite reason codes",
+        "diagnostic.complete": "Collection complete",
+        "diagnostic.waiting_summary": "Waiting on provider cooldown",
+        "diagnostic.backend_connected": "connected",
+        "diagnostic.backend_disconnected": "disconnected",
+        "diagnostic.backend_reconnected": "reconnected",
+        "diagnostic.alive": "alive",
+        "diagnostic.not_alive": "not alive",
+        "diagnostic.external_unobservable": "not observable (external read-only)",
+        "diagnostic.managed": "managed child",
+        "diagnostic.external_read_only": "external / read-only",
+        "diagnostic.no_reason": "no error · telemetry ready",
+        "diagnostic.external_reconnect": "not applicable · external process is observed read-only",
+        "diagnostic.reconnect_value": "{used} / {maximum} · next {next}",
+        "diagnostic.no_exit": "none observed",
+        "diagnostic.exit_code": "code {code}",
+        "diagnostic.exit_signal": "code {code} · signal {signal}",
+        "diagnostic.retry_value": "{seconds}s · {time}",
+        "diagnostic.fetch_failures": "{count} · {reason}",
+        "reason.telemetry_cold_start": "telemetry cold start (first observation)",
+        "reason.telemetry_warming": "rolling telemetry window warming",
+        "reason.status_stale": "status checkpoint is stale or absent",
+        "reason.file_parse_error": "local metadata file parse error",
+        "reason.provider_cooldown": "provider cooldown is active",
+        "reason.rate_limit": "provider rate limit",
+        "reason.quota": "provider quota exhausted",
+        "reason.client_deadline": "client wall-clock deadline",
+        "reason.process_exit": "managed worker process exited",
+        "reason.unknown_counter": "required audit counter is unavailable",
+        "reason.http_client_error": "dashboard API returned HTTP 4xx",
+        "reason.http_server_error": "dashboard API returned HTTP 5xx",
+        "reason.network_unreachable": "dashboard backend is unreachable",
+        "reason.invalid_json": "dashboard returned invalid JSON",
+        "reason.invalid_schema": "dashboard snapshot schema is invalid",
+        "ownership.local_only": "LOCAL ONLY",
+        "ownership.monitor_only": "MONITOR ONLY",
+        "ownership.managed_child": "MANAGED CHILD",
+        "profile.title": "NEW SHARD PROFILE",
+        "profile.strict_input": "STRICT INPUT",
+        "catalog.loading": "CC Switch catalog · loading pinned metadata ...",
+        "catalog.status": "CC Switch {tag} · {origin} · sha256:{sha} · {state} · auto-apply OFF",
+        "catalog.unavailable": "CC Switch catalog · unavailable · manual override remains enabled",
+        "catalog.price_unknown": "price UNKNOWN",
+        "catalog.price_known": "{currency}/1M · in {input} · out {output} · cache hit {cacheRead}",
+        "catalog.subscription_quota": "subscription quota · marginal token price UNKNOWN",
+        "field.base_config": "Existing base config",
+        "field.task_card": "Task-card config",
+        "field.output_dir": "Unique output dir (workspace data/)",
+        "field.seed_offset": "Unique seed offset",
+        "field.concurrency": "Concurrency",
+        "field.provider_preset": "Provider preset (content-safe metadata only)",
+        "field.model_preset": "Model preset / exact alias",
+        "field.base_url": "Base URL (not endpoint)",
+        "field.protocol": "Protocol",
+        "field.selection": "Selection",
+        "field.force_model": "force manual model",
+        "field.model_id": "Model ID / discovered model",
+        "field.api_key": "API key — RAM + selected child environment only",
+        "field.timeout": "request timeout s",
+        "field.retries": "transport retries",
+        "field.reconnects": "process reconnects",
+        "field.reconnect_backoff": "reconnect base backoff s",
+        "field.cooldown": "cooldown s",
+        "field.cooldown_poll": "cooldown poll s",
+        "field.wall_clock": "request wall clock s",
+        "field.discovery_timeout": "model discovery s",
+        "field.network_route": "network route",
+        "field.request_budget": "request budget",
+        "field.token_budget": "output token budget",
+        "field.wait_cooldown": "stay visible and continue after persisted provider cooldown",
+        "advanced.title": "ADVANCED TRANSPORT / BUDGET / RECONNECT",
+        "protocol.openai_responses": "openai_responses",
+        "protocol.openai": "openai",
+        "protocol.anthropic": "anthropic",
+        "terminal.uri": "observer://local/events",
+        "network.direct": "direct (recommended)",
+        "network.inherit": "inherit detected proxy",
+        "network.pending": "proxy detection pending",
+        "network.detected": "proxy detected · direct bypass remains selected unless you explicitly inherit",
+        "network.not_detected": "no proxy detected · direct route selected",
+        "privacy.notice": "Only whitelisted counters and provider usage are rendered. Unknown means unknown: no character-based token estimation, no prompt/message/code body, no credential, no absolute shard path.",
+        "common.unknown": "unknown",
+        "common.none": "none",
+        "common.manual_override": "Manual override",
+        "common.provider": "provider",
+        "common.pinned": "pinned",
+        "common.not_priced": "not priced",
+        "common.failed": "failed",
+        "common.info": "info",
+        "common.global": "global",
+        "common.event": "event",
+        "common.metadata_update": "metadata update",
+        "common.invalid_yaml": "invalid strict YAML",
+        "common.rows": "rows",
+        "common.recent": "recent",
+        "duration.hours_minutes": "{hours}h {minutes}m",
+        "duration.minutes_seconds": "{minutes}m {seconds}s",
+        "duration.seconds": "{seconds}s",
+        "credential.ram_loaded": "RAM loaded",
+        "credential.not_loaded": "not loaded",
+        "status.idle": "idle",
+        "status.unknown": "unknown",
+        "status.monitor_only": "monitor only",
+        "status.running": "running",
+        "status.complete": "complete",
+        "status.completed": "completed",
+        "status.stale": "stale",
+        "status.stopped": "stopped",
+        "status.exited": "exited",
+        "status.cooldown": "cooldown",
+        "status.waiting": "waiting",
+        "status.success": "success",
+        "status.pinned": "pinned",
+        "status.bundled": "bundled",
+        "status.active": "active",
+        "status.offline_pinned": "offline pinned",
+        "status.active_differs_from_pinned": "active differs from pinned",
+        "metric.complete_chains": "complete chains",
+        "metric.seed_rejections": "seed rejections",
+        "metric.provider_output_tokens": "provider output tokens",
+        "metric.pinned_provider_cost": "pinned provider cost",
+        "metric.requests_per_min": "requests / min",
+        "metric.wire_per_min": "wire attempts / min",
+        "metric.provider_output_per_s": "provider output tok / s",
+        "metric.retained_input_per_s": "retained input tok / s",
+        "metric.retained_total_per_s": "retained total tok / s",
+        "metric.stage_rows_per_min": "stage rows / min",
+        "metric.eta": "eta",
+        "metric.provider_output_total": "provider output total",
+        "metric.known_input_subtotal": "known input subtotal",
+        "metric.known_total_subtotal": "known total subtotal",
+        "metric.retained_output": "retained output",
+        "metric.requests": "requests",
+        "metric.wire_attempts": "wire attempts",
+        "metric.retries": "retries",
+        "metric.rejections_per_min": "rejections / min",
+        "metric.pinned_cost": "pinned cost",
+        "metric.rows_per_min": "rows / min",
+        "metric.remaining_rows": "remaining stage rows",
+        "metric.raw_complete_chains": "RAW COMPLETE CHAINS",
+        "metric.throughput_eta": "throughput {rate} rows/s · ETA {eta}",
+        "metric.updated": "updated {time}",
+        "metric.unknown_value": "{value} + unknown",
+        "metric.unknown_rows": "{value} + unknown ({rows} rows)",
+        "metric.unknown_not_inferred": "UNKNOWN · not inferred",
+        "metric.exact_source": "EXACT · {source}",
+        "metric.known_subtotal": "KNOWN SUBTOTAL · {count} unknown",
+        "cost.unknown": "UNKNOWN",
+        "cost.unknown_reason": "UNKNOWN · {reason}",
+        "cost.exact": "EXACT · {source} · persisted stage usage",
+        "budget.request": "REQUEST BUDGET",
+        "budget.output_tokens": "OUTPUT TOKEN BUDGET",
+        "budget.unknown_suffix": "{value}% + unknown",
+        "stage.plan": "plan",
+        "stage.tool_policy": "tool policy",
+        "stage.frontend": "frontend",
+        "stage.review": "review",
+        "stage.security": "security",
+        "shard.unnamed": "unnamed shard",
+        "shard.managed": "managed child",
+        "shard.external": "external / read-only",
+        "shard.no_metadata": "NO SHARD METADATA",
+        "errors.rejection": "seed/{reason} × {count}",
+        "errors.recent": "recent {reason} · {error} · {time}",
+        "errors.count": "{name} × {count}",
+        "errors.invalid_line": "{source}:L{line} #{sha}",
+        "errors.none": "no content-free errors recorded",
+        "logs.waiting": "waiting for metadata changes ...",
+        "models.result": "MODEL DISCOVERY · {status} · {count} models"
+      }),
+      "zh-CN": Object.freeze({
+        "page.title": "Anchor · 蒸馏遥测",
+        "brand.eyebrow": "anchor / telemetry",
+        "header.title": "蒸馏控制台",
+        "header.subtitle": "只读 · 服务商用量 · 不展示内容 · 每 2 秒轮询",
+        "language.switch_title": "切换界面语言",
+        "language.next": "EN",
+        "connection.connecting": "连接中",
+        "connection.live_control": "在线 / 本地控制",
+        "connection.live_readonly": "在线 / 只读",
+        "connection.disconnected": "已断开",
+        "connection.disconnected_backend": "已与面板后端断开连接",
+        "connection.reconnected": "已重连 · 断开 {duration}",
+        "connection.snapshot": "快照 {time}",
+        "connection.snapshot_unavailable": "快照不可用",
+        "action.refresh": "刷新",
+        "action.start": "启动新分片",
+        "action.stop": "停止",
+        "action.continue": "继续原运行",
+        "action.clear_key": "清除密钥",
+        "action.probe": "探测 / 加载模型",
+        "action.attach": "挂接只读监控",
+        "action.check_catalog": "检查固定版本差异",
+        "action.graceful_stop": "优雅停止",
+        "action.continue_immutable": "继续不可变运行",
+        "action.clear_credential": "清除凭据",
+        "action.model_discovery": "模型发现",
+        "action.attach_readonly": "只读挂接",
+        "action.progress": "{action}中……",
+        "action.ok": "{action} · 成功",
+        "action.failed": "{action} · {error}",
+        "section.control": "本地控制面",
+        "section.diagnostics": "连接 / 未知原因",
+        "section.snapshot": "全局快照",
+        "section.pipeline": "分片流水线",
+        "section.events": "无内容事件流",
+        "aria.control": "本地蒸馏控制面",
+        "aria.diagnostics": "无内容连接与遥测诊断",
+        "aria.snapshot": "全局蒸馏指标",
+        "aria.pipeline": "分片进度",
+        "aria.events": "元数据事件终端",
+        "control.process_workload": "进程 / 工作负载",
+        "control.process_state": "进程状态",
+        "control.workload_state": "负载状态",
+        "control.exit_code": "退出码",
+        "control.credential": "凭据",
+        "control.run_id": "运行 ID",
+        "control.reconnect": "重连",
+        "control.local_notice": "控制端点仅允许本机访问；继续运行始终复用不可变的生效配置。",
+        "control.error": "控制错误 · {code}",
+        "control.options_unavailable": "控制选项 · 不可用",
+        "control.lifecycle_metadata": "控制生命周期元数据",
+        "diagnostic.waiting": "等待首个诊断快照",
+        "diagnostic.backend_connection": "面板后端",
+        "diagnostic.collector": "采集器是否存活",
+        "diagnostic.process": "工作进程是否存活",
+        "diagnostic.ownership": "所有权",
+        "diagnostic.last_success": "最近成功快照",
+        "diagnostic.failures": "连续拉取失败",
+        "diagnostic.next_retry": "下次面板重试",
+        "diagnostic.reconnect": "工作进程重连",
+        "diagnostic.last_exit": "上次退出 / 信号",
+        "diagnostic.observed": "诊断时间 {time}",
+        "diagnostic.running": "运行正常",
+        "diagnostic.normal_warming": "运行正常；滚动窗口预热",
+        "diagnostic.attention": "需要关注；请查看有限原因码",
+        "diagnostic.complete": "采集完成",
+        "diagnostic.waiting_summary": "正在等待服务商冷却",
+        "diagnostic.backend_connected": "已连接",
+        "diagnostic.backend_disconnected": "已断开",
+        "diagnostic.backend_reconnected": "已重连",
+        "diagnostic.alive": "存活",
+        "diagnostic.not_alive": "未存活",
+        "diagnostic.external_unobservable": "无法探测（外部只读）",
+        "diagnostic.managed": "受管子进程",
+        "diagnostic.external_read_only": "外部 / 只读",
+        "diagnostic.no_reason": "无错误 · 遥测已就绪",
+        "diagnostic.external_reconnect": "不适用 · 外部进程仅作只读观察",
+        "diagnostic.reconnect_value": "{used} / {maximum} · 下次 {next}",
+        "diagnostic.no_exit": "未观察到",
+        "diagnostic.exit_code": "退出码 {code}",
+        "diagnostic.exit_signal": "退出码 {code} · 信号 {signal}",
+        "diagnostic.retry_value": "{seconds} 秒 · {time}",
+        "diagnostic.fetch_failures": "{count} 次 · {reason}",
+        "reason.telemetry_cold_start": "遥测冷启动（首次观测）",
+        "reason.telemetry_warming": "滚动遥测窗口正在预热",
+        "reason.status_stale": "状态检查点过期或缺失",
+        "reason.file_parse_error": "本地元数据文件解析错误",
+        "reason.provider_cooldown": "服务商冷却中",
+        "reason.rate_limit": "服务商限流",
+        "reason.quota": "服务商额度耗尽",
+        "reason.client_deadline": "客户端总时限到期",
+        "reason.process_exit": "受管工作进程已退出",
+        "reason.unknown_counter": "必要审计计数器不可用",
+        "reason.http_client_error": "面板 API 返回 HTTP 4xx",
+        "reason.http_server_error": "面板 API 返回 HTTP 5xx",
+        "reason.network_unreachable": "无法连接面板后端",
+        "reason.invalid_json": "面板返回了无效 JSON",
+        "reason.invalid_schema": "面板快照结构无效",
+        "ownership.local_only": "仅本机",
+        "ownership.monitor_only": "仅监控",
+        "ownership.managed_child": "受管子进程",
+        "profile.title": "新分片配置",
+        "profile.strict_input": "严格输入",
+        "catalog.loading": "CC Switch 目录 · 正在加载固定版本元数据……",
+        "catalog.status": "CC Switch {tag} · {origin} · sha256:{sha} · {state} · 自动应用：关",
+        "catalog.unavailable": "CC Switch 目录 · 不可用 · 仍可手动填写",
+        "catalog.price_unknown": "价格未知",
+        "catalog.price_known": "{currency}/百万 Token · 输入 {input} · 输出 {output} · 缓存命中 {cacheRead}",
+        "catalog.subscription_quota": "订阅额度 · Token 边际价未知",
+        "field.base_config": "现有基础配置",
+        "field.task_card": "任务卡配置",
+        "field.output_dir": "唯一输出目录（工作区 data/）",
+        "field.seed_offset": "唯一种子偏移",
+        "field.concurrency": "并发数",
+        "field.provider_preset": "服务商预设（仅安全元数据）",
+        "field.model_preset": "模型预设 / 精确别名",
+        "field.base_url": "基础 URL（不是端点）",
+        "field.protocol": "协议",
+        "field.selection": "选择方式",
+        "field.force_model": "强制使用手动模型",
+        "field.model_id": "模型 ID / 已发现模型",
+        "field.api_key": "API 密钥 — 仅保留在内存和选定子进程环境中",
+        "field.timeout": "请求超时（秒）",
+        "field.retries": "传输重试次数",
+        "field.reconnects": "进程重连次数",
+        "field.reconnect_backoff": "重连基础退避（秒）",
+        "field.cooldown": "冷却时长（秒）",
+        "field.cooldown_poll": "冷却轮询（秒）",
+        "field.wall_clock": "请求总时限（秒）",
+        "field.discovery_timeout": "模型发现超时（秒）",
+        "field.network_route": "网络路由",
+        "field.request_budget": "请求预算",
+        "field.token_budget": "输出 Token 预算",
+        "field.wait_cooldown": "保持可见，并在已持久化的服务商冷却结束后继续",
+        "advanced.title": "高级：传输 / 预算 / 重连",
+        "protocol.openai_responses": "openai_responses",
+        "protocol.openai": "openai",
+        "protocol.anthropic": "anthropic",
+        "terminal.uri": "observer://local/events",
+        "network.direct": "直连（推荐）",
+        "network.inherit": "继承检测到的代理",
+        "network.pending": "正在检测代理",
+        "network.detected": "检测到代理 · 除非明确选择继承，否则仍保持直连绕过",
+        "network.not_detected": "未检测到代理 · 已选择直连",
+        "privacy.notice": "仅呈现白名单计数器和服务商用量。未知就是未知：不按字符估算 Token，不展示提示词、消息或代码正文，不展示凭据，也不展示分片绝对路径。",
+        "common.unknown": "未知",
+        "common.none": "无",
+        "common.manual_override": "手动填写",
+        "common.provider": "服务商",
+        "common.pinned": "固定版本",
+        "common.not_priced": "未定价",
+        "common.failed": "失败",
+        "common.info": "信息",
+        "common.global": "全局",
+        "common.event": "事件",
+        "common.metadata_update": "元数据更新",
+        "common.invalid_yaml": "严格 YAML 无效",
+        "common.rows": "行",
+        "common.recent": "最近",
+        "duration.hours_minutes": "{hours} 小时 {minutes} 分",
+        "duration.minutes_seconds": "{minutes} 分 {seconds} 秒",
+        "duration.seconds": "{seconds} 秒",
+        "credential.ram_loaded": "已载入内存",
+        "credential.not_loaded": "未载入",
+        "status.idle": "空闲",
+        "status.unknown": "未知",
+        "status.monitor_only": "仅监控",
+        "status.running": "运行中",
+        "status.complete": "已完成",
+        "status.completed": "已完成",
+        "status.stale": "状态陈旧",
+        "status.stopped": "已停止",
+        "status.exited": "已退出",
+        "status.cooldown": "冷却中",
+        "status.waiting": "等待中",
+        "status.success": "成功",
+        "status.pinned": "固定版本",
+        "status.bundled": "内置快照",
+        "status.active": "活动快照",
+        "status.offline_pinned": "离线固定版本",
+        "status.active_differs_from_pinned": "活动快照与固定版本不同",
+        "metric.complete_chains": "完整链",
+        "metric.seed_rejections": "种子拒绝数",
+        "metric.provider_output_tokens": "服务商输出 Token",
+        "metric.pinned_provider_cost": "固定价格估算",
+        "metric.requests_per_min": "每分钟请求",
+        "metric.wire_per_min": "每分钟网络尝试",
+        "metric.provider_output_per_s": "服务商输出 Token/秒",
+        "metric.retained_input_per_s": "保留输入 Token/秒",
+        "metric.retained_total_per_s": "保留总 Token/秒",
+        "metric.stage_rows_per_min": "阶段行/分钟",
+        "metric.eta": "预计剩余",
+        "metric.provider_output_total": "服务商输出总量",
+        "metric.known_input_subtotal": "已知输入小计",
+        "metric.known_total_subtotal": "已知总量小计",
+        "metric.retained_output": "保留输出量",
+        "metric.requests": "请求数",
+        "metric.wire_attempts": "网络尝试数",
+        "metric.retries": "重试数",
+        "metric.rejections_per_min": "拒绝数/分钟",
+        "metric.pinned_cost": "固定价格成本",
+        "metric.rows_per_min": "行/分钟",
+        "metric.remaining_rows": "剩余阶段行",
+        "metric.raw_complete_chains": "原始完整链",
+        "metric.throughput_eta": "吞吐 {rate} 行/秒 · 预计剩余 {eta}",
+        "metric.updated": "更新于 {time}",
+        "metric.unknown_value": "{value} + 未知部分",
+        "metric.unknown_rows": "{value} + 未知部分（{rows} 行）",
+        "metric.unknown_not_inferred": "未知 · 不做推断",
+        "metric.exact_source": "精确 · {source}",
+        "metric.known_subtotal": "已知小计 · {count} 个未知",
+        "cost.unknown": "未知",
+        "cost.unknown_reason": "未知 · {reason}",
+        "cost.exact": "精确 · {source} · 已持久化阶段用量",
+        "budget.request": "请求预算",
+        "budget.output_tokens": "输出 Token 预算",
+        "budget.unknown_suffix": "{value}% + 未知部分",
+        "stage.plan": "规划",
+        "stage.tool_policy": "工具策略",
+        "stage.frontend": "前端",
+        "stage.review": "审查",
+        "stage.security": "安全",
+        "shard.unnamed": "未命名分片",
+        "shard.managed": "受管子进程",
+        "shard.external": "外部 / 只读",
+        "shard.no_metadata": "暂无分片元数据",
+        "errors.rejection": "种子/{reason} × {count}",
+        "errors.recent": "最近 {reason} · {error} · {time}",
+        "errors.count": "{name} × {count}",
+        "errors.invalid_line": "{source}:第 {line} 行 #{sha}",
+        "errors.none": "未记录无内容错误",
+        "logs.waiting": "正在等待元数据变化……",
+        "models.result": "模型发现 · {status} · {count} 个模型"
+      })
+    });
+
+    const LANGUAGE_STORAGE_KEY = "anchor.dashboard.language";
+    const SUPPORTED_LANGUAGES = Object.freeze(["en", "zh-CN"]);
+
+    function defaultLanguage() {
+      try {
+        const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        if (SUPPORTED_LANGUAGES.includes(saved)) return saved;
+      } catch (_) {
+        // Storage can be disabled; browser language remains a safe fallback.
+      }
+      const browserLanguages = Array.isArray(navigator.languages) && navigator.languages.length
+        ? navigator.languages
+        : [navigator.language || "en"];
+      return browserLanguages.some(item => String(item).toLowerCase().startsWith("zh")) ? "zh-CN" : "en";
+    }
+
+    let language = defaultLanguage();
+
+    function hasTranslation(key) {
+      return Object.prototype.hasOwnProperty.call(I18N[language], key)
+        || Object.prototype.hasOwnProperty.call(I18N.en, key);
+    }
+
+    function t(key, values = {}) {
+      const template = I18N[language][key] ?? I18N.en[key] ?? key;
+      return String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, (_, name) => (
+        Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : `{${name}}`
+      ));
+    }
+
+    function displayStatus(value) {
+      if (value === null || value === undefined || value === "") return t("common.unknown");
+      const normalized = String(value).trim().toLowerCase().replace(/[\s/-]+/g, "_");
+      const key = `status.${normalized}`;
+      return hasTranslation(key) ? t(key) : String(value);
+    }
+
+    const stageNames = ["plan", "tool_policy", "frontend", "review", "security"];
+    const summaryNode = document.getElementById("summary");
+    const shardsNode = document.getElementById("shards");
+    const logsNode = document.getElementById("logs");
+    const pulseNode = document.getElementById("pulse");
+    const stateNode = document.getElementById("connection-state");
+    const timeNode = document.getElementById("connection-time");
+    const refreshNode = document.getElementById("refresh");
+    const languageToggleNode = document.getElementById("language-toggle");
+    const processStateNode = document.getElementById("process-state");
+    const workloadStateNode = document.getElementById("workload-state");
+    const exitCodeNode = document.getElementById("exit-code");
+    const credentialStateNode = document.getElementById("credential-state");
+    const runIdNode = document.getElementById("run-id");
+    const reconnectStateNode = document.getElementById("reconnect-state");
+    const ownershipNode = document.getElementById("ownership");
+    const controlMessageNode = document.getElementById("control-message");
+    const startNode = document.getElementById("start-control");
+    const stopNode = document.getElementById("stop-control");
+    const continueNode = document.getElementById("continue-control");
+    const clearKeyNode = document.getElementById("clear-key");
+    const probeNode = document.getElementById("probe-models");
+    const attachNode = document.getElementById("attach-monitor");
+    const baseConfigNode = document.getElementById("base-config");
+    const taskCardNode = document.getElementById("task-card-config");
+    const modelOptionsNode = document.getElementById("model-options");
+    const providerPresetNode = document.getElementById("provider-preset");
+    const modelPresetNode = document.getElementById("model-preset");
+    const catalogStatusNode = document.getElementById("catalog-status");
+    const checkCatalogNode = document.getElementById("check-catalog");
+    const diagnosticSummaryNode = document.getElementById("diagnostic-summary");
+    const diagnosticObservedNode = document.getElementById("diagnostic-observed");
+    const diagnosticBackendNode = document.getElementById("diagnostic-backend");
+    const diagnosticCollectorNode = document.getElementById("diagnostic-collector");
+    const diagnosticProcessNode = document.getElementById("diagnostic-process");
+    const diagnosticOwnershipNode = document.getElementById("diagnostic-ownership");
+    const diagnosticLastSuccessNode = document.getElementById("diagnostic-last-success");
+    const diagnosticFailuresNode = document.getElementById("diagnostic-failures");
+    const diagnosticNextRetryNode = document.getElementById("diagnostic-next-retry");
+    const diagnosticReconnectNode = document.getElementById("diagnostic-reconnect");
+    const diagnosticLastExitNode = document.getElementById("diagnostic-last-exit");
+    const diagnosticReasonsNode = document.getElementById("diagnostic-reasons");
+    const POLL_INTERVAL_MS = 2000;
+    const SNAPSHOT_SCHEMA = "anchor.distillation-dashboard.v1";
+    const BACKEND_REASON_CODES = Object.freeze([
+      "telemetry_cold_start", "telemetry_warming", "status_stale",
+      "file_parse_error", "provider_cooldown", "rate_limit", "quota",
+      "client_deadline", "process_exit", "unknown_counter"
+    ]);
+    const CLIENT_REASON_CODES = Object.freeze([
+      "http_client_error", "http_server_error", "network_unreachable",
+      "invalid_json", "invalid_schema"
+    ]);
+    let catalogProviders = [];
+    let applyingPreset = false;
+    let currentControl = { enabled: false, process_state: "monitor_only" };
+    let lastSnapshot = null;
+    let lastOptions = null;
+    let lastCatalog = null;
+    let lastCatalogStatus = null;
+    let busy = false;
+    let connectionHealth = {
+      connected: false,
+      failures: 0,
+      reason: null,
+      disconnectedAt: null,
+      lastSuccessAt: null,
+      nextRetryAt: null,
+      reconnectedUntil: null,
+      lastDisconnectSeconds: null
+    };
+
+    function applyLanguage() {
+      document.documentElement.lang = language;
+      document.querySelectorAll("[data-i18n]").forEach(item => {
+        item.textContent = t(item.dataset.i18n);
+      });
+      document.querySelectorAll("[data-i18n-aria-label]").forEach(item => {
+        item.setAttribute("aria-label", t(item.dataset.i18nAriaLabel));
+      });
+      document.querySelectorAll("[data-i18n-title]").forEach(item => {
+        item.setAttribute("title", t(item.dataset.i18nTitle));
+      });
+      languageToggleNode.textContent = t("language.next");
+      languageToggleNode.setAttribute("aria-label", t("language.switch_title"));
+      if (lastOptions) renderOptions(lastOptions);
+      if (lastCatalog) renderCatalogOptions(lastCatalog);
+      else if (lastCatalogStatus) renderCatalogStatus(lastCatalogStatus);
+      if (lastSnapshot) render(lastSnapshot);
+      else if (connectionHealth.failures > 0) {
+        renderConnectionDiagnostics(null);
+        renderConnectionHeader(null);
+      }
+    }
+
+    function setLanguage(nextLanguage) {
+      language = SUPPORTED_LANGUAGES.includes(nextLanguage) ? nextLanguage : "en";
+      try {
+        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+      } catch (_) {
+        // The interface still switches when storage is unavailable.
+      }
+      applyLanguage();
+    }
+
+    function node(tag, className, text) {
+      const item = document.createElement(tag);
+      if (className) item.className = className;
+      if (text !== undefined && text !== null) item.textContent = String(text);
+      return item;
+    }
+
+    function whole(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return t("common.unknown");
+      return new Intl.NumberFormat(language, { maximumFractionDigits: 0 }).format(Number(value));
+    }
+
+    function decimal(value, digits = 3) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return t("common.unknown");
+      return new Intl.NumberFormat(language, { maximumFractionDigits: digits }).format(Number(value));
+    }
+
+    function metricText(metric) {
+      if (!metric || metric.value === null || metric.value === undefined) return t("common.unknown");
+      const base = whole(metric.value);
+      if (metric.exact) return base;
+      const missing = Number(metric.unknown_rows || 0);
+      return missing > 0
+        ? t("metric.unknown_rows", { value: base, rows: whole(missing) })
+        : t("metric.unknown_value", { value: base });
+    }
+
+    function exactNote(metric) {
+      if (!metric || metric.value === null || metric.value === undefined) return t("metric.unknown_not_inferred");
+      if (metric.exact) return t("metric.exact_source", { source: metric.source || t("common.provider") });
+      return t("metric.known_subtotal", { count: whole(metric.unknown_rows || 0) });
+    }
+
+    function costText(cost) {
+      if (!cost || cost.known !== true || cost.total === null || cost.total === undefined) return t("cost.unknown");
+      return `${cost.currency || "?"} ${cost.total}`;
+    }
+
+    function costNote(cost) {
+      if (!cost || cost.known !== true) {
+        return t("cost.unknown_reason", { reason: (cost || {}).reason || t("common.not_priced") });
+      }
+      return t("cost.exact", { source: (cost || {}).source_tag || t("common.pinned") });
+    }
+
+    function clock(iso) {
+      if (!iso) return t("common.unknown");
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return t("common.unknown");
+      return date.toLocaleString(language, { hour12: false });
+    }
+
+    function duration(seconds) {
+      if (seconds === null || seconds === undefined || Number(seconds) < 0) return t("common.unknown");
+      const value = Math.round(Number(seconds));
+      const hours = Math.floor(value / 3600);
+      const minutes = Math.floor((value % 3600) / 60);
+      const tail = value % 60;
+      if (hours) return t("duration.hours_minutes", { hours, minutes });
+      if (minutes) return t("duration.minutes_seconds", { minutes, seconds: tail });
+      return t("duration.seconds", { seconds: tail });
+    }
+
+    function validSnapshot(snapshot) {
+      return Boolean(
+        snapshot && typeof snapshot === "object"
+        && snapshot.schema_version === SNAPSHOT_SCHEMA
+        && typeof snapshot.generated_at === "string"
+        && snapshot.totals && typeof snapshot.totals === "object"
+        && Array.isArray(snapshot.shards)
+        && snapshot.diagnostics && typeof snapshot.diagnostics === "object"
+      );
+    }
+
+    function renderConnectionDiagnostics(snapshot) {
+      const diagnostics = (snapshot || {}).diagnostics || {};
+      const disconnected = connectionHealth.failures > 0;
+      const now = Date.now();
+      const recentlyReconnected = !disconnected
+        && connectionHealth.reconnectedUntil
+        && now < connectionHealth.reconnectedUntil;
+      const summary = disconnected
+        ? t("connection.disconnected_backend")
+        : (recentlyReconnected
+          ? t("connection.reconnected", { duration: duration(connectionHealth.lastDisconnectSeconds) })
+          : t(`diagnostic.${diagnostics.summary || "running"}`));
+      diagnosticSummaryNode.textContent = summary;
+      diagnosticSummaryNode.className = disconnected ? "unknown-text" : "diagnostic-ok";
+      diagnosticObservedNode.textContent = t("diagnostic.observed", {
+        time: clock(diagnostics.observed_at || (snapshot || {}).generated_at)
+      });
+      diagnosticBackendNode.textContent = disconnected
+        ? t("diagnostic.backend_disconnected")
+        : (recentlyReconnected ? t("diagnostic.backend_reconnected") : t("diagnostic.backend_connected"));
+      diagnosticCollectorNode.textContent = diagnostics.collector_alive === true
+        ? t("diagnostic.alive")
+        : t("diagnostic.not_alive");
+      diagnosticProcessNode.textContent = diagnostics.process_alive === null || diagnostics.process_alive === undefined
+        ? t("diagnostic.external_unobservable")
+        : (diagnostics.process_alive ? t("diagnostic.alive") : t("diagnostic.not_alive"));
+      diagnosticOwnershipNode.textContent = diagnostics.ownership === "managed"
+        ? t("diagnostic.managed")
+        : t("diagnostic.external_read_only");
+      diagnosticLastSuccessNode.textContent = connectionHealth.lastSuccessAt
+        ? clock(connectionHealth.lastSuccessAt)
+        : t("common.none");
+      diagnosticFailuresNode.textContent = disconnected
+        ? t("diagnostic.fetch_failures", {
+          count: whole(connectionHealth.failures),
+          reason: t(`reason.${connectionHealth.reason}`)
+        })
+        : "0";
+      if (disconnected && connectionHealth.nextRetryAt) {
+        const seconds = Math.max(0, Math.ceil((connectionHealth.nextRetryAt - now) / 1000));
+        diagnosticNextRetryNode.textContent = t("diagnostic.retry_value", {
+          seconds,
+          time: clock(connectionHealth.nextRetryAt)
+        });
+      } else {
+        diagnosticNextRetryNode.textContent = t("common.none");
+      }
+      const reconnect = diagnostics.reconnect || {};
+      diagnosticReconnectNode.textContent = reconnect.applicable === true
+        ? t("diagnostic.reconnect_value", {
+          used: whole(reconnect.used || 0),
+          maximum: whole(reconnect.maximum || 0),
+          next: reconnect.next_at ? clock(reconnect.next_at) : t("common.none")
+        })
+        : t("diagnostic.external_reconnect");
+      const lastExit = diagnostics.last_exit || {};
+      diagnosticLastExitNode.textContent = lastExit.code === null || lastExit.code === undefined
+        ? t("diagnostic.no_exit")
+        : (lastExit.signal === null || lastExit.signal === undefined
+          ? t("diagnostic.exit_code", { code: lastExit.code })
+          : t("diagnostic.exit_signal", { code: lastExit.code, signal: lastExit.signal }));
+
+      const reasons = Array.isArray(diagnostics.reason_codes)
+        ? diagnostics.reason_codes.filter(reason => BACKEND_REASON_CODES.includes(reason))
+        : [];
+      if (disconnected && CLIENT_REASON_CODES.includes(connectionHealth.reason)) {
+        reasons.unshift(connectionHealth.reason);
+      }
+      diagnosticReasonsNode.replaceChildren();
+      for (const reason of [...new Set(reasons)]) {
+        diagnosticReasonsNode.append(node("span", "diagnostic-reason", t(`reason.${reason}`)));
+      }
+      if (!diagnosticReasonsNode.childElementCount) {
+        diagnosticReasonsNode.append(node("span", "diagnostic-ok", t("diagnostic.no_reason")));
+      }
+    }
+
+    function renderConnectionHeader(snapshot) {
+      const disconnected = connectionHealth.failures > 0;
+      if (disconnected) {
+        pulseNode.classList.remove("live");
+        stateNode.textContent = t("connection.disconnected_backend");
+        const seconds = connectionHealth.nextRetryAt
+          ? Math.max(0, Math.ceil((connectionHealth.nextRetryAt - Date.now()) / 1000))
+          : 0;
+        timeNode.textContent = t("diagnostic.retry_value", {
+          seconds,
+          time: clock(connectionHealth.nextRetryAt)
+        });
+        return;
+      }
+      pulseNode.classList.add("live");
+      if (connectionHealth.reconnectedUntil && Date.now() < connectionHealth.reconnectedUntil) {
+        stateNode.textContent = t("connection.reconnected", {
+          duration: duration(connectionHealth.lastDisconnectSeconds)
+        });
+      } else {
+        stateNode.textContent = ((snapshot || {}).control || {}).enabled
+          ? t("connection.live_control")
+          : t("connection.live_readonly");
+      }
+      timeNode.textContent = t("connection.snapshot", { time: clock((snapshot || {}).generated_at) });
+    }
+
+    function addMetric(name, value, note, unknown = false) {
+      const card = node("article", "metric");
+      card.append(node("div", "metric-name", name));
+      card.append(node("div", "metric-value", value));
+      card.append(node("div", unknown ? "metric-note unknown" : "metric-note", note));
+      summaryNode.append(card);
+    }
+
+    function renderSummary(snapshot) {
+      summaryNode.replaceChildren();
+      const totals = snapshot.totals || {};
+      const tokens = totals.tokens || {};
+      const chains = totals.complete_chains || {};
+      const rejections = totals.seed_rejections || {};
+      const output = tokens.output || {};
+      const pinnedCost = totals.pinned_cost || {};
+      const rates = totals.rates || {};
+      const tokenRates = rates.retained_tokens_per_second || {};
+      const rowRates = rates.stage_rows_per_minute || {};
+      addMetric(t("metric.complete_chains"), metricText(chains), exactNote(chains), !chains.exact);
+      addMetric(t("metric.seed_rejections"), metricText(rejections), exactNote(rejections), !rejections.exact);
+      addMetric(t("metric.provider_output_tokens"), metricText(output), exactNote(output), !output.exact);
+      addMetric(t("metric.pinned_provider_cost"), costText(pinnedCost), costNote(pinnedCost), pinnedCost.known !== true);
+      addMetric(
+        t("metric.requests_per_min"),
+        metricText(rates.requests_per_minute),
+        exactNote(rates.requests_per_minute),
+        !(rates.requests_per_minute || {}).exact
+      );
+      addMetric(t("metric.wire_per_min"), metricText(rates.wire_attempts_per_minute), exactNote(rates.wire_attempts_per_minute), !(rates.wire_attempts_per_minute || {}).exact);
+      addMetric(t("metric.provider_output_per_s"), metricText(rates.provider_output_tokens_per_second), exactNote(rates.provider_output_tokens_per_second), !(rates.provider_output_tokens_per_second || {}).exact);
+      addMetric(t("metric.retained_input_per_s"), metricText(tokenRates.input), exactNote(tokenRates.input), !(tokenRates.input || {}).exact);
+      addMetric(t("metric.retained_total_per_s"), metricText(tokenRates.total), exactNote(tokenRates.total), !(tokenRates.total || {}).exact);
+      addMetric(t("metric.stage_rows_per_min"), metricText(rowRates.total), exactNote(rowRates.total), !(rowRates.total || {}).exact);
+      addMetric(t("metric.eta"), duration(totals.eta_seconds), t("metric.remaining_rows"), totals.eta_seconds === null);
+    }
+
+    function progressBar(percent) {
+      const bar = node("div", "bar");
+      const fill = node("div", "bar-fill");
+      const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+      fill.style.width = `${safe}%`;
+      bar.append(fill);
+      return bar;
+    }
+
+    function tableRow(label, value, unknown = false) {
+      const row = document.createElement("tr");
+      row.append(node("td", "", label));
+      row.append(node("td", unknown ? "unknown-text" : "", value));
+      return row;
+    }
+
+    function stateClass(state) {
+      const value = String(state || "").toLowerCase();
+      if (value.includes("running")) return "running";
+      if (value.includes("complete")) return "complete";
+      if (value.includes("stale")) return "stale";
+      return "";
+    }
+
+    function renderShard(shard, controlState) {
+      const card = node("article", "shard");
+      const header = node("div", "shard-header");
+      const title = node("div", "shard-title");
+      title.append(node("h2", "", shard.label || t("shard.unnamed")));
+      const pill = node("span", `state-pill ${stateClass(shard.state)}`, displayStatus(shard.state));
+      title.append(pill);
+      const managed = controlState && controlState.output_label === shard.label && controlState.process_state !== "idle";
+      title.append(node("span", "state-pill", managed ? t("shard.managed") : t("shard.external")));
+      header.append(title);
+      header.append(node("div", "updated", t("metric.updated", { time: clock(shard.updated_at) })));
+      card.append(header);
+
+      const body = node("div", "shard-body");
+      const stageZone = node("div", "stage-zone");
+      const stageGrid = node("div", "stage-grid");
+      const seedMetric = shard.seeds || {};
+      const seedCount = Number(seedMetric.value || 0);
+      for (const name of stageNames) {
+        const stage = (shard.stages || {})[name] || { rows: 0, exact: false };
+        const count = Number(stage.rows || 0);
+        const item = node("div", "stage");
+        item.append(node("div", "stage-name", t(`stage.${name}`)));
+        const value = node("div", "stage-count", whole(count));
+        value.append(node("span", "stage-denom", ` / ${whole(seedCount)}`));
+        item.append(value);
+        item.append(progressBar(seedCount ? count * 100 / seedCount : 0));
+        stageGrid.append(item);
+      }
+      stageZone.append(stageGrid);
+      const chainLine = node("div", "chain-line");
+      chainLine.append(node("span", "", t("metric.raw_complete_chains")));
+      chainLine.append(node("span", "chain-value", metricText(shard.complete_chains)));
+      chainLine.append(node("span", "", t("metric.throughput_eta", {
+        rate: decimal(shard.throughput_rows_per_second),
+        eta: duration(shard.eta_seconds)
+      })));
+      stageZone.append(chainLine);
+      body.append(stageZone);
+
+      const detail = node("div", "detail-zone");
+      const table = node("table", "telemetry-table");
+      const tableBody = document.createElement("tbody");
+      const tokens = shard.tokens || {};
+      const retainedTokens = shard.retained_stage_tokens || {};
+      tableBody.append(tableRow(t("metric.provider_output_total"), metricText(tokens.output), !(tokens.output || {}).exact));
+      tableBody.append(tableRow(t("metric.known_input_subtotal"), metricText(tokens.input), true));
+      tableBody.append(tableRow(t("metric.known_total_subtotal"), metricText(tokens.total), true));
+      tableBody.append(tableRow(t("metric.retained_output"), metricText(retainedTokens.output), !(retainedTokens.output || {}).exact));
+      const requests = shard.requests || {};
+      const wire = shard.wire_attempts || {};
+      const retries = shard.retries || {};
+      const rejections = shard.seed_rejections || {};
+      tableBody.append(tableRow(t("metric.requests"), metricText(requests), !requests.exact));
+      tableBody.append(tableRow(t("metric.wire_attempts"), metricText(wire), !wire.exact));
+      tableBody.append(tableRow(t("metric.retries"), metricText(retries), !retries.exact));
+      tableBody.append(tableRow(t("metric.seed_rejections"), metricText(rejections), !rejections.exact));
+      const rates = shard.rates || {};
+      const tokenRates = rates.retained_tokens_per_second || {};
+      const rowRates = rates.stage_rows_per_minute || {};
+      tableBody.append(tableRow(t("metric.requests_per_min"), metricText(rates.requests_per_minute), !(rates.requests_per_minute || {}).exact));
+      tableBody.append(tableRow(t("metric.wire_per_min"), metricText(rates.wire_attempts_per_minute), !(rates.wire_attempts_per_minute || {}).exact));
+      tableBody.append(tableRow(t("metric.rejections_per_min"), metricText(rates.seed_rejections_per_minute), !(rates.seed_rejections_per_minute || {}).exact));
+      tableBody.append(tableRow(t("metric.provider_output_per_s"), metricText(rates.provider_output_tokens_per_second), !(rates.provider_output_tokens_per_second || {}).exact));
+      tableBody.append(tableRow(t("metric.retained_input_per_s"), metricText(tokenRates.input), !(tokenRates.input || {}).exact));
+      tableBody.append(tableRow(t("metric.retained_total_per_s"), metricText(tokenRates.total), !(tokenRates.total || {}).exact));
+      tableBody.append(tableRow(t("metric.pinned_cost"), costText(shard.pinned_cost), (shard.pinned_cost || {}).known !== true));
+      tableBody.append(tableRow(t("metric.rows_per_min"), metricText(rowRates.total), !(rowRates.total || {}).exact));
+      table.append(tableBody);
+      detail.append(table);
+
+      for (const [key, labelKey] of [["request_percent", "budget.request"], ["output_token_percent", "budget.output_tokens"]]) {
+        const metric = (shard.budget || {})[key] || {};
+        const row = node("div", "budget-row");
+        const labelLine = node("div", "budget-label");
+        labelLine.append(node("span", "", t(labelKey)));
+        const value = metric.value === null || metric.value === undefined
+          ? t("common.unknown")
+          : (metric.exact ? `${decimal(metric.value, 2)}%` : t("budget.unknown_suffix", { value: decimal(metric.value, 2) }));
+        labelLine.append(node("span", metric.exact ? "" : "unknown-text", value));
+        row.append(labelLine);
+        row.append(progressBar(metric.value));
+        detail.append(row);
+      }
+
+      const chips = node("div", "error-row");
+      const errors = (shard.errors || {}).by_type || {};
+      const invalid = (shard.errors || {}).invalid_json_lines || [];
+      const rejectionReasons = rejections.by_reason || {};
+      const recentRejections = Array.isArray(rejections.recent) ? rejections.recent : [];
+      for (const [reason, count] of Object.entries(rejectionReasons)) {
+        chips.append(node("span", "error-chip", t("errors.rejection", { reason, count: whole(count) })));
+      }
+      for (const item of recentRejections.slice(0, 3)) {
+        chips.append(node("span", "error-chip", t("errors.recent", {
+          reason: item.reason || "unclassified_validation",
+          error: item.error_class || "unknown-error",
+          time: clock(item.observed_at)
+        })));
+      }
+      for (const [name, count] of Object.entries(errors)) {
+        chips.append(node("span", "error-chip", t("errors.count", { name, count: whole(count) })));
+      }
+      for (const item of invalid) {
+        chips.append(node("span", "error-chip", t("errors.invalid_line", {
+          source: item.source,
+          line: whole(item.line),
+          sha: String(item.sha256 || t("common.unknown"))
+        })));
+      }
+      if (!chips.childElementCount) chips.append(node("span", "metric-note", t("errors.none")));
+      detail.append(chips);
+      body.append(detail);
+      card.append(body);
+      return card;
+    }
+
+    function renderShards(shards, controlState) {
+      shardsNode.replaceChildren();
+      if (!Array.isArray(shards) || !shards.length) {
+        shardsNode.append(node("div", "empty", t("shard.no_metadata")));
+        return;
+      }
+      for (const shard of shards) shardsNode.append(renderShard(shard, controlState));
+    }
+
+    function renderLogs(logs) {
+      logsNode.replaceChildren();
+      if (!Array.isArray(logs) || !logs.length) {
+        logsNode.append(node("div", "empty", t("logs.waiting")));
+        return;
+      }
+      for (const item of logs.slice().reverse()) {
+        const row = node("div", "log");
+        const when = item.at ? new Date(item.at).toLocaleTimeString(language, { hour12: false }) : "--:--:--";
+        row.append(node("span", "", when));
+        row.append(node("span", `log-level ${item.level === "warning" ? "warning" : ""}`, item.level || t("common.info")));
+        row.append(node("span", "log-event", `${item.shard || t("common.global")}/${item.event || t("common.event")}`));
+        row.append(node("span", "log-detail", item.detail || t("common.metadata_update")));
+        logsNode.append(row);
+      }
+    }
+
+    function formValue(id) {
+      return document.getElementById(id).value;
+    }
+
+    function formNumber(id) {
+      return Number(formValue(id));
+    }
+
+    function controlMessage(text, kind = "") {
+      controlMessageNode.textContent = text;
+      controlMessageNode.className = `control-message${kind ? ` ${kind}` : ""}`;
+    }
+
+    function renderControl(controlState) {
+      currentControl = controlState || { enabled: false, process_state: "monitor_only" };
+      const enabled = currentControl.enabled === true;
+      processStateNode.textContent = displayStatus(currentControl.process_state);
+      workloadStateNode.textContent = displayStatus(currentControl.workload_state);
+      exitCodeNode.textContent = currentControl.exit_code === null || currentControl.exit_code === undefined ? t("common.unknown") : String(currentControl.exit_code);
+      credentialStateNode.textContent = currentControl.credential_loaded ? t("credential.ram_loaded") : t("credential.not_loaded");
+      runIdNode.textContent = currentControl.run_id || t("common.none");
+      const reconnect = currentControl.reconnect || {};
+      reconnectStateNode.textContent = `${whole(reconnect.used || 0)} / ${whole(reconnect.maximum || 0)}`;
+      ownershipNode.textContent = enabled
+        ? (currentControl.can_stop ? t("ownership.managed_child") : t("ownership.local_only"))
+        : t("ownership.monitor_only");
+      ownershipNode.className = `state-pill ${currentControl.can_stop ? "running" : ""}`;
+      startNode.disabled = !enabled || currentControl.can_start !== true;
+      stopNode.disabled = !enabled || currentControl.can_stop !== true;
+      continueNode.disabled = !enabled || currentControl.can_continue !== true || !currentControl.run_id;
+      clearKeyNode.disabled = !enabled;
+      probeNode.disabled = !enabled || currentControl.can_stop === true;
+      if (currentControl.last_error_code) {
+        controlMessage(t("control.error", { code: currentControl.last_error_code }), "error");
+      }
+    }
+
+    function newRunPayload() {
+      return {
+        base_config: baseConfigNode.value,
+        output_dir: formValue("output-dir"),
+        seed_index_offset: formNumber("seed-offset"),
+        concurrency: formNumber("concurrency"),
+        base_url: formValue("base-url"),
+        protocol: formValue("protocol"),
+        api_key: formValue("api-key"),
+        model: formValue("model-id"),
+        force_model: document.getElementById("force-model").checked,
+        task_card_config: taskCardNode.value,
+        timeout_seconds: formNumber("timeout-seconds"),
+        max_retries: formNumber("max-retries"),
+        reconnect_attempts: formNumber("reconnect-attempts"),
+        reconnect_backoff_seconds: formNumber("reconnect-backoff"),
+        cooldown_seconds: formNumber("cooldown-seconds"),
+        cooldown_poll_seconds: formNumber("cooldown-poll"),
+        wall_clock_deadline_seconds: formNumber("wall-clock"),
+        max_requests: formNumber("request-budget"),
+        max_output_tokens_total: formNumber("token-budget"),
+        discovery_timeout_seconds: formNumber("discovery-timeout"),
+        wait_cooldown: document.getElementById("wait-cooldown").checked,
+        network_route: formValue("network-route")
+      };
+    }
+
+    async function postControl(path, payload) {
+      const response = await fetch(path, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-Anchor-CSRF": "1" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const code = result && result.error ? result.error : `http_${response.status}`;
+        const detail = result && result.message ? ` · ${result.message}` : "";
+        throw new Error(`${code}${detail}`);
+      }
+      return result;
+    }
+
+    async function controlAction(label, action) {
+      try {
+        controlMessage(t("action.progress", { action: label }));
+        const result = await action();
+        controlMessage(t("action.ok", { action: label }), "ok");
+        await poll();
+        return result;
+      } catch (error) {
+        controlMessage(t("action.failed", {
+          action: label,
+          error: error instanceof Error ? error.message : t("common.failed")
+        }), "error");
+        return null;
+      }
+    }
+
+    function renderOptions(options) {
+      lastOptions = options;
+      const baseSelection = baseConfigNode.value;
+      const taskSelection = taskCardNode.value;
+      const proxyWarning = document.getElementById("proxy-warning");
+      proxyWarning.textContent = options.proxy_detected ? t("network.detected") : t("network.not_detected");
+      proxyWarning.className = options.proxy_detected ? "metric-note unknown" : "metric-note";
+      baseConfigNode.replaceChildren();
+      for (const item of options.base_configs || []) {
+        const suffix = item.valid ? "" : ` · ${t("common.invalid_yaml")}`;
+        const option = node("option", "", `${item.id}${suffix}`);
+        option.value = item.id;
+        option.disabled = item.valid !== true;
+        baseConfigNode.append(option);
+      }
+      if ([...baseConfigNode.options].some(option => option.value === baseSelection)) baseConfigNode.value = baseSelection;
+      taskCardNode.replaceChildren();
+      for (const id of options.task_card_configs || []) {
+        const option = node("option", "", id);
+        option.value = id;
+        taskCardNode.append(option);
+      }
+      if ([...taskCardNode.options].some(option => option.value === taskSelection)) taskCardNode.value = taskSelection;
+    }
+
+    async function loadOptions() {
+      try {
+        const response = await fetch("/api/control/options", { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) return;
+        renderOptions(await response.json());
+      } catch (_) {
+        controlMessage(t("control.options_unavailable"), "error");
+      }
+    }
+
+    function renderCatalogStatus(payload) {
+      lastCatalogStatus = payload;
+      const provenance = (payload || {}).provenance || {};
+      const status = (payload || {}).update_status || {};
+      const sha = String(provenance.snapshot_sha256 || status.selected_sha256 || t("common.unknown")).slice(0, 12);
+      catalogStatusNode.textContent = t("catalog.status", {
+        tag: status.pinned_tag || provenance.source_tag || "v3.16.5",
+        origin: displayStatus(provenance.origin || status.state || "pinned"),
+        sha,
+        state: displayStatus(status.state || "offline_pinned")
+      });
+      catalogStatusNode.className = `control-message${status.state === "active_differs_from_pinned" ? " error" : " ok"}`;
+    }
+
+    function formatCatalogPrice(pricing) {
+      if (!pricing || typeof pricing !== "object") return t("catalog.price_unknown");
+      if (pricing.billing_mode === "subscription_quota") return t("catalog.subscription_quota");
+      if (pricing.known === true && pricing.input !== undefined && pricing.output !== undefined) {
+        return t("catalog.price_known", {
+          currency: pricing.currency || "--",
+          input: pricing.input,
+          output: pricing.output,
+          cacheRead: pricing.cache_read === undefined ? "--" : pricing.cache_read
+        });
+      }
+      return t("catalog.price_unknown");
+    }
+
+    function populateModelPresets(provider) {
+      modelPresetNode.replaceChildren();
+      const manual = node("option", "", t("common.manual_override"));
+      manual.value = "manual";
+      modelPresetNode.append(manual);
+      for (const preset of (provider || {}).model_presets || []) {
+        const price = formatCatalogPrice(preset.pricing);
+        const option = node("option", "", `${preset.display_name} · ${preset.request_model_id} · ${price}`);
+        option.value = preset.request_model_id;
+        modelPresetNode.append(option);
+      }
+    }
+
+    function renderCatalogOptions(catalog) {
+      lastCatalog = catalog;
+      renderCatalogStatus(catalog);
+      const providerSelection = providerPresetNode.value;
+      const modelSelection = modelPresetNode.value;
+      catalogProviders = Array.isArray(catalog.providers) ? catalog.providers : [];
+      providerPresetNode.replaceChildren();
+      const manual = node("option", "", t("common.manual_override"));
+      manual.value = "manual";
+      providerPresetNode.append(manual);
+      for (const provider of catalogProviders) {
+        const option = node("option", "", `${provider.display_name} · ${provider.id} · ${provider.protocol}`);
+        option.value = provider.id;
+        providerPresetNode.append(option);
+      }
+      const selectedProvider = catalogProviders.find(item => item.id === providerSelection);
+      providerPresetNode.value = selectedProvider ? providerSelection : "manual";
+      populateModelPresets(selectedProvider || null);
+      if ([...modelPresetNode.options].some(option => option.value === modelSelection)) modelPresetNode.value = modelSelection;
+    }
+
+    async function loadCatalog(statusOnly = false) {
+      try {
+        const endpoint = statusOnly ? "/api/catalog/status" : "/api/catalog";
+        const response = await fetch(endpoint, { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const catalog = await response.json();
+        renderCatalogStatus(catalog);
+        if (statusOnly) return;
+        renderCatalogOptions(catalog);
+      } catch (_) {
+        catalogStatusNode.textContent = t("catalog.unavailable");
+        catalogStatusNode.className = "control-message error";
+      }
+    }
+
+    providerPresetNode.addEventListener("change", () => {
+      const provider = catalogProviders.find(item => item.id === providerPresetNode.value);
+      populateModelPresets(provider);
+      if (!provider) return;
+      applyingPreset = true;
+      document.getElementById("base-url").value = provider.base_url || "";
+      document.getElementById("protocol").value = provider.control_protocol;
+      const first = (provider.model_presets || [])[0];
+      if (first) {
+        modelPresetNode.value = first.request_model_id;
+        document.getElementById("model-id").value = first.request_model_id;
+      }
+      applyingPreset = false;
+    });
+
+    modelPresetNode.addEventListener("change", () => {
+      if (modelPresetNode.value === "manual") return;
+      applyingPreset = true;
+      document.getElementById("model-id").value = modelPresetNode.value;
+      applyingPreset = false;
+    });
+
+    for (const id of ["base-url", "protocol", "model-id"]) {
+      document.getElementById(id).addEventListener("input", () => {
+        if (applyingPreset) return;
+        providerPresetNode.value = "manual";
+        modelPresetNode.value = "manual";
+      });
+    }
+
+    checkCatalogNode.addEventListener("click", () => loadCatalog(true));
+
+    startNode.addEventListener("click", async () => {
+      const result = await controlAction(t("action.start"), () => postControl("/api/control/start", newRunPayload()));
+      if (result) document.getElementById("api-key").value = "";
+    });
+
+    stopNode.addEventListener("click", () => controlAction(t("action.graceful_stop"), () => postControl("/api/control/stop", { run_id: currentControl.run_id })));
+
+    continueNode.addEventListener("click", async () => {
+      const result = await controlAction(t("action.continue_immutable"), () => postControl("/api/control/continue", {
+        run_id: currentControl.run_id,
+        api_key: formValue("api-key")
+      }));
+      if (result) document.getElementById("api-key").value = "";
+    });
+
+    clearKeyNode.addEventListener("click", async () => {
+      document.getElementById("api-key").value = "";
+      await controlAction(t("action.clear_credential"), () => postControl("/api/control/clear-key", {}));
+    });
+
+    probeNode.addEventListener("click", async () => {
+      const result = await controlAction(t("action.model_discovery"), () => postControl("/api/control/models", {
+        base_url: formValue("base-url"),
+        protocol: formValue("protocol"),
+        api_key: formValue("api-key"),
+        model: formValue("model-id"),
+        force_model: document.getElementById("force-model").checked,
+        timeout_seconds: formNumber("discovery-timeout")
+      }));
+      document.getElementById("api-key").value = "";
+      if (result) {
+        modelOptionsNode.replaceChildren();
+        for (const model of result.models || []) {
+          const option = document.createElement("option");
+          option.value = model;
+          modelOptionsNode.append(option);
+        }
+        controlMessage(t("models.result", {
+          status: displayStatus(result.status),
+          count: whole(result.model_count)
+        }), result.status === "success" ? "ok" : "error");
+      }
+    });
+
+    attachNode.addEventListener("click", () => {
+      const output = formValue("output-dir");
+      const label = output.split("/").filter(Boolean).pop() || "attached-shard";
+      return controlAction(t("action.attach_readonly"), () => postControl("/api/control/attach", { output_dir: output, label }));
+    });
+
+    function render(snapshot) {
+      lastSnapshot = snapshot;
+      renderSummary(snapshot);
+      renderControl(snapshot.control);
+      renderShards(snapshot.shards, snapshot.control);
+      renderConnectionDiagnostics(snapshot);
+      const lifecycle = ((snapshot.control || {}).events || []).map(item => ({
+        at: item.at,
+        level: "info",
+        event: item.event,
+        shard: item.target,
+        detail: t("control.lifecycle_metadata")
+      }));
+      renderLogs([...(snapshot.logs || []), ...lifecycle]);
+      renderConnectionHeader(snapshot);
+    }
+
+    async function poll() {
+      if (busy) return;
+      busy = true;
+      try {
+        let response;
+        try {
+          response = await fetch("/api/snapshot", { cache: "no-store", credentials: "same-origin" });
+        } catch (_) {
+          throw { diagnosticReason: "network_unreachable" };
+        }
+        if (!response.ok) {
+          throw { diagnosticReason: response.status >= 500 ? "http_server_error" : "http_client_error" };
+        }
+        let snapshot;
+        try {
+          snapshot = await response.json();
+        } catch (_) {
+          throw { diagnosticReason: "invalid_json" };
+        }
+        if (!validSnapshot(snapshot)) throw { diagnosticReason: "invalid_schema" };
+        const now = Date.now();
+        if (connectionHealth.failures > 0 && connectionHealth.disconnectedAt) {
+          connectionHealth.lastDisconnectSeconds = Math.max(0, (now - connectionHealth.disconnectedAt) / 1000);
+          connectionHealth.reconnectedUntil = now + 10000;
+        }
+        connectionHealth.connected = true;
+        connectionHealth.failures = 0;
+        connectionHealth.reason = null;
+        connectionHealth.disconnectedAt = null;
+        connectionHealth.lastSuccessAt = now;
+        connectionHealth.nextRetryAt = null;
+        render(snapshot);
+      } catch (error) {
+        const reason = error && CLIENT_REASON_CODES.includes(error.diagnosticReason)
+          ? error.diagnosticReason
+          : "network_unreachable";
+        const now = Date.now();
+        if (connectionHealth.failures === 0) connectionHealth.disconnectedAt = now;
+        connectionHealth.connected = false;
+        connectionHealth.failures += 1;
+        connectionHealth.reason = reason;
+        connectionHealth.nextRetryAt = now + POLL_INTERVAL_MS;
+        renderConnectionDiagnostics(lastSnapshot);
+        renderConnectionHeader(lastSnapshot);
+      } finally {
+        busy = false;
+      }
+    }
+
+    refreshNode.addEventListener("click", poll);
+    languageToggleNode.addEventListener("click", () => setLanguage(language === "en" ? "zh-CN" : "en"));
+    applyLanguage();
+    loadOptions();
+    loadCatalog();
+    poll();
+    window.setInterval(poll, POLL_INTERVAL_MS);
+    window.setInterval(() => {
+      if (lastSnapshot || connectionHealth.failures > 0) {
+        renderConnectionDiagnostics(lastSnapshot);
+        renderConnectionHeader(lastSnapshot);
+      }
+    }, 250);
+  </script>
+</body>
+</html>

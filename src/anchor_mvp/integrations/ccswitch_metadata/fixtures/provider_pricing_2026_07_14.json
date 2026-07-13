@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "content_kind": "anchor_provider_channel_pricing",
+  "retrieved_date": "2026-07-14",
+  "channels": [
+    {
+      "id": "zhipu-glm-payg",
+      "display_name": "Zhipu GLM pay-as-you-go",
+      "category": "first_party",
+      "protocols": [
+        "openai_compatible"
+      ],
+      "base_urls": [
+        "https://open.bigmodel.cn/api/paas/v4"
+      ],
+      "model": {
+        "canonical_model_id": "glm-5.2",
+        "display_name": "GLM-5.2",
+        "request_model_ids": [
+          "glm-5.2"
+        ],
+        "context_tokens": 1000000,
+        "max_output_tokens": 128000
+      },
+      "billing": {
+        "billing_mode": "per_token",
+        "price_status": "known",
+        "currency": "CNY",
+        "basis": "per_1m_tokens",
+        "input": "8",
+        "output": "28",
+        "cache_read": "2",
+        "cache_write": "unknown",
+        "cache_storage_per_1m_token_hour": "0",
+        "cache_storage_price_status": "promotional_free_valid_as_of",
+        "valid_as_of": "2026-07-14"
+      },
+      "source": {
+        "url": "https://bigmodel.cn/pricing",
+        "publisher": "Zhipu AI",
+        "retrieved_date": "2026-07-14",
+        "note": "Official GLM-5.2 pay-as-you-go price. Cache storage was temporarily free per million tokens per hour on the retrieval date; it is not coerced into the estimator's cache-write token dimension."
+      }
+    },
+    {
+      "id": "volcengine-ark-coding-plan",
+      "display_name": "Volcengine Ark Coding Plan",
+      "category": "first_party",
+      "protocols": [
+        "openai_responses",
+        "openai_compatible"
+      ],
+      "base_urls": [
+        "https://ark.cn-beijing.volces.com/api/coding/v3"
+      ],
+      "model": {
+        "canonical_model_id": "glm-5.2",
+        "display_name": "GLM-5.2",
+        "request_model_ids": [
+          "glm-5-2-260617"
+        ],
+        "context_tokens": 1000000,
+        "max_output_tokens": 128000
+      },
+      "billing": {
+        "billing_mode": "subscription_quota",
+        "price_status": "marginal_token_cost_unknown",
+        "currency": "CNY",
+        "basis": "subscription_quota",
+        "input": "unknown",
+        "output": "unknown",
+        "cache_read": "unknown",
+        "cache_write": "unknown",
+        "cache_storage_per_1m_token_hour": "unknown",
+        "cache_storage_price_status": "unknown",
+        "valid_as_of": "2026-07-14"
+      },
+      "source": {
+        "url": "https://www.volcengine.com/activity/codingplan",
+        "publisher": "Volcengine",
+        "retrieved_date": "2026-07-14",
+        "note": "Coding Plan is a subscription/quota channel. Marginal token cost stays unavailable unless an operator configures a project-specific subscription allocation."
+      }
+    }
+  ]
+}
