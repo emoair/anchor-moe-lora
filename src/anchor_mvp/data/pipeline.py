@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any, Awaitable, Callable, Iterable, Mapping
 
 from .cleaning import (
     build_inert_security_fixture,
@@ -28,6 +28,7 @@ from .schema import (
     TaskType,
     normalized_text,
     stable_id,
+    utc_now,
     validate_output,
 )
 from .sops import load_sop_directory
@@ -132,6 +133,8 @@ class DistillationPipeline:
         seed_index_offset: int = 0,
         task_card_config: str | Path | None = None,
         progress_callback: Callable[[], Awaitable[None]] | None = None,
+        quarantine_invalid_seeds: bool = False,
+        quality_feedback: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> None:
         if concurrency < 1:
             raise ValueError("concurrency must be at least 1")
@@ -145,6 +148,11 @@ class DistillationPipeline:
         self.task_cards: TaskCardCatalog = load_task_card_catalog(task_card_config)
         self.semaphore = asyncio.Semaphore(concurrency)
         self.progress_callback = progress_callback
+        self.quarantine_invalid_seeds = quarantine_invalid_seeds
+        self.quality_feedback = {
+            str(seed_id): dict(feedback)
+            for seed_id, feedback in (quality_feedback or {}).items()
+        }
 
     async def _complete(self, *, system: str, user: str) -> str:
         async with self.semaphore:
@@ -158,6 +166,7 @@ class DistillationPipeline:
         if count < 0:
             raise ValueError("seed count cannot be negative")
         store = SeedStore(self.output_dir / "seeds.jsonl")
+        rejection_store = JsonlStore(self.output_dir / "seed_rejections.jsonl")
         seeds = [SeedDemand.from_mapping(item) for item in store.records]
         fingerprints = set(store.request_fingerprints)
         # Persisted global indices make crash/resume and out-of-order async
@@ -170,6 +179,13 @@ class DistillationPipeline:
         used_indices.update(
             range(self.seed_index_offset, self.seed_index_offset + legacy_count)
         )
+        rejected_indices = {
+            int(record["seed_index"])
+            for record in rejection_store.records
+            if isinstance(record.get("seed_index"), int)
+            and int(record["seed_index"]) >= self.seed_index_offset
+        }
+        used_indices.update(rejected_indices)
         next_index = self.seed_index_offset
 
         def take_indices(amount: int) -> tuple[int, ...]:
@@ -187,34 +203,56 @@ class DistillationPipeline:
         while pending_indices and rounds < 5:
             retry_indices: list[int] = []
 
-            async def create(index: int) -> tuple[int, SeedDemand]:
+            async def create(
+                index: int,
+            ) -> tuple[int, SeedDemand | None, dict[str, Any] | None]:
                 template = self.task_cards.template_for_index(index)
                 system, user = seed_prompt(index, card=template)
-                payload = extract_json_object(
-                    await self._complete(system=system, user=user)
-                )
-                if contains_active_payload(payload):
-                    raise ValueError("seed contains active payload material")
-                if contains_secret_material(payload):
-                    raise ValueError("seed contains credential-like material")
-                candidate = SeedDemand.from_mapping(payload)
-                assignment = assignment_for_card(
-                    template,
-                    self.task_cards,
-                    seed_index=index,
-                    requirement=candidate.request,
-                )
-                return index, SeedDemand(
-                    seed_id=candidate.seed_id,
-                    title=candidate.title,
-                    request=candidate.request,
-                    category=candidate.category,
-                    tags=assignment.tags,
-                    card_id=assignment.card_id,
-                    seed_index=index,
-                    template_id=assignment.template_id,
-                    source_kind=assignment.source_kind,
-                    source_digest=assignment.source_digest,
+                raw_response = await self._complete(system=system, user=user)
+                try:
+                    payload = extract_json_object(raw_response)
+                    if contains_active_payload(payload):
+                        raise ValueError("seed contains active payload material")
+                    if contains_secret_material(payload):
+                        raise ValueError("seed contains credential-like material")
+                    candidate = SeedDemand.from_mapping(payload)
+                    assignment = assignment_for_card(
+                        template,
+                        self.task_cards,
+                        seed_index=index,
+                        requirement=candidate.request,
+                    )
+                except ValueError as error:
+                    if not self.quarantine_invalid_seeds:
+                        raise
+                    response_sha256 = sha256(raw_response.encode("utf-8")).hexdigest()
+                    rejection = {
+                        "id": stable_id("seed-rejection", f"{index}:{response_sha256}"),
+                        "schema_version": "anchor.seed-rejection.v1",
+                        "seed_index": index,
+                        "template_id": template.template_id,
+                        "error_class": type(error).__name__,
+                        "reason": str(error)[:160],
+                        "raw_response_sha256": response_sha256,
+                        "content_retained": False,
+                        "observed_at": utc_now(),
+                    }
+                    return index, None, rejection
+                return (
+                    index,
+                    SeedDemand(
+                        seed_id=candidate.seed_id,
+                        title=candidate.title,
+                        request=candidate.request,
+                        category=candidate.category,
+                        tags=assignment.tags,
+                        card_id=assignment.card_id,
+                        seed_index=index,
+                        template_id=assignment.template_id,
+                        source_kind=assignment.source_kind,
+                        source_digest=assignment.source_digest,
+                    ),
+                    None,
                 )
 
             remaining_indices = iter(pending_indices)
@@ -223,15 +261,17 @@ class DistillationPipeline:
             deadlines: list[ClientDeadlineExceeded] = []
             terminal_errors: list[Exception] = []
             terminal_seen = asyncio.Event()
+            replacement_count = 0
 
             async def seed_worker() -> None:
+                nonlocal replacement_count
                 while not terminal_seen.is_set():
                     try:
                         index = next(remaining_indices)
                     except StopIteration:
                         return
                     try:
-                        _, seed = await create(index)
+                        _, seed, rejection = await create(index)
                     except ProviderQuotaExhausted as error:
                         quota_errors.append(error)
                         terminal_seen.set()
@@ -255,6 +295,18 @@ class DistillationPipeline:
                         terminal_errors.append(error)
                         terminal_seen.set()
                     else:
+                        if rejection is not None:
+                            rejection_store.append(rejection)
+                            rejected_indices.add(index)
+                            replacement_count += 1
+                            await self._checkpoint_progress()
+                            continue
+                        if seed is None:  # defensive union narrowing
+                            terminal_errors.append(
+                                RuntimeError("seed result omitted without rejection")
+                            )
+                            terminal_seen.set()
+                            continue
                         fingerprint = stable_id(
                             "request", normalized_text(seed.request)
                         )
@@ -311,6 +363,8 @@ class DistillationPipeline:
             if terminal_errors:
                 raise terminal_errors[0]
             pending_indices = sorted(set(retry_indices))
+            if replacement_count:
+                pending_indices.extend(take_indices(replacement_count))
             rounds += 1
         if len(seeds) < count:
             raise RuntimeError(
@@ -331,7 +385,9 @@ class DistillationPipeline:
             raise ValueError(f"unknown tasks: {', '.join(sorted(unknown))}")
         # User ordering cannot bypass same-seed dependencies.
         selected = tuple(task for task in TASK_TYPES if task in requested)
-        excluded = frozenset(str(seed_id) for seed_id in excluded_seed_ids)
+        planned = frozenset(self.quality_feedback)
+        # An explicit quality plan is a scoped override of legacy quarantine.
+        excluded = frozenset(str(seed_id) for seed_id in excluded_seed_ids) - planned
         seeds = await self.generate_seeds(seed_count)
         written: dict[str, int] = {}
         skipped: dict[str, int] = {}
@@ -344,10 +400,36 @@ class DistillationPipeline:
         for task_index, task_type in enumerate(selected):
             store = JsonlStore(self.output_dir / f"data_{task_type}.jsonl")
             completed = completed_seed_ids(store.records)
+            completed_quality_generation: set[str] = set()
+            for record in store.records:
+                provenance = record.get("provenance")
+                retry = (
+                    provenance.get("quality_retry")
+                    if isinstance(provenance, Mapping)
+                    else None
+                )
+                seed_id = (
+                    str(provenance.get("seed_id", ""))
+                    if isinstance(provenance, Mapping)
+                    else ""
+                )
+                expected = self.quality_feedback.get(seed_id)
+                if (
+                    seed_id
+                    and isinstance(retry, Mapping)
+                    and isinstance(expected, Mapping)
+                    and retry.get("generation") == expected.get("generation")
+                ):
+                    completed_quality_generation.add(seed_id)
             pending = [
                 (index, seed)
                 for index, seed in enumerate(seeds)
-                if seed.seed_id not in completed and seed.seed_id not in excluded
+                if (
+                    seed.seed_id not in completed
+                    if seed.seed_id not in planned
+                    else seed.seed_id not in completed_quality_generation
+                )
+                and seed.seed_id not in excluded
             ]
             skipped[task_type] = len(seeds) - len(pending)
 
@@ -360,6 +442,7 @@ class DistillationPipeline:
                 canonical_index = (
                     seed.seed_index if seed.seed_index is not None else index
                 )
+                quality_retry = self.quality_feedback.get(seed.seed_id)
                 task_input: dict[str, Any] | None = None
                 card_assignment = assignment_for_seed(seed, self.task_cards)
                 provenance_extra: dict[str, object] = card_assignment.provenance(
@@ -461,6 +544,7 @@ class DistillationPipeline:
                     canonical_index,
                     task_input=task_input,
                     known_benign_defect=known_benign_defect,
+                    quality_retry=quality_retry,
                 )
                 raw_response = await self._complete(system=system, user=user)
                 # Snapshot request-local route metadata immediately after the
@@ -580,6 +664,7 @@ class DistillationPipeline:
                     template_sha256=template_sha256(task_type),
                     canonical_task_input=task_input,
                     provenance_extra=provenance_extra,
+                    quality_retry=quality_retry,
                 )
 
             remaining_jobs = iter(enumerate(pending))

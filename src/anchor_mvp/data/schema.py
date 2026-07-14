@@ -323,6 +323,7 @@ class DistilledRecord:
         provider_provenance: Mapping[str, Any] | None = None,
         canonical_task_input: Mapping[str, Any] | None = None,
         provenance_extra: Mapping[str, Any] | None = None,
+        quality_retry: Mapping[str, Any] | None = None,
     ) -> "DistilledRecord":
         if task_type not in TASK_TYPES:
             raise DataValidationError(f"unsupported task type: {task_type}")
@@ -347,6 +348,7 @@ class DistilledRecord:
             seed,
             payload,
             canonical_task_input=canonical_task_input,
+            quality_retry=quality_retry,
         )
         if task_type == "review" and normalized_text(
             str(clean_input["candidate_code"])
@@ -384,6 +386,8 @@ class DistilledRecord:
             provenance.update(
                 {str(key): value for key, value in provenance_extra.items()}
             )
+        if quality_retry is not None:
+            provenance["quality_retry"] = validate_quality_retry(quality_retry)
         return cls(
             id=stable_id("record", identity),
             expert=EXPERT_BY_TASK[task_type],
@@ -450,12 +454,21 @@ def validate_output(task_type: TaskType, output: Mapping[str, Any]) -> None:
         ):
             raise DataValidationError("tool_policy proposal_labels must be strings")
     elif task_type in ("frontend", "review"):
+        if output.get("language") != "tsx":
+            raise DataValidationError(
+                f'{task_type} output language must be exactly "tsx"'
+            )
         required = "code"
         if (
             not isinstance(output.get(required), str)
             or not str(output[required]).strip()
         ):
             raise DataValidationError(f"{task_type} output requires non-empty code")
+        if task_type == "review" and (
+            not isinstance(output.get("summary"), str)
+            or not str(output["summary"]).strip()
+        ):
+            raise DataValidationError("review output requires a concise summary")
     elif task_type == "security":
         decision = output.get("decision")
         if decision not in ("BLOCK", "PASS"):
@@ -480,12 +493,21 @@ def canonical_input(
     payload: Mapping[str, Any],
     *,
     canonical_task_input: Mapping[str, Any] | None = None,
+    quality_retry: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Validate task-specific teacher input and build the actual SFT user turn."""
 
+    def finish(clean: dict[str, Any], user_content: str) -> tuple[dict[str, Any], str]:
+        if quality_retry is None:
+            return clean, user_content
+        retry = validate_quality_retry(quality_retry)
+        clean["quality_retry"] = retry
+        retry_json = json.dumps(retry, ensure_ascii=False, sort_keys=True)
+        return clean, f"{user_content}\n\nQUALITY RETRY METADATA:\n{retry_json}"
+
     if task_type == "plan":
         clean: dict[str, Any] = {"requirement": seed.request}
-        return clean, seed.request
+        return finish(clean, seed.request)
     if "input" in payload:
         raise DataValidationError(
             f"{task_type} teacher must not echo input code; pipeline supplies canonical input"
@@ -515,7 +537,7 @@ def canonical_input(
             "INERT TOOL PROPOSALS:\n"
             f"{json.dumps(clean['tool_proposals'], ensure_ascii=False, sort_keys=True)}"
         )
-        return clean, user_content
+        return finish(clean, user_content)
     if task_type == "frontend":
         plan = raw_input.get("plan")
         tool_policy = raw_input.get("tool_policy")
@@ -536,7 +558,7 @@ def canonical_input(
             "TOOL POLICY ADVISORY (not an execution grant):\n"
             f"{json.dumps(clean['tool_policy'], ensure_ascii=False, sort_keys=True)}"
         )
-        return clean, user_content
+        return finish(clean, user_content)
     code_field = "candidate_code" if task_type == "review" else "reviewed_code"
     code = raw_input.get(code_field)
     if not isinstance(code, str) or not code.strip():
@@ -550,4 +572,41 @@ def canonical_input(
             raise DataValidationError("review input requires known_benign_defect")
         clean["known_benign_defect"] = defect.strip()
         user_content += f"\n\nKNOWN_BENIGN_DEFECT:\n{defect.strip()}"
-    return clean, user_content
+    return finish(clean, user_content)
+
+
+def validate_quality_retry(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate content-free retry metadata before it reaches prompts or records."""
+
+    from .quality_retry import QUALITY_FEEDBACK_CODES
+
+    generation = value.get("generation")
+    retry_of = value.get("retry_of")
+    codes = value.get("quality_feedback_codes")
+    if (
+        isinstance(generation, bool)
+        or not isinstance(generation, int)
+        or generation < 1
+    ):
+        raise DataValidationError("quality retry generation must be positive")
+    if not isinstance(retry_of, list) or any(
+        not isinstance(item, str) or not item.startswith("record_") or len(item) > 96
+        for item in retry_of
+    ):
+        raise DataValidationError("quality retry retry_of must contain record IDs")
+    if (
+        not isinstance(codes, list)
+        or not codes
+        or any(not isinstance(item, str) for item in codes)
+    ):
+        raise DataValidationError("quality retry feedback codes are required")
+    normalized = sorted(set(codes))
+    if not set(normalized).issubset(QUALITY_FEEDBACK_CODES):
+        raise DataValidationError(
+            "quality retry feedback is not public allowlisted data"
+        )
+    return {
+        "generation": generation,
+        "retry_of": sorted(set(retry_of)),
+        "quality_feedback_codes": normalized,
+    }

@@ -42,6 +42,7 @@ max_requests: 6912
 max_output_tokens_total: 884736000
 quota_epoch_id: ark-glm52-max384-c10-retry2-window-1
 max_failure_retries: 2
+max_quality_retry_rounds: 2
 max_stagnant_gate_rounds: 5
 minimum_label_counts:
   tool_policy:
@@ -80,5 +81,3 @@ stream_options_include_usage: false
 
 cooldown_seconds: 7200
 cooldown_poll_seconds: 60
-
-  max_failures: 200

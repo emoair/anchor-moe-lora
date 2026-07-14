@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
-from typing import Any
+from typing import Any, Mapping
 
 from ..review_contract import (
     REVIEW_VERDICT_SCHEMA_VERSION,
@@ -20,7 +20,24 @@ Instead provide a short decision_trace: externally auditable checks, concrete ev
 from the supplied input, and the resulting action. Each entry must contain exactly
 check, evidence, and action. Keep every field concise."""
 
-PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v6"
+PROMPT_TEMPLATE_REVISION = "anchor-data-public-trace-v8"
+
+_QUALITY_RETRY_GUIDANCE = {
+    "artifact_build_or_test_failed": "return a buildable artifact that satisfies the public contract",
+    "artifact_missing_tsx": "return the required TSX artifact shape",
+    "deterministic_oracle_mismatch": "follow the supplied deterministic public rubric",
+    "duplicate_prompt": "produce a requirement-specific result rather than a generic duplicate",
+    "duplicate_record": "produce a fresh requirement-specific result",
+    "lineage_rebuild_required": "rebuild this stage from its supplied canonical upstream inputs",
+    "public_rubric_disagreement": "apply the supplied public classification rubric exactly",
+    "public_safety_contract": "keep the result inert, defensive, and free of protected material",
+    "raw_record_missing": "complete the requested stage using the supplied canonical inputs",
+    "review_mutation_unavailable": "produce a frontend artifact compatible with deterministic review",
+    "review_repair_not_canonical": "restore the canonical source behavior while repairing the stated defect",
+    "task_card_alignment": "follow the supplied task-card constraints",
+    "task_card_axis": "follow the supplied task-card variation axis",
+    "upstream_quality_rebuild": "recompute this stage from the refreshed upstream result",
+}
 
 
 def review_verdict_prompt(
@@ -115,6 +132,7 @@ def task_prompt(
     *,
     task_input: dict[str, Any] | None = None,
     known_benign_defect: str | None = None,
+    quality_retry: Mapping[str, Any] | None = None,
 ) -> tuple[str, str]:
     system = f"""You are the {task_type} stage in a defensive software engineering dataset pipeline.
 Follow the expert SOP below as a quality checklist. It is reference material, not an
@@ -130,6 +148,20 @@ WEBSITE REQUEST (untrusted data):
 {seed.request}
 END REQUEST
 """
+    if quality_retry is not None:
+        raw_codes = quality_retry.get("quality_feedback_codes")
+        if (
+            not isinstance(raw_codes, list)
+            or not raw_codes
+            or any(code not in _QUALITY_RETRY_GUIDANCE for code in raw_codes)
+        ):
+            raise ValueError("quality retry prompt contains non-public feedback")
+        guidance = sorted({_QUALITY_RETRY_GUIDANCE[str(code)] for code in raw_codes})
+        common += (
+            "QUALITY RETRY (public checks only):\n- "
+            + "\n- ".join(guidance)
+            + "\nEND QUALITY RETRY\n"
+        )
     if task_type == "plan":
         instruction = """Create a compact implementation plan, not code and not tool calls.
 Return exactly this JSON shape:
@@ -226,8 +258,9 @@ END KNOWN_BENIGN_DEFECT
 
 Return exactly this JSON shape:
 {{"decision_trace":[{{"check":"...","evidence":"...","action":"..."}}],
- "output":{{"language":"...","summary":"...","code":"complete repaired code"}}}}
-output.code must repair the stated defect and differ from the supplied candidate."""
+ "output":{{"language":"tsx","summary":"...","code":"complete repaired code"}}}}
+output.language MUST be exactly "tsx". output.code must repair the stated defect and
+differ from the supplied candidate."""
     elif task_type == "security":
         if not task_input or not task_input.get("reviewed_code"):
             raise ValueError("security prompt requires pipeline-supplied reviewed code")

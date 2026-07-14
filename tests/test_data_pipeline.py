@@ -446,6 +446,35 @@ def test_active_seed_material_is_never_persisted(tmp_path: Path) -> None:
     assert not (tmp_path / "seeds.jsonl").exists()
 
 
+class _FirstUnsafeSeedTeacher(MockTeacher):
+    async def complete(self, *, system: str, user: str) -> str:
+        if "ANCHOR_TASK: seed" in user and _prompt_index(user) == 0:
+            return '{"title":"unsafe","request":"render <script> directly","category":"unsafe","tags":[]}'
+        return await super().complete(system=system, user=user)
+
+
+def test_bulk_seed_generation_quarantines_invalid_card_and_replaces_it(
+    tmp_path: Path,
+) -> None:
+    pipeline = DistillationPipeline(
+        teacher=_FirstUnsafeSeedTeacher(),
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path,
+        concurrency=1,
+        quarantine_invalid_seeds=True,
+    )
+
+    seeds = asyncio.run(pipeline.generate_seeds(1))
+
+    assert [seed.seed_index for seed in seeds] == [1]
+    rejection_text = (tmp_path / "seed_rejections.jsonl").read_text(encoding="utf-8")
+    assert "<script>" not in rejection_text
+    rejection = json.loads(rejection_text)
+    assert rejection["seed_index"] == 0
+    assert rejection["content_retained"] is False
+    assert rejection["raw_response_sha256"]
+
+
 class _CountingMockTeacher(MockTeacher):
     def __init__(self) -> None:
         super().__init__()
@@ -596,6 +625,22 @@ def test_frontend_prompt_requires_non_empty_public_trace() -> None:
     assert '"code":"complete runnable implementation"' in user
     assert "never exceed 12,000" in user
     assert "1 to 3 small components" in user
+
+
+def test_review_prompt_requires_canonical_tsx_language() -> None:
+    _, user = task_prompt(
+        "review",
+        SeedDemand("seed-1", "title", "Build an accessible catalog"),
+        load_sop(ROOT / "skills" / "review.md"),
+        0,
+        task_input={
+            "candidate_code": "export function Page(){return <div>Ready</div>}",
+        },
+        known_benign_defect="Restore the main landmark.",
+    )
+
+    assert '"language":"tsx"' in user
+    assert 'output.language MUST be exactly "tsx"' in user
 
 
 def test_frontend_missing_teacher_trace_gets_attributed_contract_trace() -> None:

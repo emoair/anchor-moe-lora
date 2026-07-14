@@ -1,11 +1,16 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const mode = process.argv[2];
-const source = readFileSync(new URL("../submission.tsx", import.meta.url), "utf8");
+const batchUrl = new URL("../submissions.json", import.meta.url);
+const singleUrl = new URL("../submission.tsx", import.meta.url);
+const BATCH_INPUT_SCHEMA = "anchor.tsx-fragment-batch-input.v1";
+const BATCH_RESULT_SCHEMA = "anchor.tsx-fragment-batch-result.v1";
+const BATCH_RESULT_SENTINEL = "ANCHOR_BATCH_RESULT:";
+
+class ValidationFailure extends Error {}
 
 function fail(message) {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
+  throw new ValidationFailure(message);
 }
 
 function balancedDelimiters(value) {
@@ -120,11 +125,12 @@ function scanJsxTags(value) {
       index = cursor;
       continue;
     }
-    const nameMatch = value.slice(cursor).match(/^([A-Za-z][A-Za-z0-9.-]*)/);
-    if (!nameMatch) continue;
-    const name = nameMatch[1];
+    if (!/[A-Za-z]/.test(value[cursor] ?? "")) continue;
+    const nameStart = cursor;
+    cursor += 1;
+    while (/[A-Za-z0-9.-]/.test(value[cursor] ?? "")) cursor += 1;
+    const name = value.slice(nameStart, cursor);
     if (!closing && !jsxOpeningContext(value, index, contextStack.length > 0)) continue;
-    cursor += name.length;
 
     let attributeQuote = null;
     let attributeEscaped = false;
@@ -183,7 +189,7 @@ function balancedJsxTags(value) {
   return stack.length === 0;
 }
 
-function assertFragment() {
+function assertFragment(source) {
   if (source.length < 40 || source.length > 12000) fail("invalid artifact size");
   if (/```/.test(source)) fail("markdown fence leaked into artifact");
   if (/<\s*script\b|javascript\s*:|\beval\s*\(|\bnew\s+Function\b/i.test(source)) {
@@ -199,11 +205,73 @@ function assertFragment() {
   if (!balancedJsxTags(source)) fail("unbalanced JSX tags");
 }
 
-if (mode === "build") {
-  assertFragment();
-} else if (mode === "test") {
-  assertFragment();
-  if (!/<[A-Za-z][A-Za-z0-9.-]*/.test(source)) fail("JSX element missing");
-} else {
-  fail("unknown validation mode");
+function validateSource(source) {
+  assertFragment(source);
+  if (mode === "test" && !/<[A-Za-z][A-Za-z0-9.-]*/.test(source)) {
+    fail("JSX element missing");
+  }
+}
+
+function validateMode() {
+  if (mode !== "build" && mode !== "test") fail("unknown validation mode");
+}
+
+function loadBatch() {
+  const payload = JSON.parse(readFileSync(batchUrl, "utf8"));
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    payload.schema !== BATCH_INPUT_SCHEMA ||
+    !Array.isArray(payload.submissions)
+  ) {
+    throw new Error("invalid batch input schema");
+  }
+  const seen = new Set();
+  return payload.submissions.map((item) => {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.id !== "string" ||
+      !/^[a-f0-9]{64}$/.test(item.id) ||
+      seen.has(item.id) ||
+      typeof item.code !== "string"
+    ) {
+      throw new Error("invalid batch submission");
+    }
+    seen.add(item.id);
+    return item;
+  });
+}
+
+function validateBatch() {
+  const submissions = loadBatch();
+  const results = submissions.map(({ id, code }) => {
+    try {
+      validateSource(code);
+      return { id, passed: true, reason: "passed" };
+    } catch (error) {
+      if (!(error instanceof ValidationFailure)) throw error;
+      return { id, passed: false, reason: error.message };
+    }
+  });
+  process.stdout.write(
+    `${BATCH_RESULT_SENTINEL}${JSON.stringify({
+      schema: BATCH_RESULT_SCHEMA,
+      mode,
+      results,
+    })}\n`,
+  );
+  if (results.some((item) => !item.passed)) process.exitCode = 1;
+}
+
+try {
+  validateMode();
+  if (existsSync(batchUrl)) {
+    validateBatch();
+  } else {
+    validateSource(readFileSync(singleUrl, "utf8"));
+  }
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.message : "validator failure"}\n`);
+  process.exitCode = 1;
 }

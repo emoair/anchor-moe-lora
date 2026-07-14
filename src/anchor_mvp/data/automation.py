@@ -23,7 +23,10 @@ from ..benchmark.heldout import (
     verify_heldout_manifest,
     verify_leak_audit,
 )
-from .artifact_validation import validate_tsx_fragment
+from .artifact_validation import (
+    TSX_FRAGMENT_VALIDATOR_VERSION,
+    validate_tsx_fragments,
+)
 from .cleaning import (
     build_inert_security_fixture,
     contains_secret_material,
@@ -39,8 +42,14 @@ from .proposals import (
     PROPOSAL_GENERATOR_VERSION,
     deterministic_tool_policy_oracle,
 )
+from .quality_retry import (
+    build_quality_retry_plan,
+    prepare_quality_retry_projection,
+    quality_feedback_map,
+    restore_quality_retry_projection,
+)
 from .provider import PRESETS, ProviderSelection, provider_spec, select_provider_model
-from .schema import TASK_TYPES, SeedDemand, stable_id
+from .schema import TASK_TYPES, SeedDemand, stable_id, validate_quality_retry
 from .storage import JsonlStore, SeedStore
 from .task_cards import (
     CardAssignment,
@@ -65,6 +74,7 @@ _USAGE_CHECKPOINT_REQUEST_INTERVAL = 8
 _USAGE_CHECKPOINT_OUTPUT_TOKEN_INTERVAL = 4096
 _USAGE_CHECKPOINT_MAX_SECONDS = 5.0
 DEFAULT_CONCURRENCY_STAGES = (1,)
+DEFAULT_MAX_QUALITY_RETRY_ROUNDS = 2
 COLLECTION_POLICIES = frozenset({"gated", "collect_then_partition"})
 QUALITY_STAGING_SCHEMA_VERSION = "anchor.automation-quality-staging.v1"
 PARTITION_REJECT_SCHEMA_VERSION = "anchor.automation-partition-reject.v1"
@@ -386,6 +396,7 @@ class AutomationConfig:
     max_output_tokens_total: int = 1_000_000
     quota_epoch_id: str = "default"
     max_failure_retries: int = 2
+    max_quality_retry_rounds: int = DEFAULT_MAX_QUALITY_RETRY_ROUNDS
     cooldown_seconds: int = 18_000
     cooldown_poll_seconds: int = 60
     max_stagnant_gate_rounds: int = 5
@@ -449,6 +460,8 @@ class AutomationConfig:
             raise ValueError("quota_epoch_id cannot be empty")
         if self.max_failure_retries < 0:
             raise ValueError("max_failure_retries cannot be negative")
+        if self.max_quality_retry_rounds < 0:
+            raise ValueError("max_quality_retry_rounds cannot be negative")
         if self.cooldown_seconds < 1 or self.cooldown_poll_seconds < 1:
             raise ValueError("cooldown values must be positive")
         if self.max_stagnant_gate_rounds < 1:
@@ -568,7 +581,12 @@ class AutomationConfig:
 
         return self.raw_collection_target or self.stage_seed_counts[-1]
 
-    def _status_binding_payload(self, *, include_gold_contract: bool) -> dict[str, Any]:
+    def _status_binding_payload(
+        self,
+        *,
+        include_gold_contract: bool,
+        include_quality_retry_policy: bool = True,
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "schema": "anchor.automation-status-binding.v1",
             "sop_dir": str(self.sop_dir),
@@ -620,6 +638,9 @@ class AutomationConfig:
             payload["schema"] = "anchor.automation-status-binding.v2"
             payload["raw_collection_target"] = self.raw_records_per_task
             payload["minimum_gold_records_per_task"] = self.minimum_gold_records_by_task
+        if include_quality_retry_policy:
+            payload["schema"] = "anchor.automation-status-binding.v3"
+            payload["max_quality_retry_rounds"] = self.max_quality_retry_rounds
         return payload
 
     @staticmethod
@@ -653,7 +674,24 @@ class AutomationConfig:
         """Hash the pre-gold-floor corpus contract for one explicit migration."""
 
         return self._binding_sha256(
-            self._status_binding_payload(include_gold_contract=False)
+            self._status_binding_payload(
+                include_gold_contract=False,
+                include_quality_retry_policy=False,
+            )
+        )
+
+    @property
+    def pre_quality_retry_status_binding_sha256(self) -> str:
+        """Hash the immediately preceding binding for default-policy migration."""
+
+        return self._binding_sha256(
+            self._status_binding_payload(
+                include_gold_contract=(
+                    self.raw_collection_target is not None
+                    or bool(self.minimum_gold_records_per_task)
+                ),
+                include_quality_retry_policy=False,
+            )
         )
 
     @property
@@ -664,6 +702,20 @@ class AutomationConfig:
         if source is None:
             return None
         payload = self._status_binding_payload(include_gold_contract=True)
+        payload.update(source.binding_overrides())
+        return self._binding_sha256(payload)
+
+    @property
+    def pre_quality_retry_monotonic_source_binding_sha256(self) -> str | None:
+        """Hash a real pre-v3 expansion source for default-policy migration."""
+
+        source = self.monotonic_expansion_from
+        if source is None:
+            return None
+        payload = self._status_binding_payload(
+            include_gold_contract=True,
+            include_quality_retry_policy=False,
+        )
         payload.update(source.binding_overrides())
         return self._binding_sha256(payload)
 
@@ -731,6 +783,12 @@ class AutomationConfig:
             ),
             quota_epoch_id=str(value.get("quota_epoch_id", "default")),
             max_failure_retries=int(value.get("max_failure_retries", 2)),
+            max_quality_retry_rounds=int(
+                value.get(
+                    "max_quality_retry_rounds",
+                    DEFAULT_MAX_QUALITY_RETRY_ROUNDS,
+                )
+            ),
             cooldown_seconds=int(value.get("cooldown_seconds", 18_000)),
             cooldown_poll_seconds=int(value.get("cooldown_poll_seconds", 60)),
             max_stagnant_gate_rounds=int(value.get("max_stagnant_gate_rounds", 5)),
@@ -934,6 +992,11 @@ def _migrate_legacy_binding_status(
         raise ValueError("automation status migration history must be a list")
 
     migrated_at = _iso()
+    quality_retry_archive = _archive_quality_retry_namespace(
+        config,
+        status,
+        reason="raw-gold-contract",
+    )
     previous_partition = status.pop("partition", None)
     previous_run: dict[str, Any] = {
         "run_id": status.get("run_id"),
@@ -945,6 +1008,11 @@ def _migrate_legacy_binding_status(
         "metrics": status.get("metrics"),
         "last_gate": status.get("last_gate"),
         "heldout_gate": status.get("heldout_gate"),
+        "quality_retry": status.get("quality_retry"),
+        "active_projection_incomplete": status.get(
+            "active_projection_incomplete", False
+        ),
+        "quality_retry_archive": quality_retry_archive,
     }
     if previous_partition is not None:
         previous_run["partition"] = previous_partition
@@ -960,6 +1028,7 @@ def _migrate_legacy_binding_status(
             "migration_trigger": trigger,
             "resume_policy": "fresh_run_stage_zero_after_equivalent_contract_proof",
             "partition_policy": "mark_stale_until_explicit_offline_refresh",
+            "quality_retry_archive": quality_retry_archive,
         }
     )
     status.update(
@@ -985,6 +1054,12 @@ def _migrate_legacy_binding_status(
             "last_gate": None,
             "heldout_gate": None,
             "collection_retry": None,
+            "quality_retry": None,
+            "active_projection_incomplete": False,
+            "quality_retry_policy": {
+                "max_quality_retry_rounds": config.max_quality_retry_rounds,
+                "bound_at": migrated_at,
+            },
             "usage_checkpoint_policy": _usage_checkpoint_policy(config),
             "partition_stale_reason": "binding_v2_migration_pending_refresh",
         }
@@ -999,6 +1074,13 @@ def _verify_status_config_binding(
     observed = status.get("config_binding_sha256")
     if observed == config.status_binding_sha256:
         return
+    if observed == config.pre_quality_retry_status_binding_sha256:
+        if config.max_quality_retry_rounds != DEFAULT_MAX_QUALITY_RETRY_ROUNDS:
+            raise ValueError(
+                "legacy status has no quality-retry policy; first migrate it with "
+                f"max_quality_retry_rounds={DEFAULT_MAX_QUALITY_RETRY_ROUNDS}"
+            )
+        return
     if (
         config.status_binding_sha256 != config.legacy_status_binding_sha256
         and observed == config.legacy_status_binding_sha256
@@ -1009,6 +1091,104 @@ def _verify_status_config_binding(
         "automation status config binding mismatch; use a separate output_dir "
         "or remove only an intentionally discarded state directory"
     )
+
+
+def _migrate_quality_retry_binding_status(
+    config: AutomationConfig,
+    status: dict[str, Any],
+    *,
+    trigger: str,
+) -> dict[str, Any]:
+    """Audit an equivalent pre-v3 binding without resetting executable state."""
+
+    observed = status.get("config_binding_sha256")
+    if observed != config.pre_quality_retry_status_binding_sha256:
+        raise ValueError("pre-quality-retry automation status binding mismatch")
+    if config.max_quality_retry_rounds != DEFAULT_MAX_QUALITY_RETRY_ROUNDS:
+        raise ValueError(
+            "legacy status can only migrate with the default quality retry policy"
+        )
+    migrated_at = _iso()
+    history = status.setdefault("migration_history", [])
+    if not isinstance(history, list):
+        raise ValueError("automation status migration history must be a list")
+    history.append(
+        {
+            "migration_type": "quality_retry_policy_v2_to_v3",
+            "migrated_at": migrated_at,
+            "migration_trigger": trigger,
+            "previous_config_binding_sha256": observed,
+            "new_config_binding_sha256": config.status_binding_sha256,
+            "max_quality_retry_rounds": DEFAULT_MAX_QUALITY_RETRY_ROUNDS,
+            "resume_policy": "preserve_state_after_equivalent_default_policy_proof",
+        }
+    )
+    status["config_binding_sha256"] = config.status_binding_sha256
+    status["quality_retry_policy"] = {
+        "max_quality_retry_rounds": DEFAULT_MAX_QUALITY_RETRY_ROUNDS,
+        "bound_at": migrated_at,
+    }
+    status["updated_at"] = migrated_at
+    return status
+
+
+def _archive_quality_retry_namespace(
+    config: AutomationConfig,
+    status: Mapping[str, Any],
+    *,
+    reason: str,
+) -> str | None:
+    """Move retry generations aside before a corpus-contract run reset."""
+
+    if status.get("active_projection_incomplete") is True:
+        raise ValueError(
+            "restore or complete the active quality retry projection before "
+            "migrating the corpus contract"
+        )
+
+    output_root = config.output_dir.resolve()
+    state_root = config.state_dir.resolve()
+    retry_root = (state_root / "quality_retry").resolve()
+    history_root = (state_root / "quality_retry_history").resolve()
+    if retry_root.parent != state_root or history_root.parent != state_root:
+        raise ValueError(
+            "quality retry archive roots escape the automation state directory"
+        )
+
+    # Persisted status fields are untrusted path material.  Use them only as
+    # inputs to a deterministic digest so a corrupt run_id (for example, '..')
+    # can never move the retry namespace outside quality_retry_history.
+    archive_identity = json.dumps(
+        {
+            "run_id": status.get("run_id"),
+            "config_binding_sha256": status.get("config_binding_sha256"),
+            "reason": reason,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    archive_id = hashlib.sha256(archive_identity.encode("utf-8")).hexdigest()[:24]
+    history_root.mkdir(parents=True, exist_ok=True)
+    target = (history_root / f"archive-{archive_id}").resolve()
+    if target.parent != history_root or output_root not in target.parents:
+        raise ValueError("quality retry archive target escapes the output directory")
+    relative_target = target.relative_to(output_root).as_posix()
+
+    # A crash can occur after os.replace but before the migrated status is
+    # committed.  The deterministic destination makes that window replayable.
+    if target.exists():
+        if retry_root.exists():
+            raise ValueError("quality retry migration source and archive both exist")
+        if not target.is_dir():
+            raise ValueError("quality retry migration archive is not a directory")
+        return relative_target
+    if not retry_root.exists():
+        return None
+    if not retry_root.is_dir():
+        raise ValueError("quality retry namespace is not a directory")
+    os.replace(retry_root, target)
+    return relative_target
 
 
 def _target_expansion_contract(config: AutomationConfig) -> dict[str, Any]:
@@ -1030,6 +1210,9 @@ def migrate_monotonic_expansion_status(
 
     source = config.monotonic_expansion_from
     source_binding = config.monotonic_expansion_source_binding_sha256
+    pre_quality_source_binding = (
+        config.pre_quality_retry_monotonic_source_binding_sha256
+    )
     if source is None or source_binding is None:
         raise ValueError(
             "config does not declare monotonic_expansion_from; migration refused"
@@ -1054,7 +1237,21 @@ def migrate_monotonic_expansion_status(
             "config_binding_sha256": target_binding,
             "target_contract": _target_expansion_contract(config),
         }
-    if not isinstance(observed, str) or observed != source_binding:
+    source_binding_schema = "v3"
+    quality_policy_equivalence: dict[str, Any] | None = None
+    if observed == pre_quality_source_binding:
+        if config.max_quality_retry_rounds != DEFAULT_MAX_QUALITY_RETRY_ROUNDS:
+            raise ValueError(
+                "pre-quality monotonic source requires the default quality retry policy"
+            )
+        source_binding_schema = "v2"
+        quality_policy_equivalence = {
+            "from_binding_schema": "v2",
+            "to_binding_schema": "v3",
+            "max_quality_retry_rounds": DEFAULT_MAX_QUALITY_RETRY_ROUNDS,
+            "proof": "equivalent_default_policy",
+        }
+    elif not isinstance(observed, str) or observed != source_binding:
         raise ValueError(
             "monotonic expansion source binding mismatch; no status changes were made"
         )
@@ -1071,6 +1268,11 @@ def migrate_monotonic_expansion_status(
         raise ValueError("automation status migration history must be a list")
 
     migrated_at = _iso()
+    quality_retry_archive = _archive_quality_retry_namespace(
+        config,
+        status,
+        reason="monotonic-expansion",
+    )
     previous_partition = status.pop("partition", None)
     previous_run = {
         "run_id": status.get("run_id"),
@@ -1082,6 +1284,11 @@ def migrate_monotonic_expansion_status(
         "metrics": status.get("metrics"),
         "last_gate": status.get("last_gate"),
         "heldout_gate": status.get("heldout_gate"),
+        "quality_retry": status.get("quality_retry"),
+        "active_projection_incomplete": status.get(
+            "active_projection_incomplete", False
+        ),
+        "quality_retry_archive": quality_retry_archive,
     }
     if previous_partition is not None:
         previous_run["partition"] = previous_partition
@@ -1098,6 +1305,9 @@ def migrate_monotonic_expansion_status(
                 "preserve_append_only_rows_reset_stage_zero_and_collect_missing_rows"
             ),
             "partition_policy": "mark_stale_until_explicit_offline_refresh",
+            "quality_retry_archive": quality_retry_archive,
+            "source_binding_schema": source_binding_schema,
+            "quality_retry_policy_equivalence": quality_policy_equivalence,
         }
     )
     status.update(
@@ -1122,6 +1332,12 @@ def migrate_monotonic_expansion_status(
             "last_gate": None,
             "heldout_gate": None,
             "collection_retry": None,
+            "quality_retry": None,
+            "active_projection_incomplete": False,
+            "quality_retry_policy": {
+                "max_quality_retry_rounds": config.max_quality_retry_rounds,
+                "bound_at": migrated_at,
+            },
             "usage_checkpoint_policy": _usage_checkpoint_policy(config),
             "partition_stale_reason": "monotonic_expansion_pending_refresh",
         }
@@ -1136,6 +1352,9 @@ def migrate_monotonic_expansion_status(
         "target_contract": _target_expansion_contract(config),
         "next_state": "ready",
         "partition_status": "stale_until_explicit_offline_refresh",
+        "quality_retry_archive": quality_retry_archive,
+        "source_binding_schema": source_binding_schema,
+        "quality_retry_policy_equivalence": quality_policy_equivalence,
     }
 
 
@@ -1152,6 +1371,65 @@ def _failure_identity(error: str) -> tuple[str, str, str] | None:
 def _failure_key(seed_id: str, task: str, error_class: str) -> str:
     encoded = json.dumps(
         [seed_id, task, error_class], ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _quality_deficit_vector(partition: Mapping[str, Any]) -> dict[str, int]:
+    """Return content-free deficits ordered so lower is never worse."""
+
+    def total(field: str) -> int:
+        value = partition.get(field, {})
+        return (
+            sum(max(0, int(item)) for item in value.values())
+            if isinstance(value, Mapping)
+            else 0
+        )
+
+    near_duplicate = partition.get("near_duplicate_gate", {})
+    task_cards = partition.get("task_card_coverage", {})
+    minimum_chains = int(partition.get("minimum_complete_chain_count", 0))
+    complete_chains = int(partition.get("complete_chain_count", 0))
+    label_errors = partition.get("label_quota_errors", [])
+    return {
+        "raw_shortfall": total("raw_collection_shortfalls"),
+        "coverage_shortfall": total("coverage_shortfalls"),
+        "negative_records": max(0, int(partition.get("negative_count", 0))),
+        "reject_records": max(0, int(partition.get("reject_count", 0))),
+        "lineage_edge_errors": max(
+            0, int(partition.get("lineage_edge_error_count", 0))
+        ),
+        "lineage_chain_errors": max(
+            0, int(partition.get("lineage_chain_error_count", 0))
+        ),
+        "complete_chain_shortfall": max(0, minimum_chains - complete_chains),
+        "label_quota_errors": len(label_errors)
+        if isinstance(label_errors, list)
+        else 1,
+        "near_duplicate_gate": 0
+        if isinstance(near_duplicate, Mapping) and near_duplicate.get("passed") is True
+        else 1,
+        "task_card_gate": 0
+        if isinstance(task_cards, Mapping) and task_cards.get("passed") is True
+        else 1,
+    }
+
+
+def _quality_failure_fingerprint(partition: Mapping[str, Any]) -> str:
+    """Hash only public, content-free failure identities for retry audit."""
+
+    payload = {
+        "raw_collection_shortfalls": partition.get("raw_collection_shortfalls", {}),
+        "coverage_shortfalls": partition.get("coverage_shortfalls", {}),
+        "label_quota_errors": partition.get("label_quota_errors", []),
+        "reject_reason_counts": partition.get("reject_reason_counts", {}),
+        "lineage_edge_errors": partition.get("lineage_edge_errors", []),
+        "lineage_chain_errors": partition.get("lineage_chain_errors", []),
+        "near_duplicate_gate": partition.get("near_duplicate_gate", {}),
+        "task_card_coverage": partition.get("task_card_coverage", {}),
+    }
+    encoded = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -1233,6 +1511,26 @@ class AutomationRunner:
             if observed_binding == self.config.status_binding_sha256:
                 pass
             elif (
+                observed_binding == self.config.pre_quality_retry_status_binding_sha256
+            ):
+                status = _migrate_quality_retry_binding_status(
+                    self.config,
+                    status,
+                    trigger="runner_start",
+                )
+                self._pending_status_events.append(
+                    (
+                        "quality_retry_policy_migrated",
+                        {
+                            "from_binding_schema": "v2",
+                            "to_binding_schema": "v3",
+                            "max_quality_retry_rounds": (
+                                DEFAULT_MAX_QUALITY_RETRY_ROUNDS
+                            ),
+                        },
+                    )
+                )
+            elif (
                 self.config.status_binding_sha256
                 != self.config.legacy_status_binding_sha256
                 and observed_binding == self.config.legacy_status_binding_sha256
@@ -1247,7 +1545,7 @@ class AutomationRunner:
                         "collection_contract_migrated",
                         {
                             "from_binding_schema": "v1",
-                            "to_binding_schema": "v2",
+                            "to_binding_schema": "v3",
                             "raw_collection_target": self.config.raw_records_per_task,
                             "minimum_gold_records_per_task": (
                                 self.config.minimum_gold_records_by_task
@@ -1317,11 +1615,26 @@ class AutomationRunner:
             "last_gate": None,
             "heldout_gate": None,
             "collection_retry": None,
+            "quality_retry": None,
+            "quality_retry_policy": {
+                "max_quality_retry_rounds": self.config.max_quality_retry_rounds,
+                "bound_at": _iso(),
+            },
+            "active_projection_incomplete": False,
         }
 
     def _normalize_v2_status(self, status: dict[str, Any]) -> None:
         status["usage_checkpoint_policy"] = _usage_checkpoint_policy(self.config)
         status.setdefault("collection_retry", None)
+        status.setdefault("quality_retry", None)
+        status.setdefault("active_projection_incomplete", False)
+        policy = status.get("quality_retry_policy")
+        if (
+            not isinstance(policy, Mapping)
+            or int(policy.get("max_quality_retry_rounds", -1))
+            != self.config.max_quality_retry_rounds
+        ):
+            raise ValueError("quality retry policy does not match the bound config")
         status.setdefault("quota_history", [])
         ledger = status.setdefault("audit_ledger", {})
         ledger.setdefault("requests_total", 0)
@@ -1333,6 +1646,92 @@ class AutomationRunner:
         epoch.setdefault("requests_used", 0)
         epoch.setdefault("output_tokens_used", 0)
         epoch.setdefault("failures_used", len(epoch["charged_failure_keys"]))
+        self._recover_orphaned_quality_retry(status)
+
+    def _recover_orphaned_quality_retry(self, status: dict[str, Any]) -> None:
+        """Finish a prepare that crashed after its archive manifest was durable."""
+
+        retry_root = self.config.state_dir / "quality_retry"
+        if not retry_root.is_dir():
+            return
+        candidates: list[tuple[int, Path]] = []
+        for path in retry_root.glob("generation-*"):
+            try:
+                generation = int(path.name.removeprefix("generation-"))
+            except ValueError:
+                continue
+            if (path / "manifest.json").is_file() and (path / "plan.json").is_file():
+                candidates.append((generation, path))
+        if not candidates:
+            return
+        generation, generation_dir = max(candidates)
+        current = status.get("quality_retry")
+        if (
+            isinstance(current, Mapping)
+            and int(current.get("generation", 0)) >= generation
+        ):
+            return
+        plan = json.loads((generation_dir / "plan.json").read_text(encoding="utf-8"))
+        if not isinstance(plan, dict):
+            raise ValueError("orphaned quality retry plan must be an object")
+        archive = prepare_quality_retry_projection(self.config, plan)
+        partition = status.get("partition", {})
+        raw_by_task = (
+            partition.get("raw_by_task", {}) if isinstance(partition, Mapping) else {}
+        )
+        gold_by_task = (
+            partition.get("gold_by_task", {}) if isinstance(partition, Mapping) else {}
+        )
+        progress = {
+            "raw_records": sum(int(value) for value in raw_by_task.values())
+            if isinstance(raw_by_task, Mapping)
+            else 0,
+            "gold_records": sum(int(value) for value in gold_by_task.values())
+            if isinstance(gold_by_task, Mapping)
+            else 0,
+            "complete_chains": int(partition.get("complete_chain_count", 0))
+            if isinstance(partition, Mapping)
+            else 0,
+        }
+        status["quality_retry"] = {
+            "state": "ready",
+            "generation": generation,
+            "rounds_completed": generation - 1,
+            "stagnant_quality_rounds": int(current.get("stagnant_quality_rounds", 0))
+            if isinstance(current, Mapping)
+            else 0,
+            "plan_path": (generation_dir / "plan.json")
+            .relative_to(self.config.output_dir)
+            .as_posix(),
+            "plan_sha256": archive["plan_sha256"],
+            "manifest_path": (generation_dir / "manifest.json")
+            .relative_to(self.config.output_dir)
+            .as_posix(),
+            "seed_count": int(plan.get("seed_count", 0)),
+            "job_count": int(plan.get("job_count", 0)),
+            "progress_before": progress,
+            "deficits_before": _quality_deficit_vector(partition)
+            if isinstance(partition, Mapping)
+            else {},
+            "failure_fingerprint_before": _quality_failure_fingerprint(partition)
+            if isinstance(partition, Mapping)
+            else None,
+            "prepared_at": _iso(),
+            "recovered_after_interrupted_prepare": True,
+        }
+        status["active_projection_incomplete"] = True
+        status["state"] = "quality_retry_ready"
+        status["partition_stale_reason"] = "quality_retry_active_projection"
+        self._pending_status_events.append(
+            (
+                "quality_retry_prepare_recovered",
+                {
+                    "generation": generation,
+                    "seed_count": int(plan.get("seed_count", 0)),
+                    "job_count": int(plan.get("job_count", 0)),
+                },
+            )
+        )
 
     def _migrate_legacy_status(self, legacy: dict[str, Any]) -> dict[str, Any]:
         """Start a fresh v2 epoch rather than guessing legacy stage semantics.
@@ -1366,6 +1765,12 @@ class AutomationRunner:
         status["quota_epoch"] = _new_quota_epoch(self.config)
         status["usage_checkpoint_policy"] = _usage_checkpoint_policy(self.config)
         status["collection_retry"] = None
+        status["quality_retry"] = None
+        status["quality_retry_policy"] = {
+            "max_quality_retry_rounds": self.config.max_quality_retry_rounds,
+            "bound_at": migrated_at,
+        }
+        status["active_projection_incomplete"] = False
         status["quota_history"] = [old_budgets]
         status["audit_ledger"] = {
             "requests_total": int(old_budgets.get("requests_used", 0)),
@@ -1639,6 +2044,84 @@ class AutomationRunner:
             if entry.get("quarantined") and entry.get("task") in blocked_tasks
         )
 
+    def _active_quality_retry_plan(self) -> dict[str, Any] | None:
+        retry = self.status.get("quality_retry")
+        if not isinstance(retry, Mapping) or retry.get("state") not in {
+            "ready",
+            "running",
+        }:
+            return None
+        raw_path = retry.get("plan_path")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise ValueError("quality retry status has no plan path")
+        path = (self.config.output_dir / raw_path).resolve()
+        retry_root = (self.config.state_dir / "quality_retry").resolve()
+        if retry_root not in path.parents or not path.is_file():
+            raise ValueError("quality retry plan path is invalid")
+        expected_sha256 = retry.get("plan_sha256")
+        if not isinstance(expected_sha256, str) or file_sha256(path) != expected_sha256:
+            raise ValueError("quality retry plan hash mismatch")
+        plan = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(plan, dict):
+            raise ValueError("quality retry plan must be an object")
+        quality_feedback_map(plan)
+        return plan
+
+    def _prepare_next_quality_retry(
+        self,
+        *,
+        partition: Mapping[str, Any],
+        progress: Mapping[str, int],
+        rounds_completed: int,
+        stagnant_quality_rounds: int,
+    ) -> dict[str, Any] | None:
+        generation = rounds_completed + 1
+        generation_dir = (
+            self.config.state_dir / "quality_retry" / f"generation-{generation}"
+        )
+        archived_plan_path = generation_dir / "plan.json"
+        if archived_plan_path.is_file():
+            plan = json.loads(archived_plan_path.read_text(encoding="utf-8"))
+            if not isinstance(plan, dict):
+                raise ValueError("archived quality retry plan must be an object")
+        else:
+            records = _load_collection_records(self.config)
+            artifact_gate = _evaluate_artifact_gate(self.config, records)
+            plan = build_quality_retry_plan(
+                self.config,
+                partition,
+                generation=generation,
+                artifact_gate=artifact_gate,
+            )
+        if int(plan.get("job_count", 0)) < 1:
+            return None
+        archive = prepare_quality_retry_projection(self.config, plan)
+        plan_relative = archived_plan_path.relative_to(
+            self.config.output_dir
+        ).as_posix()
+        manifest_path = generation_dir / "manifest.json"
+        self.status["quality_retry"] = {
+            "state": "ready",
+            "generation": generation,
+            "rounds_completed": rounds_completed,
+            "stagnant_quality_rounds": stagnant_quality_rounds,
+            "plan_path": plan_relative,
+            "plan_sha256": archive["plan_sha256"],
+            "manifest_path": manifest_path.relative_to(
+                self.config.output_dir
+            ).as_posix(),
+            "seed_count": int(plan.get("seed_count", 0)),
+            "job_count": int(plan.get("job_count", 0)),
+            "progress_before": dict(progress),
+            "deficits_before": _quality_deficit_vector(partition),
+            "failure_fingerprint_before": _quality_failure_fingerprint(partition),
+            "prepared_at": _iso(),
+        }
+        self.status["active_projection_incomplete"] = True
+        self.status["partition_stale_reason"] = "quality_retry_active_projection"
+        self.status["state"] = "quality_retry_ready"
+        return plan
+
     def _partition_terminal_collection(
         self, *, seed_target: int, terminal_state: str, reason: str
     ) -> None:
@@ -1694,6 +2177,9 @@ class AutomationRunner:
             self._event(
                 "automation_started", stages=list(self.config.concurrency_stages)
             )
+        elif self.status["state"] == "quality_retry_ready":
+            self.status["state"] = "running"
+            self._event("quality_retry_resume_started")
 
         retry_stage_index: int | None = None
         previous_gate_records: int | None = None
@@ -1721,6 +2207,19 @@ class AutomationRunner:
             )
             self.status["state"] = "running"
             self.status["current_concurrency"] = concurrency
+            quality_retry = self.status.get("quality_retry")
+            if (
+                isinstance(quality_retry, dict)
+                and quality_retry.get("state") == "ready"
+            ):
+                quality_retry["state"] = "running"
+                quality_retry["started_at"] = _iso()
+                self._event(
+                    "quality_retry_started",
+                    generation=quality_retry.get("generation"),
+                    seed_count=quality_retry.get("seed_count"),
+                    job_count=quality_retry.get("job_count"),
+                )
             self._event("stage_started", concurrency=concurrency, seed_target=target)
             started = time.monotonic()
             try:
@@ -1885,6 +2384,11 @@ class AutomationRunner:
                 self.status.pop("partition_stale_reason", None)
                 if partition.get("training_ready") is True:
                     self.status["collection_retry"] = None
+                    quality_retry = self.status.get("quality_retry")
+                    if isinstance(quality_retry, dict):
+                        quality_retry["state"] = "completed"
+                        quality_retry["completed_at"] = _iso()
+                    self.status["active_projection_incomplete"] = False
                     self.status["stage_index"] = stage_index + 1
                     self._event(
                         "collection_partitioned",
@@ -1945,41 +2449,118 @@ class AutomationRunner:
                     retry=retry,
                 )
 
-                quarantined = [
-                    entry
-                    for entry in self.status["audit_ledger"]["failure_entries"].values()
-                    if entry.get("quarantined")
-                ]
-                if quarantined and partition.get("raw_collection_shortfalls"):
+                quality_retry = self.status.get("quality_retry")
+                rounds_completed = 0
+                stagnant_quality_rounds = 0
+                if isinstance(quality_retry, dict):
+                    rounds_completed = int(quality_retry.get("rounds_completed", 0))
+                    stagnant_quality_rounds = int(
+                        quality_retry.get("stagnant_quality_rounds", 0)
+                    )
+                    if quality_retry.get("state") == "running":
+                        rounds_completed = int(quality_retry.get("generation", 0))
+                        before = quality_retry.get("progress_before", {})
+                        before_deficits = quality_retry.get("deficits_before")
+                        current_deficits = _quality_deficit_vector(partition)
+                        if isinstance(before_deficits, Mapping) and set(
+                            before_deficits
+                        ) == set(current_deficits):
+                            improved = all(
+                                current_deficits[key] <= int(before_deficits[key])
+                                for key in current_deficits
+                            ) and any(
+                                current_deficits[key] < int(before_deficits[key])
+                                for key in current_deficits
+                            )
+                        else:
+                            improved = isinstance(before, Mapping) and any(
+                                progress[key] > int(before.get(key, 0))
+                                for key in progress
+                            )
+                        quality_retry["state"] = "completed"
+                        quality_retry["rounds_completed"] = rounds_completed
+                        quality_retry["progress_after"] = progress
+                        quality_retry["deficits_after"] = current_deficits
+                        quality_retry["failure_fingerprint_after"] = (
+                            _quality_failure_fingerprint(partition)
+                        )
+                        quality_retry["completed_at"] = _iso()
+                        quality_retry["improved"] = improved
+                        stagnant_quality_rounds = (
+                            0 if improved else stagnant_quality_rounds + 1
+                        )
+                        quality_retry["stagnant_quality_rounds"] = (
+                            stagnant_quality_rounds
+                        )
+                        self._event(
+                            "quality_retry_completed",
+                            generation=rounds_completed,
+                            improved=improved,
+                            stagnant_quality_rounds=stagnant_quality_rounds,
+                            progress=progress,
+                            deficits=current_deficits,
+                            failure_fingerprint=quality_retry[
+                                "failure_fingerprint_after"
+                            ],
+                        )
+                        if (
+                            stagnant_quality_rounds
+                            >= self.config.max_stagnant_gate_rounds
+                        ):
+                            self.status["state"] = "gate_blocked"
+                            self._event(
+                                "collection_gate_blocked",
+                                reason="quality_retry_stagnant",
+                                generation=rounds_completed,
+                                stagnant_quality_rounds=stagnant_quality_rounds,
+                                max_stagnant_gate_rounds=(
+                                    self.config.max_stagnant_gate_rounds
+                                ),
+                                partition=partition,
+                            )
+                            return self.status
+
+                if rounds_completed >= self.config.max_quality_retry_rounds:
                     self.status["state"] = "gate_blocked"
                     self._event(
                         "collection_gate_blocked",
-                        reason="failure_retry_limit_exhausted",
-                        stagnant_rounds=retry["stagnant_rounds"],
-                        quarantined_failure_count=len(quarantined),
+                        reason="quality_retry_rounds_exhausted",
+                        rounds_completed=rounds_completed,
+                        max_quality_retry_rounds=(self.config.max_quality_retry_rounds),
                         partition=partition,
                     )
                     return self.status
-                if (
-                    int(retry["stagnant_rounds"])
-                    >= self.config.max_stagnant_gate_rounds
-                ):
+                try:
+                    plan = self._prepare_next_quality_retry(
+                        partition=partition,
+                        progress=progress,
+                        rounds_completed=rounds_completed,
+                        stagnant_quality_rounds=stagnant_quality_rounds,
+                    )
+                except (OSError, ValueError) as error:
+                    self.status["state"] = "failed"
+                    self._event(
+                        "quality_retry_prepare_failed",
+                        error_type=type(error).__name__,
+                    )
+                    return self.status
+                if plan is None:
                     self.status["state"] = "gate_blocked"
                     self._event(
                         "collection_gate_blocked",
-                        reason="stagnant_collection_rounds",
-                        stagnant_rounds=retry["stagnant_rounds"],
-                        max_stagnant_gate_rounds=(self.config.max_stagnant_gate_rounds),
+                        reason="no_schedulable_quality_retry",
+                        rounds_completed=rounds_completed,
                         partition=partition,
                     )
                     return self.status
-                self.status["state"] = "running"
                 self._event(
-                    "collection_retry_scheduled",
-                    retry=retry,
-                    partition=partition,
-                    max_failure_retries=self.config.max_failure_retries,
-                    max_stagnant_gate_rounds=(self.config.max_stagnant_gate_rounds),
+                    "quality_retry_prepared",
+                    generation=plan["generation"],
+                    seed_count=plan["seed_count"],
+                    job_count=plan["job_count"],
+                    rounds_remaining=(
+                        self.config.max_quality_retry_rounds - rounds_completed
+                    ),
                 )
                 continue
             if not gate["passed"]:
@@ -2027,6 +2608,12 @@ class AutomationRunner:
         return self.status
 
     async def _run_stage(self, *, seed_target: int, concurrency: int) -> PipelineReport:
+        active_retry_plan = self._active_quality_retry_plan()
+        feedback_by_task = (
+            quality_feedback_map(active_retry_plan)
+            if active_retry_plan is not None
+            else {}
+        )
         self.status["current_worker"] = "seed"
         self._event("worker_started", worker="seed", concurrency=concurrency)
         seed_pipeline = DistillationPipeline(
@@ -2037,6 +2624,9 @@ class AutomationRunner:
             seed_index_offset=self.config.seed_index_offset,
             task_card_config=self.config.task_card_config,
             progress_callback=self._checkpoint_usage,
+            quarantine_invalid_seeds=(
+                self.config.collection_policy == "collect_then_partition"
+            ),
         )
         await seed_pipeline.generate_seeds(seed_target)
         self._event("worker_completed", worker="seed", seed_target=seed_target)
@@ -2058,6 +2648,7 @@ class AutomationRunner:
                 seed_index_offset=self.config.seed_index_offset,
                 task_card_config=self.config.task_card_config,
                 progress_callback=self._checkpoint_usage,
+                quality_feedback=feedback_by_task.get(task_type, {}),
             )
             excluded_seed_ids = self._quarantined_seed_ids_for_task(task_type)
             report = await worker_pipeline.run(
@@ -2294,13 +2885,29 @@ def _oracle_normalized_disagreement_is_training_safe(
     )
 
 
+_TSX_ARTIFACT_LANGUAGES = frozenset({"tsx", "typescript", "typescript-react"})
+
+
+def _canonical_code(value: str) -> str:
+    """Normalize transport-only newline and edge-whitespace differences."""
+
+    return value.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
 def _artifact_code(record: Mapping[str, Any]) -> tuple[str, str] | None:
     output = record.get("output")
     if not isinstance(output, Mapping):
         return None
-    language = str(output.get("language", "")).casefold()
+    raw_language = output.get("language")
+    if not isinstance(raw_language, str):
+        return None
+    language = raw_language.strip().casefold()
     code = output.get("code")
-    if language not in {"tsx", "jsx"} or not isinstance(code, str) or not code.strip():
+    if (
+        language not in _TSX_ARTIFACT_LANGUAGES
+        or not isinstance(code, str)
+        or not code.strip()
+    ):
         return None
     return language, code
 
@@ -2325,6 +2932,8 @@ def _evaluate_artifact_gate(
         _record_id(record): record for record in records_by_task.get("frontend", [])
     }
     cache: dict[str, bool] = {}
+    code_by_digest: dict[str, str] = {}
+    pending_artifacts: list[tuple[str, str, str]] = []
     errors: list[str] = []
     checked = {"frontend": 0, "review": 0}
 
@@ -2337,22 +2946,11 @@ def _evaluate_artifact_gate(
             return
         _, code = artifact
         digest = hashlib.sha256(code.encode("utf-8")).hexdigest()
-        if digest not in cache:
-            try:
-                report = validate_tsx_fragment(
-                    code,
-                    fixture_root=fixture_root,
-                    workspace_root=workspace_root,
-                    timeout_seconds=config.artifact_validation_timeout_seconds,
-                )
-                cache[digest] = bool(report.get("passed"))
-            except (OSError, ValueError) as error:
-                cache[digest] = False
-                errors.append(
-                    f"{task_type}:{record_id}:validator_error:{type(error).__name__}"
-                )
-        if not cache[digest]:
-            errors.append(f"{task_type}:{record_id}:build_or_test_failed")
+        existing = code_by_digest.setdefault(digest, code)
+        if existing != code:
+            errors.append(f"{task_type}:{record_id}:artifact_digest_collision")
+            return
+        pending_artifacts.append((task_type, record_id, digest))
 
     for record in records_by_task.get("frontend", []):
         validate_record("frontend", record)
@@ -2397,14 +2995,37 @@ def _evaluate_artifact_gate(
             validate_record("review", record)
             continue
         if (
-            candidate != expected_candidate
+            _canonical_code(candidate) != _canonical_code(expected_candidate)
             or provenance.get("mutation") != expected_manifest.to_dict()
         ):
             errors.append(f"review:{record_id}:candidate_or_mutation_not_canonical")
         review_artifact = _artifact_code(record)
-        if review_artifact is None or review_artifact[1] != source_artifact[1]:
+        if review_artifact is None or _canonical_code(
+            review_artifact[1]
+        ) != _canonical_code(source_artifact[1]):
             errors.append(f"review:{record_id}:repair_does_not_restore_frontend_source")
         validate_record("review", record)
+
+    try:
+        batch_reports = validate_tsx_fragments(
+            code_by_digest.values(),
+            fixture_root=fixture_root,
+            workspace_root=workspace_root,
+            timeout_seconds=config.artifact_validation_timeout_seconds,
+        )
+        cache.update(
+            (digest, bool(report.get("passed")))
+            for digest, report in zip(code_by_digest, batch_reports, strict=True)
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        cache.update((digest, False) for digest in code_by_digest)
+        for task_type, record_id, _ in pending_artifacts:
+            errors.append(
+                f"{task_type}:{record_id}:validator_error:{type(error).__name__}"
+            )
+    for task_type, record_id, digest in pending_artifacts:
+        if not cache.get(digest, False):
+            errors.append(f"{task_type}:{record_id}:build_or_test_failed")
 
     record_failures: dict[str, list[str]] = {}
     for error in errors:
@@ -2414,7 +3035,7 @@ def _evaluate_artifact_gate(
     return {
         "enabled": True,
         "passed": not errors,
-        "validator": "anchor-tsx-fragment-build-test-v1",
+        "validator": TSX_FRAGMENT_VALIDATOR_VERSION,
         "checked": checked,
         "unique_artifacts_built": len(cache),
         "error_count": len(errors),
@@ -2675,13 +3296,20 @@ def _canonical_lineage_edge_error(
     ):
         return "canonical_mapping_missing"
 
+    def without_retry(value: Mapping[str, Any]) -> dict[str, Any]:
+        return {key: item for key, item in value.items() if key != "quality_retry"}
+
     if edge == "plan->tool_policy":
         upstream_input = upstream.get("input")
         if not isinstance(upstream_input, Mapping):
             return "plan_input_missing"
-        if set(upstream_input) != {"requirement"}:
+        if set(without_retry(upstream_input)) != {"requirement"}:
             return "plan_input_shape"
-        if set(downstream_input) != {"requirement", "plan", "tool_proposals"}:
+        if set(without_retry(downstream_input)) != {
+            "requirement",
+            "plan",
+            "tool_proposals",
+        }:
             return "tool_policy_input_shape"
         if downstream_input.get("requirement") != upstream_input.get("requirement"):
             return "tool_policy_requirement_content"
@@ -2693,9 +3321,13 @@ def _canonical_lineage_edge_error(
         upstream_input = upstream.get("input")
         if not isinstance(upstream_input, Mapping):
             return "plan_input_missing"
-        if set(upstream_input) != {"requirement"}:
+        if set(without_retry(upstream_input)) != {"requirement"}:
             return "plan_input_shape"
-        if set(downstream_input) != {"requirement", "plan", "tool_policy"}:
+        if set(without_retry(downstream_input)) != {
+            "requirement",
+            "plan",
+            "tool_policy",
+        }:
             return "frontend_input_shape"
         if downstream_input.get("requirement") != upstream_input.get("requirement"):
             return "frontend_requirement_content"
@@ -2707,7 +3339,11 @@ def _canonical_lineage_edge_error(
         upstream_input = upstream.get("input")
         if not isinstance(upstream_input, Mapping):
             return "tool_policy_input_missing"
-        if set(downstream_input) != {"requirement", "plan", "tool_policy"}:
+        if set(without_retry(downstream_input)) != {
+            "requirement",
+            "plan",
+            "tool_policy",
+        }:
             return "frontend_input_shape"
         if downstream_input.get("requirement") != upstream_input.get("requirement"):
             return "frontend_requirement_content"
@@ -2740,7 +3376,7 @@ def _canonical_lineage_edge_error(
             "candidate_code": candidate.strip(),
             "known_benign_defect": mutation.known_benign_defect.strip(),
         }
-        if dict(downstream_input) != expected_input:
+        if without_retry(downstream_input) != expected_input:
             return "review_candidate_content"
         if provenance.get("mutation") != mutation.to_dict():
             return "review_mutation_manifest"
@@ -2788,7 +3424,7 @@ def _canonical_lineage_edge_error(
             seen_fixture_ids.add(fixture_id)
             if dict(observed_fixture) != fixture:
                 continue
-            if dict(downstream_input) != {
+            if without_retry(downstream_input) != {
                 "requirement": expected_requirement,
                 "reviewed_code": candidate.strip(),
             }:
@@ -2985,9 +3621,10 @@ def partition_collected_records(
 
     Structurally accepted records first enter quality staging. Deterministic label,
     duplicate, and executable-artifact failures are retained as negatives. Unsafe
-    or secret-bearing records become content-free rejects. The raw per-task files
-    remain the append-only collection source; only ``partitions/gold`` is eligible
-    to become a training snapshot.
+    or secret-bearing records become content-free rejects. Per-task files are the
+    active collection projection; every quality-retry rewrite first preserves the
+    complete prior bytes under ``automation/quality_retry/generation-N``. Only
+    ``partitions/gold`` is eligible to become a training snapshot.
     """
 
     target = seed_target or config.raw_records_per_task
@@ -3097,6 +3734,30 @@ def partition_collected_records(
             encoded = json.dumps(record, ensure_ascii=False, sort_keys=True)
             if contains_secret_material(record):
                 hard_labels.add("secret_detected")
+            raw_input = record.get("input")
+            raw_provenance = record.get("provenance")
+            input_retry = (
+                raw_input.get("quality_retry")
+                if isinstance(raw_input, Mapping)
+                else None
+            )
+            provenance_retry = (
+                raw_provenance.get("quality_retry")
+                if isinstance(raw_provenance, Mapping)
+                else None
+            )
+            if input_retry is not None or provenance_retry is not None:
+                try:
+                    if not isinstance(input_retry, Mapping) or not isinstance(
+                        provenance_retry, Mapping
+                    ):
+                        raise ValueError("retry metadata must appear in both views")
+                    if validate_quality_retry(input_retry) != validate_quality_retry(
+                        provenance_retry
+                    ):
+                        raise ValueError("retry metadata views differ")
+                except ValueError:
+                    hard_labels.add("invalid_quality_retry_metadata")
             try:
                 validate_safe_payload(
                     cast(Any, task_type),
@@ -3616,6 +4277,226 @@ def partition_collected_records(
     return manifest
 
 
+def _verify_offline_partition_inputs(
+    config: AutomationConfig, partition: Mapping[str, Any]
+) -> None:
+    manifest_path = config.partition_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError("partition manifest is missing")
+    on_disk = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if on_disk != dict(partition):
+        raise ValueError("status partition does not match the on-disk manifest")
+    hashed_files = {
+        "quality_staging_sha256": config.quality_staging_path,
+        "negative_sha256": config.partition_dir / "negative.jsonl",
+        "oracle_label_only_sha256": (config.partition_dir / "oracle_label_only.jsonl"),
+        "reject_sha256": config.partition_dir / "reject.jsonl",
+    }
+    for hash_field, path in hashed_files.items():
+        expected = partition.get(hash_field)
+        if not isinstance(expected, str) or not path.is_file():
+            raise ValueError(f"partition hash input is missing: {hash_field}")
+        if file_sha256(path) != expected:
+            raise ValueError(f"partition hash mismatch: {hash_field}")
+
+
+def prepare_quality_retry_offline(config: AutomationConfig) -> dict[str, Any]:
+    """Prepare one retry generation without constructing a teacher client."""
+
+    if not config.status_path.is_file():
+        raise ValueError("automation status is missing")
+    status = json.loads(config.status_path.read_text(encoding="utf-8"))
+    if not isinstance(status, dict):
+        raise ValueError("automation status must be an object")
+    if status.get("schema_version") != AUTOMATION_SCHEMA_VERSION:
+        raise ValueError("offline quality retry requires an automation-v2 status")
+    if (
+        status.get("config_binding_sha256")
+        == config.pre_quality_retry_status_binding_sha256
+    ):
+        status = _migrate_quality_retry_binding_status(
+            config,
+            status,
+            trigger="offline_quality_retry_prepare",
+        )
+    else:
+        _verify_status_config_binding(config, status)
+    policy = status.get("quality_retry_policy")
+    if (
+        not isinstance(policy, Mapping)
+        or int(policy.get("max_quality_retry_rounds", -1))
+        != config.max_quality_retry_rounds
+    ):
+        raise ValueError("quality retry policy does not match the bound config")
+    if status.get("state") != "gate_blocked" or status.get("current_worker") not in (
+        None,
+        "",
+    ):
+        raise ValueError(
+            "offline quality retry requires a stopped gate_blocked automation"
+        )
+    partition = status.get("partition")
+    if not isinstance(partition, Mapping) or partition.get("training_ready") is True:
+        raise ValueError("offline quality retry requires a non-ready partition")
+    _verify_offline_partition_inputs(config, partition)
+
+    previous = status.get("quality_retry")
+    rounds_completed = 0
+    stagnant_quality_rounds = 0
+    if isinstance(previous, Mapping):
+        rounds_completed = max(
+            int(previous.get("rounds_completed", 0)),
+            int(previous.get("generation", 0))
+            if previous.get("state") == "completed"
+            else 0,
+        )
+        stagnant_quality_rounds = int(previous.get("stagnant_quality_rounds", 0))
+    if rounds_completed >= config.max_quality_retry_rounds:
+        raise ValueError("quality retry rounds are exhausted")
+    generation = rounds_completed + 1
+    generation_dir = config.state_dir / "quality_retry" / f"generation-{generation}"
+    plan_path = generation_dir / "plan.json"
+    if plan_path.is_file():
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        if not isinstance(plan, dict):
+            raise ValueError("archived quality retry plan must be an object")
+    else:
+        records = _load_collection_records(config)
+        artifact_gate = _evaluate_artifact_gate(config, records)
+        plan = build_quality_retry_plan(
+            config,
+            partition,
+            generation=generation,
+            artifact_gate=artifact_gate,
+        )
+    if int(plan.get("job_count", 0)) < 1:
+        raise ValueError("partition has no schedulable quality retry job")
+    archive = prepare_quality_retry_projection(config, plan)
+    raw_by_task = partition.get("raw_by_task", {})
+    gold_by_task = partition.get("gold_by_task", {})
+    progress = {
+        "raw_records": sum(int(value) for value in raw_by_task.values())
+        if isinstance(raw_by_task, Mapping)
+        else 0,
+        "gold_records": sum(int(value) for value in gold_by_task.values())
+        if isinstance(gold_by_task, Mapping)
+        else 0,
+        "complete_chains": int(partition.get("complete_chain_count", 0)),
+    }
+    status["quality_retry"] = {
+        "state": "ready",
+        "generation": generation,
+        "rounds_completed": rounds_completed,
+        "stagnant_quality_rounds": stagnant_quality_rounds,
+        "plan_path": plan_path.relative_to(config.output_dir).as_posix(),
+        "plan_sha256": archive["plan_sha256"],
+        "manifest_path": (generation_dir / "manifest.json")
+        .relative_to(config.output_dir)
+        .as_posix(),
+        "seed_count": int(plan.get("seed_count", 0)),
+        "job_count": int(plan.get("job_count", 0)),
+        "progress_before": progress,
+        "deficits_before": _quality_deficit_vector(partition),
+        "failure_fingerprint_before": _quality_failure_fingerprint(partition),
+        "prepared_at": _iso(),
+        "prepared_offline": True,
+    }
+    status["active_projection_incomplete"] = True
+    status["state"] = "quality_retry_ready"
+    status["partition_stale_reason"] = "quality_retry_active_projection"
+    status["updated_at"] = _iso()
+    sequence = int(status.get("event_sequence", 0)) + 1
+    status["event_sequence"] = sequence
+    JsonlStore(config.events_path).append(
+        {
+            "id": f"event_{status.get('run_id', 'offline')}_{sequence:08d}",
+            "time": _iso(),
+            "type": "quality_retry_prepared_offline",
+            "run_id": status.get("run_id"),
+            "stage_index": status.get("stage_index"),
+            "data": {
+                "generation": generation,
+                "seed_count": int(plan.get("seed_count", 0)),
+                "job_count": int(plan.get("job_count", 0)),
+                "content_retained": False,
+            },
+        }
+    )
+    _atomic_write_json(config.status_path, status)
+    return status
+
+
+def restore_quality_retry_offline(
+    config: AutomationConfig, generation: int
+) -> dict[str, Any]:
+    """Restore the latest pre-retry active snapshot without a teacher client."""
+
+    if not config.status_path.is_file():
+        raise ValueError("automation status is missing")
+    status = json.loads(config.status_path.read_text(encoding="utf-8"))
+    if not isinstance(status, dict):
+        raise ValueError("automation status must be an object")
+    if status.get("schema_version") != AUTOMATION_SCHEMA_VERSION:
+        raise ValueError("quality retry restore requires an automation-v2 status")
+    if (
+        status.get("config_binding_sha256")
+        == config.pre_quality_retry_status_binding_sha256
+    ):
+        status = _migrate_quality_retry_binding_status(
+            config,
+            status,
+            trigger="offline_quality_retry_restore",
+        )
+    else:
+        _verify_status_config_binding(config, status)
+    if status.get("current_worker") not in (None, "") or status.get("state") in {
+        "running",
+        "cooldown",
+    }:
+        raise ValueError("stop the automation before restoring a quality generation")
+    retry = status.get("quality_retry")
+    if not isinstance(retry, Mapping) or int(retry.get("generation", 0)) != generation:
+        raise ValueError("quality retry status does not match the restore generation")
+    restore = restore_quality_retry_projection(config, generation)
+    retry = dict(retry)
+    retry["state"] = "restored"
+    retry["restored_at"] = _iso()
+    retry["restore_manifest_path"] = (
+        (
+            config.state_dir
+            / "quality_retry"
+            / f"generation-{generation}"
+            / "restore-manifest.json"
+        )
+        .relative_to(config.output_dir)
+        .as_posix()
+    )
+    status["quality_retry"] = retry
+    status["active_projection_incomplete"] = False
+    status["state"] = "gate_blocked"
+    status["partition_stale_reason"] = "quality_retry_generation_restored"
+    status["updated_at"] = _iso()
+    sequence = int(status.get("event_sequence", 0)) + 1
+    status["event_sequence"] = sequence
+    JsonlStore(config.events_path).append(
+        {
+            "id": f"event_{status.get('run_id', 'offline')}_{sequence:08d}",
+            "time": _iso(),
+            "type": "quality_retry_generation_restored",
+            "run_id": status.get("run_id"),
+            "stage_index": status.get("stage_index"),
+            "data": {
+                "generation": generation,
+                "partial_retry_history_recoverable": bool(
+                    restore.get("partial_retry_history_recoverable")
+                ),
+            },
+        }
+    )
+    _atomic_write_json(config.status_path, status)
+    return status
+
+
 def evaluate_heldout_scale_gate(config: AutomationConfig) -> dict[str, Any]:
     """Re-scan the current five-task corpus before increasing concurrency."""
 
@@ -3805,6 +4686,23 @@ def build_parser() -> argparse.ArgumentParser:
             "contract; performs no provider request"
         ),
     )
+    operation.add_argument(
+        "--prepare-quality-retry",
+        action="store_true",
+        help=(
+            "offline preparation of one archived quality-retry projection; "
+            "requires a stopped gate_blocked status"
+        ),
+    )
+    operation.add_argument(
+        "--restore-quality-generation",
+        type=int,
+        metavar="N",
+        help=(
+            "offline, hash-verified restore of the latest archived quality "
+            "generation; preserves the abandoned partial projection"
+        ),
+    )
     return parser
 
 
@@ -3839,6 +4737,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             _verify_status_config_binding(config, status)
         print(json.dumps(status, ensure_ascii=False, indent=2))
         return 0
+    if args.prepare_quality_retry:
+        if args.dry_run or args.wait_cooldown:
+            print(
+                "anchor-automation: offline quality retry cannot be combined "
+                "with runtime flags",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            status = prepare_quality_retry_offline(config)
+        except (OSError, ValueError) as error:
+            print(
+                f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(status["quality_retry"], ensure_ascii=False, indent=2))
+        return 0
+    if args.restore_quality_generation is not None:
+        if args.dry_run or args.wait_cooldown:
+            print(
+                "anchor-automation: offline quality restore cannot be combined "
+                "with runtime flags",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            status = restore_quality_retry_offline(
+                config, args.restore_quality_generation
+            )
+        except (OSError, ValueError) as error:
+            print(
+                f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(status["quality_retry"], ensure_ascii=False, indent=2))
+        return 0
     if args.partition_only:
         persisted_status: dict[str, Any] | None = None
         try:
@@ -3850,10 +4786,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise ValueError("automation status must be a JSON object")
                 if loaded_status.get("schema_version") == AUTOMATION_SCHEMA_VERSION:
                     _verify_status_config_binding(config, loaded_status)
+                    observed_binding = loaded_status.get("config_binding_sha256")
                     if (
-                        loaded_status.get("config_binding_sha256")
-                        != config.status_binding_sha256
+                        observed_binding
+                        == config.pre_quality_retry_status_binding_sha256
                     ):
+                        loaded_status = _migrate_quality_retry_binding_status(
+                            config,
+                            loaded_status,
+                            trigger="offline_partition_refresh",
+                        )
+                    elif observed_binding != config.status_binding_sha256:
                         loaded_status = _migrate_legacy_binding_status(
                             config,
                             loaded_status,

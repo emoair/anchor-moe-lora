@@ -156,6 +156,8 @@ def test_raw_gold_contract_resume_is_explicit_and_other_changes_fail_closed(
             "partition_refreshed_at": "2026-07-13T00:00:00+00:00",
         }
     )
+    legacy_runner.status["config_binding_sha256"] = legacy.legacy_status_binding_sha256
+    legacy_runner.status.pop("quality_retry_policy", None)
     legacy_runner._save_status()
     legacy_bytes = legacy.status_path.read_bytes()
 
@@ -169,7 +171,10 @@ def test_raw_gold_contract_resume_is_explicit_and_other_changes_fail_closed(
         },
         quota_epoch_id="overcollection-window",
     )
-    assert overcollection.legacy_status_binding_sha256 == legacy.status_binding_sha256
+    assert (
+        overcollection.legacy_status_binding_sha256
+        == legacy.legacy_status_binding_sha256
+    )
     assert overcollection.status_binding_sha256 != legacy.status_binding_sha256
 
     with pytest.raises(ValueError, match="explicit monotonic expansion"):
@@ -222,6 +227,8 @@ def test_legacy_binding_migration_rejects_gold_floor_contraction_without_writes(
 ) -> None:
     legacy = _config(tmp_path, stage_seed_counts=(2,))
     runner = AutomationRunner(config=legacy, teacher=MockTeacher())
+    runner.status["config_binding_sha256"] = legacy.legacy_status_binding_sha256
+    runner.status.pop("quality_retry_policy", None)
     runner._save_status()
     before = legacy.status_path.read_bytes()
     floors = {
@@ -234,7 +241,9 @@ def test_legacy_binding_migration_rejects_gold_floor_contraction_without_writes(
         raw_collection_target=2,
         minimum_gold_records_per_task=floors,
     )
-    assert contracted.legacy_status_binding_sha256 == legacy.status_binding_sha256
+    assert (
+        contracted.legacy_status_binding_sha256 == legacy.legacy_status_binding_sha256
+    )
 
     with pytest.raises(ValueError, match="cannot reduce the implicit raw/gold floor"):
         AutomationRunner(config=contracted, teacher=MockTeacher())

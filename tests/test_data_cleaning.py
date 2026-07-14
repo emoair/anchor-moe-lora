@@ -207,6 +207,29 @@ def test_every_domain_rejects_non_allowlisted_output_keys() -> None:
             validate_output(task_type, {**output, "extra": "forbidden"})  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("task_type", ["frontend", "review"])
+@pytest.mark.parametrize(
+    "language", [None, "", "TSX", "typescript", "typescript-react", "jsx", "python"]
+)
+def test_new_code_outputs_require_canonical_tsx_language(
+    task_type: str, language: object
+) -> None:
+    from anchor_mvp.data.schema import validate_output
+
+    output = {"language": language, "code": "export default 1"}
+    if task_type == "review":
+        output["summary"] = "fixed"
+    with pytest.raises(DataValidationError, match='language must be exactly "tsx"'):
+        validate_output(task_type, output)  # type: ignore[arg-type]
+
+
+def test_review_output_requires_prompt_contract_summary() -> None:
+    from anchor_mvp.data.schema import validate_output
+
+    with pytest.raises(DataValidationError, match="requires a concise summary"):
+        validate_output("review", {"language": "tsx", "code": "export default 1"})
+
+
 def test_inert_security_fixtures_are_balanced_and_have_gold_labels() -> None:
     generated = [
         build_inert_security_fixture("export const Safe = () => <main />", index)
@@ -237,7 +260,11 @@ def _review_record(
                     "action": "use main",
                 }
             ],
-            "output": {"code": fixed},
+            "output": {
+                "language": "tsx",
+                "summary": "Repairs the known benign defect.",
+                "code": fixed,
+            },
         },
         task_type="review",
         seed=SeedDemand("seed-1", "title", "Build a status page"),
@@ -284,7 +311,11 @@ def test_review_teacher_input_echo_is_rejected() -> None:
                 "action": "restore",
             }
         ],
-        "output": {"code": "export const Fixed = 1"},
+        "output": {
+            "language": "tsx",
+            "summary": "Repairs the known benign defect.",
+            "code": "export const Fixed = 1",
+        },
     }
     with pytest.raises(DataValidationError, match="must not echo input"):
         DistilledRecord.from_teacher_payload(

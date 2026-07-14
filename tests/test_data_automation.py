@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from anchor_mvp.data.automation import (  # noqa: E402
     AutomationRunner,
     MonotonicExpansionSource,
     _build_teachers,
+    _evaluate_artifact_gate,
     _evaluate_gold_lineage,
     chargeable_failure_count,
     evaluate_gate,
@@ -231,11 +233,15 @@ def test_collect_first_stagnant_quality_shortfall_is_terminal_not_complete(
         json.loads(line)["type"]
         for line in settings.events_path.read_text(encoding="utf-8").splitlines()
     ]
-    assert events.count("stage_started") == 2
+    assert events.count("stage_started") == 1
     assert "gate_retry_scheduled" not in events
     assert "collection_partitioned" in events
-    assert "collection_retry_scheduled" in events
+    assert "quality_retry_prepared" not in events
     assert events[-1] == "collection_gate_blocked"
+    blocked = json.loads(
+        settings.events_path.read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert blocked["data"]["reason"] == "no_schedulable_quality_retry"
 
 
 def test_collect_first_partitions_partial_output_when_budget_closes(
@@ -326,7 +332,9 @@ def test_collect_first_retries_only_missing_format_failure_then_becomes_ready(
         for line in settings.events_path.read_text(encoding="utf-8").splitlines()
     ]
     assert events.count("stage_started") == 2
-    assert events.count("collection_retry_scheduled") == 1
+    assert events.count("quality_retry_prepared") == 1
+    assert events.count("quality_retry_started") == 1
+    assert status["quality_retry"]["state"] == "completed"
     assert events[-1] == "automation_completed"
 
 
@@ -373,7 +381,9 @@ def test_collect_first_retry_limit_quarantines_missing_chain_and_stops(
     assert status["state"] == "gate_blocked"
     assert status["stage_index"] == 0
     assert status["partition"]["raw_collection_complete"] is False
-    assert teacher.calls_by_task["plan"] == 1
+    # An explicit quality plan is a scoped override of the old failure
+    # quarantine; it gets one content-free, generation-bound repair attempt.
+    assert teacher.calls_by_task["plan"] == 3
     entries = status["audit_ledger"]["failure_entries"].values()
     assert any(entry["quarantined"] for entry in entries)
     events = [
@@ -383,7 +393,7 @@ def test_collect_first_retry_limit_quarantines_missing_chain_and_stops(
     blocked = next(
         event for event in events if event["type"] == "collection_gate_blocked"
     )
-    assert blocked["data"]["reason"] == "failure_retry_limit_exhausted"
+    assert blocked["data"]["reason"] == "quality_retry_rounds_exhausted"
 
 
 def test_collect_first_failure_budget_partitions_and_stops(tmp_path: Path) -> None:
@@ -1361,6 +1371,67 @@ def test_monotonic_expansion_requires_explicit_atomic_migration(tmp_path: Path) 
     assert migrate_monotonic_expansion_status(expanded)["status"] == "already_current"
 
 
+def test_monotonic_expansion_migrates_pre_quality_v2_source_atomically(
+    tmp_path: Path,
+) -> None:
+    prior, expanded = _expansion_settings(tmp_path)
+    runner = AutomationRunner(config=prior, teacher=MockTeacher())
+    runner.status.update(
+        {
+            "state": "complete",
+            "stage_index": 1,
+            "completed_at": "2026-07-13T00:00:00+00:00",
+        }
+    )
+    pre_quality_binding = expanded.pre_quality_retry_monotonic_source_binding_sha256
+    assert pre_quality_binding == prior.pre_quality_retry_status_binding_sha256
+    assert pre_quality_binding != prior.status_binding_sha256
+    runner.status["config_binding_sha256"] = pre_quality_binding
+    runner.status.pop("quality_retry_policy", None)
+    runner._save_status()
+
+    result = migrate_monotonic_expansion_status(expanded)
+
+    assert result["status"] == "migrated"
+    assert result["source_binding_schema"] == "v2"
+    assert result["quality_retry_policy_equivalence"] == {
+        "from_binding_schema": "v2",
+        "to_binding_schema": "v3",
+        "max_quality_retry_rounds": 2,
+        "proof": "equivalent_default_policy",
+    }
+    migrated = json.loads(expanded.status_path.read_text(encoding="utf-8"))
+    assert migrated["config_binding_sha256"] == expanded.status_binding_sha256
+    assert migrated["quality_retry_policy"]["max_quality_retry_rounds"] == 2
+    migration = migrated["migration_history"][-1]
+    assert migration["source_binding_schema"] == "v2"
+    assert (
+        migration["quality_retry_policy_equivalence"]
+        == result["quality_retry_policy_equivalence"]
+    )
+    resumed = AutomationRunner(config=expanded, teacher=MockTeacher())
+    assert resumed.status["config_binding_sha256"] == expanded.status_binding_sha256
+
+
+def test_monotonic_expansion_rejects_pre_quality_source_for_nondefault_policy(
+    tmp_path: Path,
+) -> None:
+    prior, expanded = _expansion_settings(tmp_path)
+    nondefault = replace(expanded, max_quality_retry_rounds=3)
+    runner = AutomationRunner(config=prior, teacher=MockTeacher())
+    runner.status["state"] = "complete"
+    runner.status["config_binding_sha256"] = (
+        nondefault.pre_quality_retry_monotonic_source_binding_sha256
+    )
+    runner.status.pop("quality_retry_policy", None)
+    runner._save_status()
+    before = nondefault.status_path.read_bytes()
+
+    with pytest.raises(ValueError, match="default quality retry policy"):
+        migrate_monotonic_expansion_status(nondefault)
+    assert nondefault.status_path.read_bytes() == before
+
+
 def test_monotonic_expansion_cli_is_offline_and_explicit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1655,6 +1726,130 @@ def test_quality_gate_fails_closed_for_missing_label_quota_and_review_regression
     assert any(
         "repair_does_not_restore_frontend_source" in error
         for error in rejected["artifact_validation"]["errors"]
+    )
+
+
+def _artifact_gate_settings(tmp_path: Path) -> AutomationConfig:
+    return config(
+        tmp_path,
+        artifact_validation_fixture=ROOT
+        / "examples"
+        / "data"
+        / "fixtures"
+        / "tsx-fragment",
+        artifact_validation_workspace_root=tmp_path / "artifact-workspaces",
+        artifact_validation_timeout_seconds=15,
+    )
+
+
+def test_artifact_gate_accepts_review_236_trailing_newline_regression(
+    tmp_path: Path,
+) -> None:
+    settings = _artifact_gate_settings(tmp_path)
+    _distill_for_gate(settings, seed_count=1)
+    frontend = json.loads(
+        (settings.output_dir / "data_frontend.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    review = json.loads(
+        (settings.output_dir / "data_review.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+
+    # Live review row 236 differed only by transport newlines and edge whitespace.
+    review["input"]["candidate_code"] = (
+        " \r\n" + review["input"]["candidate_code"].replace("\n", "\r\n") + "\r\n "
+    )
+    review["output"]["code"] = frontend["output"]["code"].replace("\n", "\r") + "\r\n"
+
+    gate = _evaluate_artifact_gate(
+        settings, {"frontend": [frontend], "review": [review]}
+    )
+
+    assert gate["passed"] is True
+    assert gate["errors"] == []
+
+
+def test_artifact_gate_keeps_mutation_manifest_strict_after_code_normalization(
+    tmp_path: Path,
+) -> None:
+    settings = _artifact_gate_settings(tmp_path)
+    _distill_for_gate(settings, seed_count=1)
+    frontend = json.loads(
+        (settings.output_dir / "data_frontend.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    review = json.loads(
+        (settings.output_dir / "data_review.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    review["input"]["candidate_code"] += "\r\n"
+    review["output"]["code"] += "\n"
+    review["provenance"]["mutation"]["count"] += 1
+
+    gate = _evaluate_artifact_gate(
+        settings, {"frontend": [frontend], "review": [review]}
+    )
+
+    assert gate["passed"] is False
+    assert any(
+        "candidate_or_mutation_not_canonical" in error for error in gate["errors"]
+    )
+
+
+@pytest.mark.parametrize("language", ["typescript", "typescript-react"])
+def test_artifact_gate_accepts_build_valid_legacy_tsx_language_alias(
+    tmp_path: Path, language: str
+) -> None:
+    settings = _artifact_gate_settings(tmp_path)
+    record = {
+        "id": f"legacy-{language}",
+        "output": {
+            "language": language,
+            "code": "export function Card(){return <main>Ready</main>}",
+        },
+    }
+
+    gate = _evaluate_artifact_gate(settings, {"frontend": [record], "review": []})
+
+    assert gate["passed"] is True
+    assert gate["unique_artifacts_built"] == 1
+
+
+def test_artifact_gate_rejects_arbitrary_language_and_invalid_legacy_tsx(
+    tmp_path: Path,
+) -> None:
+    settings = _artifact_gate_settings(tmp_path)
+    arbitrary = {
+        "id": "arbitrary-jsx",
+        "output": {
+            "language": "jsx",
+            "code": "export function Card(){return <main>Ready</main>}",
+        },
+    }
+    invalid_legacy = {
+        "id": "invalid-legacy-ts",
+        "output": {
+            "language": "typescript",
+            "code": "export const value = 1",
+        },
+    }
+
+    gate = _evaluate_artifact_gate(
+        settings,
+        {"frontend": [arbitrary, invalid_legacy], "review": []},
+    )
+
+    assert gate["passed"] is False
+    assert any(
+        "arbitrary-jsx:missing_tsx_artifact" in error for error in gate["errors"]
+    )
+    assert any(
+        "invalid-legacy-ts:build_or_test_failed" in error for error in gate["errors"]
     )
 
 
