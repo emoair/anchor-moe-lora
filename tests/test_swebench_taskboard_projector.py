@@ -20,9 +20,12 @@ from anchor_mvp.swebench.taskboard_projector import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = ROOT / "configs/research/swebench_taskboard_projector_v1.yaml"
+CONFIG = ROOT / "configs/research/swebench_taskboard_projector_v2.yaml"
 SIDECAR_SCHEMA = ROOT / "configs/research/taskboard_projector_sidecar.schema.json"
 MANIFEST_SCHEMA = ROOT / "configs/research/taskboard_projector_manifest.schema.json"
+SEGMENT_PLAN_SCHEMA = (
+    ROOT / "configs/research/hierarchical_task_kv_segment_plan.schema.json"
+)
 
 FILENAMES = {
     "planner": "data_plan.jsonl",
@@ -37,6 +40,85 @@ TASK_NAMES = {
     "frontend_gen": "frontend",
     "frontend_review": "review",
     "security_gate": "security",
+}
+
+SEGMENT_PLAN_KEYS = {
+    "schema_version",
+    "architecture",
+    "execution_mode",
+    "materialization",
+    "full_generation_kv_shared_claimed",
+    "token_level_moe_claimed",
+    "split_before_augmentation",
+    "augmentation_applied_after_split",
+    "bindings",
+    "shared_prefix_policy",
+    "target_delta_policy",
+    "cache_compatibility",
+    "segments",
+}
+SEGMENT_BINDING_KEYS = {
+    "task_id",
+    "task_bundle_sha256",
+    "base_task_board_sha256",
+    "projector_version",
+    "config_sha256",
+    "sidecar_schema_sha256",
+    "segment_plan_schema_sha256",
+    "source_gold_sha256",
+    "source_gold_file_sha256",
+    "source_snapshot_sha256",
+    "source_snapshot_manifest_sha256",
+    "split",
+    "stage",
+    "expert",
+    "variant",
+}
+SEGMENT_KEYS = {
+    "segment_id",
+    "content_sha256",
+    "source_block_id",
+    "serialization_order",
+    "causal_order",
+    "producer_role",
+    "cache_scope",
+    "visibility",
+    "dependencies",
+    "commit_state",
+    "parent_segment_id",
+    "parent_lineage_sha256",
+    "prefix_lineage_sha256",
+}
+CACHE_IDENTITY_FIELDS = [
+    "model_architecture_sha256",
+    "tokenizer_sha256",
+    "token_order_sha256",
+    "position_ids_sha256",
+    "rope_config_sha256",
+    "kv_producing_weights_sha256",
+    "prefix_lineage_sha256",
+]
+HIERARCHICAL_TASK_KV_SUMMARY = {
+    "segment_plan_schema_version": "anchor.hierarchical-task-kv-segment-plan.v1",
+    "segment_plan_location": "outer_sidecar.segment_plan",
+    "architecture": "hierarchical_task_kv",
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "materialization": "metadata_only_no_tensor_or_kv",
+    "full_generation_kv_shared_claimed": False,
+    "token_level_moe_claimed": False,
+    "tensors_emitted": False,
+    "kv_payloads_emitted": False,
+    "shared_prefix_membership": "strict_all_five_role_visibility_intersection",
+    "ordered_prefix_chain": True,
+    "independent_segment_concatenation_allowed": False,
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "shared_then_mask_allowed": False,
+    "forbidden_current_future_preinsert_allowed": False,
+    "cache_identity_required_exact_match_fields": CACHE_IDENTITY_FIELDS,
+    "cache_identity_mismatch_result": "cache_incompatible",
+    "cache_identity_unknown_result": "cache_incompatible",
+    "q_specialization_alone_sufficient_for_exact_reuse": False,
+    "naive_in_stack_q_lora_exact_reuse_allowed": False,
 }
 
 
@@ -447,6 +529,654 @@ def _source_inventory(fixture: SnapshotFixture) -> dict[str, str]:
     }
 
 
+def _projected_rows(tmp_path: Path) -> tuple[SnapshotFixture, Path, list[dict[str, Any]]]:
+    fixture = _build_snapshot(tmp_path)
+    output = tmp_path / "projected"
+    project_taskboards(CONFIG, fixture.root, fixture.manifest_sha256, output)
+    rows = (
+        _read_jsonl(output / "train/clean.jsonl")
+        + _read_jsonl(output / "train/noisy.jsonl")
+        + _read_jsonl(output / "calibration/clean.jsonl")
+    )
+    return fixture, output, rows
+
+
+def _expected_segment_id(row: dict[str, Any], segment: dict[str, Any]) -> str:
+    return "task-kv-segment-v1:" + _sha_value(
+        {
+            "task_bundle_sha256": row["task_bundle_sha256"],
+            "source_block_id": segment["source_block_id"],
+            "content_sha256": segment["content_sha256"],
+            "producer_role": segment["producer_role"],
+            "cache_scope": segment["cache_scope"],
+        }
+    )
+
+
+def _assert_segment_chain(row: dict[str, Any]) -> None:
+    plan = row["segment_plan"]
+    inner = row["training_record"]
+    blocks = inner["task_board"]["blocks"]
+    by_id = {block["id"]: block for block in blocks}
+    segments = plan["segments"]
+    segment_ids = [segment["segment_id"] for segment in segments]
+
+    assert [segment["serialization_order"] for segment in segments] == list(
+        range(len(segments))
+    )
+    assert len(segment_ids) == len(set(segment_ids))
+
+    genesis = _sha_value(
+        {
+            "task_bundle_sha256": row["task_bundle_sha256"],
+            "execution_mode": "decoupled_frozen_prefix_producer_required",
+            "root": "ordered_prefix_genesis",
+        }
+    )
+    previous_id: str | None = None
+    previous_lineage = genesis
+    for order, segment in enumerate(segments):
+        assert set(segment) == SEGMENT_KEYS
+        source = by_id[segment["source_block_id"]]
+        assert segment["content_sha256"] == _sha_text(source["content"])
+        assert segment["segment_id"] == _expected_segment_id(row, segment)
+        assert segment["causal_order"] == next(
+            index
+            for index, block in enumerate(blocks)
+            if block["id"] == segment["source_block_id"]
+        )
+        assert segment["parent_segment_id"] == previous_id
+        assert segment["parent_lineage_sha256"] == previous_lineage
+        assert segment["dependencies"] == segment_ids[:order]
+        assert segment["prefix_lineage_sha256"] == _sha_value(
+            {
+                "parent_lineage_sha256": previous_lineage,
+                "segment_id": segment["segment_id"],
+                "serialization_order": order,
+                "causal_order": segment["causal_order"],
+            }
+        )
+        previous_id = segment["segment_id"]
+        previous_lineage = segment["prefix_lineage_sha256"]
+
+    if len(segments) > 1:
+        reordered = [segments[1], segments[0], *segments[2:]]
+        changed_lineage = genesis
+        for order, segment in enumerate(reordered):
+            changed_lineage = _sha_value(
+                {
+                    "parent_lineage_sha256": changed_lineage,
+                    "segment_id": segment["segment_id"],
+                    "serialization_order": order,
+                    "causal_order": segment["causal_order"],
+                }
+            )
+        assert changed_lineage != segments[-1]["prefix_lineage_sha256"]
+
+
+def _assert_plan_contains_metadata_only(row: dict[str, Any]) -> None:
+    plan = row["segment_plan"]
+    encoded = canonical_json(plan)
+    forbidden_keys = {
+        "content",
+        "tensor",
+        "tensors",
+        "kv",
+        "kv_bytes",
+        "kv_payload",
+        "key_states",
+        "value_states",
+        "past_key_values",
+        "token_ids",
+    }
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            assert forbidden_keys.isdisjoint(value)
+            for nested in value.values():
+                visit(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                visit(nested)
+        else:
+            assert not isinstance(value, (bytes, bytearray, memoryview))
+
+    visit(plan)
+    for block in row["training_record"]["task_board"]["blocks"]:
+        assert block["content"] not in encoded
+
+
+def test_projector_v2_publishes_recomputable_metadata_only_segment_chains(
+    tmp_path: Path,
+) -> None:
+    _, output, rows = _projected_rows(tmp_path)
+    segment_schema = json.loads(SEGMENT_PLAN_SCHEMA.read_text(encoding="utf-8"))
+    manifest_schema = json.loads(MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["schema_version"] == "anchor.swebench-taskboard-projector-manifest.v2"
+    assert manifest["producer"]["projector_version"] == (
+        "anchor.swebench-taskboard-projector.v2"
+    )
+    assert manifest["producer"]["segment_plan_schema_sha256"] == _sha_file(
+        SEGMENT_PLAN_SCHEMA
+    )
+    assert manifest["producer"]["segment_plan_schema_version"] == (
+        "anchor.hierarchical-task-kv-segment-plan.v1"
+    )
+    assert manifest["hierarchical_task_kv"] == HIERARCHICAL_TASK_KV_SUMMARY
+    assert segment_schema["properties"]["schema_version"]["const"] == (
+        "anchor.hierarchical-task-kv-segment-plan.v1"
+    )
+    for claim in ("full_generation_kv_shared_claimed", "token_level_moe_claimed"):
+        assert segment_schema["properties"][claim]["const"] is False
+        assert manifest_schema["$defs"]["hierarchical_task_kv"]["properties"][
+            claim
+        ]["const"] is False
+
+    for row in rows:
+        plan = row["segment_plan"]
+        bindings = plan["bindings"]
+        assert row["schema_version"] == "anchor.swebench-taskboard-sidecar.v2"
+        assert row["projector_version"] == "anchor.swebench-taskboard-projector.v2"
+        assert row["training_record"]["schema_version"] == (
+            "anchor.query-specialization.v1"
+        )
+        assert row["segment_plan_schema_sha256"] == _sha_file(SEGMENT_PLAN_SCHEMA)
+        assert set(plan) == SEGMENT_PLAN_KEYS == set(segment_schema["required"])
+        assert set(bindings) == SEGMENT_BINDING_KEYS
+        for key in SEGMENT_BINDING_KEYS - {"task_id"}:
+            assert bindings[key] == row[key]
+        assert bindings["task_id"] == row["training_record"]["task_board"][
+            "task_id"
+        ]
+        assert plan["schema_version"] == "anchor.hierarchical-task-kv-segment-plan.v1"
+        assert plan["architecture"] == "hierarchical_task_kv"
+        assert plan["execution_mode"] == (
+            "decoupled_frozen_prefix_producer_required"
+        )
+        assert plan["materialization"] == "metadata_only_no_tensor_or_kv"
+        assert plan["full_generation_kv_shared_claimed"] is False
+        assert plan["token_level_moe_claimed"] is False
+        assert plan["split_before_augmentation"] is True
+        assert plan["augmentation_applied_after_split"] is True
+        _assert_segment_chain(row)
+        _assert_plan_contains_metadata_only(row)
+
+    segment_references = sum(len(row["segment_plan"]["segments"]) for row in rows)
+    unique_segments = {
+        segment["segment_id"]
+        for row in rows
+        for segment in row["segment_plan"]["segments"]
+    }
+    unique_by_scope = {
+        scope: {
+            segment["segment_id"]
+            for row in rows
+            for segment in row["segment_plan"]["segments"]
+            if segment["cache_scope"] == scope
+        }
+        for scope in (
+            "task_shared_prefix",
+            "downstream_task_shared_immutable",
+            "expert_private_delta",
+        )
+    }
+    assert manifest["counts"]["segment_references"] == segment_references
+    assert manifest["counts"]["unique_segments"] == len(unique_segments)
+    assert manifest["counts"]["unique_segments_by_cache_scope"] == {
+        scope: len(segment_ids) for scope, segment_ids in unique_by_scope.items()
+    }
+
+
+def test_segment_plan_uses_strict_shared_intersection_and_never_preinserts_forbidden(
+    tmp_path: Path,
+) -> None:
+    _, _, rows = _projected_rows(tmp_path)
+    clean_rows = [row for row in rows if row["variant"] == "clean"]
+    bundles = {row["task_bundle_sha256"] for row in clean_rows}
+
+    for bundle in bundles:
+        role_rows = [row for row in clean_rows if row["task_bundle_sha256"] == bundle]
+        assert {row["expert"] for row in role_rows} == set(EXPERTS)
+        strict_intersection = set.intersection(
+            *(
+                set(row["training_record"]["attention_targets"]["relevant_block_ids"])
+                for row in role_rows
+            )
+        )
+        shared_chains = []
+        for row in role_rows:
+            plan = row["segment_plan"]
+            policy = plan["shared_prefix_policy"]
+            assert policy == {
+                "membership_rule": "strict_all_five_role_visibility_intersection",
+                "ordered_prefix_chain": True,
+                "shared_then_mask_allowed": False,
+                "forbidden_current_future_preinsert_allowed": False,
+                "independent_segment_concatenation_allowed": False,
+                "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+            }
+            shared = [
+                segment
+                for segment in plan["segments"]
+                if segment["cache_scope"] == "task_shared_prefix"
+            ]
+            shared_chains.append(tuple(segment["segment_id"] for segment in shared))
+            assert {segment["source_block_id"] for segment in shared} == (
+                strict_intersection
+            )
+            by_id = {
+                block["id"]: block
+                for block in row["training_record"]["task_board"]["blocks"]
+            }
+            assert {by_id[source_id]["kind"] for source_id in strict_intersection} == {
+                "requirement",
+                "repository",
+            }
+        assert len(set(shared_chains)) == 1
+
+    for row in rows:
+        inner = row["training_record"]
+        targets = inner["attention_targets"]
+        segment_sources = {
+            segment["source_block_id"] for segment in row["segment_plan"]["segments"]
+        }
+        allowed_sources = set(targets["relevant_block_ids"]) | set(
+            targets["distractor_block_ids"]
+        )
+        assert segment_sources == allowed_sources
+        assert segment_sources.isdisjoint(targets["forbidden_block_ids"])
+        assert inner["target"]["answer"] not in canonical_json(row["segment_plan"])
+
+
+def test_segment_scope_requires_commit_before_downstream_promotion_and_preserves_pair_identity(
+    tmp_path: Path,
+) -> None:
+    _, _, rows = _projected_rows(tmp_path)
+    clean_by_pair = {
+        row["pair_id"]: row
+        for row in rows
+        if row["split"] == "train" and row["variant"] == "clean"
+    }
+    noisy_by_pair = {
+        row["pair_id"]: row
+        for row in rows
+        if row["split"] == "train" and row["variant"] == "noisy"
+    }
+    assert set(clean_by_pair) == set(noisy_by_pair)
+
+    for pair_id, clean in clean_by_pair.items():
+        noisy = noisy_by_pair[pair_id]
+        clean_plan = clean["segment_plan"]
+        noisy_plan = noisy["segment_plan"]
+        assert clean_plan["target_delta_policy"] == {
+            "initial_cache_scope": "expert_private_delta",
+            "promotion_requires": "explicit_committed_and_causally_visible_downstream",
+            "promoted_cache_scope": "downstream_task_shared_immutable",
+            "current_target_segment_emitted": False,
+        }
+        assert noisy_plan["target_delta_policy"] == clean_plan["target_delta_policy"]
+
+        clean_segments = clean_plan["segments"]
+        noisy_base = [
+            segment
+            for segment in noisy_plan["segments"]
+            if segment["cache_scope"] != "expert_private_delta"
+        ]
+        private = [
+            segment
+            for segment in noisy_plan["segments"]
+            if segment["cache_scope"] == "expert_private_delta"
+        ]
+        assert noisy_base == clean_segments
+        assert len(private) == 1
+        assert private[0]["producer_role"] == noisy["expert"]
+        assert private[0]["visibility"] == [noisy["expert"]]
+        assert private[0]["commit_state"] == "candidate"
+        assert private[0]["source_block_id"] in noisy["augmentation"][
+            "overlay_block_ids"
+        ]
+        assert clean["task_bundle_sha256"] == noisy["task_bundle_sha256"]
+        assert clean["split"] == noisy["split"] == "train"
+
+    for row in rows:
+        by_id = {
+            block["id"]: block
+            for block in row["training_record"]["task_board"]["blocks"]
+        }
+        for segment in row["segment_plan"]["segments"]:
+            if segment["cache_scope"] == "downstream_task_shared_immutable":
+                assert segment["commit_state"] == "committed"
+                assert by_id[segment["source_block_id"]]["commit_state"] == "committed"
+
+
+def test_cache_contract_is_fail_closed_for_every_kv_identity_dimension_and_q_only_reuse(
+    tmp_path: Path,
+) -> None:
+    _, _, rows = _projected_rows(tmp_path)
+
+    for row in rows:
+        plan = row["segment_plan"]
+        cache = plan["cache_compatibility"]
+        assert cache == {
+            "status": "identity_unbound",
+            "cache_reuse_allowed": False,
+            "required_exact_match_fields": CACHE_IDENTITY_FIELDS,
+            "mismatch_result": "cache_incompatible",
+            "unknown_result": "cache_incompatible",
+            "naive_in_stack_q_lora_exact_reuse_allowed": False,
+            "q_specialization_alone_sufficient_for_exact_reuse": False,
+        }
+
+        # The producer intentionally carries no runtime identity.  This local
+        # audit makes each declared identity dimension independently drift and
+        # confirms the published rule has no dimension that can be ignored.
+        producer_identity = {field: _sha_text(field) for field in CACHE_IDENTITY_FIELDS}
+        for field in CACHE_IDENTITY_FIELDS:
+            consumer_identity = dict(producer_identity)
+            consumer_identity[field] = _sha_text(f"{field}:drift")
+            mismatches = [
+                name
+                for name in cache["required_exact_match_fields"]
+                if producer_identity.get(name) != consumer_identity.get(name)
+            ]
+            assert mismatches == [field]
+            assert cache["mismatch_result"] == "cache_incompatible"
+
+
+def test_projector_rejects_naive_in_stack_q_lora_exact_reuse_mode(
+    tmp_path: Path,
+) -> None:
+    fixture = _build_snapshot(tmp_path)
+    config_dir = tmp_path / "bad-config"
+    config_dir.mkdir()
+    config_path = config_dir / CONFIG.name
+    config_path.write_text(
+        CONFIG.read_text(encoding="utf-8").replace(
+            "decoupled_frozen_prefix_producer_required",
+            "naive_in_stack_q_lora_exact_reuse",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    for schema in (SIDECAR_SCHEMA, MANIFEST_SCHEMA, SEGMENT_PLAN_SCHEMA):
+        (config_dir / schema.name).write_bytes(schema.read_bytes())
+
+    with pytest.raises(TaskBoardProjectorError, match="projector_config"):
+        project_taskboards(
+            config_path,
+            fixture.root,
+            fixture.manifest_sha256,
+            tmp_path / "rejected",
+        )
+
+
+def test_projector_recomputes_current_and_future_partition_from_stage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _build_snapshot(tmp_path)
+    original = projector_module._sidecar_records
+    changed = False
+
+    def tampered_records(**kwargs: Any) -> Iterable[dict[str, Any]]:
+        nonlocal changed
+        for row in original(**kwargs):
+            if changed or row["variant"] != "clean":
+                yield row
+                continue
+            targets = row["training_record"]["attention_targets"]
+            current_target_id = targets["forbidden_block_ids"][0]
+            targets["relevant_block_ids"] = [
+                *targets["relevant_block_ids"],
+                current_target_id,
+            ]
+            targets["forbidden_block_ids"] = targets["forbidden_block_ids"][1:]
+            row["training_record"]["target"]["selected_block_ids"] = targets[
+                "relevant_block_ids"
+            ]
+            changed = True
+            yield row
+
+    monkeypatch.setattr(projector_module, "_sidecar_records", tampered_records)
+
+    with pytest.raises(
+        TaskBoardProjectorError, match="projected_causal_partition_invalid"
+    ):
+        project_taskboards(
+            CONFIG,
+            fixture.root,
+            fixture.manifest_sha256,
+            tmp_path / "rejected",
+        )
+    assert changed is True
+    assert not (tmp_path / "rejected").exists()
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "binding-source-drift",
+        "cache-unbound-reuse",
+        "ordered-lineage-swap",
+        "forbidden-preinsert",
+        "private-without-commit-promotion",
+        "shared-candidate",
+        "downstream-candidate-promotion",
+        "private-committed-without-promotion",
+        "private-cross-expert-visibility",
+        "full-generation-kv-shared-claim",
+        "token-level-moe-claim",
+    ],
+)
+def test_projector_rejects_tampered_segment_plan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tamper: str,
+) -> None:
+    fixture = _build_snapshot(tmp_path)
+    original = projector_module._sidecar_records
+    changed = False
+
+    def tampered_records(**kwargs: Any) -> Iterable[dict[str, Any]]:
+        nonlocal changed
+        for row in original(**kwargs):
+            target_partition = (
+                "calibration" if tamper == "binding-source-drift" else "train"
+            )
+            if kwargs["partition"] != target_partition or changed:
+                yield row
+                continue
+            plan = row["segment_plan"]
+            if tamper == "binding-source-drift" and row["variant"] == "clean":
+                plan["bindings"]["source_gold_sha256"] = _sha_text("drift")
+            elif tamper == "cache-unbound-reuse" and row["variant"] == "clean":
+                plan["cache_compatibility"]["cache_reuse_allowed"] = True
+            elif tamper == "ordered-lineage-swap" and row["variant"] == "clean":
+                plan["segments"][:2] = reversed(plan["segments"][:2])
+            elif tamper == "forbidden-preinsert" and row["variant"] == "clean":
+                forbidden = row["training_record"]["attention_targets"][
+                    "forbidden_block_ids"
+                ]
+                plan["segments"][0]["source_block_id"] = forbidden[0]
+            elif (
+                tamper == "private-without-commit-promotion"
+                and row["variant"] == "noisy"
+            ):
+                private = next(
+                    segment
+                    for segment in plan["segments"]
+                    if segment["cache_scope"] == "expert_private_delta"
+                )
+                private["cache_scope"] = "downstream_task_shared_immutable"
+            elif tamper == "shared-candidate" and row["variant"] == "clean":
+                shared = next(
+                    segment
+                    for segment in plan["segments"]
+                    if segment["cache_scope"] == "task_shared_prefix"
+                )
+                block = next(
+                    block
+                    for block in row["training_record"]["task_board"]["blocks"]
+                    if block["id"] == shared["source_block_id"]
+                )
+                block["commit_state"] = shared["commit_state"] = "candidate"
+                rebound = _sha_value(row["training_record"]["task_board"])
+                row["base_task_board_sha256"] = rebound
+                plan["bindings"]["base_task_board_sha256"] = rebound
+            elif (
+                tamper == "downstream-candidate-promotion"
+                and row["variant"] == "clean"
+                and any(
+                    segment["cache_scope"] == "downstream_task_shared_immutable"
+                    for segment in plan["segments"]
+                )
+            ):
+                promoted = next(
+                    segment
+                    for segment in plan["segments"]
+                    if segment["cache_scope"]
+                    == "downstream_task_shared_immutable"
+                )
+                block = next(
+                    block
+                    for block in row["training_record"]["task_board"]["blocks"]
+                    if block["id"] == promoted["source_block_id"]
+                )
+                block["commit_state"] = promoted["commit_state"] = "candidate"
+                rebound = _sha_value(row["training_record"]["task_board"])
+                row["base_task_board_sha256"] = rebound
+                plan["bindings"]["base_task_board_sha256"] = rebound
+            elif (
+                tamper == "private-committed-without-promotion"
+                and row["variant"] == "noisy"
+            ):
+                private = next(
+                    segment
+                    for segment in plan["segments"]
+                    if segment["cache_scope"] == "expert_private_delta"
+                )
+                block = next(
+                    block
+                    for block in row["training_record"]["task_board"]["blocks"]
+                    if block["id"] == private["source_block_id"]
+                )
+                block["commit_state"] = private["commit_state"] = "committed"
+            elif (
+                tamper == "private-cross-expert-visibility"
+                and row["variant"] == "noisy"
+            ):
+                private = next(
+                    segment
+                    for segment in plan["segments"]
+                    if segment["cache_scope"] == "expert_private_delta"
+                )
+                block = next(
+                    block
+                    for block in row["training_record"]["task_board"]["blocks"]
+                    if block["id"] == private["source_block_id"]
+                )
+                other_expert = next(item for item in EXPERTS if item != row["expert"])
+                block["visible_to"] = private["visibility"] = [other_expert]
+            elif (
+                tamper == "full-generation-kv-shared-claim"
+                and row["variant"] == "clean"
+            ):
+                plan["full_generation_kv_shared_claimed"] = True
+            elif tamper == "token-level-moe-claim" and row["variant"] == "clean":
+                plan["token_level_moe_claimed"] = True
+            else:
+                yield row
+                continue
+            changed = True
+            yield row
+
+    monkeypatch.setattr(projector_module, "_sidecar_records", tampered_records)
+
+    with pytest.raises(TaskBoardProjectorError, match="projected_segment"):
+        project_taskboards(
+            CONFIG,
+            fixture.root,
+            fixture.manifest_sha256,
+            tmp_path / "rejected",
+        )
+    assert changed is True
+    assert not (tmp_path / "rejected").exists()
+
+
+@pytest.mark.parametrize(
+    "claim",
+    ["full_generation_kv_shared_claimed", "token_level_moe_claimed"],
+)
+def test_projector_rejects_unsupported_architecture_claim_in_config(
+    tmp_path: Path,
+    claim: str,
+) -> None:
+    fixture = _build_snapshot(tmp_path)
+    config_dir = tmp_path / "bad-claim-config"
+    config_dir.mkdir()
+    config_path = config_dir / CONFIG.name
+    original = f"  {claim}: false"
+    replacement = f"  {claim}: true"
+    config_text = CONFIG.read_text(encoding="utf-8")
+    assert config_text.count(original) == 1
+    config_path.write_text(
+        config_text.replace(original, replacement),
+        encoding="utf-8",
+        newline="\n",
+    )
+    for schema in (SIDECAR_SCHEMA, MANIFEST_SCHEMA, SEGMENT_PLAN_SCHEMA):
+        (config_dir / schema.name).write_bytes(schema.read_bytes())
+
+    with pytest.raises(TaskBoardProjectorError, match="projector_config_task_kv_invalid"):
+        project_taskboards(
+            config_path,
+            fixture.root,
+            fixture.manifest_sha256,
+            tmp_path / "rejected",
+        )
+
+
+@pytest.mark.parametrize(
+    "claim",
+    ["full_generation_kv_shared_claimed", "token_level_moe_claimed"],
+)
+def test_projector_rejects_unsupported_architecture_claim_in_manifest_readback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    claim: str,
+) -> None:
+    fixture = _build_snapshot(tmp_path)
+    original = projector_module._json_from_snapshot
+    changed = False
+
+    def tamper_manifest_readback(snapshot: Any, code: str) -> Any:
+        nonlocal changed
+        value = original(snapshot, code)
+        if (
+            isinstance(value, dict)
+            and value.get("schema_version")
+            == "anchor.swebench-taskboard-projector-manifest.v2"
+        ):
+            value["hierarchical_task_kv"][claim] = True
+            changed = True
+        return value
+
+    monkeypatch.setattr(
+        projector_module, "_json_from_snapshot", tamper_manifest_readback
+    )
+    with pytest.raises(TaskBoardProjectorError, match="projected_manifest_invalid"):
+        project_taskboards(
+            CONFIG,
+            fixture.root,
+            fixture.manifest_sha256,
+            tmp_path / "rejected",
+        )
+    assert changed is True
+    assert not (tmp_path / "rejected").exists()
+
+
 def test_projector_publishes_bound_causal_views_without_mutating_gold(
     tmp_path: Path,
 ) -> None:
@@ -485,6 +1215,11 @@ def test_projector_publishes_bound_causal_views_without_mutating_gold(
         "by_stage": {stage: 3 for stage in STAGES},
         "by_expert": {expert: 3 for expert in EXPERTS},
         "by_language": {"en": 10, "zh-CN": 5},
+        "segment_references": manifest["counts"]["segment_references"],
+        "unique_segments": manifest["counts"]["unique_segments"],
+        "unique_segments_by_cache_scope": manifest["counts"][
+            "unique_segments_by_cache_scope"
+        ],
     }
     assert manifest["split_group_key"] == "task_bundle_sha256"
     assert (

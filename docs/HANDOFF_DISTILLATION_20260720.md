@@ -109,6 +109,42 @@ release package is created.
 
 ## Deterministic TaskBoard projector
 
+> Status update: the v2 producer contract and synthetic fixture below are
+> stable. The later v1 identities are retained only as historical context. The
+> synthetic identities are integration fixtures, not a formal-v3 release.
+
+- Current v2 policy/schema SHA-256 values are: projector config
+  `b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943`;
+  `anchor.swebench-taskboard-sidecar.v2`
+  `c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5`;
+  `anchor.hierarchical-task-kv-segment-plan.v1`
+  `80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf`;
+  and `anchor.swebench-taskboard-projector-manifest.v2`
+  `2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347`.
+- The final 15-record, two-bundle synthetic fixture manifest SHA-256 is
+  `595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac`.
+  Its fixed partitions are: `train/clean`, 5 records,
+  `3b0f83991bdd5330de5261a922c1d0051c434418ff54b744957af02d7eb04927`;
+  `train/noisy`, 5 records,
+  `eb6eea5d13bb6416836b3463082398a8906ba85b09389c073cffc3ede12c613d`;
+  and `calibration/clean`, 5 records,
+  `f6d5534897d93ef2544023d7d5ac9bcac15d64e4fe14c2529a754e1253b16448`.
+  It contains 89 segment references and 25 unique segments: 4 task-shared,
+  16 downstream immutable, and 5 expert-private. Provider requests are zero.
+- The v2 manifest fixes
+  `segment_plan_location=outer_sidecar.segment_plan` and
+  `execution_mode=decoupled_frozen_prefix_producer_required`. The producer
+  derives relevant/current/future partitions from the fixed stage order rather
+  than trusting row declarations. It emits one ordered prefix lineage and
+  explicitly rejects full-generation KV sharing, token-level MoE, naive
+  in-stack Q-LoRA exact reuse, independent segment concatenation, and
+  shared-then-mask handling of forbidden content.
+- Fresh-pycache focused validation passes 55 tests (37 projector and 18 freeze
+  layer), Ruff, JSON/YAML parsing, exact fixture/physical-schema hash checks,
+  and an independent static review with no remaining P0/P1 finding.
+
+Historical v1 notes follow.
+
 - A provider-free post-Gold projector is implemented in
   `src/anchor_mvp/swebench/taskboard_projector.py`, with the CLI at
   `scripts/data/project_swebench_taskboard.py` and configuration at
@@ -160,15 +196,16 @@ release package is created.
 - Schema identities are:
   `anchor.generic-train-execution-contract.v1` / SHA
   `63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a`,
-  `anchor.swebench-source-disjoint-manifest.v1` / SHA
-  `4e7622d7a8ee07678963a8712ec50c2061223a91492b0b2cf004e5ae3caeeb72`,
-  and `anchor.generic-train-release-lock.v1` / SHA
-  `889787be1391aec2d59f91b1ba171588c82e455aaddc342b79d3680e0284210d`.
+  `anchor.swebench-source-disjoint-manifest.v2` / SHA
+  `2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b`,
+  and `anchor.generic-train-release-lock.v2` / SHA
+  `119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa`.
 - The release lock binds the final projector, source-disjoint, generic,
   consumer, and execution-lock manifests plus the attestation, coordinator
   config, source-bank, fixed three projected files, outer-sidecar provenance,
-  and the calibration-not-heldout claim. Nine freeze-layer tests pass; the
-  combined projector/release/formal regression is 71 tests.
+  calibration-not-heldout claim, and the complete Hierarchical Task-KV
+  identity/lineage/cache boundary. Eighteen freeze-layer tests pass; the
+  current focused projector/freeze regression is 55 tests.
 - No real formal-v3 snapshot or final projector manifest exists, so no real
   generic/source/release artifact or final release-manifest SHA has been
   published. The synthetic fixture SHA must never be used as that final SHA.

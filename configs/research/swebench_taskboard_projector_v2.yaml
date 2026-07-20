@@ -1,0 +1,80 @@
+schema_version: anchor.swebench-taskboard-projector-config.v2
+projector_version: anchor.swebench-taskboard-projector.v2
+
+input_contract:
+  snapshot_schema_version: anchor.training-snapshot.v2
+  require_manifest: true
+  require_sha256_sidecar: true
+  required_splits:
+    - train
+    - calibration
+  heldout_content_read: false
+
+output_contract:
+  record_schema_version: anchor.query-specialization.v1
+  sidecar_schema_version: anchor.swebench-taskboard-sidecar.v2
+  manifest_schema_version: anchor.swebench-taskboard-projector-manifest.v2
+  segment_plan_schema_version: anchor.hierarchical-task-kv-segment-plan.v1
+  canonical_gold_written: false
+  provider_requests: 0
+  heldout_content_emitted: false
+
+partitions:
+  split_before_augmentation: true
+  split_preserved: true
+  split_group_key: task_bundle_sha256
+  task_id_cross_binding_key: training_record.task_board.task_id
+  all_five_role_views_same_split: true
+  train:
+    variants:
+      - clean
+      - noisy
+  calibration:
+    variants:
+      - clean
+
+causal_visibility:
+  enforce_stage_visibility: true
+  reject_future_stage_blocks: true
+  require_visible_to_expert: true
+  source_of_truth: committed_blocks
+
+hierarchical_task_kv:
+  segment_plan_location: outer_sidecar.segment_plan
+  architecture: hierarchical_task_kv
+  execution_mode: decoupled_frozen_prefix_producer_required
+  materialization: metadata_only_no_tensor_or_kv
+  full_generation_kv_shared_claimed: false
+  token_level_moe_claimed: false
+  tensors_emitted: false
+  kv_payloads_emitted: false
+  shared_prefix_membership: strict_all_five_role_visibility_intersection
+  ordered_prefix_chain: true
+  independent_segment_concatenation_allowed: false
+  exact_reuse_scope: identical_ordered_prefix_lineage_only
+  expert_generated_cache_scope: expert_private_delta
+  promotion_requires: explicit_committed_and_causally_visible_downstream
+  promoted_cache_scope: downstream_task_shared_immutable
+  shared_then_mask_allowed: false
+  forbidden_current_future_preinsert_allowed: false
+  q_specialization_alone_sufficient_for_exact_reuse: false
+  naive_in_stack_q_lora_exact_reuse_allowed: false
+  cache_identity_exact_match_fields:
+    - model_architecture_sha256
+    - tokenizer_sha256
+    - token_order_sha256
+    - position_ids_sha256
+    - rope_config_sha256
+    - kv_producing_weights_sha256
+    - prefix_lineage_sha256
+  cache_identity_mismatch_result: cache_incompatible
+  cache_identity_unknown_result: cache_incompatible
+
+noise:
+  strategy: stale_duplicate_overlay
+  enabled_splits:
+    - train
+  same_task_only: true
+  cross_task_content_allowed: false
+  preserve_clean_pair: true
+  stale_marker_location: sidecar.augmentation

@@ -25,14 +25,27 @@ from anchor_mvp.swebench.schema import canonical_json
 from anchor_mvp.training.schema import DatasetValidationError, validate_record
 
 
-CONFIG_SCHEMA = "anchor.swebench-taskboard-projector-config.v1"
-PROJECTOR_VERSION = "anchor.swebench-taskboard-projector.v1"
+CONFIG_SCHEMA = "anchor.swebench-taskboard-projector-config.v2"
+PROJECTOR_VERSION = "anchor.swebench-taskboard-projector.v2"
 SNAPSHOT_SCHEMA = "anchor.training-snapshot.v2"
 SPLIT_SCHEMA = "anchor.formal-v3-gold-splits.v1"
 LINEAGE_SCHEMA = "anchor.swebench-formal-gold-lineage.v2"
-SIDECAR_SCHEMA = "anchor.swebench-taskboard-sidecar.v1"
+SIDECAR_SCHEMA = "anchor.swebench-taskboard-sidecar.v2"
 QUERY_SCHEMA = "anchor.query-specialization.v1"
-MANIFEST_SCHEMA = "anchor.swebench-taskboard-projector-manifest.v1"
+MANIFEST_SCHEMA = "anchor.swebench-taskboard-projector-manifest.v2"
+SEGMENT_PLAN_SCHEMA = "anchor.hierarchical-task-kv-segment-plan.v1"
+SEGMENT_PLAN_ARCHITECTURE = "hierarchical_task_kv"
+SEGMENT_EXECUTION_MODE = "decoupled_frozen_prefix_producer_required"
+
+CACHE_IDENTITY_FIELDS = (
+    "model_architecture_sha256",
+    "tokenizer_sha256",
+    "token_order_sha256",
+    "position_ids_sha256",
+    "rope_config_sha256",
+    "kv_producing_weights_sha256",
+    "prefix_lineage_sha256",
+)
 
 STAGES = (
     "planner",
@@ -202,6 +215,8 @@ class TaskBoardProjectorConfig:
     record_schema: str
     sidecar_schema: str
     sidecar_schema_sha256: str
+    segment_plan_schema: str
+    segment_plan_schema_sha256: str
     manifest_schema: str
     manifest_schema_sha256: str
 
@@ -229,6 +244,7 @@ class TaskBoardProjectorConfig:
                 "partitions",
                 "causal_visibility",
                 "noise",
+                "hierarchical_task_kv",
             },
             "projector_config_invalid",
         )
@@ -269,6 +285,7 @@ class TaskBoardProjectorConfig:
             {
                 "record_schema_version",
                 "sidecar_schema_version",
+                "segment_plan_schema_version",
                 "manifest_schema_version",
                 "canonical_gold_written",
                 "provider_requests",
@@ -279,6 +296,7 @@ class TaskBoardProjectorConfig:
         if (
             output.get("record_schema_version") != QUERY_SCHEMA
             or output.get("sidecar_schema_version") != SIDECAR_SCHEMA
+            or output.get("segment_plan_schema_version") != SEGMENT_PLAN_SCHEMA
             or output.get("manifest_schema_version") != MANIFEST_SCHEMA
             or output.get("canonical_gold_written") is not False
             or output.get("provider_requests") != 0
@@ -365,6 +383,71 @@ class TaskBoardProjectorConfig:
             or noise.get("stale_marker_location") != "sidecar.augmentation"
         ):
             _fail("projector_config_noise_invalid")
+        task_kv = _required_mapping(
+            root.get("hierarchical_task_kv"), "projector_config_task_kv_invalid"
+        )
+        _exact_keys(
+            task_kv,
+            {
+                "segment_plan_location",
+                "architecture",
+                "execution_mode",
+                "materialization",
+                "tensors_emitted",
+                "kv_payloads_emitted",
+                "full_generation_kv_shared_claimed",
+                "token_level_moe_claimed",
+                "shared_prefix_membership",
+                "ordered_prefix_chain",
+                "independent_segment_concatenation_allowed",
+                "exact_reuse_scope",
+                "expert_generated_cache_scope",
+                "promotion_requires",
+                "promoted_cache_scope",
+                "shared_then_mask_allowed",
+                "forbidden_current_future_preinsert_allowed",
+                "q_specialization_alone_sufficient_for_exact_reuse",
+                "naive_in_stack_q_lora_exact_reuse_allowed",
+                "cache_identity_exact_match_fields",
+                "cache_identity_mismatch_result",
+                "cache_identity_unknown_result",
+            },
+            "projector_config_task_kv_invalid",
+        )
+        if (
+            task_kv.get("segment_plan_location") != "outer_sidecar.segment_plan"
+            or task_kv.get("architecture") != SEGMENT_PLAN_ARCHITECTURE
+            or task_kv.get("execution_mode") != SEGMENT_EXECUTION_MODE
+            or task_kv.get("materialization") != "metadata_only_no_tensor_or_kv"
+            or task_kv.get("tensors_emitted") is not False
+            or task_kv.get("kv_payloads_emitted") is not False
+            or task_kv.get("full_generation_kv_shared_claimed") is not False
+            or task_kv.get("token_level_moe_claimed") is not False
+            or task_kv.get("shared_prefix_membership")
+            != "strict_all_five_role_visibility_intersection"
+            or task_kv.get("ordered_prefix_chain") is not True
+            or task_kv.get("independent_segment_concatenation_allowed") is not False
+            or task_kv.get("exact_reuse_scope")
+            != "identical_ordered_prefix_lineage_only"
+            or task_kv.get("expert_generated_cache_scope")
+            != "expert_private_delta"
+            or task_kv.get("promotion_requires")
+            != "explicit_committed_and_causally_visible_downstream"
+            or task_kv.get("promoted_cache_scope")
+            != "downstream_task_shared_immutable"
+            or task_kv.get("shared_then_mask_allowed") is not False
+            or task_kv.get("forbidden_current_future_preinsert_allowed") is not False
+            or task_kv.get("q_specialization_alone_sufficient_for_exact_reuse")
+            is not False
+            or task_kv.get("naive_in_stack_q_lora_exact_reuse_allowed") is not False
+            or task_kv.get("cache_identity_exact_match_fields")
+            != list(CACHE_IDENTITY_FIELDS)
+            or task_kv.get("cache_identity_mismatch_result")
+            != "cache_incompatible"
+            or task_kv.get("cache_identity_unknown_result")
+            != "cache_incompatible"
+        ):
+            _fail("projector_config_task_kv_invalid")
         sidecar_schema_path = config_path.parent / "taskboard_projector_sidecar.schema.json"
         if not sidecar_schema_path.is_file() or sidecar_schema_path.is_symlink():
             _fail("projector_sidecar_schema_missing")
@@ -382,6 +465,28 @@ class TaskBoardProjectorConfig:
             != SIDECAR_SCHEMA
         ):
             _fail("projector_sidecar_schema_invalid")
+        segment_plan_schema_path = (
+            config_path.parent / "hierarchical_task_kv_segment_plan.schema.json"
+        )
+        if (
+            not segment_plan_schema_path.is_file()
+            or segment_plan_schema_path.is_symlink()
+        ):
+            _fail("projector_segment_plan_schema_missing")
+        segment_plan_schema_snapshot = _read_bytes_snapshot(
+            segment_plan_schema_path, "projector_segment_plan_schema_invalid"
+        )
+        segment_plan_schema_value = _json_from_snapshot(
+            segment_plan_schema_snapshot, "projector_segment_plan_schema_invalid"
+        )
+        if (
+            not isinstance(segment_plan_schema_value, Mapping)
+            or segment_plan_schema_value.get("properties", {})
+            .get("schema_version", {})
+            .get("const")
+            != SEGMENT_PLAN_SCHEMA
+        ):
+            _fail("projector_segment_plan_schema_invalid")
         manifest_schema_path = (
             config_path.parent / "taskboard_projector_manifest.schema.json"
         )
@@ -408,6 +513,8 @@ class TaskBoardProjectorConfig:
             record_schema=QUERY_SCHEMA,
             sidecar_schema=SIDECAR_SCHEMA,
             sidecar_schema_sha256=sidecar_snapshot.sha256,
+            segment_plan_schema=SEGMENT_PLAN_SCHEMA,
+            segment_plan_schema_sha256=segment_plan_schema_snapshot.sha256,
             manifest_schema=MANIFEST_SCHEMA,
             manifest_schema_sha256=manifest_schema_snapshot.sha256,
         )
@@ -1176,6 +1283,233 @@ def _base_board(
     return board, _sha256_value(board), produced_ids, _language(task_bank)
 
 
+def _role_prompt_block_ids(
+    base_board: Mapping[str, Any],
+    produced_ids: Mapping[str, tuple[str, ...]],
+) -> dict[str, tuple[str, ...]]:
+    blocks = base_board.get("blocks")
+    if not isinstance(blocks, list) or len(blocks) < 2:
+        _fail("segment_plan_board_invalid")
+    source_ids = (str(blocks[0]["id"]), str(blocks[1]["id"]))
+    return {
+        STAGE_EXPERTS[stage]: source_ids
+        + tuple(
+            block_id
+            for prior in STAGES[:stage_index]
+            for block_id in produced_ids[prior]
+        )
+        for stage_index, stage in enumerate(STAGES)
+    }
+
+
+def _segment_id(
+    *,
+    task_bundle_sha256: str,
+    source_block_id: str,
+    content_sha256: str,
+    producer_role: str,
+    cache_scope: str,
+) -> str:
+    return "task-kv-segment-v1:" + _sha256_value(
+        {
+            "task_bundle_sha256": task_bundle_sha256,
+            "source_block_id": source_block_id,
+            "content_sha256": content_sha256,
+            "producer_role": producer_role,
+            "cache_scope": cache_scope,
+        }
+    )
+
+
+def _segment_plan(
+    *,
+    board: Mapping[str, Any],
+    task_bundle_sha256: str,
+    base_task_board_sha256: str,
+    config: TaskBoardProjectorConfig,
+    partition: str,
+    variant: str,
+    stage: str,
+    expert: str,
+    relevant_block_ids: list[str],
+    distractor_block_ids: list[str],
+    forbidden_block_ids: list[str],
+    all_role_prompt_block_ids: Mapping[str, tuple[str, ...]],
+    produced_ids: Mapping[str, tuple[str, ...]],
+    source_gold_sha256: str,
+    source_gold_file_sha256: str,
+    source_snapshot_sha256: str,
+    source_snapshot_manifest_sha256: str,
+) -> dict[str, Any]:
+    """Build a content-addressed, metadata-only ordered prefix description."""
+
+    blocks = board.get("blocks")
+    if not isinstance(blocks, list):
+        _fail("segment_plan_board_invalid")
+    by_id = {
+        str(item["id"]): item
+        for item in blocks
+        if isinstance(item, Mapping) and isinstance(item.get("id"), str)
+    }
+    causal_order = {str(item["id"]): index for index, item in enumerate(blocks)}
+    if len(by_id) != len(blocks):
+        _fail("segment_plan_board_invalid")
+
+    role_sets = [set(all_role_prompt_block_ids[role]) for role in EXPERTS]
+    shared_prefix_ids = set.intersection(*role_sets)
+    current_prompt_ids = relevant_block_ids + distractor_block_ids
+    if (
+        not shared_prefix_ids
+        or not shared_prefix_ids.issubset(relevant_block_ids)
+        or set(current_prompt_ids) & set(forbidden_block_ids)
+        or len(set(current_prompt_ids)) != len(current_prompt_ids)
+        or not set(current_prompt_ids).issubset(by_id)
+    ):
+        _fail("segment_plan_visibility_invalid")
+
+    producer_by_block_id = {
+        block_id: STAGE_EXPERTS[producer_stage]
+        for producer_stage, block_ids in produced_ids.items()
+        for block_id in block_ids
+    }
+    serialized_block_ids = sorted(current_prompt_ids, key=causal_order.__getitem__)
+    genesis_lineage = _sha256_value(
+        {
+            "task_bundle_sha256": task_bundle_sha256,
+            "execution_mode": SEGMENT_EXECUTION_MODE,
+            "root": "ordered_prefix_genesis",
+        }
+    )
+    segments: list[dict[str, Any]] = []
+    parent_segment_id: str | None = None
+    parent_lineage_sha256 = genesis_lineage
+    for serialization_order, block_id in enumerate(serialized_block_ids):
+        block = _required_mapping(by_id[block_id], "segment_plan_block_invalid")
+        content = block.get("content")
+        visible_to = block.get("visible_to")
+        commit_state = block.get("commit_state")
+        if (
+            not isinstance(content, str)
+            or not content
+            or not isinstance(visible_to, list)
+            or not visible_to
+            or not all(item in EXPERTS for item in visible_to)
+        ):
+            _fail("segment_plan_block_invalid")
+        if block_id in shared_prefix_ids:
+            cache_scope = "task_shared_prefix"
+            producer_role = "task_source"
+            if commit_state != "committed" or tuple(visible_to) != EXPERTS:
+                _fail("segment_plan_shared_prefix_invalid")
+        elif block_id in distractor_block_ids:
+            cache_scope = "expert_private_delta"
+            producer_role = expert
+            if commit_state not in {"candidate", "verified"} or visible_to != [expert]:
+                _fail("segment_plan_private_delta_invalid")
+        else:
+            cache_scope = "downstream_task_shared_immutable"
+            producer_role = producer_by_block_id.get(block_id, "")
+            if (
+                producer_role not in EXPERTS
+                or commit_state != "committed"
+                or expert not in visible_to
+            ):
+                _fail("segment_plan_promotion_invalid")
+
+        content_sha256 = _sha256_bytes(content.encode("utf-8"))
+        segment_id = _segment_id(
+            task_bundle_sha256=task_bundle_sha256,
+            source_block_id=block_id,
+            content_sha256=content_sha256,
+            producer_role=producer_role,
+            cache_scope=cache_scope,
+        )
+        prefix_lineage_sha256 = _sha256_value(
+            {
+                "parent_lineage_sha256": parent_lineage_sha256,
+                "segment_id": segment_id,
+                "serialization_order": serialization_order,
+                "causal_order": causal_order[block_id],
+            }
+        )
+        segments.append(
+            {
+                "segment_id": segment_id,
+                "content_sha256": content_sha256,
+                "source_block_id": block_id,
+                "serialization_order": serialization_order,
+                "causal_order": causal_order[block_id],
+                "producer_role": producer_role,
+                "cache_scope": cache_scope,
+                "visibility": list(visible_to),
+                "dependencies": [
+                    str(item["segment_id"])
+                    for item in segments
+                ],
+                "commit_state": commit_state,
+                "parent_segment_id": parent_segment_id,
+                "parent_lineage_sha256": parent_lineage_sha256,
+                "prefix_lineage_sha256": prefix_lineage_sha256,
+            }
+        )
+        parent_segment_id = segment_id
+        parent_lineage_sha256 = prefix_lineage_sha256
+
+    return {
+        "schema_version": config.segment_plan_schema,
+        "architecture": SEGMENT_PLAN_ARCHITECTURE,
+        "execution_mode": SEGMENT_EXECUTION_MODE,
+        "materialization": "metadata_only_no_tensor_or_kv",
+        "full_generation_kv_shared_claimed": False,
+        "token_level_moe_claimed": False,
+        "split_before_augmentation": True,
+        "augmentation_applied_after_split": True,
+        "bindings": {
+            "task_id": board["task_id"],
+            "task_bundle_sha256": task_bundle_sha256,
+            "base_task_board_sha256": base_task_board_sha256,
+            "projector_version": config.projector_version,
+            "config_sha256": config.sha256,
+            "sidecar_schema_sha256": config.sidecar_schema_sha256,
+            "segment_plan_schema_sha256": config.segment_plan_schema_sha256,
+            "source_gold_sha256": source_gold_sha256,
+            "source_gold_file_sha256": source_gold_file_sha256,
+            "source_snapshot_sha256": source_snapshot_sha256,
+            "source_snapshot_manifest_sha256": source_snapshot_manifest_sha256,
+            "split": partition,
+            "stage": stage,
+            "expert": expert,
+            "variant": variant,
+        },
+        "shared_prefix_policy": {
+            "membership_rule": "strict_all_five_role_visibility_intersection",
+            "ordered_prefix_chain": True,
+            "independent_segment_concatenation_allowed": False,
+            "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+            "shared_then_mask_allowed": False,
+            "forbidden_current_future_preinsert_allowed": False,
+        },
+        "target_delta_policy": {
+            "initial_cache_scope": "expert_private_delta",
+            "promotion_requires": (
+                "explicit_committed_and_causally_visible_downstream"
+            ),
+            "promoted_cache_scope": "downstream_task_shared_immutable",
+            "current_target_segment_emitted": False,
+        },
+        "cache_compatibility": {
+            "status": "identity_unbound",
+            "cache_reuse_allowed": False,
+            "required_exact_match_fields": list(CACHE_IDENTITY_FIELDS),
+            "mismatch_result": "cache_incompatible",
+            "unknown_result": "cache_incompatible",
+            "q_specialization_alone_sufficient_for_exact_reuse": False,
+            "naive_in_stack_q_lora_exact_reuse_allowed": False,
+        },
+        "segments": segments,
+    }
+
+
 def _sidecar_records(
     *,
     partition: str,
@@ -1186,6 +1520,7 @@ def _sidecar_records(
     source_file_sha256: Mapping[str, str],
 ) -> Iterable[dict[str, Any]]:
     base_board, base_board_sha, produced_ids, language = _base_board(bundle)
+    all_role_prompt_block_ids = _role_prompt_block_ids(base_board, produced_ids)
     records = bundle["records"]
     assert isinstance(records, Mapping)
     for stage_index, stage in enumerate(STAGES):
@@ -1200,14 +1535,7 @@ def _sidecar_records(
                 "source_gold_sha256": source_sha,
             }
         )
-        visible_base_ids = [
-            str(base_board["blocks"][0]["id"]),
-            str(base_board["blocks"][1]["id"]),
-        ] + [
-            block_id
-            for prior in STAGES[:stage_index]
-            for block_id in produced_ids[prior]
-        ]
+        visible_base_ids = list(all_role_prompt_block_ids[expert])
         forbidden_ids = [
             block_id
             for future in STAGES[stage_index:]
@@ -1267,6 +1595,25 @@ def _sidecar_records(
                     "answer": target_answer,
                 },
             }
+            segment_plan = _segment_plan(
+                board=board,
+                task_bundle_sha256=str(bundle["task_bundle_sha256"]),
+                base_task_board_sha256=base_board_sha,
+                config=config,
+                partition=partition,
+                variant=variant,
+                stage=stage,
+                expert=expert,
+                relevant_block_ids=visible_base_ids,
+                distractor_block_ids=distractors,
+                forbidden_block_ids=forbidden_ids,
+                all_role_prompt_block_ids=all_role_prompt_block_ids,
+                produced_ids=produced_ids,
+                source_gold_sha256=source_sha,
+                source_gold_file_sha256=source_file_sha256[expert],
+                source_snapshot_sha256=snapshot_sha256,
+                source_snapshot_manifest_sha256=manifest_sha256,
+            )
             wrapper_id = record_id
             yield {
                 "schema_version": config.sidecar_schema,
@@ -1286,6 +1633,7 @@ def _sidecar_records(
                 "projector_version": config.projector_version,
                 "config_sha256": config.sha256,
                 "sidecar_schema_sha256": config.sidecar_schema_sha256,
+                "segment_plan_schema_sha256": config.segment_plan_schema_sha256,
                 "augmentation": {
                     "kind": "clean" if variant == "clean" else "stale_duplicate_overlay",
                     "same_task_only": True,
@@ -1293,8 +1641,276 @@ def _sidecar_records(
                     "source_block_ids": source_block_ids,
                     "overlay_block_ids": overlay_block_ids,
                 },
+                "segment_plan": segment_plan,
                 "training_record": inner,
             }
+
+
+def _validate_segment_plan(
+    value: Any,
+    *,
+    wrapper: Mapping[str, Any],
+    inner: Mapping[str, Any],
+    by_id: Mapping[str, Mapping[str, Any]],
+    relevant: list[Any],
+    distractors: list[Any],
+    forbidden: list[Any],
+) -> None:
+    plan = _required_mapping(value, "projected_segment_plan_invalid")
+    _exact_keys(
+        plan,
+        {
+            "schema_version",
+            "architecture",
+            "execution_mode",
+            "materialization",
+            "full_generation_kv_shared_claimed",
+            "token_level_moe_claimed",
+            "split_before_augmentation",
+            "augmentation_applied_after_split",
+            "bindings",
+            "shared_prefix_policy",
+            "target_delta_policy",
+            "cache_compatibility",
+            "segments",
+        },
+        "projected_segment_plan_invalid",
+    )
+    bindings = _required_mapping(
+        plan.get("bindings"), "projected_segment_plan_invalid"
+    )
+    _exact_keys(
+        bindings,
+        {
+            "task_id",
+            "task_bundle_sha256",
+            "base_task_board_sha256",
+            "projector_version",
+            "config_sha256",
+            "sidecar_schema_sha256",
+            "segment_plan_schema_sha256",
+            "source_gold_sha256",
+            "source_gold_file_sha256",
+            "source_snapshot_sha256",
+            "source_snapshot_manifest_sha256",
+            "split",
+            "stage",
+            "expert",
+            "variant",
+        },
+        "projected_segment_plan_invalid",
+    )
+    _required_mapping(inner.get("task_board"), "projected_segment_plan_invalid")
+    shared_policy = _required_mapping(
+        plan.get("shared_prefix_policy"), "projected_segment_plan_invalid"
+    )
+    target_policy = _required_mapping(
+        plan.get("target_delta_policy"), "projected_segment_plan_invalid"
+    )
+    cache = _required_mapping(
+        plan.get("cache_compatibility"), "projected_segment_plan_invalid"
+    )
+    if (
+        plan.get("schema_version") != SEGMENT_PLAN_SCHEMA
+        or plan.get("architecture") != SEGMENT_PLAN_ARCHITECTURE
+        or plan.get("execution_mode") != SEGMENT_EXECUTION_MODE
+        or plan.get("materialization") != "metadata_only_no_tensor_or_kv"
+        or plan.get("full_generation_kv_shared_claimed") is not False
+        or plan.get("token_level_moe_claimed") is not False
+        or plan.get("split_before_augmentation") is not True
+        or plan.get("augmentation_applied_after_split") is not True
+        or not _is_identifier(bindings.get("task_id"))
+        or bindings.get("projector_version") != PROJECTOR_VERSION
+        or bindings.get("split") not in {"train", "calibration"}
+        or bindings.get("stage") not in STAGE_EXPERTS
+        or bindings.get("expert") not in EXPERTS
+        or bindings.get("variant") not in {"clean", "noisy"}
+        or any(
+            not _is_sha256(bindings.get(field))
+            for field in (
+                "task_bundle_sha256",
+                "base_task_board_sha256",
+                "config_sha256",
+                "sidecar_schema_sha256",
+                "segment_plan_schema_sha256",
+                "source_gold_sha256",
+                "source_gold_file_sha256",
+                "source_snapshot_sha256",
+                "source_snapshot_manifest_sha256",
+            )
+        )
+        or dict(shared_policy)
+        != {
+            "membership_rule": "strict_all_five_role_visibility_intersection",
+            "ordered_prefix_chain": True,
+            "independent_segment_concatenation_allowed": False,
+            "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+            "shared_then_mask_allowed": False,
+            "forbidden_current_future_preinsert_allowed": False,
+        }
+        or dict(target_policy)
+        != {
+            "initial_cache_scope": "expert_private_delta",
+            "promotion_requires": (
+                "explicit_committed_and_causally_visible_downstream"
+            ),
+            "promoted_cache_scope": "downstream_task_shared_immutable",
+            "current_target_segment_emitted": False,
+        }
+        or dict(cache)
+        != {
+            "status": "identity_unbound",
+            "cache_reuse_allowed": False,
+            "required_exact_match_fields": list(CACHE_IDENTITY_FIELDS),
+            "mismatch_result": "cache_incompatible",
+            "unknown_result": "cache_incompatible",
+            "q_specialization_alone_sufficient_for_exact_reuse": False,
+            "naive_in_stack_q_lora_exact_reuse_allowed": False,
+        }
+    ):
+        _fail("projected_segment_plan_invalid")
+    for binding_field in (
+        "projector_version",
+        "config_sha256",
+        "sidecar_schema_sha256",
+        "segment_plan_schema_sha256",
+        "source_gold_sha256",
+        "source_gold_file_sha256",
+        "source_snapshot_sha256",
+        "source_snapshot_manifest_sha256",
+        "split",
+        "stage",
+        "expert",
+        "variant",
+    ):
+        if bindings.get(binding_field) != wrapper.get(binding_field):
+            _fail("projected_segment_binding_mismatch")
+
+    segments = plan.get("segments")
+    if not isinstance(segments, list) or not segments:
+        _fail("projected_segment_plan_invalid")
+    prompt_ids = [str(item) for item in relevant + distractors]
+    causal_order = {block_id: index for index, block_id in enumerate(by_id)}
+    expected_source_ids = sorted(prompt_ids, key=causal_order.__getitem__)
+    if (
+        len(set(prompt_ids)) != len(prompt_ids)
+        or set(prompt_ids) & {str(item) for item in forbidden}
+        or len(segments) != len(expected_source_ids)
+    ):
+        _fail("projected_segment_visibility_invalid")
+    shared_ids = {
+        block_id
+        for block_id in relevant
+        if set(by_id[str(block_id)].get("visible_to", [])) == set(EXPERTS)
+    }
+    genesis_lineage = _sha256_value(
+        {
+            "task_bundle_sha256": bindings["task_bundle_sha256"],
+            "execution_mode": SEGMENT_EXECUTION_MODE,
+            "root": "ordered_prefix_genesis",
+        }
+    )
+    prior_segment_ids: list[str] = []
+    parent_segment_id: str | None = None
+    parent_lineage_sha256 = genesis_lineage
+    for serialization_order, (segment_value, source_block_id) in enumerate(
+        zip(segments, expected_source_ids, strict=True)
+    ):
+        segment = _required_mapping(
+            segment_value, "projected_segment_plan_invalid"
+        )
+        _exact_keys(
+            segment,
+            {
+                "segment_id",
+                "content_sha256",
+                "source_block_id",
+                "serialization_order",
+                "causal_order",
+                "producer_role",
+                "cache_scope",
+                "visibility",
+                "dependencies",
+                "commit_state",
+                "parent_segment_id",
+                "parent_lineage_sha256",
+                "prefix_lineage_sha256",
+            },
+            "projected_segment_plan_invalid",
+        )
+        block = by_id[source_block_id]
+        content = block.get("content")
+        visible_to = block.get("visible_to")
+        if not isinstance(content, str) or not isinstance(visible_to, list):
+            _fail("projected_segment_plan_invalid")
+        if source_block_id in shared_ids:
+            expected_scope = "task_shared_prefix"
+            expected_producer = "task_source"
+            if (
+                block.get("commit_state") != "committed"
+                or tuple(visible_to) != EXPERTS
+            ):
+                _fail("projected_segment_scope_invalid")
+        elif source_block_id in {str(item) for item in distractors}:
+            expected_scope = "expert_private_delta"
+            expected_producer = str(bindings["expert"])
+            if (
+                block.get("commit_state") not in {"candidate", "verified"}
+                or visible_to != [expected_producer]
+            ):
+                _fail("projected_segment_scope_invalid")
+        else:
+            expected_scope = "downstream_task_shared_immutable"
+            try:
+                first_visible_index = min(EXPERTS.index(str(item)) for item in visible_to)
+            except (ValueError, TypeError) as exc:
+                raise TaskBoardProjectorError(
+                    "projected_segment_plan_invalid"
+                ) from exc
+            if first_visible_index < 1:
+                _fail("projected_segment_plan_invalid")
+            expected_producer = EXPERTS[first_visible_index - 1]
+            if (
+                block.get("commit_state") != "committed"
+                or bindings.get("expert") not in visible_to
+                or expected_producer not in EXPERTS
+            ):
+                _fail("projected_segment_scope_invalid")
+        content_sha256 = _sha256_bytes(content.encode("utf-8"))
+        expected_segment_id = _segment_id(
+            task_bundle_sha256=str(bindings["task_bundle_sha256"]),
+            source_block_id=source_block_id,
+            content_sha256=content_sha256,
+            producer_role=expected_producer,
+            cache_scope=expected_scope,
+        )
+        expected_prefix_lineage = _sha256_value(
+            {
+                "parent_lineage_sha256": parent_lineage_sha256,
+                "segment_id": expected_segment_id,
+                "serialization_order": serialization_order,
+                "causal_order": causal_order[source_block_id],
+            }
+        )
+        if (
+            segment.get("segment_id") != expected_segment_id
+            or segment.get("content_sha256") != content_sha256
+            or segment.get("source_block_id") != source_block_id
+            or segment.get("serialization_order") != serialization_order
+            or segment.get("causal_order") != causal_order[source_block_id]
+            or segment.get("producer_role") != expected_producer
+            or segment.get("cache_scope") != expected_scope
+            or segment.get("visibility") != visible_to
+            or segment.get("dependencies") != prior_segment_ids
+            or segment.get("commit_state") != block.get("commit_state")
+            or segment.get("parent_segment_id") != parent_segment_id
+            or segment.get("parent_lineage_sha256") != parent_lineage_sha256
+            or segment.get("prefix_lineage_sha256") != expected_prefix_lineage
+        ):
+            _fail("projected_segment_plan_invalid")
+        prior_segment_ids.append(expected_segment_id)
+        parent_segment_id = expected_segment_id
+        parent_lineage_sha256 = expected_prefix_lineage
 
 
 def _validate_sidecar(value: Any, *, expected_split: str) -> None:
@@ -1304,7 +1920,8 @@ def _validate_sidecar(value: Any, *, expected_split: str) -> None:
         "source_gold_record_id", "source_gold_sha256", "source_gold_file_sha256",
         "source_snapshot_sha256", "source_snapshot_manifest_sha256",
         "task_bundle_sha256", "base_task_board_sha256", "projector_version",
-        "config_sha256", "sidecar_schema_sha256", "augmentation", "training_record",
+        "config_sha256", "sidecar_schema_sha256", "segment_plan_schema_sha256",
+        "augmentation", "segment_plan", "training_record",
     }
     _exact_keys(wrapper, expected_fields, "projected_sidecar_invalid")
     inner = _required_mapping(wrapper.get("training_record"), "projected_record_invalid")
@@ -1344,7 +1961,7 @@ def _validate_sidecar(value: Any, *, expected_split: str) -> None:
                 "source_gold_sha256", "source_gold_file_sha256",
                 "source_snapshot_sha256", "source_snapshot_manifest_sha256",
                 "task_bundle_sha256", "base_task_board_sha256", "config_sha256",
-                "sidecar_schema_sha256",
+                "sidecar_schema_sha256", "segment_plan_schema_sha256",
             )
         )
         or set(augmentation)
@@ -1410,6 +2027,48 @@ def _validate_sidecar(value: Any, *, expected_split: str) -> None:
         for item in blocks
         if isinstance(item, Mapping) and isinstance(item.get("id"), str)
     }
+    answer = target.get("answer")
+    if (
+        not isinstance(relevant, list)
+        or not isinstance(distractors, list)
+        or not isinstance(forbidden, list)
+        or not isinstance(answer, str)
+        or not answer
+        or not isinstance(stage, str)
+        or stage not in STAGE_BLOCK_KINDS
+    ):
+        _fail("projected_record_invalid")
+    base_block_ids = [
+        str(item["id"])
+        for item in base_blocks
+        if isinstance(item, Mapping) and isinstance(item.get("id"), str)
+    ]
+    fixed_target_indices = {
+        "planner": 2,
+        "tool_policy": 3,
+        "domain_builder": 4,
+        "domain_review": len(base_blocks) - 2,
+        "security": len(base_blocks) - 1,
+    }
+    current_target_index = fixed_target_indices[stage]
+    if (
+        current_target_index < 2
+        or current_target_index >= len(base_blocks)
+        or not isinstance(base_blocks[current_target_index], Mapping)
+        or base_blocks[current_target_index].get("kind")
+        != STAGE_BLOCK_KINDS[stage]
+        or base_blocks[current_target_index].get("content") != answer
+    ):
+        _fail("projected_causal_partition_invalid")
+    expected_relevant = base_block_ids[:current_target_index]
+    expected_forbidden = base_block_ids[current_target_index:]
+    expected_distractors = list(overlay_ids or []) if variant == "noisy" else []
+    if (
+        relevant != expected_relevant
+        or forbidden != expected_forbidden
+        or distractors != expected_distractors
+    ):
+        _fail("projected_causal_partition_invalid")
     role = inner.get("role")
     block_shapes_valid = True
     for item in blocks:
@@ -1470,6 +2129,15 @@ def _validate_sidecar(value: Any, *, expected_split: str) -> None:
         or not _content_safe(wrapper)
     ):
         _fail("projected_record_invalid")
+    _validate_segment_plan(
+        wrapper.get("segment_plan"),
+        wrapper=wrapper,
+        inner=inner,
+        by_id=by_id,
+        relevant=relevant,
+        distractors=distractors,
+        forbidden=forbidden,
+    )
     if variant == "noisy":
         if (
             set(overlays or []) != set(distractors)
@@ -1530,6 +2198,10 @@ def _verify_clean_noisy_pairs(
         variant = noisy[pair_id]
         baseline_inner = baseline["training_record"]
         variant_inner = variant["training_record"]
+        baseline_plan = baseline["segment_plan"]
+        variant_plan = variant["segment_plan"]
+        baseline_segments = baseline_plan["segments"]
+        variant_segments = variant_plan["segments"]
         if (
             any(
                 baseline[field] != variant[field]
@@ -1547,8 +2219,34 @@ def _verify_clean_noisy_pairs(
                     "projector_version",
                     "config_sha256",
                     "sidecar_schema_sha256",
+                    "segment_plan_schema_sha256",
                 )
             )
+            or {
+                key: value
+                for key, value in baseline_plan.items()
+                if key not in {"bindings", "segments"}
+            }
+            != {
+                key: value
+                for key, value in variant_plan.items()
+                if key not in {"bindings", "segments"}
+            }
+            or {
+                key: value
+                for key, value in baseline_plan["bindings"].items()
+                if key != "variant"
+            }
+            != {
+                key: value
+                for key, value in variant_plan["bindings"].items()
+                if key != "variant"
+            }
+            or baseline_plan["bindings"]["variant"] != "clean"
+            or variant_plan["bindings"]["variant"] != "noisy"
+            or len(variant_segments) != len(baseline_segments) + 1
+            or baseline_segments != variant_segments[: len(baseline_segments)]
+            or variant_segments[-1]["cache_scope"] != "expert_private_delta"
             or baseline_inner["target"] != variant_inner["target"]
             or baseline_inner["attention_targets"]["relevant_block_ids"]
             != variant_inner["attention_targets"]["relevant_block_ids"]
@@ -1637,6 +2335,32 @@ def _verify_dataset_split_groups(
     ):
         _fail("projected_task_id_source_mismatch")
 
+    for rows in all_rows.values():
+        for row in rows:
+            inner = row["training_record"]
+            bindings = row["segment_plan"]["bindings"]
+            expected_bindings = {
+                "task_id": inner["task_board"]["task_id"],
+                "task_bundle_sha256": row["task_bundle_sha256"],
+                "base_task_board_sha256": row["base_task_board_sha256"],
+                "projector_version": row["projector_version"],
+                "config_sha256": row["config_sha256"],
+                "sidecar_schema_sha256": row["sidecar_schema_sha256"],
+                "segment_plan_schema_sha256": row["segment_plan_schema_sha256"],
+                "source_gold_sha256": row["source_gold_sha256"],
+                "source_gold_file_sha256": row["source_gold_file_sha256"],
+                "source_snapshot_sha256": row["source_snapshot_sha256"],
+                "source_snapshot_manifest_sha256": row[
+                    "source_snapshot_manifest_sha256"
+                ],
+                "split": row["split"],
+                "stage": row["stage"],
+                "expert": row["expert"],
+                "variant": row["variant"],
+            }
+            if bindings != expected_bindings:
+                _fail("projected_segment_binding_mismatch")
+
     clean_groups = {
         (bundle, split)
         for bundle, split, variant in groups
@@ -1657,6 +2381,39 @@ def _verify_dataset_split_groups(
             or {str(row["expert"]) for row in rows} != set(EXPERTS)
         ):
             _fail("projected_bundle_role_views_invalid")
+        shared_chains = [
+            [
+                segment
+                for segment in row["segment_plan"]["segments"]
+                if segment["cache_scope"] == "task_shared_prefix"
+            ]
+            for row in rows
+        ]
+        relevant_intersection = set.intersection(
+            *(
+                set(row["training_record"]["attention_targets"]["relevant_block_ids"])
+                for row in rows
+            )
+        )
+        if (
+            not shared_chains[0]
+            or any(chain != shared_chains[0] for chain in shared_chains[1:])
+            or {
+                str(segment["source_block_id"])
+                for segment in shared_chains[0]
+            }
+            != relevant_intersection
+        ):
+            _fail("projected_shared_prefix_intersection_invalid")
+        stable_segments: dict[str, Mapping[str, Any]] = {}
+        for row in rows:
+            for segment in row["segment_plan"]["segments"]:
+                if segment["cache_scope"] == "expert_private_delta":
+                    continue
+                source_block_id = str(segment["source_block_id"])
+                prior_segment = stable_segments.setdefault(source_block_id, segment)
+                if prior_segment != segment:
+                    _fail("projected_segment_lineage_fork")
         if variant != "clean":
             continue
         task_id = next(iter(bundle_task_ids[bundle]))
@@ -1796,6 +2553,20 @@ def project_taskboards(
             + all_rows[("train", "noisy")]
             + all_rows[("calibration", "clean")]
         )
+        segment_references = [
+            segment
+            for row in rows_flat
+            for segment in row["segment_plan"]["segments"]
+        ]
+        unique_segments: dict[str, Mapping[str, Any]] = {}
+        for segment in segment_references:
+            segment_id = str(segment["segment_id"])
+            prior = unique_segments.setdefault(segment_id, segment)
+            if prior != segment:
+                _fail("projected_segment_identity_fork")
+        unique_segment_scope_counts = Counter(
+            str(segment["cache_scope"]) for segment in unique_segments.values()
+        )
         projected_task_ids = _verify_dataset_split_groups(
             all_rows,
             expected_bundle_task_ids={
@@ -1831,6 +2602,8 @@ def project_taskboards(
                 "projector_version": cfg.projector_version,
                 "config_sha256": cfg.sha256,
                 "sidecar_schema_sha256": cfg.sidecar_schema_sha256,
+                "segment_plan_schema_version": cfg.segment_plan_schema,
+                "segment_plan_schema_sha256": cfg.segment_plan_schema_sha256,
                 "manifest_schema_sha256": cfg.manifest_schema_sha256,
                 "record_schema_version": cfg.record_schema,
             },
@@ -1848,6 +2621,16 @@ def project_taskboards(
                         )
                     ).encode("utf-8")
                 ),
+                "segment_references": len(segment_references),
+                "unique_segments": len(unique_segments),
+                "unique_segments_by_cache_scope": {
+                    scope: unique_segment_scope_counts.get(scope, 0)
+                    for scope in (
+                        "task_shared_prefix",
+                        "downstream_task_shared_immutable",
+                        "expert_private_delta",
+                    )
+                },
                 "by_split": dict(sorted(split_counts.items())),
                 "by_variant": dict(sorted(variant_counts.items())),
                 "by_stage": dict(sorted(stage_counts.items())),
@@ -1856,6 +2639,32 @@ def project_taskboards(
                     language: language_counts.get(language, 0)
                     for language in ("en", "zh-CN")
                 },
+            },
+            "hierarchical_task_kv": {
+                "segment_plan_schema_version": cfg.segment_plan_schema,
+                "segment_plan_location": "outer_sidecar.segment_plan",
+                "architecture": SEGMENT_PLAN_ARCHITECTURE,
+                "execution_mode": SEGMENT_EXECUTION_MODE,
+                "materialization": "metadata_only_no_tensor_or_kv",
+                "tensors_emitted": False,
+                "kv_payloads_emitted": False,
+                "full_generation_kv_shared_claimed": False,
+                "token_level_moe_claimed": False,
+                "shared_prefix_membership": (
+                    "strict_all_five_role_visibility_intersection"
+                ),
+                "ordered_prefix_chain": True,
+                "independent_segment_concatenation_allowed": False,
+                "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+                "shared_then_mask_allowed": False,
+                "forbidden_current_future_preinsert_allowed": False,
+                "cache_identity_required_exact_match_fields": list(
+                    CACHE_IDENTITY_FIELDS
+                ),
+                "cache_identity_mismatch_result": "cache_incompatible",
+                "cache_identity_unknown_result": "cache_incompatible",
+                "q_specialization_alone_sufficient_for_exact_reuse": False,
+                "naive_in_stack_q_lora_exact_reuse_allowed": False,
             },
             "split_group_key": "task_bundle_sha256",
             "task_id_cross_binding_key": "training_record.task_board.task_id",
@@ -1923,6 +2732,9 @@ def project_taskboards(
         current_sidecar_schema_path = (
             cfg.path.parent / "taskboard_projector_sidecar.schema.json"
         )
+        current_segment_plan_schema_path = (
+            cfg.path.parent / "hierarchical_task_kv_segment_plan.schema.json"
+        )
         current_manifest_schema_path = (
             cfg.path.parent / "taskboard_projector_manifest.schema.json"
         )
@@ -1932,12 +2744,18 @@ def project_taskboards(
         current_sidecar_schema_snapshot = _read_bytes_snapshot(
             current_sidecar_schema_path, "projector_config_changed_during_read"
         )
+        current_segment_plan_schema_snapshot = _read_bytes_snapshot(
+            current_segment_plan_schema_path,
+            "projector_config_changed_during_read",
+        )
         current_manifest_schema_snapshot = _read_bytes_snapshot(
             current_manifest_schema_path, "projector_config_changed_during_read"
         )
         if (
             current_config_snapshot.sha256 != cfg.sha256
             or current_sidecar_schema_snapshot.sha256 != cfg.sidecar_schema_sha256
+            or current_segment_plan_schema_snapshot.sha256
+            != cfg.segment_plan_schema_sha256
             or current_manifest_schema_snapshot.sha256 != cfg.manifest_schema_sha256
         ):
             _fail("projector_config_changed_during_read")
@@ -1974,6 +2792,10 @@ def project_taskboards(
             "manifest_sha256": output_manifest_sha,
             "source_snapshot_manifest_sha256": manifest_sha,
             "records": len(rows_flat),
+            "segment_plan_schema_version": cfg.segment_plan_schema,
+            "segment_plan_schema_sha256": cfg.segment_plan_schema_sha256,
+            "segment_references": len(segment_references),
+            "unique_segments": len(unique_segments),
             "provider_requests": 0,
             "canonical_gold_written": False,
             "heldout_content_read": False,

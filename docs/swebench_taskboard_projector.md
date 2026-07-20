@@ -16,21 +16,28 @@ snapshot, its manifest, its SHA sidecar, or any canonical Gold file.
 
 ## Versioned contract
 
-The fixed policy is
-[`swebench_taskboard_projector_v1.yaml`](../configs/research/swebench_taskboard_projector_v1.yaml).
+The current fixed policy is
+[`swebench_taskboard_projector_v2.yaml`](../configs/research/swebench_taskboard_projector_v2.yaml).
+The v1 policy remains checked in only as a historical contract and must not be
+silently interpreted as v2 output.
 Every output JSONL row must validate against
 [`taskboard_projector_sidecar.schema.json`](../configs/research/taskboard_projector_sidecar.schema.json),
+its immutable segment plan must validate against
+[`hierarchical_task_kv_segment_plan.schema.json`](../configs/research/hierarchical_task_kv_segment_plan.schema.json),
 and the output inventory must validate against
 [`taskboard_projector_manifest.schema.json`](../configs/research/taskboard_projector_manifest.schema.json).
+Offline validation must apply both the sidecar schema and the independent
+segment-plan schema from local authenticated bytes; the sidecar deliberately
+contains only a closed local envelope and never resolves a remote schema.
 
-Each `anchor.swebench-taskboard-sidecar.v1` row is a provenance wrapper around
+Each `anchor.swebench-taskboard-sidecar.v2` row is a provenance wrapper around
 one strictly validated `anchor.query-specialization.v1` `training_record`.
 The inner record retains its closed schema: `schema_version`, `id`, `pair_id`,
 `variant`, `language`, `split`, `role`, `task_board`, `attention_targets`, and
 `target`. Provenance is not added to that inner object. Instead, the wrapper
 binds the source Gold record and file, frozen snapshot and manifest, source task
-bundle, base TaskBoard, projector, config, and sidecar schema by identifiers and
-lower-case SHA-256 values.
+bundle, base TaskBoard, projector, config, sidecar schema, and segment-plan
+schema by identifiers and lower-case SHA-256 values.
 
 The wrapper's `id`, `pair_id`, `variant`, and `split` must equal the same fields
 inside `training_record`; `stage` and `expert` must use this mapping:
@@ -74,6 +81,60 @@ forbidden blocks remain in the structured record only as negative supervision
 and must not be rendered into the model-visible prompt. A block's
 `commit_state` is never silently upgraded by projection.
 
+## Hierarchical Task-KV metadata
+
+Sidecar v2 adds an immutable `anchor.hierarchical-task-kv-segment-plan.v1`
+plan. This is metadata for **hierarchical shared-prefix KV, expert-private
+incremental KV, and Q specialization**. It is not a tensor or serialized KV
+payload, does not claim that all KV is shared for the whole generation, and
+does not claim token-level MoE. Its mandatory execution mode is
+`decoupled_frozen_prefix_producer_required`. Q specialization by itself, and a
+naive in-stack Q-LoRA implementation, are insufficient evidence for exact KV
+reuse. Every plan and manifest therefore fixes
+`full_generation_kv_shared_claimed=false` and
+`token_level_moe_claimed=false`.
+
+The plan binds the task ID and `task_bundle_sha256`, base TaskBoard, projector,
+config, sidecar and segment schemas, exact source Gold record/file, and frozen
+snapshot/manifest. These bindings stay in the outer wrapper; neither canonical
+Gold nor the closed inner training record is changed. Splitting still happens
+before segment augmentation.
+
+Every prompt-visible TaskBoard block becomes one content-addressed metadata
+segment. A segment records `segment_id`, raw-UTF-8 `content_sha256`,
+`source_block_id`, `serialization_order`, `causal_order`, `producer_role`,
+`cache_scope`, `visibility`, all preceding segment IDs as `dependencies`, its
+`commit_state`, parent segment, parent lineage, and cumulative prefix lineage.
+The deterministic identities are:
+
+- `segment_id` is the canonical hash of task bundle, source block ID, content
+  hash, producer role, and cache scope;
+- the genesis parent lineage hashes the task bundle, execution mode, and fixed
+  ordered-prefix genesis marker;
+- each cumulative lineage hashes the previous lineage, segment ID,
+  serialization order, and causal order.
+
+Serialization orders form one contiguous prefix chain. Independently encoding
+segments and concatenating their KV is forbidden; exact reuse is limited to an
+identical ordered prefix lineage.
+
+`task_shared_prefix` is the strict visibility intersection of all five roles,
+not a union. A committed expert result may become a
+`downstream_task_shared_immutable` segment only after an explicit commit and
+only for roles to which it is causally visible. Until that point, generated
+content is `expert_private_delta`. A noisy augmentation segment is likewise
+expert-private and cannot alter the shared prefix. The current target, every
+future block, and every forbidden block is absent from both the prompt segment
+plan and the shared prefix; inserting them first and masking them later is not
+allowed.
+
+The producer deliberately emits `cache_compatibility.status=identity_unbound`
+and `cache_reuse_allowed=false`. Runtime reuse requires exact hashes for model
+architecture, tokenizer, token order, position IDs, RoPE configuration,
+KV-producing weights, and prefix lineage. Unknown identity or any mismatch is
+`cache_incompatible`; matching only Q-specialization metadata cannot override
+that result.
+
 ## Implementation and scale boundary
 
 Input and output files are authenticated from single in-memory byte snapshots:
@@ -93,7 +154,7 @@ it must not be a held-out source or output directory.
 
 ```powershell
 python scripts/data/project_swebench_taskboard.py `
-  --config configs/research/swebench_taskboard_projector_v1.yaml `
+  --config configs/research/swebench_taskboard_projector_v2.yaml `
   --snapshot-dir <FROZEN_TRAINING_SNAPSHOT_V2_DIRECTORY> `
   --snapshot-manifest-sha256 <FROZEN_MANIFEST_SHA256> `
   --output-dir <NEW_RESEARCH_OUTPUT_DIRECTORY>
@@ -108,9 +169,15 @@ be read, or if an output row or manifest fails validation.
 The output is exactly `train/clean.jsonl`, `train/noisy.jsonl`, and
 `calibration/clean.jsonl`. The manifest binds the exact snapshot input,
 producer identity and schema/config hashes (including the manifest schema's
-own byte hash), all three files, the unique task-bundle count and task-ID
-digest, and record counts by split, variant, canonical stage, expert, and
-language. A valid manifest also proves these fixed invariants:
+own byte hash and the independent segment-plan schema hash), all three files,
+the unique task-bundle count and task-ID digest, segment references and unique
+segment IDs by cache scope, and record counts by split, variant, canonical
+stage, expert, and language. Its `hierarchical_task_kv` summary fixes the
+metadata-only execution mode and cache-identity boundary. A valid manifest also
+proves these fixed invariants:
+
+- `segment_plan_location=outer_sidecar.segment_plan`
+- stage-derived relevant/current/future partition equality
 
 - `canonical_gold_written=false`
 - `provider_requests=0`

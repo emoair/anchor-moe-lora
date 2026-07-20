@@ -6,6 +6,7 @@ records or held-out bodies; release provenance remains in the outer sidecar.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 import hashlib
 import json
@@ -16,18 +17,82 @@ import shutil
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
+from anchor_mvp.swebench import taskboard_projector as _taskboard_projector
+
 
 SNAPSHOT_SCHEMA = "anchor.training-snapshot.v2"
 SPLIT_SCHEMA = "anchor.formal-v3-gold-splits.v1"
-PROJECTOR_SCHEMA = "anchor.swebench-taskboard-projector-manifest.v1"
+PROJECTOR_SCHEMA = "anchor.swebench-taskboard-projector-manifest.v2"
+SEGMENT_PLAN_SCHEMA = "anchor.hierarchical-task-kv-segment-plan.v1"
+SEGMENT_EXECUTION_MODE = "decoupled_frozen_prefix_producer_required"
+SEGMENT_REUSE_SCOPE = "identical_ordered_prefix_lineage_only"
+SEGMENT_CACHE_IDENTITY_FIELDS = (
+    "model_architecture_sha256",
+    "tokenizer_sha256",
+    "token_order_sha256",
+    "position_ids_sha256",
+    "rope_config_sha256",
+    "kv_producing_weights_sha256",
+    "prefix_lineage_sha256",
+)
 GENERIC_SCHEMA = "anchor.generic-train-execution-contract.v1"
-CONSUMER_SCHEMA = "anchor.swebench-training-consumer-interface.v1"
-SOURCE_SCHEMA = "anchor.swebench-source-disjoint-manifest.v1"
-RELEASE_SCHEMA = "anchor.generic-train-release-lock.v1"
+CONSUMER_SCHEMA = "anchor.swebench-training-consumer-interface.v2"
+SOURCE_SCHEMA = "anchor.swebench-source-disjoint-manifest.v2"
+RELEASE_SCHEMA = "anchor.generic-train-release-lock.v2"
 EXECUTION_LOCK_SCHEMA = "anchor.swebench-execution-lock.v1"
 PREFLIGHT_SCHEMA = "anchor.swebench-ccswitch-preflight.v1"
 ATTESTATION_SCHEMA = "anchor.multilang-execution-attestation.v1"
 SOURCE_BANK_SCHEMA = "anchor.swebench-publication-manifest.v1"
+
+_RESEARCH_CONFIG_ROOT = Path(__file__).resolve().parents[3] / "configs" / "research"
+_PROJECTOR_CONFIG_PATH = _RESEARCH_CONFIG_ROOT / "swebench_taskboard_projector_v2.yaml"
+_PROJECTOR_SIDECAR_SCHEMA_PATH = (
+    _RESEARCH_CONFIG_ROOT / "taskboard_projector_sidecar.schema.json"
+)
+_PROJECTOR_SEGMENT_SCHEMA_PATH = (
+    _RESEARCH_CONFIG_ROOT / "hierarchical_task_kv_segment_plan.schema.json"
+)
+_PROJECTOR_MANIFEST_SCHEMA_PATH = (
+    _RESEARCH_CONFIG_ROOT / "taskboard_projector_manifest.schema.json"
+)
+
+
+def _hierarchical_task_kv_contract(segment_schema_sha: str) -> dict[str, Any]:
+    return {
+        "segment_plan_schema_version": SEGMENT_PLAN_SCHEMA,
+        "segment_plan_schema_sha256": segment_schema_sha,
+        "segment_plan_location": "outer_sidecar.segment_plan",
+        "architecture": "hierarchical_task_kv",
+        "execution_mode": SEGMENT_EXECUTION_MODE,
+        "materialization": "metadata_only_no_tensor_or_kv",
+        "tensors_emitted": False,
+        "kv_payloads_emitted": False,
+        "shared_prefix_membership": (
+            "strict_all_five_role_visibility_intersection"
+        ),
+        "ordered_prefix_chain": True,
+        "independent_segment_concatenation_allowed": False,
+        "exact_reuse_scope": SEGMENT_REUSE_SCOPE,
+        "shared_then_mask_allowed": False,
+        "forbidden_current_future_preinsert_allowed": False,
+        "cache_identity_required_exact_match_fields": list(
+            SEGMENT_CACHE_IDENTITY_FIELDS
+        ),
+        "cache_identity_mismatch_result": "cache_incompatible",
+        "cache_identity_unknown_result": "cache_incompatible",
+        "target_delta_initial_cache_scope": "expert_private_delta",
+        "target_delta_promotion_requires": (
+            "explicit_committed_and_causally_visible_downstream"
+        ),
+        "target_delta_promoted_cache_scope": (
+            "downstream_task_shared_immutable"
+        ),
+        "current_target_segment_emitted": False,
+        "q_specialization_alone_sufficient_for_exact_reuse": False,
+        "naive_in_stack_q_lora_exact_reuse_allowed": False,
+        "full_generation_kv_shared_claimed": False,
+        "token_level_moe_claimed": False,
+    }
 
 FIXED_FILES = (
     ("train/clean.jsonl", "train", "clean"),
@@ -299,6 +364,22 @@ def _publish(
         ):
             _fail("training_release_output_invalid")
         _verify_inventory(inventory)
+        final_manifest_snapshot = _read_bytes_snapshot(
+            manifest_path, "training_release_output_invalid"
+        )
+        final_sidecar_snapshot = _strict_sidecar(
+            sidecar_path,
+            final_manifest_snapshot,
+            "training_release_output_invalid",
+        )
+        if (
+            final_manifest_snapshot.data != encoded
+            or final_manifest_snapshot.sha256 != digest
+            or final_sidecar_snapshot.data != sidecar_bytes
+            or _json(final_manifest_snapshot, "training_release_output_invalid")
+            != payload
+        ):
+            _fail("training_release_output_invalid")
         output.parent.mkdir(parents=True, exist_ok=True)
         os.replace(temporary, output)
         return {
@@ -316,15 +397,229 @@ def _publish(
         raise TrainingReleaseError("training_release_internal_error") from exc
 
 
+def _load_projector_policy(
+    inventory: dict[str, tuple[Path, _BytesSnapshot]],
+) -> _taskboard_projector.TaskBoardProjectorConfig:
+    paths = {
+        "config": _PROJECTOR_CONFIG_PATH,
+        "sidecar-schema": _PROJECTOR_SIDECAR_SCHEMA_PATH,
+        "segment-schema": _PROJECTOR_SEGMENT_SCHEMA_PATH,
+        "manifest-schema": _PROJECTOR_MANIFEST_SCHEMA_PATH,
+    }
+    snapshots = {
+        label: _read_bytes_snapshot(path, "projector_policy_invalid")
+        for label, path in paths.items()
+    }
+    inventory.update(
+        {
+            f"projector-policy:{label}": (paths[label], snapshot)
+            for label, snapshot in snapshots.items()
+        }
+    )
+    try:
+        config = _taskboard_projector.TaskBoardProjectorConfig.load(
+            _PROJECTOR_CONFIG_PATH
+        )
+    except _taskboard_projector.TaskBoardProjectorError as exc:
+        raise TrainingReleaseError("projector_policy_invalid") from exc
+    if (
+        config.sha256 != snapshots["config"].sha256
+        or config.sidecar_schema_sha256 != snapshots["sidecar-schema"].sha256
+        or config.segment_plan_schema_sha256
+        != snapshots["segment-schema"].sha256
+        or config.manifest_schema_sha256 != snapshots["manifest-schema"].sha256
+    ):
+        _fail("projector_policy_changed_during_read")
+    return config
+
+
+def _projector_counts(
+    all_rows: Mapping[tuple[str, str], list[dict[str, Any]]],
+    projected_task_ids: Mapping[str, set[str]],
+) -> dict[str, Any]:
+    rows = [
+        row
+        for _path, split, variant in FIXED_FILES
+        for row in all_rows[(split, variant)]
+    ]
+    segment_references = [
+        segment
+        for row in rows
+        for segment in row["segment_plan"]["segments"]
+    ]
+    unique_segments: dict[str, Mapping[str, Any]] = {}
+    for segment in segment_references:
+        item = _mapping(segment, "projector_counts_invalid")
+        segment_id = item.get("segment_id")
+        if not isinstance(segment_id, str):
+            _fail("projector_counts_invalid")
+        prior = unique_segments.setdefault(segment_id, item)
+        if prior != item:
+            _fail("projector_segment_identity_fork")
+    unique_scope_counts = Counter(
+        str(segment["cache_scope"]) for segment in unique_segments.values()
+    )
+    split_counts = Counter(str(row["split"]) for row in rows)
+    variant_counts = Counter(str(row["variant"]) for row in rows)
+    stage_counts = Counter(str(row["stage"]) for row in rows)
+    expert_counts = Counter(str(row["expert"]) for row in rows)
+    language_counts = Counter(
+        str(row["training_record"]["language"]) for row in rows
+    )
+    task_ids = projected_task_ids["train"] | projected_task_ids["calibration"]
+    return {
+        "total": len(rows),
+        "unique_task_bundles": len(
+            {str(row["task_bundle_sha256"]) for row in rows}
+        ),
+        "task_ids_sha256": _sha256(
+            "\n".join(sorted(task_ids)).encode("utf-8")
+        ),
+        "segment_references": len(segment_references),
+        "unique_segments": len(unique_segments),
+        "unique_segments_by_cache_scope": {
+            scope: unique_scope_counts.get(scope, 0)
+            for scope in (
+                "task_shared_prefix",
+                "downstream_task_shared_immutable",
+                "expert_private_delta",
+            )
+        },
+        "by_split": dict(sorted(split_counts.items())),
+        "by_variant": dict(sorted(variant_counts.items())),
+        "by_stage": dict(sorted(stage_counts.items())),
+        "by_expert": dict(sorted(expert_counts.items())),
+        "by_language": {
+            language: language_counts.get(language, 0)
+            for language in ("en", "zh-CN")
+        },
+    }
+
+
 def _validate_projector(
     root: Path, value: Mapping[str, Any], inventory: dict[str, tuple[Path, _BytesSnapshot]]
-) -> tuple[list[dict[str, Any]], str, str]:
+) -> tuple[list[dict[str, Any]], str, str, str]:
+    _exact_keys(
+        value,
+        {
+            "schema_version",
+            "input",
+            "producer",
+            "files",
+            "counts",
+            "hierarchical_task_kv",
+            "split_group_key",
+            "task_id_cross_binding_key",
+            "all_five_role_views_same_split",
+            "canonical_gold_written",
+            "provider_requests",
+            "heldout_content_read",
+            "heldout_content_emitted",
+            "split_preserved",
+            "augmentation_applied_after_split",
+            "claim_scope",
+        },
+        "projector_manifest_invalid",
+    )
+    config = _load_projector_policy(inventory)
     producer = _mapping(value.get("producer"), "projector_manifest_invalid")
-    manifest_schema_sha = producer.get("manifest_schema_sha256")
-    sidecar_schema_sha = producer.get("sidecar_schema_sha256")
+    expected_producer = {
+        "name": "anchor.swebench-taskboard-projector",
+        "projector_version": config.projector_version,
+        "config_sha256": config.sha256,
+        "sidecar_schema_sha256": config.sidecar_schema_sha256,
+        "segment_plan_schema_version": config.segment_plan_schema,
+        "segment_plan_schema_sha256": config.segment_plan_schema_sha256,
+        "manifest_schema_sha256": config.manifest_schema_sha256,
+        "record_schema_version": config.record_schema,
+    }
+    if dict(producer) != expected_producer:
+        _fail("projector_policy_binding_invalid")
+
+    projector_input = _mapping(value.get("input"), "projector_manifest_invalid")
+    _exact_keys(
+        projector_input,
+        {
+            "snapshot_schema_version",
+            "snapshot_sha256",
+            "snapshot_manifest_path",
+            "snapshot_manifest_sha256",
+            "snapshot_sha256_sidecar_path",
+            "snapshot_sha256_sidecar_sha256",
+            "splits",
+        },
+        "projector_manifest_invalid",
+    )
     if (
-        not _is_sha256(manifest_schema_sha)
-        or not _is_sha256(sidecar_schema_sha)
+        projector_input.get("snapshot_schema_version") != SNAPSHOT_SCHEMA
+        or any(
+            not _is_sha256(projector_input.get(field))
+            for field in (
+                "snapshot_sha256",
+                "snapshot_manifest_sha256",
+                "snapshot_sha256_sidecar_sha256",
+            )
+        )
+        or projector_input.get("snapshot_manifest_path") != "manifest.json"
+        or projector_input.get("snapshot_sha256_sidecar_path")
+        != "manifest.json.sha256"
+        or projector_input.get("splits") != ["train", "calibration"]
+    ):
+        _fail("projector_manifest_invalid")
+
+    task_kv = _mapping(
+        value.get("hierarchical_task_kv"), "projector_manifest_invalid"
+    )
+    _exact_keys(
+        task_kv,
+        {
+            "segment_plan_schema_version",
+            "segment_plan_location",
+            "architecture",
+            "execution_mode",
+            "materialization",
+            "tensors_emitted",
+            "kv_payloads_emitted",
+            "shared_prefix_membership",
+            "ordered_prefix_chain",
+            "independent_segment_concatenation_allowed",
+            "exact_reuse_scope",
+            "shared_then_mask_allowed",
+            "forbidden_current_future_preinsert_allowed",
+            "cache_identity_required_exact_match_fields",
+            "cache_identity_mismatch_result",
+            "cache_identity_unknown_result",
+            "q_specialization_alone_sufficient_for_exact_reuse",
+            "naive_in_stack_q_lora_exact_reuse_allowed",
+            "full_generation_kv_shared_claimed",
+            "token_level_moe_claimed",
+        },
+        "projector_manifest_invalid",
+    )
+    if (
+        task_kv.get("segment_plan_schema_version") != SEGMENT_PLAN_SCHEMA
+        or task_kv.get("segment_plan_location") != "outer_sidecar.segment_plan"
+        or task_kv.get("architecture") != "hierarchical_task_kv"
+        or task_kv.get("execution_mode") != SEGMENT_EXECUTION_MODE
+        or task_kv.get("materialization") != "metadata_only_no_tensor_or_kv"
+        or task_kv.get("tensors_emitted") is not False
+        or task_kv.get("kv_payloads_emitted") is not False
+        or task_kv.get("shared_prefix_membership")
+        != "strict_all_five_role_visibility_intersection"
+        or task_kv.get("ordered_prefix_chain") is not True
+        or task_kv.get("independent_segment_concatenation_allowed") is not False
+        or task_kv.get("exact_reuse_scope") != SEGMENT_REUSE_SCOPE
+        or task_kv.get("shared_then_mask_allowed") is not False
+        or task_kv.get("forbidden_current_future_preinsert_allowed") is not False
+        or task_kv.get("cache_identity_required_exact_match_fields")
+        != list(SEGMENT_CACHE_IDENTITY_FIELDS)
+        or task_kv.get("cache_identity_mismatch_result") != "cache_incompatible"
+        or task_kv.get("cache_identity_unknown_result") != "cache_incompatible"
+        or task_kv.get("q_specialization_alone_sufficient_for_exact_reuse")
+        is not False
+        or task_kv.get("naive_in_stack_q_lora_exact_reuse_allowed") is not False
+        or task_kv.get("full_generation_kv_shared_claimed") is not False
+        or task_kv.get("token_level_moe_claimed") is not False
         or value.get("split_group_key") != "task_bundle_sha256"
         or value.get("task_id_cross_binding_key")
         != "training_record.task_board.task_id"
@@ -338,10 +633,22 @@ def _validate_projector(
         or value.get("claim_scope") != "research_proxy_only"
     ):
         _fail("projector_manifest_invalid")
+
     raw_files = value.get("files")
     if not isinstance(raw_files, list) or len(raw_files) != len(FIXED_FILES):
         _fail("projector_manifest_invalid")
     files: list[dict[str, Any]] = []
+    all_rows: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    expected_wrapper_bindings = {
+        "projector_version": config.projector_version,
+        "config_sha256": config.sha256,
+        "sidecar_schema_sha256": config.sidecar_schema_sha256,
+        "segment_plan_schema_sha256": config.segment_plan_schema_sha256,
+        "source_snapshot_sha256": projector_input["snapshot_sha256"],
+        "source_snapshot_manifest_sha256": projector_input[
+            "snapshot_manifest_sha256"
+        ],
+    }
     for index, (path_value, split, variant) in enumerate(FIXED_FILES):
         item = _mapping(raw_files[index], "projector_manifest_invalid")
         _exact_keys(
@@ -360,16 +667,71 @@ def _validate_projector(
             _fail("projector_manifest_invalid")
         path = _safe_file(root, path_value, "projector_file_invalid")
         snapshot = _read_bytes_snapshot(path, "projector_file_invalid")
+        try:
+            rows, record_count = _taskboard_projector._jsonl_from_snapshot(
+                snapshot, "projector_file_invalid"
+            )
+        except _taskboard_projector.TaskBoardProjectorError as exc:
+            raise TrainingReleaseError("projector_file_invalid") from exc
         if (
             snapshot.sha256 != item["sha256"]
             or snapshot.size != item["bytes"]
-            or _jsonl_record_count(snapshot, "projector_file_invalid")
-            != item["records"]
+            or record_count != item["records"]
+            or not rows
         ):
             _fail("projector_file_invalid")
+        identifiers: set[str] = set()
+        try:
+            for row in rows:
+                _taskboard_projector._validate_sidecar(row, expected_split=split)
+                identifier = row.get("id")
+                if (
+                    not isinstance(identifier, str)
+                    or identifier in identifiers
+                    or row.get("variant") != variant
+                    or any(
+                        row.get(field) != expected
+                        for field, expected in expected_wrapper_bindings.items()
+                    )
+                ):
+                    _fail("projector_semantic_invalid")
+                identifiers.add(identifier)
+        except _taskboard_projector.TaskBoardProjectorError as exc:
+            raise TrainingReleaseError("projector_semantic_invalid") from exc
         inventory[f"projector-file:{path_value}"] = (path, snapshot)
         files.append(dict(item))
-    return files, str(manifest_schema_sha), str(sidecar_schema_sha)
+        all_rows[(split, variant)] = rows
+
+    try:
+        _taskboard_projector._verify_clean_noisy_pairs(
+            all_rows[("train", "clean")], all_rows[("train", "noisy")]
+        )
+        expected_bundle_task_ids: dict[str, dict[str, str]] = {
+            "train": {},
+            "calibration": {},
+        }
+        for split in expected_bundle_task_ids:
+            for row in all_rows[(split, "clean")]:
+                bundle = str(row["task_bundle_sha256"])
+                task_id = str(row["training_record"]["task_board"]["task_id"])
+                prior = expected_bundle_task_ids[split].setdefault(bundle, task_id)
+                if prior != task_id:
+                    _fail("projector_semantic_invalid")
+        projected_task_ids = _taskboard_projector._verify_dataset_split_groups(
+            all_rows,
+            expected_bundle_task_ids=expected_bundle_task_ids,
+        )
+    except _taskboard_projector.TaskBoardProjectorError as exc:
+        raise TrainingReleaseError("projector_semantic_invalid") from exc
+    counts = _mapping(value.get("counts"), "projector_counts_invalid")
+    if dict(counts) != _projector_counts(all_rows, projected_task_ids):
+        _fail("projector_counts_invalid")
+    return (
+        files,
+        config.manifest_schema_sha256,
+        config.sidecar_schema_sha256,
+        config.segment_plan_schema_sha256,
+    )
 
 
 def _partition_metadata(value: Mapping[str, Any], name: str) -> dict[str, Any]:
@@ -552,11 +914,24 @@ def freeze_source_disjoint(
         "projector_artifact_invalid",
     )
     inventory.update(projector_inventory)
-    files, manifest_schema_sha, sidecar_schema_sha = _validate_projector(
-        projector_root, projector, inventory
-    )
+    (
+        files,
+        manifest_schema_sha,
+        sidecar_schema_sha,
+        segment_plan_schema_sha,
+    ) = _validate_projector(projector_root, projector, inventory)
     projector_input = _mapping(projector.get("input"), "projector_manifest_invalid")
-    if projector_input.get("snapshot_manifest_sha256") != expected_snapshot_sha:
+    snapshot_sidecar_snapshot = inventory[
+        "snapshot_artifact_invalid:sidecar"
+    ][1]
+    if (
+        projector_input.get("snapshot_manifest_sha256")
+        != expected_snapshot_sha
+        or projector_input.get("snapshot_sha256")
+        != snapshot.get("snapshot_sha256")
+        or projector_input.get("snapshot_sha256_sidecar_sha256")
+        != snapshot_sidecar_snapshot.sha256
+    ):
         _fail("projector_snapshot_binding_mismatch")
 
     split = _mapping(snapshot.get("split_contract"), "snapshot_split_invalid")
@@ -634,6 +1009,7 @@ def freeze_source_disjoint(
             "projector_manifest_sha256": expected_projector_sha,
             "projector_manifest_schema_sha256": manifest_schema_sha,
             "projector_sidecar_schema_sha256": sidecar_schema_sha,
+            "projector_segment_plan_schema_sha256": segment_plan_schema_sha,
             "heldout_manifest_sha256": expected_heldout_sha,
         },
         "projector_grouping": {
@@ -642,6 +1018,9 @@ def freeze_source_disjoint(
             "inner_task_ids_sha256": counts["task_ids_sha256"],
             "all_five_role_views_same_split": True,
         },
+        "hierarchical_task_kv": _hierarchical_task_kv_contract(
+            segment_plan_schema_sha
+        ),
         "partitions": {
             "train": {"role": "training_only", **train_meta},
             "calibration": {
@@ -730,7 +1109,10 @@ def _validate_generic(value: Mapping[str, Any], execution_lock_sha: str) -> None
 
 
 def _validate_consumer(
-    value: Mapping[str, Any], manifest_schema_sha: str, sidecar_schema_sha: str
+    value: Mapping[str, Any],
+    manifest_schema_sha: str,
+    sidecar_schema_sha: str,
+    segment_plan_schema_sha: str,
 ) -> None:
     _exact_keys(
         value,
@@ -741,6 +1123,31 @@ def _validate_consumer(
             "accepted_projector_schema",
             "projector_manifest_schema_sha256",
             "projector_sidecar_schema_sha256",
+            "accepted_segment_plan_schema",
+            "projector_segment_plan_schema_sha256",
+            "segment_plan_location",
+            "hierarchical_task_kv_architecture",
+            "hierarchical_task_kv_execution_mode",
+            "materialization",
+            "tensors_emitted",
+            "kv_payloads_emitted",
+            "shared_prefix_membership",
+            "ordered_prefix_chain",
+            "independent_segment_concatenation_allowed",
+            "exact_reuse_scope",
+            "shared_then_mask_allowed",
+            "forbidden_current_future_preinsert_allowed",
+            "cache_identity_required_exact_match_fields",
+            "cache_identity_mismatch_result",
+            "cache_identity_unknown_result",
+            "target_delta_initial_cache_scope",
+            "target_delta_promotion_requires",
+            "target_delta_promoted_cache_scope",
+            "current_target_segment_emitted",
+            "q_specialization_alone_sufficient_for_exact_reuse",
+            "naive_in_stack_q_lora_exact_reuse_allowed",
+            "full_generation_kv_shared_claimed",
+            "token_level_moe_claimed",
             "split_group_key",
             "task_id_cross_binding_key",
             "fixed_inputs",
@@ -764,6 +1171,39 @@ def _validate_consumer(
         or value.get("accepted_projector_schema") != PROJECTOR_SCHEMA
         or value.get("projector_manifest_schema_sha256") != manifest_schema_sha
         or value.get("projector_sidecar_schema_sha256") != sidecar_schema_sha
+        or value.get("accepted_segment_plan_schema") != SEGMENT_PLAN_SCHEMA
+        or value.get("projector_segment_plan_schema_sha256")
+        != segment_plan_schema_sha
+        or value.get("segment_plan_location") != "outer_sidecar.segment_plan"
+        or value.get("hierarchical_task_kv_architecture")
+        != "hierarchical_task_kv"
+        or value.get("hierarchical_task_kv_execution_mode")
+        != SEGMENT_EXECUTION_MODE
+        or value.get("materialization") != "metadata_only_no_tensor_or_kv"
+        or value.get("tensors_emitted") is not False
+        or value.get("kv_payloads_emitted") is not False
+        or value.get("shared_prefix_membership")
+        != "strict_all_five_role_visibility_intersection"
+        or value.get("ordered_prefix_chain") is not True
+        or value.get("independent_segment_concatenation_allowed") is not False
+        or value.get("exact_reuse_scope") != SEGMENT_REUSE_SCOPE
+        or value.get("shared_then_mask_allowed") is not False
+        or value.get("forbidden_current_future_preinsert_allowed") is not False
+        or value.get("cache_identity_required_exact_match_fields")
+        != list(SEGMENT_CACHE_IDENTITY_FIELDS)
+        or value.get("cache_identity_mismatch_result") != "cache_incompatible"
+        or value.get("cache_identity_unknown_result") != "cache_incompatible"
+        or value.get("target_delta_initial_cache_scope")
+        != "expert_private_delta"
+        or value.get("target_delta_promotion_requires")
+        != "explicit_committed_and_causally_visible_downstream"
+        or value.get("target_delta_promoted_cache_scope")
+        != "downstream_task_shared_immutable"
+        or value.get("current_target_segment_emitted") is not False
+        or value.get("q_specialization_alone_sufficient_for_exact_reuse") is not False
+        or value.get("naive_in_stack_q_lora_exact_reuse_allowed") is not False
+        or value.get("full_generation_kv_shared_claimed") is not False
+        or value.get("token_level_moe_claimed") is not False
         or value.get("split_group_key") != "task_bundle_sha256"
         or value.get("task_id_cross_binding_key")
         != "training_record.task_board.task_id"
@@ -794,6 +1234,7 @@ def _validate_source_manifest(
     projector_sha: str,
     manifest_schema_sha: str,
     sidecar_schema_sha: str,
+    segment_plan_schema_sha: str,
     projected_files: Sequence[Mapping[str, Any]],
 ) -> None:
     _exact_keys(
@@ -803,6 +1244,7 @@ def _validate_source_manifest(
             "status",
             "bindings",
             "projector_grouping",
+            "hierarchical_task_kv",
             "partitions",
             "projected_files_sha256",
             "pairwise_source_disjoint",
@@ -823,6 +1265,7 @@ def _validate_source_manifest(
             "projector_manifest_sha256",
             "projector_manifest_schema_sha256",
             "projector_sidecar_schema_sha256",
+            "projector_segment_plan_schema_sha256",
             "heldout_manifest_sha256",
         },
         "source_disjoint_artifact_invalid",
@@ -830,6 +1273,10 @@ def _validate_source_manifest(
     grouping = _mapping(
         value.get("projector_grouping"), "source_disjoint_artifact_invalid"
     )
+    task_kv = _mapping(
+        value.get("hierarchical_task_kv"), "source_disjoint_artifact_invalid"
+    )
+    expected_task_kv = _hierarchical_task_kv_contract(segment_plan_schema_sha)
     _exact_keys(
         grouping,
         {
@@ -898,6 +1345,9 @@ def _validate_source_manifest(
         or bindings.get("projector_manifest_schema_sha256")
         != manifest_schema_sha
         or bindings.get("projector_sidecar_schema_sha256") != sidecar_schema_sha
+        or bindings.get("projector_segment_plan_schema_sha256")
+        != segment_plan_schema_sha
+        or dict(task_kv) != expected_task_kv
         or grouping.get("split_group_key") != "task_bundle_sha256"
         or grouping.get("task_id_cross_binding_key")
         != "training_record.task_board.task_id"
@@ -943,9 +1393,12 @@ def freeze_training_release(
         PROJECTOR_SCHEMA,
         "projector_artifact_invalid",
     )
-    files, manifest_schema_sha, sidecar_schema_sha = _validate_projector(
-        projector_root, projector, inventory
-    )
+    (
+        files,
+        manifest_schema_sha,
+        sidecar_schema_sha,
+        segment_plan_schema_sha,
+    ) = _validate_projector(projector_root, projector, inventory)
     _source_root, source, source_inventory = _load_artifact(
         source_disjoint_dir,
         expected_source_disjoint_sha,
@@ -958,6 +1411,7 @@ def freeze_training_release(
         projector_sha=expected_projector_sha,
         manifest_schema_sha=manifest_schema_sha,
         sidecar_schema_sha=sidecar_schema_sha,
+        segment_plan_schema_sha=segment_plan_schema_sha,
         projected_files=files,
     )
 
@@ -985,7 +1439,12 @@ def freeze_training_release(
         "consumer_contract_invalid",
     )
     inventory.update(consumer_inventory)
-    _validate_consumer(consumer, manifest_schema_sha, sidecar_schema_sha)
+    _validate_consumer(
+        consumer,
+        manifest_schema_sha,
+        sidecar_schema_sha,
+        segment_plan_schema_sha,
+    )
 
     payload = {
         "schema_version": RELEASE_SCHEMA,
@@ -994,6 +1453,7 @@ def freeze_training_release(
             "projector_manifest_sha256": expected_projector_sha,
             "projector_manifest_schema_sha256": manifest_schema_sha,
             "projector_sidecar_schema_sha256": sidecar_schema_sha,
+            "projector_segment_plan_schema_sha256": segment_plan_schema_sha,
             "source_disjoint_manifest_sha256": expected_source_disjoint_sha,
             "generic_execution_contract_sha256": expected_generic_sha,
             "consumer_contract_sha256": expected_consumer_sha,
@@ -1011,6 +1471,9 @@ def freeze_training_release(
             "implementation_files": consumer["implementation_files"],
             "launch_entrypoint": consumer["launch_entrypoint"],
         },
+        "hierarchical_task_kv": _hierarchical_task_kv_contract(
+            segment_plan_schema_sha
+        ),
         "split_group_key": "task_bundle_sha256",
         "task_id_cross_binding_key": "training_record.task_board.task_id",
         "required_roles": list(REQUIRED_ROLES),
