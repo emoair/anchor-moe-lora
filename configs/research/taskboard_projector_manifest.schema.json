@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/taskboard-projector-manifest-v1.json",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/taskboard-projector-manifest-v2.json",
   "title": "Anchor SWE-bench TaskBoard projector manifest",
   "type": "object",
   "additionalProperties": false,
@@ -10,6 +10,7 @@
     "producer",
     "files",
     "counts",
+    "hierarchical_task_kv",
     "split_group_key",
     "task_id_cross_binding_key",
     "all_five_role_views_same_split",
@@ -22,7 +23,7 @@
     "claim_scope"
   ],
   "properties": {
-    "schema_version": {"const": "anchor.swebench-taskboard-projector-manifest.v1"},
+    "schema_version": {"const": "anchor.swebench-taskboard-projector-manifest.v2"},
     "input": {"$ref": "#/$defs/input"},
     "producer": {"$ref": "#/$defs/producer"},
     "files": {
@@ -58,6 +59,7 @@
       "maxItems": 3
     },
     "counts": {"$ref": "#/$defs/counts"},
+    "hierarchical_task_kv": {"$ref": "#/$defs/hierarchical_task_kv"},
     "split_group_key": {"const": "task_bundle_sha256"},
     "task_id_cross_binding_key": {
       "const": "training_record.task_board.task_id"
@@ -113,14 +115,20 @@
         "projector_version",
         "config_sha256",
         "sidecar_schema_sha256",
+        "segment_plan_schema_version",
+        "segment_plan_schema_sha256",
         "manifest_schema_sha256",
         "record_schema_version"
       ],
       "properties": {
         "name": {"const": "anchor.swebench-taskboard-projector"},
-        "projector_version": {"const": "anchor.swebench-taskboard-projector.v1"},
+        "projector_version": {"const": "anchor.swebench-taskboard-projector.v2"},
         "config_sha256": {"$ref": "#/$defs/sha256"},
         "sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_plan_schema_version": {
+          "const": "anchor.hierarchical-task-kv-segment-plan.v1"
+        },
+        "segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
         "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
         "record_schema_version": {"const": "anchor.query-specialization.v1"}
       }
@@ -151,6 +159,9 @@
         "total",
         "unique_task_bundles",
         "task_ids_sha256",
+        "segment_references",
+        "unique_segments",
+        "unique_segments_by_cache_scope",
         "by_split",
         "by_variant",
         "by_stage",
@@ -161,6 +172,22 @@
         "total": {"type": "integer", "minimum": 1},
         "unique_task_bundles": {"type": "integer", "minimum": 1},
         "task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_references": {"type": "integer", "minimum": 1},
+        "unique_segments": {"type": "integer", "minimum": 1},
+        "unique_segments_by_cache_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "task_shared_prefix",
+            "downstream_task_shared_immutable",
+            "expert_private_delta"
+          ],
+          "properties": {
+            "task_shared_prefix": {"type": "integer", "minimum": 0},
+            "downstream_task_shared_immutable": {"type": "integer", "minimum": 0},
+            "expert_private_delta": {"type": "integer", "minimum": 0}
+          }
+        },
         "by_split": {
           "type": "object",
           "additionalProperties": false,
@@ -212,6 +239,72 @@
             "zh-CN": {"type": "integer", "minimum": 0}
           }
         }
+      }
+    },
+    "hierarchical_task_kv": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_plan_schema_version",
+        "segment_plan_location",
+        "architecture",
+        "execution_mode",
+        "materialization",
+        "full_generation_kv_shared_claimed",
+        "token_level_moe_claimed",
+        "tensors_emitted",
+        "kv_payloads_emitted",
+        "shared_prefix_membership",
+        "ordered_prefix_chain",
+        "independent_segment_concatenation_allowed",
+        "exact_reuse_scope",
+        "shared_then_mask_allowed",
+        "forbidden_current_future_preinsert_allowed",
+        "cache_identity_required_exact_match_fields",
+        "cache_identity_mismatch_result",
+        "cache_identity_unknown_result",
+        "q_specialization_alone_sufficient_for_exact_reuse",
+        "naive_in_stack_q_lora_exact_reuse_allowed"
+      ],
+      "properties": {
+        "segment_plan_schema_version": {
+          "const": "anchor.hierarchical-task-kv-segment-plan.v1"
+        },
+        "segment_plan_location": {"const": "outer_sidecar.segment_plan"},
+        "architecture": {"const": "hierarchical_task_kv"},
+        "execution_mode": {"const": "decoupled_frozen_prefix_producer_required"},
+        "materialization": {"const": "metadata_only_no_tensor_or_kv"},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "token_level_moe_claimed": {"const": false},
+        "tensors_emitted": {"const": false},
+        "kv_payloads_emitted": {"const": false},
+        "shared_prefix_membership": {
+          "const": "strict_all_five_role_visibility_intersection"
+        },
+        "ordered_prefix_chain": {"const": true},
+        "independent_segment_concatenation_allowed": {"const": false},
+        "exact_reuse_scope": {"const": "identical_ordered_prefix_lineage_only"},
+        "shared_then_mask_allowed": {"const": false},
+        "forbidden_current_future_preinsert_allowed": {"const": false},
+        "cache_identity_required_exact_match_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "model_architecture_sha256"},
+            {"const": "tokenizer_sha256"},
+            {"const": "token_order_sha256"},
+            {"const": "position_ids_sha256"},
+            {"const": "rope_config_sha256"},
+            {"const": "kv_producing_weights_sha256"},
+            {"const": "prefix_lineage_sha256"}
+          ],
+          "items": false,
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "cache_identity_mismatch_result": {"const": "cache_incompatible"},
+        "cache_identity_unknown_result": {"const": "cache_incompatible"},
+        "q_specialization_alone_sufficient_for_exact_reuse": {"const": false},
+        "naive_in_stack_q_lora_exact_reuse_allowed": {"const": false}
       }
     }
   }

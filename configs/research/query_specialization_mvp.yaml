@@ -10,10 +10,12 @@ dataset_contract:
     - calibration/clean.jsonl
   sidecar_schema: configs/research/taskboard_projector_sidecar.schema.json
   manifest_schema: configs/research/taskboard_projector_manifest.schema.json
-  projector_config: configs/research/swebench_taskboard_projector_v1.yaml
-  expected_sidecar_schema_sha256: 654e9f7fddbe67885156c4e1fac9aa48c0b415c6fb52d3dcf501d53520b6f146
-  expected_manifest_schema_sha256: 75dc191849a0fba084dbc81064e7c5634c8727b41ad4b62522e3a28ecd727e53
-  expected_projector_config_sha256: 5d1207bf0a16f84c7cfa3448350b2a26f4127384664704b967c7c4280c9e63c9
+  segment_plan_schema: configs/research/hierarchical_task_kv_segment_plan.schema.json
+  projector_config: configs/research/swebench_taskboard_projector_v2.yaml
+  expected_sidecar_schema_sha256: c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5
+  expected_manifest_schema_sha256: 2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347
+  expected_segment_plan_schema_sha256: 80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf
+  expected_projector_config_sha256: b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943
   split_group_key: task_bundle_sha256
   require_clean_noisy_pairs: true
   require_disjoint_source_tasks: true
@@ -72,7 +74,9 @@ full_model_followup:
     status: unavailable
     root: null
     schema: configs/research/generic_train_release_lock.schema.json
-    expected_schema_sha256: 889787be1391aec2d59f91b1ba171588c82e455aaddc342b79d3680e0284210d
+    expected_schema_sha256: 119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa
+    source_disjoint_schema: configs/research/swebench_source_disjoint_manifest.schema.json
+    expected_source_disjoint_schema_sha256: 2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b
     expected_manifest_sha256: null
     expected_consumer_contract_sha256: null
     expected_consumer_id: anchor.query-specialization-training-consumer

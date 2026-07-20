@@ -90,6 +90,15 @@ def test_dry_run_uses_non_promotional_claim_language() -> None:
     assert payload["plan"]["release_lock_status"] == "unavailable"
     assert payload["plan"]["release_lock_manifest_sha256"] is None
     assert (
+        payload["plan"]["release_lock_validation"]["schema_version"]
+        == "anchor.generic-train-release-lock.v2"
+    )
+    assert len(
+        payload["plan"]["release_lock_validation"][
+            "source_disjoint_schema_sha256"
+        ]
+    ) == 64
+    assert (
         payload["plan"]["release_lock_validation"]["reason"]
         == "real_frozen_formal_v3_release_unavailable"
     )

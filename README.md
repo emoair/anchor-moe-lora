@@ -39,6 +39,28 @@ An optional OpenAI-compatible Chat Completions SSE adapter is covered by
 in-memory transport tests, but no real endpoint, model weights, or evaluation
 group is connected in this milestone.
 
+The hierarchical Task-KV control-plane contract is documented in the
+[English RFC](docs/rfcs/neural_swarm_hierarchical_task_kv.md) and
+[简体中文 RFC](docs/rfcs/neural_swarm_hierarchical_task_kv.zh-CN.md). Its current
+source of truth is the producer-v2 `outer_sidecar.segment_plan`, validated by
+[`hierarchical_task_kv_segment_plan.schema.json`](configs/research/hierarchical_task_kv_segment_plan.schema.json).
+It is metadata-only and `identity_unbound`; physical cache reuse is disabled,
+and no quality, memory, latency, or throughput claim is made. The v1 projector
+configuration is historical and must not be used for a current fixture.
+
+Run the bounded, model-free cache/stream smoke and TaskBoard projector dry-run:
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/research/demo_hierarchical_kv_swarm.py
+python scripts/research/materialize_taskboard_kv_segments.py --dry-run
+```
+
+The first command proves one shared logical prefix plus two isolated private
+branches are acquired and released. The second authenticates the producer-v2
+fixture and its native nested plans, then emits only a content-free summary;
+neither command loads a model, touches a GPU, or sends a provider request.
+
 ## What is implemented
 
 - SOP-injected, asynchronous and resumable teacher-data generation.

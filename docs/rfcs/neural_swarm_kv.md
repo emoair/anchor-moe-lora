@@ -122,6 +122,14 @@ The ID-decoupled, shared-input, concurrent event-plane scaffold is specified in
 That contract intentionally defines no evaluation groups and makes no CUDA/KV
 parallel-speedup claim.
 
+The hierarchical Task-KV ownership, prefix-lineage, causal-visibility, and CoW
+metadata contract is specified in
+[`neural_swarm_hierarchical_task_kv.md`](neural_swarm_hierarchical_task_kv.md).
+Its single source of truth is the producer-v2 native plan at
+`outer_sidecar.segment_plan`; consumers must not derive a second incompatible
+plan. Runtime identity remains unbound and physical reuse is disabled, so the
+metadata makes no exact-reuse or performance claim.
+
 ## MVP implementation plan
 
 ### M0 — planning model (implemented)

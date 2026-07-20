@@ -1,0 +1,105 @@
+schema_version: anchor.hierarchical-task-kv-mvp-consumer-config.v2
+
+# The producer-v2 nested plan is the only current Task-KV source of truth.
+source_of_truth:
+  segment_plan_location: outer_sidecar.segment_plan
+  projector_config:
+    path: configs/research/swebench_taskboard_projector_v2.yaml
+    schema_version: anchor.swebench-taskboard-projector-config.v2
+    sha256: b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943
+  sidecar_schema:
+    path: configs/research/taskboard_projector_sidecar.schema.json
+    schema_version: anchor.swebench-taskboard-sidecar.v2
+    sha256: c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5
+  segment_plan_schema:
+    path: configs/research/hierarchical_task_kv_segment_plan.schema.json
+    schema_version: anchor.hierarchical-task-kv-segment-plan.v1
+    sha256: 80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf
+  manifest_schema:
+    path: configs/research/taskboard_projector_manifest.schema.json
+    schema_version: anchor.swebench-taskboard-projector-manifest.v2
+    sha256: 2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347
+  source_disjoint_manifest_schema:
+    path: configs/research/swebench_source_disjoint_manifest.schema.json
+    schema_version: anchor.swebench-source-disjoint-manifest.v2
+    sha256: 2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b
+  training_release_lock_schema:
+    path: configs/research/generic_train_release_lock.schema.json
+    schema_version: anchor.generic-train-release-lock.v2
+    sha256: 119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa
+  generic_execution_contract_schema:
+    path: configs/research/generic_train_execution_contract.schema.json
+    schema_version: anchor.generic-train-execution-contract.v1
+    sha256: 63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a
+  fixture_manifest:
+    path: fixtures/research/taskboard_projector/manifest.json
+    sha256: 595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac
+    sha256_sidecar_path: fixtures/research/taskboard_projector/manifest.json.sha256
+
+historical_contract:
+  projector_v1_path: configs/research/swebench_taskboard_projector_v1.yaml
+  accepted_by_current_fixture: false
+  derived_taskboard_kv_plan_accepted: false
+
+partition_contract:
+  split_before_augmentation: true
+  split_group_key: task_bundle_sha256
+  task_id_cross_binding_key: training_record.task_board.task_id
+  all_five_role_views_same_split: true
+  required_role_sequence:
+    - planner
+    - tool_policy
+    - frontend_gen
+    - frontend_review
+    - security_gate
+
+architecture_contract:
+  architecture: hierarchical_task_kv
+  execution_mode: decoupled_frozen_prefix_producer_required
+  materialization: metadata_only_no_tensor_or_kv
+  segment_serialization: ordered_prefix_chain
+  independent_segment_concatenation_allowed: false
+  cache_scopes:
+    shared_prefix: task_shared_prefix
+    committed_downstream: downstream_task_shared_immutable
+    uncommitted_expert_delta: expert_private_delta
+  shared_prefix_membership: strict_all_five_role_visibility_intersection
+  promotion_requires: explicit_committed_and_causally_visible_downstream
+
+causal_visibility:
+  source_of_truth: committed_blocks
+  current_target_segment_emitted: false
+  shared_then_mask_allowed: false
+  forbidden_current_future_preinsert_allowed: false
+  candidate_and_verified_default_scope: expert_private_delta
+
+runtime_compatibility:
+  status: identity_unbound
+  cache_reuse_allowed: false
+  mismatch_result: cache_incompatible
+  unknown_result: cache_incompatible
+  q_specialization_alone_sufficient_for_exact_reuse: false
+  naive_in_stack_q_lora_exact_reuse_allowed: false
+  required_exact_match_fields:
+    - model_architecture_sha256
+    - tokenizer_sha256
+    - token_order_sha256
+    - position_ids_sha256
+    - rope_config_sha256
+    - kv_producing_weights_sha256
+    - prefix_lineage_sha256
+
+claim_scope: research_proxy_only
+provider_requests: 0
+canonical_gold_written: false
+heldout_content_read: false
+
+non_claims:
+  - decoder_kv_block_concatenation
+  - exact_cross_adapter_kv_reuse
+  - full_generation_kv_sharing
+  - token_level_moe_routing
+  - cuda_overlap
+  - memory_latency_or_throughput_improvement
+  - quality_preservation
+  - foundation_model_training

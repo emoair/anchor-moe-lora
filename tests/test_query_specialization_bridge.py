@@ -47,6 +47,10 @@ def test_materialized_view_is_completion_only_and_keeps_lineage() -> None:
     ]
     prompt = json.loads(view["messages"][0]["content"])
     assert prompt["role"] == record.role
+    assert "segment_plan" not in prompt
+    assert sidecar.segment_plan_schema_sha256 == sidecar.segment_plan["bindings"][
+        "segment_plan_schema_sha256"
+    ]
     assert json.loads(view["messages"][1]["content"]) == json.loads(
         record.target_output
     )
@@ -70,6 +74,7 @@ def test_all_official_sidecars_preserve_relevant_and_exclude_forbidden_content()
         assert target["answer"] not in user_content
 
         prompt = json.loads(user_content)
+        assert "segment_plan" not in prompt
         prompt_blocks = {block["id"]: block["content"] for block in prompt["blocks"]}
         source_blocks = {block.block_id: block.content for block in record.blocks}
 

@@ -51,6 +51,7 @@ from anchor_mvp.research.training_release_consumer import (  # noqa: E402
     TrainingReleaseConsumerError,
     load_training_release_lock,
     validate_release_lock_schema,
+    validate_source_disjoint_schema,
 )
 
 
@@ -69,9 +70,11 @@ DATASET_CONTRACT_FIELDS = {
     "files",
     "sidecar_schema",
     "manifest_schema",
+    "segment_plan_schema",
     "projector_config",
     "expected_sidecar_schema_sha256",
     "expected_manifest_schema_sha256",
+    "expected_segment_plan_schema_sha256",
     "expected_projector_config_sha256",
     "split_group_key",
     "require_clean_noisy_pairs",
@@ -161,6 +164,8 @@ FULL_MODEL_RELEASE_LOCK_FIELDS = {
     "expected_consumer_contract_sha256",
     "expected_consumer_id",
     "expected_consumer_version",
+    "source_disjoint_schema",
+    "expected_source_disjoint_schema_sha256",
 }
 FULL_MODEL_LORA_FIELDS = {
     "primary_profile",
@@ -343,6 +348,17 @@ def _load_contract_dataset(
                 "dataset_contract.expected_manifest_schema_sha256",
             ),
         ),
+        "segment_plan_schema": (
+            _resolve(
+                REPO_ROOT,
+                contract.get("segment_plan_schema"),
+                "dataset_contract.segment_plan_schema",
+            ),
+            _required_sha256(
+                contract.get("expected_segment_plan_schema_sha256"),
+                "dataset_contract.expected_segment_plan_schema_sha256",
+            ),
+        ),
         "projector_config": (
             _resolve(
                 REPO_ROOT,
@@ -366,7 +382,7 @@ def _load_contract_dataset(
                 f"{label} hash mismatch: expected {expected}, got {actual}"
             )
         actual_hashes[f"{label}_sha256"] = actual
-    for label in ("sidecar_schema", "manifest_schema"):
+    for label in ("sidecar_schema", "manifest_schema", "segment_plan_schema"):
         schema = json.loads(
             _decode_utf8_snapshot(
                 contract_snapshots[label], str(expected_hashes[label][0])
@@ -404,6 +420,9 @@ def _load_contract_dataset(
         expected_config_sha256=expected_hashes["projector_config"][1],
         expected_sidecar_schema_sha256=expected_hashes["sidecar_schema"][1],
         expected_manifest_schema_sha256=expected_hashes["manifest_schema"][1],
+        expected_segment_plan_schema_sha256=expected_hashes[
+            "segment_plan_schema"
+        ][1],
     )
     records = tuple(sidecar.training_record for sidecar in sidecars)
     authenticated = validation.get("authenticated_file_sha256")
@@ -661,6 +680,21 @@ def _plan(
         )
     except TrainingReleaseConsumerError as exc:
         raise QuerySpecializationError(str(exc)) from exc
+    source_disjoint_schema_path = _resolve(
+        REPO_ROOT,
+        release_lock.get("source_disjoint_schema"),
+        "full_model_followup.release_lock.source_disjoint_schema",
+    )
+    source_disjoint_schema_sha256 = _required_sha256(
+        release_lock.get("expected_source_disjoint_schema_sha256"),
+        "full_model_followup.release_lock.expected_source_disjoint_schema_sha256",
+    )
+    try:
+        validated_source_disjoint_schema_sha256 = validate_source_disjoint_schema(
+            source_disjoint_schema_path, source_disjoint_schema_sha256
+        )
+    except TrainingReleaseConsumerError as exc:
+        raise QuerySpecializationError(str(exc)) from exc
     expected_consumer_id = release_lock.get("expected_consumer_id")
     expected_consumer_version = release_lock.get("expected_consumer_version")
     if expected_consumer_id != QUERY_SPECIALIZATION_CONSUMER_ID:
@@ -682,10 +716,13 @@ def _plan(
                 "disabled full_model_followup requires an unavailable release lock"
             )
         release_validation: dict[str, Any] = {
-            "schema_version": "anchor.generic-train-release-lock.v1",
+            "schema_version": "anchor.generic-train-release-lock.v2",
             "status": "unavailable",
             "formal_training_authorized": False,
             "schema_sha256": validated_schema_sha256,
+            "source_disjoint_schema_sha256": (
+                validated_source_disjoint_schema_sha256
+            ),
             "reason": "real_frozen_formal_v3_release_unavailable",
         }
     else:
@@ -740,6 +777,10 @@ def _plan(
                 expected_projector_sidecar_schema_sha256=_required_sha256(
                     contract.get("expected_sidecar_schema_sha256"),
                     "dataset_contract.expected_sidecar_schema_sha256",
+                ),
+                expected_projector_segment_plan_schema_sha256=_required_sha256(
+                    contract.get("expected_segment_plan_schema_sha256"),
+                    "dataset_contract.expected_segment_plan_schema_sha256",
                 ),
                 expected_consumer_contract_sha256=(
                     expected_consumer_contract_sha256

@@ -16,10 +16,16 @@ import re
 from typing import Any, Mapping
 
 
-RELEASE_LOCK_SCHEMA_VERSION = "anchor.generic-train-release-lock.v1"
+RELEASE_LOCK_SCHEMA_VERSION = "anchor.generic-train-release-lock.v2"
 RELEASE_LOCK_SCHEMA_SHA256 = (
-    "889787be1391aec2d59f91b1ba171588c82e455aaddc342b79d3680e0284210d"
+    "119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa"
 )
+SOURCE_DISJOINT_SCHEMA_VERSION = "anchor.swebench-source-disjoint-manifest.v2"
+SOURCE_DISJOINT_SCHEMA_SHA256 = (
+    "2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b"
+)
+SIDECAR_SCHEMA_VERSION = "anchor.swebench-taskboard-sidecar.v2"
+SEGMENT_PLAN_SCHEMA_VERSION = "anchor.hierarchical-task-kv-segment-plan.v1"
 FIXED_PARTITIONS = (
     ("train/clean.jsonl", "train", "clean"),
     ("train/noisy.jsonl", "train", "noisy"),
@@ -50,6 +56,7 @@ _TOP_LEVEL_FIELDS = {
     "bindings",
     "fixed_files",
     "consumer",
+    "hierarchical_task_kv",
     "split_group_key",
     "task_id_cross_binding_key",
     "required_roles",
@@ -65,6 +72,7 @@ _BINDING_FIELDS = {
     "projector_manifest_sha256",
     "projector_manifest_schema_sha256",
     "projector_sidecar_schema_sha256",
+    "projector_segment_plan_schema_sha256",
     "source_disjoint_manifest_sha256",
     "generic_execution_contract_sha256",
     "consumer_contract_sha256",
@@ -81,6 +89,69 @@ _CONSUMER_FIELDS = {
     "launch_entrypoint",
 }
 _PATH_HASH_FIELDS = {"path", "sha256"}
+_HIERARCHICAL_TASK_KV_FIELDS = {
+    "segment_plan_schema_version",
+    "segment_plan_schema_sha256",
+    "segment_plan_location",
+    "architecture",
+    "execution_mode",
+    "materialization",
+    "tensors_emitted",
+    "kv_payloads_emitted",
+    "shared_prefix_membership",
+    "ordered_prefix_chain",
+    "independent_segment_concatenation_allowed",
+    "exact_reuse_scope",
+    "shared_then_mask_allowed",
+    "forbidden_current_future_preinsert_allowed",
+    "cache_identity_required_exact_match_fields",
+    "cache_identity_mismatch_result",
+    "cache_identity_unknown_result",
+    "target_delta_initial_cache_scope",
+    "target_delta_promotion_requires",
+    "target_delta_promoted_cache_scope",
+    "current_target_segment_emitted",
+    "q_specialization_alone_sufficient_for_exact_reuse",
+    "naive_in_stack_q_lora_exact_reuse_allowed",
+    "full_generation_kv_shared_claimed",
+    "token_level_moe_claimed",
+}
+_HIERARCHICAL_TASK_KV_CONTRACT = {
+    "segment_plan_schema_version": SEGMENT_PLAN_SCHEMA_VERSION,
+    "segment_plan_location": "outer_sidecar.segment_plan",
+    "architecture": "hierarchical_task_kv",
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "materialization": "metadata_only_no_tensor_or_kv",
+    "tensors_emitted": False,
+    "kv_payloads_emitted": False,
+    "shared_prefix_membership": "strict_all_five_role_visibility_intersection",
+    "ordered_prefix_chain": True,
+    "independent_segment_concatenation_allowed": False,
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "shared_then_mask_allowed": False,
+    "forbidden_current_future_preinsert_allowed": False,
+    "cache_identity_required_exact_match_fields": [
+        "model_architecture_sha256",
+        "tokenizer_sha256",
+        "token_order_sha256",
+        "position_ids_sha256",
+        "rope_config_sha256",
+        "kv_producing_weights_sha256",
+        "prefix_lineage_sha256",
+    ],
+    "cache_identity_mismatch_result": "cache_incompatible",
+    "cache_identity_unknown_result": "cache_incompatible",
+    "target_delta_initial_cache_scope": "expert_private_delta",
+    "target_delta_promotion_requires": (
+        "explicit_committed_and_causally_visible_downstream"
+    ),
+    "target_delta_promoted_cache_scope": "downstream_task_shared_immutable",
+    "current_target_segment_emitted": False,
+    "q_specialization_alone_sufficient_for_exact_reuse": False,
+    "naive_in_stack_q_lora_exact_reuse_allowed": False,
+    "full_generation_kv_shared_claimed": False,
+    "token_level_moe_claimed": False,
+}
 
 
 class TrainingReleaseConsumerError(RuntimeError):
@@ -247,8 +318,15 @@ def _parse_partition(
     *,
     expected_split: str,
     expected_variant: str,
+    expected_sidecar_schema_sha256: str,
+    expected_segment_plan_schema_sha256: str,
 ) -> tuple[int, tuple[tuple[str, str, str, str], ...]]:
     """Return only content-free bundle/role/task metadata from authenticated bytes."""
+
+    from .query_specialization import (  # local import avoids a module cycle
+        QuerySpecializationError,
+        parse_taskboard_sidecar,
+    )
 
     try:
         text = snapshot.data.decode("utf-8")
@@ -266,38 +344,34 @@ def _parse_partition(
             ) from exc
         if not isinstance(row, Mapping):
             _fail("release_lock_partition_invalid")
-        training_record = _mapping(
-            row.get("training_record"), "release_lock_partition_invalid"
-        )
-        task_board = _mapping(
-            training_record.get("task_board"), "release_lock_partition_invalid"
-        )
-        bundle = row.get("task_bundle_sha256")
-        role = training_record.get("role")
-        task_id = task_board.get("task_id")
-        if (
-            row.get("schema_version")
-            != "anchor.swebench-taskboard-sidecar.v1"
-            or row.get("split") != expected_split
-            or row.get("variant") != expected_variant
-            or training_record.get("schema_version")
-            != "anchor.query-specialization.v1"
-            or training_record.get("split") != expected_split
-            or training_record.get("variant") != expected_variant
-            or not _is_sha256(bundle)
-            or role not in REQUIRED_ROLES
-            or not isinstance(task_id, str)
-            or not _IDENTIFIER_RE.fullmatch(task_id)
-            or "provenance" in training_record
-            or not isinstance(row.get("source_gold_record_id"), str)
-            or not _IDENTIFIER_RE.fullmatch(str(row["source_gold_record_id"]))
-            or not _is_sha256(row.get("source_gold_sha256"))
-            or not _is_sha256(row.get("source_gold_file_sha256"))
-            or not _is_sha256(row.get("source_snapshot_sha256"))
-            or not _is_sha256(row.get("source_snapshot_manifest_sha256"))
-        ):
+        actual_version = row.get("schema_version")
+        if actual_version != SIDECAR_SCHEMA_VERSION:
+            _fail("release_lock_sidecar_schema_version_unsupported")
+        try:
+            sidecar = parse_taskboard_sidecar(
+                row,
+                source="<authenticated-release-partition>",
+                expected_split=expected_split,
+                expected_variant=expected_variant,
+                expected_sidecar_schema_sha256=expected_sidecar_schema_sha256,
+                expected_segment_plan_schema_sha256=(
+                    expected_segment_plan_schema_sha256
+                ),
+            )
+        except QuerySpecializationError as exc:
+            raise TrainingReleaseConsumerError(
+                "release_lock_partition_invalid"
+            ) from exc
+        if "provenance" in row.get("training_record", {}):
             _fail("release_lock_partition_invalid")
-        metadata.append((str(bundle), str(role), task_id, expected_variant))
+        metadata.append(
+            (
+                sidecar.task_bundle_sha256,
+                sidecar.training_record.role,
+                sidecar.training_record.task_id,
+                expected_variant,
+            )
+        )
     if not metadata:
         _fail("release_lock_partition_invalid")
     return len(metadata), tuple(metadata)
@@ -316,6 +390,7 @@ class TrainingReleaseValidation:
     consumer_version: str
     consumer_contract_sha256: str
     consumer_files_sha256: tuple[tuple[str, str], ...]
+    segment_plan_schema_sha256: str
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -331,6 +406,9 @@ class TrainingReleaseValidation:
             "consumer_version": self.consumer_version,
             "consumer_contract_sha256": self.consumer_contract_sha256,
             "consumer_files_sha256": dict(self.consumer_files_sha256),
+            "segment_plan_schema_version": SEGMENT_PLAN_SCHEMA_VERSION,
+            "segment_plan_schema_sha256": self.segment_plan_schema_sha256,
+            "segment_plan_location": "outer_sidecar.segment_plan",
             "split_group_key": "task_bundle_sha256",
             "required_roles": list(REQUIRED_ROLES),
             "provenance_location": "outer_sidecar",
@@ -355,9 +433,43 @@ def validate_release_lock_schema(
     if (
         schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
         or schema.get("type") != "object"
+        or _mapping(
+            _mapping(
+                schema.get("properties"), "release_lock_schema_invalid"
+            ).get("schema_version"),
+            "release_lock_schema_invalid",
+        ).get("const")
+        != RELEASE_LOCK_SCHEMA_VERSION
     ):
         _fail("release_lock_schema_invalid")
     return schema_snapshot.sha256
+
+
+def validate_source_disjoint_schema(
+    schema_path: str | Path,
+    expected_schema_sha256: str = SOURCE_DISJOINT_SCHEMA_SHA256,
+) -> str:
+    """Authenticate the source-disjoint v2 schema pinned by this consumer."""
+
+    if not _is_sha256(expected_schema_sha256):
+        _fail("source_disjoint_expected_sha256_invalid")
+    snapshot = _read_bytes_snapshot(
+        Path(schema_path).expanduser().resolve(), "source_disjoint_schema_invalid"
+    )
+    if snapshot.sha256 != expected_schema_sha256:
+        _fail("source_disjoint_schema_invalid")
+    schema = _json_mapping(snapshot, "source_disjoint_schema_invalid")
+    properties = _mapping(schema.get("properties"), "source_disjoint_schema_invalid")
+    version = _mapping(
+        properties.get("schema_version"), "source_disjoint_schema_invalid"
+    )
+    if (
+        schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
+        or schema.get("type") != "object"
+        or version.get("const") != SOURCE_DISJOINT_SCHEMA_VERSION
+    ):
+        _fail("source_disjoint_schema_invalid")
+    return snapshot.sha256
 
 
 def load_training_release_lock(
@@ -370,6 +482,7 @@ def load_training_release_lock(
     expected_projector_manifest_sha256: str,
     expected_projector_manifest_schema_sha256: str,
     expected_projector_sidecar_schema_sha256: str,
+    expected_projector_segment_plan_schema_sha256: str,
     expected_consumer_contract_sha256: str,
     repository_root: str | Path,
     expected_consumer_id: str,
@@ -386,6 +499,7 @@ def load_training_release_lock(
         expected_projector_manifest_sha256,
         expected_projector_manifest_schema_sha256,
         expected_projector_sidecar_schema_sha256,
+        expected_projector_segment_plan_schema_sha256,
         expected_consumer_contract_sha256,
     ):
         if not _is_sha256(value):
@@ -424,15 +538,36 @@ def load_training_release_lock(
     _exact_fields(bindings, _BINDING_FIELDS, "release_lock_bindings_invalid")
     if not all(_is_sha256(bindings.get(key)) for key in _BINDING_FIELDS):
         _fail("release_lock_bindings_invalid")
+    actual_schema_version = manifest.get("schema_version")
+    if actual_schema_version != RELEASE_LOCK_SCHEMA_VERSION:
+        _fail("release_lock_schema_version_unsupported")
+    task_kv = _mapping(
+        manifest.get("hierarchical_task_kv"),
+        "release_lock_hierarchical_task_kv_invalid",
+    )
+    _exact_fields(
+        task_kv,
+        _HIERARCHICAL_TASK_KV_FIELDS,
+        "release_lock_hierarchical_task_kv_invalid",
+    )
+    expected_task_kv = {
+        **_HIERARCHICAL_TASK_KV_CONTRACT,
+        "segment_plan_schema_sha256": (
+            expected_projector_segment_plan_schema_sha256
+        ),
+    }
+    if dict(task_kv) != expected_task_kv:
+        _fail("release_lock_hierarchical_task_kv_invalid")
     if (
-        manifest.get("schema_version") != RELEASE_LOCK_SCHEMA_VERSION
-        or manifest.get("status") != "ready"
+        manifest.get("status") != "ready"
         or bindings.get("projector_manifest_sha256")
         != expected_projector_manifest_sha256
         or bindings.get("projector_manifest_schema_sha256")
         != expected_projector_manifest_schema_sha256
         or bindings.get("projector_sidecar_schema_sha256")
         != expected_projector_sidecar_schema_sha256
+        or bindings.get("projector_segment_plan_schema_sha256")
+        != expected_projector_segment_plan_schema_sha256
         or manifest.get("split_group_key") != "task_bundle_sha256"
         or manifest.get("task_id_cross_binding_key")
         != "training_record.task_board.task_id"
@@ -492,6 +627,12 @@ def load_training_release_lock(
             partition_snapshot,
             expected_split=split,
             expected_variant=variant,
+            expected_sidecar_schema_sha256=(
+                expected_projector_sidecar_schema_sha256
+            ),
+            expected_segment_plan_schema_sha256=(
+                expected_projector_segment_plan_schema_sha256
+            ),
         )
         if (
             partition_snapshot.sha256 != item["sha256"]
@@ -550,6 +691,9 @@ def load_training_release_lock(
         consumer_version=expected_consumer_version,
         consumer_contract_sha256=expected_consumer_contract_sha256,
         consumer_files_sha256=consumer_files_sha256,
+        segment_plan_schema_sha256=(
+            expected_projector_segment_plan_schema_sha256
+        ),
     )
 
 
@@ -562,8 +706,13 @@ __all__ = [
     "RELEASE_LOCK_SCHEMA_SHA256",
     "RELEASE_LOCK_SCHEMA_VERSION",
     "REQUIRED_ROLES",
+    "SEGMENT_PLAN_SCHEMA_VERSION",
+    "SIDECAR_SCHEMA_VERSION",
+    "SOURCE_DISJOINT_SCHEMA_SHA256",
+    "SOURCE_DISJOINT_SCHEMA_VERSION",
     "TrainingReleaseConsumerError",
     "TrainingReleaseValidation",
     "load_training_release_lock",
     "validate_release_lock_schema",
+    "validate_source_disjoint_schema",
 ]

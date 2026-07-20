@@ -46,13 +46,18 @@ Exact or approximate shared-KV execution remains a separate runtime experiment.
 ## Authoritative producer contract
 
 Training consumes outer records with schema version
-`anchor.swebench-taskboard-sidecar.v1`. The checked-in producer contracts are:
+`anchor.swebench-taskboard-sidecar.v2`. The checked-in producer contracts are:
 
 | Contract | SHA256 |
 | --- | --- |
-| `configs/research/taskboard_projector_sidecar.schema.json` | `654e9f7fddbe67885156c4e1fac9aa48c0b415c6fb52d3dcf501d53520b6f146` |
-| `configs/research/taskboard_projector_manifest.schema.json` | `75dc191849a0fba084dbc81064e7c5634c8727b41ad4b62522e3a28ecd727e53` |
-| `configs/research/swebench_taskboard_projector_v1.yaml` | `5d1207bf0a16f84c7cfa3448350b2a26f4127384664704b967c7c4280c9e63c9` |
+| `configs/research/swebench_taskboard_projector_v2.yaml` | `b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943` |
+| `configs/research/taskboard_projector_sidecar.schema.json` | `c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5` |
+| `configs/research/hierarchical_task_kv_segment_plan.schema.json` | `80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf` |
+| `configs/research/taskboard_projector_manifest.schema.json` | `2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347` |
+| producer fixture `manifest.json` | `595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac` |
+
+The v1 projector configuration is retained only as historical material and is
+not accepted by the current fixture or consumer.
 
 Training-owned machine-readable contracts are
 [`query_specialization_record.schema.json`](../../configs/research/query_specialization_record.schema.json)
@@ -77,8 +82,11 @@ The outer wrapper carries immutable lineage:
 - source Gold record, file, and content hashes;
 - snapshot and snapshot-manifest hashes;
 - task-bundle and base-TaskBoard hashes;
-- projector version, projector-config hash, and sidecar-schema hash;
+- projector version, projector-config hash, sidecar-schema hash, and native
+  segment-plan-schema hash;
 - split-before-augmentation metadata;
+- the producer-authored native `segment_plan` (the only physical-cache-plan
+  source accepted by the current consumer);
 - the inner `training_record`.
 
 The inner record remains exactly `anchor.query-specialization.v1`: identity,

@@ -30,38 +30,75 @@
       "clean": 10,
       "noisy": 5
     },
+    "segment_references": 89,
     "task_ids_sha256": "9ff1b50de2b5540f3cd3e9db0074c4bb95e38c4e4a17134a415c0c75c1c47507",
     "total": 15,
+    "unique_segments": 25,
+    "unique_segments_by_cache_scope": {
+      "downstream_task_shared_immutable": 16,
+      "expert_private_delta": 5,
+      "task_shared_prefix": 4
+    },
     "unique_task_bundles": 2
   },
   "files": [
     {
-      "bytes": 33095,
+      "bytes": 75662,
       "path": "train/clean.jsonl",
       "records": 5,
-      "sha256": "aa22662bbfb68f8f92867620135de34ce2ea09bf9c5c3f4817484dd093f16f91",
+      "sha256": "3b0f83991bdd5330de5261a922c1d0051c434418ff54b744957af02d7eb04927",
       "split": "train",
       "variant": "clean"
     },
     {
-      "bytes": 35483,
+      "bytes": 84225,
       "path": "train/noisy.jsonl",
       "records": 5,
-      "sha256": "f5436ee9bfd4757277dfbfd22d06ddcb797839fec132c8aaaa9c3e14a6a528bf",
+      "sha256": "eb6eea5d13bb6416836b3463082398a8906ba85b09389c073cffc3ede12c613d",
       "split": "train",
       "variant": "noisy"
     },
     {
-      "bytes": 33255,
+      "bytes": 75852,
       "path": "calibration/clean.jsonl",
       "records": 5,
-      "sha256": "6fdf20caaf19cb77fbb1dea2640501fe05854ee5f7f7625376c0c84e376687d3",
+      "sha256": "f6d5534897d93ef2544023d7d5ac9bcac15d64e4fe14c2529a754e1253b16448",
       "split": "calibration",
       "variant": "clean"
     }
   ],
   "heldout_content_emitted": false,
   "heldout_content_read": false,
+  "hierarchical_task_kv": {
+    "architecture": "hierarchical_task_kv",
+    "cache_identity_mismatch_result": "cache_incompatible",
+    "cache_identity_required_exact_match_fields": [
+      "model_architecture_sha256",
+      "tokenizer_sha256",
+      "token_order_sha256",
+      "position_ids_sha256",
+      "rope_config_sha256",
+      "kv_producing_weights_sha256",
+      "prefix_lineage_sha256"
+    ],
+    "cache_identity_unknown_result": "cache_incompatible",
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "forbidden_current_future_preinsert_allowed": false,
+    "full_generation_kv_shared_claimed": false,
+    "independent_segment_concatenation_allowed": false,
+    "kv_payloads_emitted": false,
+    "materialization": "metadata_only_no_tensor_or_kv",
+    "naive_in_stack_q_lora_exact_reuse_allowed": false,
+    "ordered_prefix_chain": true,
+    "q_specialization_alone_sufficient_for_exact_reuse": false,
+    "segment_plan_location": "outer_sidecar.segment_plan",
+    "segment_plan_schema_version": "anchor.hierarchical-task-kv-segment-plan.v1",
+    "shared_prefix_membership": "strict_all_five_role_visibility_intersection",
+    "shared_then_mask_allowed": false,
+    "tensors_emitted": false,
+    "token_level_moe_claimed": false
+  },
   "input": {
     "snapshot_manifest_path": "manifest.json",
     "snapshot_manifest_sha256": "bdc00864ded30367f2b67e3713dd406c2bdc124227eabf53dc5afd6f8d0cc0a1",
@@ -75,15 +112,17 @@
     ]
   },
   "producer": {
-    "config_sha256": "5d1207bf0a16f84c7cfa3448350b2a26f4127384664704b967c7c4280c9e63c9",
-    "manifest_schema_sha256": "75dc191849a0fba084dbc81064e7c5634c8727b41ad4b62522e3a28ecd727e53",
+    "config_sha256": "b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943",
+    "manifest_schema_sha256": "2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347",
     "name": "anchor.swebench-taskboard-projector",
-    "projector_version": "anchor.swebench-taskboard-projector.v1",
+    "projector_version": "anchor.swebench-taskboard-projector.v2",
     "record_schema_version": "anchor.query-specialization.v1",
-    "sidecar_schema_sha256": "654e9f7fddbe67885156c4e1fac9aa48c0b415c6fb52d3dcf501d53520b6f146"
+    "segment_plan_schema_sha256": "80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf",
+    "segment_plan_schema_version": "anchor.hierarchical-task-kv-segment-plan.v1",
+    "sidecar_schema_sha256": "c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5"
   },
   "provider_requests": 0,
-  "schema_version": "anchor.swebench-taskboard-projector-manifest.v1",
+  "schema_version": "anchor.swebench-taskboard-projector-manifest.v2",
   "split_group_key": "task_bundle_sha256",
   "split_preserved": true,
   "task_id_cross_binding_key": "training_record.task_board.task_id"

@@ -1,5 +1,16 @@
 """Research-only prototypes that are not part of the stable serving API."""
 
+from .hierarchical_kv import (
+    AdapterExecutionProfile,
+    AdapterPlacement,
+    CombinedKVView,
+    CommitReceipt,
+    HierarchicalTaskKVStore,
+    KVCompatibilityIdentity,
+    KVProducerExecutionMode,
+    KVSegment,
+    KVStoreStats,
+)
 from .neural_swarm import (
     AdapterSpec,
     CacheGeometry,
@@ -30,6 +41,15 @@ from .neural_swarm_streaming import (
     collect_swarm_events,
     summarize_swarm_events,
 )
+from .neural_swarm_kv_runtime import (
+    KV_RUNTIME_CONTEXT_VERSION,
+    HierarchicalKVBackendAdapter,
+    InMemoryHierarchicalKVContextProvider,
+    KVRuntimeContext,
+    KVSharingMode,
+    NeuralSwarmKVRuntimeError,
+    TrustedExactKVBinding,
+)
 from .query_specialization import (
     AttentionTargets,
     QuerySpecializationError,
@@ -55,8 +75,34 @@ from .query_specialization import (
     validate_source_task_partition,
     validate_taskboard_sidecar_dataset,
 )
+from .taskboard_kv_segments import (
+    FROZEN_PRODUCER_CONTRACT_SHA256,
+    INDEX_SCHEMA_VERSION,
+    PLAN_SCHEMA_VERSION,
+    ExpertOutputPlacement,
+    TaskBoardKVSegmentError,
+    TaskBoardKVSegmentPlan,
+    consume_native_taskboard_kv_segment_plans,
+    content_free_plan_summary,
+    load_authenticated_taskboard_kv_dataset,
+    place_expert_output,
+    project_taskboard_kv_segment_plans,
+    validate_index_mapping,
+    validate_native_sidecar_dataset,
+    validate_plan_mapping,
+    validate_plan_schema,
+)
 
 __all__ = [
+    "AdapterExecutionProfile",
+    "AdapterPlacement",
+    "CombinedKVView",
+    "CommitReceipt",
+    "HierarchicalTaskKVStore",
+    "KVCompatibilityIdentity",
+    "KVProducerExecutionMode",
+    "KVSegment",
+    "KVStoreStats",
     "AdapterSpec",
     "CacheGeometry",
     "CacheMemoryEstimate",
@@ -83,6 +129,13 @@ __all__ = [
     "SwarmRunSummary",
     "collect_swarm_events",
     "summarize_swarm_events",
+    "KV_RUNTIME_CONTEXT_VERSION",
+    "HierarchicalKVBackendAdapter",
+    "InMemoryHierarchicalKVContextProvider",
+    "KVRuntimeContext",
+    "KVSharingMode",
+    "NeuralSwarmKVRuntimeError",
+    "TrustedExactKVBinding",
     "AttentionTargets",
     "QuerySpecializationError",
     "QueryTrainingRecord",
@@ -106,4 +159,19 @@ __all__ = [
     "validate_paired_records",
     "validate_source_task_partition",
     "validate_taskboard_sidecar_dataset",
+    "PLAN_SCHEMA_VERSION",
+    "INDEX_SCHEMA_VERSION",
+    "FROZEN_PRODUCER_CONTRACT_SHA256",
+    "ExpertOutputPlacement",
+    "TaskBoardKVSegmentError",
+    "TaskBoardKVSegmentPlan",
+    "consume_native_taskboard_kv_segment_plans",
+    "content_free_plan_summary",
+    "load_authenticated_taskboard_kv_dataset",
+    "place_expert_output",
+    "project_taskboard_kv_segment_plans",
+    "validate_index_mapping",
+    "validate_native_sidecar_dataset",
+    "validate_plan_mapping",
+    "validate_plan_schema",
 ]

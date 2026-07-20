@@ -358,6 +358,12 @@ def test_official_projector_fixture_loads_with_fixed_three_partition_contract() 
     assert summary["by_split"] == {"calibration": 5, "train": 10}
     assert summary["by_variant"] == {"clean": 10, "noisy": 5}
     assert summary["train_pairs"] == 5
+    assert summary["segment_references"] == manifest["counts"]["segment_references"]
+    assert summary["unique_segments"] == manifest["counts"]["unique_segments"]
+    assert summary["unique_segments_by_cache_scope"] == manifest["counts"][
+        "unique_segments_by_cache_scope"
+    ]
+    assert summary["segment_plan_cross_bindings_validated"] is True
     assert summary["by_expert"] == {
         "frontend_gen": 3,
         "frontend_review": 3,
@@ -628,6 +634,108 @@ def test_sidecar_parser_rejects_wrapper_inner_and_augmentation_mismatches() -> N
         parse_taskboard_sidecar(wrong_stage)
 
 
+def test_v1_sidecar_and_manifest_are_rejected_with_explicit_version_policy(
+    tmp_path: Path,
+) -> None:
+    raw = json.loads(
+        (PROJECTOR_FIXTURE / "train" / "clean.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    raw["schema_version"] = "anchor.swebench-taskboard-sidecar.v1"
+    with pytest.raises(QuerySpecializationError, match="unsupported sidecar schema_version"):
+        parse_taskboard_sidecar(raw)
+
+    fixture = _copy_projector_fixture(tmp_path)
+    manifest = json.loads((fixture / "manifest.json").read_text(encoding="utf-8"))
+    manifest["schema_version"] = "anchor.swebench-taskboard-projector-manifest.v1"
+    _rewrite_manifest(fixture, manifest)
+    with pytest.raises(
+        QuerySpecializationError,
+        match="unsupported projector manifest schema_version",
+    ):
+        load_taskboard_sidecar_dataset(fixture)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "task_bundle_sha256",
+        "task_id",
+        "base_task_board_sha256",
+        "config_sha256",
+        "sidecar_schema_sha256",
+        "segment_plan_schema_sha256",
+        "source_gold_sha256",
+        "source_gold_file_sha256",
+        "source_snapshot_sha256",
+        "source_snapshot_manifest_sha256",
+        "split",
+        "stage",
+        "expert",
+        "variant",
+    ],
+)
+def test_segment_plan_bindings_are_strictly_cross_bound(field: str) -> None:
+    raw = json.loads(
+        (PROJECTOR_FIXTURE / "train" / "clean.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    binding = raw["segment_plan"]["bindings"][field]
+    raw["segment_plan"]["bindings"][field] = (
+        "0" * 64 if isinstance(binding, str) and len(binding) == 64 else "drift"
+    )
+    with pytest.raises(QuerySpecializationError, match="bindings do not match"):
+        parse_taskboard_sidecar(raw)
+
+
+def test_segment_plan_rejects_cache_claims_for_unbound_identity() -> None:
+    raw = json.loads(
+        (PROJECTOR_FIXTURE / "train" / "clean.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    raw["segment_plan"]["cache_compatibility"]["cache_reuse_allowed"] = True
+    with pytest.raises(QuerySpecializationError, match="cache_compatibility contract"):
+        parse_taskboard_sidecar(raw)
+
+
+def test_segment_plan_recomputes_content_scope_visibility_and_lineage() -> None:
+    raw = json.loads(
+        (PROJECTOR_FIXTURE / "train" / "clean.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    for field, value in (
+        ("content_sha256", "0" * 64),
+        ("cache_scope", "expert_private_delta"),
+        ("visibility", ["planner"]),
+        ("prefix_lineage_sha256", "0" * 64),
+    ):
+        tampered = copy.deepcopy(raw)
+        tampered["segment_plan"]["segments"][0][field] = value
+        with pytest.raises(QuerySpecializationError, match="binding changed"):
+            parse_taskboard_sidecar(tampered)
+
+
+def test_segment_plan_never_contains_forbidden_or_current_target_payload() -> None:
+    raw = json.loads(
+        (PROJECTOR_FIXTURE / "train" / "clean.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    sidecar = parse_taskboard_sidecar(raw)
+    source_ids = {
+        segment["source_block_id"] for segment in sidecar.segment_plan["segments"]
+    }
+    forbidden = set(sidecar.training_record.targets.forbidden)
+    assert source_ids.isdisjoint(forbidden)
+    assert json.loads(sidecar.training_record.target_output)["answer"] not in (
+        sidecar.segment_plan_json
+    )
+
+
 def test_sidecar_dataset_prevents_bundle_split_leakage_and_language_mix() -> None:
     sidecars, _, _ = load_taskboard_sidecar_dataset(PROJECTOR_FIXTURE)
     train = next(sidecar for sidecar in sidecars if sidecar.split == "train")
@@ -638,7 +746,10 @@ def test_sidecar_dataset_prevents_bundle_split_leakage_and_language_mix() -> Non
     leaked[calibration_index] = replace(
         leaked[calibration_index], task_bundle_sha256=train.task_bundle_sha256
     )
-    with pytest.raises(QuerySpecializationError, match="task bundle hash crosses"):
+    with pytest.raises(
+        QuerySpecializationError,
+        match="segment-plan bindings do not match|task bundle hash crosses",
+    ):
         validate_taskboard_sidecar_dataset(leaked)
 
     mixed = list(sidecars)
@@ -674,7 +785,10 @@ def test_five_role_task_bundle_is_the_split_group_not_source_gold_record_id() ->
         else sidecar
         for sidecar in sidecars
     ]
-    with pytest.raises(QuerySpecializationError, match="task bundle hash crosses"):
+    with pytest.raises(
+        QuerySpecializationError,
+        match="segment-plan bindings do not match|task bundle hash crosses",
+    ):
         validate_taskboard_sidecar_dataset(split_across_roles)
 
 

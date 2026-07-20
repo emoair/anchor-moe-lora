@@ -1,76 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/generic-train-release-lock-v2.json",
-  "title": "Generic train release lock",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/swebench-source-disjoint-manifest-v2.json",
+  "title": "SWE-bench hash-only source-disjoint manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "status", "bindings", "fixed_files", "consumer",
+    "schema_version", "status", "bindings", "projector_grouping",
     "hierarchical_task_kv",
-    "split_group_key", "task_id_cross_binding_key", "required_roles",
-    "provenance_location", "calibration_is_heldout", "heldout_content_read",
-    "heldout_content_emitted", "canonical_gold_written", "provider_requests",
-    "claim_scope"
+    "partitions", "projected_files_sha256", "pairwise_source_disjoint",
+    "calibration_is_heldout", "heldout_manifest_metadata_read",
+    "heldout_content_read", "heldout_content_emitted",
+    "leakage_audit_sha256", "claim_scope"
   ],
   "properties": {
-    "schema_version": {"const": "anchor.generic-train-release-lock.v2"},
+    "schema_version": {"const": "anchor.swebench-source-disjoint-manifest.v2"},
     "status": {"const": "ready"},
     "bindings": {
       "type": "object", "additionalProperties": false,
       "required": [
-        "projector_manifest_sha256", "projector_manifest_schema_sha256",
-        "projector_sidecar_schema_sha256",
+        "snapshot_manifest_sha256", "projector_manifest_sha256",
+        "projector_manifest_schema_sha256", "projector_sidecar_schema_sha256",
         "projector_segment_plan_schema_sha256",
-        "source_disjoint_manifest_sha256",
-        "generic_execution_contract_sha256", "consumer_contract_sha256",
-        "execution_lock_sha256", "attestation_sha256",
-        "coordinator_config_sha256", "source_bank_manifest_sha256"
+        "heldout_manifest_sha256"
       ],
       "properties": {
+        "snapshot_manifest_sha256": {"$ref": "#/$defs/sha256"},
         "projector_manifest_sha256": {"$ref": "#/$defs/sha256"},
         "projector_manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
         "projector_sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
         "projector_segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
-        "source_disjoint_manifest_sha256": {"$ref": "#/$defs/sha256"},
-        "generic_execution_contract_sha256": {"$ref": "#/$defs/sha256"},
-        "consumer_contract_sha256": {"$ref": "#/$defs/sha256"},
-        "execution_lock_sha256": {"$ref": "#/$defs/sha256"},
-        "attestation_sha256": {"$ref": "#/$defs/sha256"},
-        "coordinator_config_sha256": {"$ref": "#/$defs/sha256"},
-        "source_bank_manifest_sha256": {"$ref": "#/$defs/sha256"}
+        "heldout_manifest_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
-    "fixed_files": {
-      "type": "array", "minItems": 3, "maxItems": 3,
-      "prefixItems": [
-        {"$ref": "#/$defs/train_clean"},
-        {"$ref": "#/$defs/train_noisy"},
-        {"$ref": "#/$defs/calibration_clean"}
-      ],
-      "items": false
-    },
-    "consumer": {
+    "projector_grouping": {
       "type": "object", "additionalProperties": false,
-      "required": ["consumer_id", "consumer_version", "implementation_files", "launch_entrypoint"],
+      "required": [
+        "split_group_key", "task_id_cross_binding_key",
+        "inner_task_ids_sha256", "all_five_role_views_same_split"
+      ],
       "properties": {
-        "consumer_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
-        "consumer_version": {"type": "string", "minLength": 1},
-        "implementation_files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/path_hash"}},
-        "launch_entrypoint": {"$ref": "#/$defs/path_hash"}
+        "split_group_key": {"const": "task_bundle_sha256"},
+        "task_id_cross_binding_key": {"const": "training_record.task_board.task_id"},
+        "inner_task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "all_five_role_views_same_split": {"const": true}
       }
     },
     "hierarchical_task_kv": {"$ref": "#/$defs/hierarchical_task_kv"},
-    "split_group_key": {"const": "task_bundle_sha256"},
-    "task_id_cross_binding_key": {"const": "training_record.task_board.task_id"},
-    "required_roles": {
-      "const": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    "partitions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["train", "calibration", "heldout"],
+      "properties": {
+        "train": {"$ref": "#/$defs/train"},
+        "calibration": {"$ref": "#/$defs/calibration"},
+        "heldout": {"$ref": "#/$defs/heldout"}
+      }
     },
-    "provenance_location": {"const": "outer_sidecar"},
+    "projected_files_sha256": {
+      "type": "object", "additionalProperties": false,
+      "required": ["train/clean.jsonl", "train/noisy.jsonl", "calibration/clean.jsonl"],
+      "properties": {
+        "train/clean.jsonl": {"$ref": "#/$defs/sha256"},
+        "train/noisy.jsonl": {"$ref": "#/$defs/sha256"},
+        "calibration/clean.jsonl": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "pairwise_source_disjoint": {"const": true},
     "calibration_is_heldout": {"const": false},
+    "heldout_manifest_metadata_read": {"const": true},
     "heldout_content_read": {"const": false},
     "heldout_content_emitted": {"const": false},
-    "canonical_gold_written": {"const": false},
-    "provider_requests": {"const": 0},
+    "leakage_audit_sha256": {"$ref": "#/$defs/sha256"},
     "claim_scope": {"const": "research_proxy_only"}
   },
   "$defs": {
@@ -144,23 +143,54 @@
         "token_level_moe_claimed": {"const": false}
       }
     },
-    "relative_path": {"type": "string", "minLength": 1, "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"},
-    "path_hash": {
-      "type": "object", "additionalProperties": false,
-      "required": ["path", "sha256"],
-      "properties": {"path": {"$ref": "#/$defs/relative_path"}, "sha256": {"$ref": "#/$defs/sha256"}}
-    },
-    "file": {
-      "type": "object", "additionalProperties": false,
-      "required": ["path", "sha256", "bytes", "records", "split", "variant"],
+    "base_partition": {
+      "type": "object",
+      "required": [
+        "role", "source_population_count", "accepted_gold_count",
+        "source_instance_ids_sha256", "allowlist_sha256"
+      ],
       "properties": {
-        "path": {"$ref": "#/$defs/relative_path"}, "sha256": {"$ref": "#/$defs/sha256"},
-        "bytes": {"type": "integer", "minimum": 1}, "records": {"type": "integer", "minimum": 1},
-        "split": {"enum": ["train", "calibration"]}, "variant": {"enum": ["clean", "noisy"]}
+        "source_population_count": {"type": "integer", "minimum": 1},
+        "accepted_gold_count": {"type": "integer", "minimum": 1},
+        "source_instance_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "allowlist_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
-    "train_clean": {"allOf": [{"$ref": "#/$defs/file"}, {"properties": {"path": {"const": "train/clean.jsonl"}, "split": {"const": "train"}, "variant": {"const": "clean"}}}]},
-    "train_noisy": {"allOf": [{"$ref": "#/$defs/file"}, {"properties": {"path": {"const": "train/noisy.jsonl"}, "split": {"const": "train"}, "variant": {"const": "noisy"}}}]},
-    "calibration_clean": {"allOf": [{"$ref": "#/$defs/file"}, {"properties": {"path": {"const": "calibration/clean.jsonl"}, "split": {"const": "calibration"}, "variant": {"const": "clean"}}}]}
+    "train": {
+      "allOf": [
+        {"$ref": "#/$defs/base_partition"},
+        {"type": "object", "additionalProperties": false,
+         "required": ["role", "source_population_count", "accepted_gold_count", "source_instance_ids_sha256", "allowlist_sha256"],
+         "properties": {
+           "role": {"const": "training_only"},
+           "source_population_count": {"type": "integer", "minimum": 1},
+           "accepted_gold_count": {"type": "integer", "minimum": 1},
+           "source_instance_ids_sha256": {"$ref": "#/$defs/sha256"},
+           "allowlist_sha256": {"$ref": "#/$defs/sha256"}
+         }}
+      ]
+    },
+    "calibration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "is_heldout", "source_population_count", "accepted_gold_count", "source_instance_ids_sha256", "allowlist_sha256"],
+      "properties": {
+        "role": {"const": "rank_allocation_only"},
+        "is_heldout": {"const": false},
+        "source_population_count": {"type": "integer", "minimum": 1},
+        "accepted_gold_count": {"type": "integer", "minimum": 1},
+        "source_instance_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "allowlist_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "heldout": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "case_count", "canonical_cases_sha256", "manifest_sha256"],
+      "properties": {
+        "role": {"const": "evaluation_only_hash_metadata"},
+        "case_count": {"type": "integer", "minimum": 1},
+        "canonical_cases_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
   }
 }

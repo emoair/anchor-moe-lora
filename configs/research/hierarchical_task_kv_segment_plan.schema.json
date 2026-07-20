@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/hierarchical-task-kv-segment-plan-v1.json",
+  "title": "Anchor hierarchical Task-KV immutable segment plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "architecture",
+    "execution_mode",
+    "materialization",
+    "full_generation_kv_shared_claimed",
+    "token_level_moe_claimed",
+    "split_before_augmentation",
+    "augmentation_applied_after_split",
+    "bindings",
+    "shared_prefix_policy",
+    "target_delta_policy",
+    "cache_compatibility",
+    "segments"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.hierarchical-task-kv-segment-plan.v1"},
+    "architecture": {"const": "hierarchical_task_kv"},
+    "execution_mode": {"const": "decoupled_frozen_prefix_producer_required"},
+    "materialization": {"const": "metadata_only_no_tensor_or_kv"},
+    "full_generation_kv_shared_claimed": {"const": false},
+    "token_level_moe_claimed": {"const": false},
+    "split_before_augmentation": {"const": true},
+    "augmentation_applied_after_split": {"const": true},
+    "bindings": {"$ref": "#/$defs/bindings"},
+    "shared_prefix_policy": {"$ref": "#/$defs/shared_prefix_policy"},
+    "target_delta_policy": {"$ref": "#/$defs/target_delta_policy"},
+    "cache_compatibility": {"$ref": "#/$defs/cache_compatibility"},
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/segment",
+          "properties": {
+            "serialization_order": {"const": 0},
+            "causal_order": {"const": 0},
+            "dependencies": {"maxItems": 0},
+            "parent_segment_id": {"type": "null"}
+          }
+        }
+      ],
+      "items": {"$ref": "#/$defs/segment"}
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "segment_id": {
+      "type": "string",
+      "pattern": "^task-kv-segment-v1:[0-9a-f]{64}$"
+    },
+    "expert": {
+      "enum": [
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate"
+      ]
+    },
+    "producer_role": {
+      "enum": [
+        "task_source",
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate"
+      ]
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_bundle_sha256",
+        "task_id",
+        "base_task_board_sha256",
+        "projector_version",
+        "config_sha256",
+        "sidecar_schema_sha256",
+        "segment_plan_schema_sha256",
+        "source_gold_sha256",
+        "source_gold_file_sha256",
+        "source_snapshot_sha256",
+        "source_snapshot_manifest_sha256",
+        "split",
+        "stage",
+        "expert",
+        "variant"
+      ],
+      "properties": {
+        "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "task_id": {"$ref": "#/$defs/identifier"},
+        "base_task_board_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_version": {"const": "anchor.swebench-taskboard-projector.v2"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "source_gold_sha256": {"$ref": "#/$defs/sha256"},
+        "source_gold_file_sha256": {"$ref": "#/$defs/sha256"},
+        "source_snapshot_sha256": {"$ref": "#/$defs/sha256"},
+        "source_snapshot_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "split": {"enum": ["train", "calibration"]},
+        "stage": {
+          "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+        },
+        "expert": {"$ref": "#/$defs/expert"},
+        "variant": {"enum": ["clean", "noisy"]}
+      }
+    },
+    "shared_prefix_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "membership_rule",
+        "ordered_prefix_chain",
+        "independent_segment_concatenation_allowed",
+        "exact_reuse_scope",
+        "shared_then_mask_allowed",
+        "forbidden_current_future_preinsert_allowed"
+      ],
+      "properties": {
+        "membership_rule": {"const": "strict_all_five_role_visibility_intersection"},
+        "ordered_prefix_chain": {"const": true},
+        "independent_segment_concatenation_allowed": {"const": false},
+        "exact_reuse_scope": {"const": "identical_ordered_prefix_lineage_only"},
+        "shared_then_mask_allowed": {"const": false},
+        "forbidden_current_future_preinsert_allowed": {"const": false}
+      }
+    },
+    "target_delta_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial_cache_scope",
+        "promotion_requires",
+        "promoted_cache_scope",
+        "current_target_segment_emitted"
+      ],
+      "properties": {
+        "initial_cache_scope": {"const": "expert_private_delta"},
+        "promotion_requires": {
+          "const": "explicit_committed_and_causally_visible_downstream"
+        },
+        "promoted_cache_scope": {"const": "downstream_task_shared_immutable"},
+        "current_target_segment_emitted": {"const": false}
+      }
+    },
+    "cache_compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "cache_reuse_allowed",
+        "required_exact_match_fields",
+        "mismatch_result",
+        "unknown_result",
+        "q_specialization_alone_sufficient_for_exact_reuse",
+        "naive_in_stack_q_lora_exact_reuse_allowed"
+      ],
+      "properties": {
+        "status": {"const": "identity_unbound"},
+        "cache_reuse_allowed": {"const": false},
+        "required_exact_match_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "model_architecture_sha256"},
+            {"const": "tokenizer_sha256"},
+            {"const": "token_order_sha256"},
+            {"const": "position_ids_sha256"},
+            {"const": "rope_config_sha256"},
+            {"const": "kv_producing_weights_sha256"},
+            {"const": "prefix_lineage_sha256"}
+          ],
+          "items": false,
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "mismatch_result": {"const": "cache_incompatible"},
+        "unknown_result": {"const": "cache_incompatible"},
+        "q_specialization_alone_sufficient_for_exact_reuse": {"const": false},
+        "naive_in_stack_q_lora_exact_reuse_allowed": {"const": false}
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "content_sha256",
+        "source_block_id",
+        "serialization_order",
+        "causal_order",
+        "producer_role",
+        "cache_scope",
+        "visibility",
+        "dependencies",
+        "commit_state",
+        "parent_segment_id",
+        "parent_lineage_sha256",
+        "prefix_lineage_sha256"
+      ],
+      "properties": {
+        "segment_id": {"$ref": "#/$defs/segment_id"},
+        "content_sha256": {"$ref": "#/$defs/sha256"},
+        "source_block_id": {"$ref": "#/$defs/identifier"},
+        "serialization_order": {"type": "integer", "minimum": 0},
+        "causal_order": {"type": "integer", "minimum": 0},
+        "producer_role": {"$ref": "#/$defs/producer_role"},
+        "cache_scope": {
+          "enum": [
+            "task_shared_prefix",
+            "downstream_task_shared_immutable",
+            "expert_private_delta"
+          ]
+        },
+        "visibility": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/expert"}
+        },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/segment_id"}
+        },
+        "commit_state": {"enum": ["candidate", "verified", "committed"]},
+        "parent_segment_id": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/segment_id"}]
+        },
+        "parent_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "prefix_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"cache_scope": {"const": "task_shared_prefix"}},
+            "required": ["cache_scope"]
+          },
+          "then": {
+            "properties": {
+              "producer_role": {"const": "task_source"},
+              "commit_state": {"const": "committed"},
+              "visibility": {
+                "const": [
+                  "planner",
+                  "tool_policy",
+                  "frontend_gen",
+                  "frontend_review",
+                  "security_gate"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cache_scope": {"const": "downstream_task_shared_immutable"}
+            },
+            "required": ["cache_scope"]
+          },
+          "then": {
+            "properties": {
+              "producer_role": {"$ref": "#/$defs/expert"},
+              "commit_state": {"const": "committed"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"cache_scope": {"const": "expert_private_delta"}},
+            "required": ["cache_scope"]
+          },
+          "then": {
+            "properties": {
+              "producer_role": {"$ref": "#/$defs/expert"},
+              "commit_state": {"enum": ["candidate", "verified"]},
+              "visibility": {"maxItems": 1}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

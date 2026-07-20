@@ -19,9 +19,18 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 SCHEMA_VERSION = "anchor.query-specialization.v1"
-SIDECAR_SCHEMA_VERSION = "anchor.swebench-taskboard-sidecar.v1"
-PROJECTOR_VERSION = "anchor.swebench-taskboard-projector.v1"
-MANIFEST_SCHEMA_VERSION = "anchor.swebench-taskboard-projector-manifest.v1"
+SIDECAR_SCHEMA_VERSION = "anchor.swebench-taskboard-sidecar.v2"
+PROJECTOR_VERSION = "anchor.swebench-taskboard-projector.v2"
+MANIFEST_SCHEMA_VERSION = "anchor.swebench-taskboard-projector-manifest.v2"
+SEGMENT_PLAN_SCHEMA_VERSION = "anchor.hierarchical-task-kv-segment-plan.v1"
+SEGMENT_PLAN_ARCHITECTURE = "hierarchical_task_kv"
+SEGMENT_PLAN_EXECUTION_MODE = "decoupled_frozen_prefix_producer_required"
+SIDECAR_SCHEMA_SHA256 = (
+    "c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5"
+)
+SEGMENT_PLAN_SCHEMA_SHA256 = (
+    "80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf"
+)
 BLOCK_KINDS = (
     "requirement",
     "constraint",
@@ -93,6 +102,8 @@ SIDECAR_FIELDS = {
     "projector_version",
     "config_sha256",
     "sidecar_schema_sha256",
+    "segment_plan_schema_sha256",
+    "segment_plan",
     "augmentation",
     "training_record",
 }
@@ -111,6 +122,85 @@ ATTENTION_TARGET_FIELDS = {
     "forbidden_block_ids",
 }
 TARGET_FIELDS = {"selected_block_ids", "action", "answer"}
+SEGMENT_PLAN_FIELDS = {
+    "schema_version",
+    "architecture",
+    "execution_mode",
+    "materialization",
+    "full_generation_kv_shared_claimed",
+    "token_level_moe_claimed",
+    "split_before_augmentation",
+    "augmentation_applied_after_split",
+    "bindings",
+    "shared_prefix_policy",
+    "target_delta_policy",
+    "cache_compatibility",
+    "segments",
+}
+SEGMENT_BINDING_FIELDS = {
+    "task_bundle_sha256",
+    "task_id",
+    "base_task_board_sha256",
+    "projector_version",
+    "config_sha256",
+    "sidecar_schema_sha256",
+    "segment_plan_schema_sha256",
+    "source_gold_sha256",
+    "source_gold_file_sha256",
+    "source_snapshot_sha256",
+    "source_snapshot_manifest_sha256",
+    "split",
+    "stage",
+    "expert",
+    "variant",
+}
+SEGMENT_FIELDS = {
+    "segment_id",
+    "content_sha256",
+    "source_block_id",
+    "serialization_order",
+    "causal_order",
+    "producer_role",
+    "cache_scope",
+    "visibility",
+    "dependencies",
+    "commit_state",
+    "parent_segment_id",
+    "parent_lineage_sha256",
+    "prefix_lineage_sha256",
+}
+CACHE_IDENTITY_FIELDS = (
+    "model_architecture_sha256",
+    "tokenizer_sha256",
+    "token_order_sha256",
+    "position_ids_sha256",
+    "rope_config_sha256",
+    "kv_producing_weights_sha256",
+    "prefix_lineage_sha256",
+)
+SEGMENT_SHARED_PREFIX_POLICY = {
+    "membership_rule": "strict_all_five_role_visibility_intersection",
+    "ordered_prefix_chain": True,
+    "independent_segment_concatenation_allowed": False,
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "shared_then_mask_allowed": False,
+    "forbidden_current_future_preinsert_allowed": False,
+}
+SEGMENT_TARGET_DELTA_POLICY = {
+    "initial_cache_scope": "expert_private_delta",
+    "promotion_requires": "explicit_committed_and_causally_visible_downstream",
+    "promoted_cache_scope": "downstream_task_shared_immutable",
+    "current_target_segment_emitted": False,
+}
+SEGMENT_CACHE_COMPATIBILITY = {
+    "status": "identity_unbound",
+    "cache_reuse_allowed": False,
+    "required_exact_match_fields": list(CACHE_IDENTITY_FIELDS),
+    "mismatch_result": "cache_incompatible",
+    "unknown_result": "cache_incompatible",
+    "q_specialization_alone_sufficient_for_exact_reuse": False,
+    "naive_in_stack_q_lora_exact_reuse_allowed": False,
+}
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
 
@@ -189,8 +279,19 @@ class TaskBoardSidecar:
     projector_version: str
     config_sha256: str
     sidecar_schema_sha256: str
+    segment_plan_schema_sha256: str
+    segment_plan_json: str
     augmentation: TaskBoardAugmentation
     training_record: QueryTrainingRecord
+
+    @property
+    def segment_plan(self) -> dict[str, Any]:
+        """Return a detached copy of the authenticated immutable plan."""
+
+        value = json.loads(self.segment_plan_json)
+        if not isinstance(value, dict):  # pragma: no cover - constructor invariant
+            raise QuerySpecializationError("stored segment plan is not an object")
+        return value
 
 
 @dataclass(frozen=True)
@@ -527,6 +628,201 @@ def query_training_record_sha256(record: QueryTrainingRecord) -> str:
     return _canonical_sha256(canonical_query_training_record(record))
 
 
+def _segment_id(
+    *,
+    task_bundle_sha256: str,
+    source_block_id: str,
+    content_sha256: str,
+    producer_role: str,
+    cache_scope: str,
+) -> str:
+    return "task-kv-segment-v1:" + _canonical_sha256(
+        {
+            "task_bundle_sha256": task_bundle_sha256,
+            "source_block_id": source_block_id,
+            "content_sha256": content_sha256,
+            "producer_role": producer_role,
+            "cache_scope": cache_scope,
+        }
+    )
+
+
+def _parse_segment_plan(
+    value: Any,
+    *,
+    source: str,
+    expected_bindings: Mapping[str, str],
+    inner: QueryTrainingRecord,
+) -> str:
+    """Validate and freeze one metadata-only hierarchical Task-KV plan.
+
+    The plan is never treated as prompt text.  Every segment is recomputed from
+    the already validated inner board, so a hash-only plan cannot smuggle the
+    current target, a future answer, or a forbidden block into reusable state.
+    """
+
+    if not isinstance(value, Mapping):
+        raise QuerySpecializationError(f"{source} must be an object")
+    _reject_unknown_fields(value, SEGMENT_PLAN_FIELDS, source)
+    if set(value) != SEGMENT_PLAN_FIELDS:
+        raise QuerySpecializationError(
+            f"{source} is missing fields: {sorted(SEGMENT_PLAN_FIELDS - set(value))}"
+        )
+    fixed = {
+        "schema_version": SEGMENT_PLAN_SCHEMA_VERSION,
+        "architecture": SEGMENT_PLAN_ARCHITECTURE,
+        "execution_mode": SEGMENT_PLAN_EXECUTION_MODE,
+        "materialization": "metadata_only_no_tensor_or_kv",
+        "full_generation_kv_shared_claimed": False,
+        "token_level_moe_claimed": False,
+        "split_before_augmentation": True,
+        "augmentation_applied_after_split": True,
+    }
+    if any(value.get(key) != expected for key, expected in fixed.items()):
+        raise QuerySpecializationError(f"{source}: fixed execution contract changed")
+
+    raw_bindings = value.get("bindings")
+    if not isinstance(raw_bindings, Mapping):
+        raise QuerySpecializationError(f"{source}.bindings must be an object")
+    _reject_unknown_fields(raw_bindings, SEGMENT_BINDING_FIELDS, f"{source}.bindings")
+    if set(raw_bindings) != SEGMENT_BINDING_FIELDS:
+        raise QuerySpecializationError(
+            f"{source}.bindings is missing fields: "
+            f"{sorted(SEGMENT_BINDING_FIELDS - set(raw_bindings))}"
+        )
+    if dict(raw_bindings) != dict(expected_bindings):
+        raise QuerySpecializationError(
+            f"{source}: segment-plan bindings do not match the outer sidecar"
+        )
+
+    fixed_mappings = (
+        ("shared_prefix_policy", SEGMENT_SHARED_PREFIX_POLICY),
+        ("target_delta_policy", SEGMENT_TARGET_DELTA_POLICY),
+        ("cache_compatibility", SEGMENT_CACHE_COMPATIBILITY),
+    )
+    for field, expected in fixed_mappings:
+        raw = value.get(field)
+        if not isinstance(raw, Mapping) or dict(raw) != expected:
+            raise QuerySpecializationError(f"{source}.{field} contract changed")
+
+    raw_segments = value.get("segments")
+    if not isinstance(raw_segments, list) or not raw_segments:
+        raise QuerySpecializationError(f"{source}.segments must be a non-empty list")
+    by_id = {block.block_id: block for block in inner.blocks}
+    causal_order = {block.block_id: index for index, block in enumerate(inner.blocks)}
+    prompt_ids = [*inner.targets.relevant, *inner.targets.distractors]
+    forbidden = set(inner.targets.forbidden)
+    if len(set(prompt_ids)) != len(prompt_ids) or set(prompt_ids) & forbidden:
+        raise QuerySpecializationError(
+            f"{source}: segment sources overlap forbidden/current/future blocks"
+        )
+    expected_source_ids = sorted(prompt_ids, key=causal_order.__getitem__)
+    if len(raw_segments) != len(expected_source_ids):
+        raise QuerySpecializationError(
+            f"{source}: segments must exactly cover relevant and distractor blocks"
+        )
+    shared_ids = {
+        block_id
+        for block_id in inner.targets.relevant
+        if by_id[block_id].visible_to == ROLES
+    }
+    distractor_ids = set(inner.targets.distractors)
+    genesis_lineage = _canonical_sha256(
+        {
+            "task_bundle_sha256": expected_bindings["task_bundle_sha256"],
+            "execution_mode": SEGMENT_PLAN_EXECUTION_MODE,
+            "root": "ordered_prefix_genesis",
+        }
+    )
+    prior_segment_ids: list[str] = []
+    parent_segment_id: str | None = None
+    parent_lineage_sha256 = genesis_lineage
+    for serialization_order, (raw_segment, source_block_id) in enumerate(
+        zip(raw_segments, expected_source_ids, strict=True)
+    ):
+        path = f"{source}.segments[{serialization_order}]"
+        if not isinstance(raw_segment, Mapping):
+            raise QuerySpecializationError(f"{path} must be an object")
+        _reject_unknown_fields(raw_segment, SEGMENT_FIELDS, path)
+        if set(raw_segment) != SEGMENT_FIELDS:
+            raise QuerySpecializationError(
+                f"{path} is missing fields: {sorted(SEGMENT_FIELDS - set(raw_segment))}"
+            )
+        block = by_id[source_block_id]
+        if source_block_id in shared_ids:
+            cache_scope = "task_shared_prefix"
+            producer_role = "task_source"
+            if block.commit_state != "committed" or block.visible_to != ROLES:
+                raise QuerySpecializationError(f"{path}: invalid shared-prefix source")
+        elif source_block_id in distractor_ids:
+            cache_scope = "expert_private_delta"
+            producer_role = expected_bindings["expert"]
+            if (
+                block.commit_state not in {"candidate", "verified"}
+                or block.visible_to != (producer_role,)
+            ):
+                raise QuerySpecializationError(f"{path}: invalid private-delta source")
+        else:
+            cache_scope = "downstream_task_shared_immutable"
+            try:
+                first_visible = min(ROLES.index(role) for role in block.visible_to)
+            except ValueError as exc:
+                raise QuerySpecializationError(
+                    f"{path}: downstream visibility is invalid"
+                ) from exc
+            if first_visible < 1:
+                raise QuerySpecializationError(f"{path}: downstream source has no producer")
+            producer_role = ROLES[first_visible - 1]
+            if (
+                block.commit_state != "committed"
+                or expected_bindings["expert"] not in block.visible_to
+            ):
+                raise QuerySpecializationError(
+                    f"{path}: invalid downstream immutable source"
+                )
+
+        content_sha256 = hashlib.sha256(block.content.encode("utf-8")).hexdigest()
+        expected_segment_id = _segment_id(
+            task_bundle_sha256=expected_bindings["task_bundle_sha256"],
+            source_block_id=source_block_id,
+            content_sha256=content_sha256,
+            producer_role=producer_role,
+            cache_scope=cache_scope,
+        )
+        expected_prefix_lineage = _canonical_sha256(
+            {
+                "parent_lineage_sha256": parent_lineage_sha256,
+                "segment_id": expected_segment_id,
+                "serialization_order": serialization_order,
+                "causal_order": causal_order[source_block_id],
+            }
+        )
+        expected_segment = {
+            "segment_id": expected_segment_id,
+            "content_sha256": content_sha256,
+            "source_block_id": source_block_id,
+            "serialization_order": serialization_order,
+            "causal_order": causal_order[source_block_id],
+            "producer_role": producer_role,
+            "cache_scope": cache_scope,
+            "visibility": list(block.visible_to),
+            "dependencies": list(prior_segment_ids),
+            "commit_state": block.commit_state,
+            "parent_segment_id": parent_segment_id,
+            "parent_lineage_sha256": parent_lineage_sha256,
+            "prefix_lineage_sha256": expected_prefix_lineage,
+        }
+        if dict(raw_segment) != expected_segment:
+            raise QuerySpecializationError(
+                f"{path}: content, scope, visibility, or lineage binding changed"
+            )
+        prior_segment_ids.append(expected_segment_id)
+        parent_segment_id = expected_segment_id
+        parent_lineage_sha256 = expected_prefix_lineage
+
+    return _canonical_json(value)
+
+
 def parse_taskboard_sidecar(
     value: Any,
     *,
@@ -534,7 +830,8 @@ def parse_taskboard_sidecar(
     expected_split: str | None = None,
     expected_variant: str | None = None,
     expected_config_sha256: str | None = None,
-    expected_sidecar_schema_sha256: str | None = None,
+    expected_sidecar_schema_sha256: str | None = SIDECAR_SCHEMA_SHA256,
+    expected_segment_plan_schema_sha256: str | None = SEGMENT_PLAN_SCHEMA_SHA256,
 ) -> TaskBoardSidecar:
     """Validate one provenance wrapper and its embedded training record.
 
@@ -551,7 +848,8 @@ def parse_taskboard_sidecar(
         raise QuerySpecializationError(f"{source} is missing fields: {missing}")
     if value.get("schema_version") != SIDECAR_SCHEMA_VERSION:
         raise QuerySpecializationError(
-            f"{source}.schema_version must be {SIDECAR_SCHEMA_VERSION!r}"
+            f"{source}: unsupported sidecar schema_version; expected "
+            f"{SIDECAR_SCHEMA_VERSION!r}, got {value.get('schema_version')!r}"
         )
 
     record_id = _identifier(value.get("id"), f"{source}.id")
@@ -629,6 +927,10 @@ def parse_taskboard_sidecar(
         value.get("sidecar_schema_sha256"),
         f"{source}.sidecar_schema_sha256",
     )
+    segment_plan_schema_sha256 = _sha256_text(
+        value.get("segment_plan_schema_sha256"),
+        f"{source}.segment_plan_schema_sha256",
+    )
     if expected_config_sha256 is not None and config_sha256 != _sha256_text(
         expected_config_sha256, "expected_config_sha256"
     ):
@@ -641,6 +943,15 @@ def parse_taskboard_sidecar(
         )
     ):
         raise QuerySpecializationError(f"{source}: sidecar schema hash mismatch")
+    if (
+        expected_segment_plan_schema_sha256 is not None
+        and segment_plan_schema_sha256
+        != _sha256_text(
+            expected_segment_plan_schema_sha256,
+            "expected_segment_plan_schema_sha256",
+        )
+    ):
+        raise QuerySpecializationError(f"{source}: segment-plan schema hash mismatch")
 
     raw_augmentation = value.get("augmentation")
     if not isinstance(raw_augmentation, Mapping):
@@ -766,6 +1077,29 @@ def parse_taskboard_sidecar(
             f"{source}: base_task_board_sha256 does not bind the clean board"
         )
 
+    segment_plan_json = _parse_segment_plan(
+        value.get("segment_plan"),
+        source=f"{source}.segment_plan",
+        expected_bindings={
+            "task_bundle_sha256": task_bundle_sha256,
+            "task_id": inner.task_id,
+            "base_task_board_sha256": base_task_board_sha256,
+            "projector_version": projector_version,
+            "config_sha256": config_sha256,
+            "sidecar_schema_sha256": sidecar_schema_sha256,
+            "segment_plan_schema_sha256": segment_plan_schema_sha256,
+            "source_gold_sha256": source_gold_sha256,
+            "source_gold_file_sha256": source_gold_file_sha256,
+            "source_snapshot_sha256": source_snapshot_sha256,
+            "source_snapshot_manifest_sha256": source_snapshot_manifest_sha256,
+            "split": split,
+            "stage": stage,
+            "expert": expert,
+            "variant": variant,
+        },
+        inner=inner,
+    )
+
     return TaskBoardSidecar(
         record_id=record_id,
         pair_id=pair_id,
@@ -783,6 +1117,8 @@ def parse_taskboard_sidecar(
         projector_version=projector_version,
         config_sha256=config_sha256,
         sidecar_schema_sha256=sidecar_schema_sha256,
+        segment_plan_schema_sha256=segment_plan_schema_sha256,
+        segment_plan_json=segment_plan_json,
         augmentation=augmentation,
         training_record=inner,
     )
@@ -809,6 +1145,8 @@ def canonical_taskboard_sidecar(sidecar: TaskBoardSidecar) -> dict[str, Any]:
         "projector_version": sidecar.projector_version,
         "config_sha256": sidecar.config_sha256,
         "sidecar_schema_sha256": sidecar.sidecar_schema_sha256,
+        "segment_plan_schema_sha256": sidecar.segment_plan_schema_sha256,
+        "segment_plan": sidecar.segment_plan,
         "augmentation": {
             "kind": sidecar.augmentation.kind,
             "same_task_only": sidecar.augmentation.same_task_only,
@@ -833,7 +1171,8 @@ def _parse_taskboard_sidecars_snapshot(
     expected_split: str | None = None,
     expected_variant: str | None = None,
     expected_config_sha256: str | None = None,
-    expected_sidecar_schema_sha256: str | None = None,
+    expected_sidecar_schema_sha256: str | None = SIDECAR_SCHEMA_SHA256,
+    expected_segment_plan_schema_sha256: str | None = SEGMENT_PLAN_SCHEMA_SHA256,
 ) -> tuple[TaskBoardSidecar, ...]:
     """Parse JSONL records from the exact bytes used for authentication."""
 
@@ -856,6 +1195,9 @@ def _parse_taskboard_sidecars_snapshot(
                 expected_variant=expected_variant,
                 expected_config_sha256=expected_config_sha256,
                 expected_sidecar_schema_sha256=expected_sidecar_schema_sha256,
+                expected_segment_plan_schema_sha256=(
+                    expected_segment_plan_schema_sha256
+                ),
             )
         )
     return tuple(sidecars)
@@ -867,7 +1209,8 @@ def iter_taskboard_sidecars(
     expected_split: str | None = None,
     expected_variant: str | None = None,
     expected_config_sha256: str | None = None,
-    expected_sidecar_schema_sha256: str | None = None,
+    expected_sidecar_schema_sha256: str | None = SIDECAR_SCHEMA_SHA256,
+    expected_segment_plan_schema_sha256: str | None = SEGMENT_PLAN_SCHEMA_SHA256,
 ) -> Iterable[TaskBoardSidecar]:
     """Parse one immutable projector-partition bytes snapshot."""
 
@@ -880,6 +1223,7 @@ def iter_taskboard_sidecars(
         expected_variant=expected_variant,
         expected_config_sha256=expected_config_sha256,
         expected_sidecar_schema_sha256=expected_sidecar_schema_sha256,
+        expected_segment_plan_schema_sha256=expected_segment_plan_schema_sha256,
     )
 
 
@@ -1035,7 +1379,8 @@ def validate_taskboard_sidecar_dataset(
     sidecars: Sequence[TaskBoardSidecar],
     *,
     expected_config_sha256: str | None = None,
-    expected_sidecar_schema_sha256: str | None = None,
+    expected_sidecar_schema_sha256: str | None = SIDECAR_SCHEMA_SHA256,
+    expected_segment_plan_schema_sha256: str | None = SEGMENT_PLAN_SCHEMA_SHA256,
     require_all_roles: bool = True,
 ) -> dict[str, Any]:
     """Validate the fixed train/noise/calibration projector contract.
@@ -1057,6 +1402,14 @@ def validate_taskboard_sidecar_dataset(
         if expected_sidecar_schema_sha256 is not None
         else None
     )
+    expected_segment_schema = (
+        _sha256_text(
+            expected_segment_plan_schema_sha256,
+            "expected_segment_plan_schema_sha256",
+        )
+        if expected_segment_plan_schema_sha256 is not None
+        else None
+    )
 
     record_ids: set[str] = set()
     bundle_splits: dict[str, set[str]] = {}
@@ -1066,10 +1419,28 @@ def validate_taskboard_sidecar_dataset(
     source_hash_bindings: dict[str, set[tuple[str, str, str]]] = {}
     groups: dict[tuple[str, str], list[TaskBoardSidecar]] = {}
     pair_groups: dict[str, list[TaskBoardSidecar]] = {}
+    segment_catalog: dict[str, str] = {}
+    segment_scope_ids: dict[str, set[str]] = {
+        "task_shared_prefix": set(),
+        "downstream_task_shared_immutable": set(),
+        "expert_private_delta": set(),
+    }
+    segment_references = 0
     for sidecar in sidecars:
         if not isinstance(sidecar, TaskBoardSidecar):
             raise QuerySpecializationError(
                 "dataset validation requires outer TaskBoardSidecar records"
+            )
+        reparsed = parse_taskboard_sidecar(
+            canonical_taskboard_sidecar(sidecar),
+            source="<in-memory-sidecar>",
+            expected_config_sha256=expected_config,
+            expected_sidecar_schema_sha256=expected_schema,
+            expected_segment_plan_schema_sha256=expected_segment_schema,
+        )
+        if reparsed != sidecar:
+            raise QuerySpecializationError(
+                "in-memory sidecar does not round-trip through the v2 contract"
             )
         if sidecar.record_id in record_ids:
             raise QuerySpecializationError(
@@ -1083,6 +1454,30 @@ def validate_taskboard_sidecar_dataset(
             and sidecar.sidecar_schema_sha256 != expected_schema
         ):
             raise QuerySpecializationError("sidecar schema hash binding mismatch")
+        if (
+            expected_segment_schema is not None
+            and sidecar.segment_plan_schema_sha256 != expected_segment_schema
+        ):
+            raise QuerySpecializationError("segment-plan schema hash binding mismatch")
+        plan = sidecar.segment_plan
+        raw_segments = plan.get("segments")
+        if not isinstance(raw_segments, list):  # parser invariant
+            raise QuerySpecializationError("segment plan omitted its segments")
+        for segment in raw_segments:
+            if not isinstance(segment, Mapping):  # parser invariant
+                raise QuerySpecializationError("segment plan contains a non-object")
+            segment_id = str(segment.get("segment_id", ""))
+            canonical_segment = _canonical_json(segment)
+            prior = segment_catalog.setdefault(segment_id, canonical_segment)
+            if prior != canonical_segment:
+                raise QuerySpecializationError(
+                    "one segment id aliases different immutable segment metadata"
+                )
+            scope = str(segment.get("cache_scope", ""))
+            if scope not in segment_scope_ids:  # parser invariant
+                raise QuerySpecializationError("segment plan contains an unknown scope")
+            segment_scope_ids[scope].add(segment_id)
+            segment_references += 1
         bundle_splits.setdefault(sidecar.task_bundle_sha256, set()).add(sidecar.split)
         task_id_splits.setdefault(sidecar.training_record.task_id, set()).add(
             sidecar.split
@@ -1132,6 +1527,7 @@ def validate_taskboard_sidecar_dataset(
             sidecar.projector_version,
             sidecar.config_sha256,
             sidecar.sidecar_schema_sha256,
+            sidecar.segment_plan_schema_sha256,
         )
         for sidecar in sidecars
     }
@@ -1184,6 +1580,7 @@ def validate_taskboard_sidecar_dataset(
                     row.projector_version,
                     row.config_sha256,
                     row.sidecar_schema_sha256,
+                    row.segment_plan_schema_sha256,
                 )
                 for row in role_rows
             }
@@ -1225,6 +1622,13 @@ def validate_taskboard_sidecar_dataset(
         "all_roles_required": require_all_roles,
         "split_before_augmentation": True,
         "hash_bindings_validated": True,
+        "segment_references": segment_references,
+        "unique_segments": len(segment_catalog),
+        "unique_segments_by_cache_scope": {
+            scope: len(segment_scope_ids[scope]) for scope in segment_scope_ids
+        },
+        "segment_plan_schema_version": SEGMENT_PLAN_SCHEMA_VERSION,
+        "segment_plan_cross_bindings_validated": True,
     }
 
 
@@ -1259,8 +1663,9 @@ def load_taskboard_sidecar_dataset(
     manifest_path: str | Path | None = None,
     *,
     expected_config_sha256: str | None = None,
-    expected_sidecar_schema_sha256: str | None = None,
+    expected_sidecar_schema_sha256: str | None = SIDECAR_SCHEMA_SHA256,
     expected_manifest_schema_sha256: str | None = None,
+    expected_segment_plan_schema_sha256: str | None = SEGMENT_PLAN_SCHEMA_SHA256,
 ) -> tuple[tuple[TaskBoardSidecar, ...], dict[str, Any], dict[str, Any]]:
     """Load and bind the three fixed projector files to their manifest.
 
@@ -1301,6 +1706,7 @@ def load_taskboard_sidecar_dataset(
         "producer",
         "files",
         "counts",
+        "hierarchical_task_kv",
         "split_group_key",
         "task_id_cross_binding_key",
         "all_five_role_views_same_split",
@@ -1314,7 +1720,10 @@ def load_taskboard_sidecar_dataset(
     }
     manifest = _manifest_mapping(raw_manifest, "manifest", top_fields)
     if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
-        raise QuerySpecializationError("manifest schema_version is unsupported")
+        raise QuerySpecializationError(
+            "unsupported projector manifest schema_version; expected "
+            f"{MANIFEST_SCHEMA_VERSION!r}, got {manifest.get('schema_version')!r}"
+        )
     expected_grouping_contract = {
         "split_group_key": "task_bundle_sha256",
         "task_id_cross_binding_key": "training_record.task_board.task_id",
@@ -1345,6 +1754,8 @@ def load_taskboard_sidecar_dataset(
             "projector_version",
             "config_sha256",
             "sidecar_schema_sha256",
+            "segment_plan_schema_version",
+            "segment_plan_schema_sha256",
             "manifest_schema_sha256",
             "record_schema_version",
         },
@@ -1352,6 +1763,8 @@ def load_taskboard_sidecar_dataset(
     if (
         producer.get("name") != "anchor.swebench-taskboard-projector"
         or producer.get("projector_version") != PROJECTOR_VERSION
+        or producer.get("segment_plan_schema_version")
+        != SEGMENT_PLAN_SCHEMA_VERSION
         or producer.get("record_schema_version") != SCHEMA_VERSION
     ):
         raise QuerySpecializationError("manifest producer contract changed")
@@ -1361,6 +1774,10 @@ def load_taskboard_sidecar_dataset(
     manifest_sidecar_schema_sha = _sha256_text(
         producer.get("sidecar_schema_sha256"),
         "manifest.producer.sidecar_schema_sha256",
+    )
+    manifest_segment_plan_schema_sha = _sha256_text(
+        producer.get("segment_plan_schema_sha256"),
+        "manifest.producer.segment_plan_schema_sha256",
     )
     producer_manifest_schema_sha = _sha256_text(
         producer.get("manifest_schema_sha256"),
@@ -1387,6 +1804,70 @@ def load_taskboard_sidecar_dataset(
         )
     ):
         raise QuerySpecializationError("manifest schema hash mismatch")
+    if (
+        expected_segment_plan_schema_sha256 is not None
+        and manifest_segment_plan_schema_sha
+        != _sha256_text(
+            expected_segment_plan_schema_sha256,
+            "expected_segment_plan_schema_sha256",
+        )
+    ):
+        raise QuerySpecializationError("manifest segment-plan schema hash mismatch")
+
+    task_kv = _manifest_mapping(
+        manifest.get("hierarchical_task_kv"),
+        "manifest.hierarchical_task_kv",
+        {
+            "segment_plan_schema_version",
+            "segment_plan_location",
+            "architecture",
+            "execution_mode",
+            "materialization",
+            "full_generation_kv_shared_claimed",
+            "token_level_moe_claimed",
+            "tensors_emitted",
+            "kv_payloads_emitted",
+            "shared_prefix_membership",
+            "ordered_prefix_chain",
+            "independent_segment_concatenation_allowed",
+            "exact_reuse_scope",
+            "shared_then_mask_allowed",
+            "forbidden_current_future_preinsert_allowed",
+            "cache_identity_required_exact_match_fields",
+            "cache_identity_mismatch_result",
+            "cache_identity_unknown_result",
+            "q_specialization_alone_sufficient_for_exact_reuse",
+            "naive_in_stack_q_lora_exact_reuse_allowed",
+        },
+    )
+    expected_task_kv = {
+        "segment_plan_schema_version": SEGMENT_PLAN_SCHEMA_VERSION,
+        "segment_plan_location": "outer_sidecar.segment_plan",
+        "architecture": SEGMENT_PLAN_ARCHITECTURE,
+        "execution_mode": SEGMENT_PLAN_EXECUTION_MODE,
+        "materialization": "metadata_only_no_tensor_or_kv",
+        "full_generation_kv_shared_claimed": False,
+        "token_level_moe_claimed": False,
+        "tensors_emitted": False,
+        "kv_payloads_emitted": False,
+        "shared_prefix_membership": (
+            "strict_all_five_role_visibility_intersection"
+        ),
+        "ordered_prefix_chain": True,
+        "independent_segment_concatenation_allowed": False,
+        "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+        "shared_then_mask_allowed": False,
+        "forbidden_current_future_preinsert_allowed": False,
+        "cache_identity_required_exact_match_fields": list(CACHE_IDENTITY_FIELDS),
+        "cache_identity_mismatch_result": "cache_incompatible",
+        "cache_identity_unknown_result": "cache_incompatible",
+        "q_specialization_alone_sufficient_for_exact_reuse": False,
+        "naive_in_stack_q_lora_exact_reuse_allowed": False,
+    }
+    if dict(task_kv) != expected_task_kv:
+        raise QuerySpecializationError(
+            "manifest hierarchical Task-KV contract changed"
+        )
 
     input_binding = _manifest_mapping(
         manifest.get("input"),
@@ -1469,6 +1950,7 @@ def load_taskboard_sidecar_dataset(
             expected_variant=variant,
             expected_config_sha256=manifest_config_sha,
             expected_sidecar_schema_sha256=manifest_sidecar_schema_sha,
+            expected_segment_plan_schema_sha256=manifest_segment_plan_schema_sha,
         )
         if len(partition) != expected_records:
             raise QuerySpecializationError(f"{relative}: record-count binding mismatch")
@@ -1484,6 +1966,7 @@ def load_taskboard_sidecar_dataset(
         all_sidecars,
         expected_config_sha256=manifest_config_sha,
         expected_sidecar_schema_sha256=manifest_sidecar_schema_sha,
+        expected_segment_plan_schema_sha256=manifest_segment_plan_schema_sha,
     )
 
     counts = _manifest_mapping(
@@ -1493,6 +1976,9 @@ def load_taskboard_sidecar_dataset(
             "total",
             "unique_task_bundles",
             "task_ids_sha256",
+            "segment_references",
+            "unique_segments",
+            "unique_segments_by_cache_scope",
             "by_split",
             "by_variant",
             "by_stage",
@@ -1511,6 +1997,11 @@ def load_taskboard_sidecar_dataset(
             {sidecar.task_bundle_sha256 for sidecar in all_sidecars}
         ),
         "task_ids_sha256": task_ids_sha,
+        "segment_references": summary["segment_references"],
+        "unique_segments": summary["unique_segments"],
+        "unique_segments_by_cache_scope": summary[
+            "unique_segments_by_cache_scope"
+        ],
         "by_split": summary["by_split"],
         "by_variant": summary["by_variant"],
         "by_stage": summary["by_stage"],

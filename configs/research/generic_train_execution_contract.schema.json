@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/generic-train-execution-contract-v1.json",
+  "title": "Sanitized generic train execution contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "status", "source_preflight_sha256",
+    "execution_lock_sha256", "execution_lock_schema_version", "mode",
+    "reason_code", "required_attestation_schema",
+    "required_tool_contract_version", "attestation_sha256",
+    "coordinator_config_sha256", "source_bank_manifest_sha256",
+    "offline", "provider_requests",
+    "credentials_read", "sample_bodies_printed", "heldout_files_read",
+    "not_official_swebench_pass", "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.generic-train-execution-contract.v1"},
+    "status": {"const": "ready"},
+    "source_preflight_sha256": {"$ref": "#/$defs/sha256"},
+    "execution_lock_sha256": {"$ref": "#/$defs/sha256"},
+    "execution_lock_schema_version": {"const": "anchor.swebench-execution-lock.v1"},
+    "mode": {"const": "generic_train_repo_base_commit"},
+    "reason_code": {"const": "generic_train_execution_contract_ready"},
+    "required_attestation_schema": {"const": "anchor.multilang-execution-attestation.v1"},
+    "required_tool_contract_version": {"const": "anchor.execution-tool-contract.v3"},
+    "attestation_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinator_config_sha256": {"$ref": "#/$defs/sha256"},
+    "source_bank_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "offline": {"const": true},
+    "provider_requests": {"const": 0},
+    "credentials_read": {"const": false},
+    "sample_bodies_printed": {"const": false},
+    "heldout_files_read": {"const": false},
+    "not_official_swebench_pass": {"const": true},
+    "claim_scope": {"const": "generic_train_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
