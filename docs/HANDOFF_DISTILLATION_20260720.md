@@ -50,35 +50,38 @@ tool input, held-out content, or execution record.
 - Coordinator SHA-256:
   `1ad9fa1ea7f87179fede9fed766f99784fd38a9937f5c171cf23ae6a3071e48c`
 - Execution-v3 adapter SHA-256:
-  `600e4d77c71813c40c37d98696ea9533a6a6ef721645cc71ff1ddaf229f27294`
+  `6967eef0b4009a0019cb23c9bfa88593d47db7fca51d4950d981609a877d349e`
+- Route-diagnostics module SHA-256:
+  `112b8ec3c08811cacb6f2bdba170b19876ad8b3a01e58cbe400e87c970925259`
 - Execution lock SHA-256:
-  `e40cd5b7daca350b813d8f30a587a5821f81f242a321779dba8bbacd1db0218b`
+  `14463771cf16d1c88842e78b3415f4cdf349075e1be364fc09fd15650eec3084`
 - Content-free execution attestation SHA-256:
-  `1ecdbc7f45e3bb930ae1b35aa860f360c1d197e4c699617c87ee7358b52e23bf`
-- All 15 lock-bound files match the lock, and the five-stage YAML binds the
+  `ac8a234c5d9129dcdb251ecc7b98eea6895a10a6fcc1fb5ef425962377f1c2cd`
+- All 16 lock-bound files match the lock, and the five-stage YAML binds the
   exact lock SHA above.
 
 ## Verification completed
 
-- 212 coordinator, execution-v3, trace, runner, policy, route-diagnostics,
-  train-sandbox, and attestation tests passed.
+- 264 coordinator, execution-v3, trace, runner, route-diagnostics,
+  train-sandbox, wire/artifact, and patched-contract tests passed.
+- The 25 projector and training-release contract tests also pass on the same
+  final working-tree identity.
 - 89 dashboard, control-plane, and PowerShell 5.1 launcher tests passed.
 - 17 full-bank publication tests passed.
 - Ruff and `git diff --check` passed.
 - The full `anchor.ps1 -Action distill-swebench` offline preflight exited 0
   with no provider request.
 
-## Publication caveat
+## Publication scope
 
 Remote commit `6befb99` is not by itself a clean-checkout reproduction of this
-ready state. The current working tree contains execution-bound changes and the
-previously untracked `route_diagnostics.py` import required by the coordinator.
-Before calling the stack published or reproducible on another machine, make a
-targeted follow-up commit that includes the final lock/config, coordinator and
-adapter, policy/models/runner/trace, route diagnostics, train-sandbox validator
-and Containerfile, behavioral/wire/artifact probes, their focused tests, the
-LF rule for `*.Containerfile`, and the full-bank attribution/manifest hash fix.
-Do not mix unrelated historical training artifacts into that commit.
+state. This handoff accompanies the targeted follow-up that includes the final
+lock/config, coordinator and adapter, policy/models/runner/trace, route
+diagnostics, train-sandbox validator and Containerfile, behavioral/wire/artifact
+probes, their focused tests, the LF rule for `*.Containerfile`, and the
+full-bank attribution/manifest hash fix. Unrelated historical training
+artifacts remain outside that commit. Publication is branch-only: no tag or
+release package is created.
 
 ## New-architecture training boundary
 

@@ -1,4 +1,6 @@
+import hashlib
 import json
+from dataclasses import asdict
 
 from anchor_mvp.tooling import ToolPolicy
 from anchor_mvp.tooling.trace import (
@@ -37,6 +39,7 @@ def test_event_reducer_keeps_safe_command_metadata_and_drops_model_text():
     assert rejected == 1
     assert trace[0].command == "npm run test --if-present"
     assert trace[0].exit_code == 0
+    assert trace[0].output_sha256 == hashlib.sha256(b"secret output").hexdigest()
     assert trace[1].command is None
     assert trace[1].command_sha256 is not None
     assert "SECRET" not in json.dumps([item.__dict__ for item in trace])
@@ -84,9 +87,186 @@ def test_opencode_write_tool_is_accepted_as_edit_permission_alias():
     assert trace[0].tool == "write"
 
 
+def test_tool_input_is_retained_only_as_a_canonical_hash():
+    secret = "private tool input must not persist"
+    tool_input = {"content": secret, "filePath": "src/a.js"}
+    stdout = json.dumps(
+        {
+            "type": "tool_use",
+            "part": {
+                "id": "part-write-1",
+                "type": "tool",
+                "tool": "write",
+                "state": {
+                    "status": "completed",
+                    "input": tool_input,
+                    "output": "ok",
+                },
+            },
+        }
+    )
+
+    trace, rejected = parse_opencode_jsonl(stdout, ToolPolicy())
+
+    expected = hashlib.sha256(
+        json.dumps(
+            tool_input,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    assert rejected == 0
+    assert trace[0].input_sha256 == expected
+    assert secret not in json.dumps(asdict(trace[0]))
+
+
+def test_distinct_read_inputs_are_not_collapsed_without_call_ids():
+    stdout = "\n".join(
+        json.dumps(
+            {
+                "type": "tool_use",
+                "part": {
+                    "type": "tool",
+                    "tool": "read",
+                    "state": {
+                        "status": "completed",
+                        "input": {"filePath": f"src/{index}.js"},
+                        "output": "ok",
+                    },
+                },
+            }
+        )
+        for index in range(2)
+    )
+
+    trace, rejected = parse_opencode_jsonl(stdout, ToolPolicy())
+
+    assert rejected == 0
+    assert len(trace) == 2
+    assert trace[0].input_sha256 != trace[1].input_sha256
+
+
+def test_identical_no_id_calls_on_separate_lines_are_distinct_invocations():
+    event = {
+        "type": "tool_use",
+        "part": {
+            "type": "tool",
+            "tool": "read",
+            "state": {
+                "status": "completed",
+                "input": {"filePath": "src/a.js"},
+                "output": "ok",
+            },
+        },
+    }
+
+    trace, rejected = parse_opencode_jsonl(
+        "\n".join((json.dumps(event), json.dumps(event))), ToolPolicy()
+    )
+
+    assert rejected == 0
+    assert len(trace) == 2
+
+
+def test_duplicate_no_id_representations_are_deduplicated_only_within_one_line():
+    state = {
+        "status": "completed",
+        "input": {"filePath": "src/a.js"},
+        "output": "ok",
+    }
+    event = {
+        "type": "tool_use",
+        "tool": "read",
+        "state": state,
+        "part": {
+            "type": "tool",
+            "tool": "read",
+            "state": state,
+        },
+    }
+
+    trace, rejected = parse_opencode_jsonl(json.dumps(event), ToolPolicy())
+
+    assert rejected == 0
+    assert len(trace) == 1
+
+
+def test_duplicate_representations_with_one_call_id_are_deduplicated():
+    event = {
+        "type": "tool_use",
+        "part": {
+            "id": "part-read-1",
+            "type": "tool",
+            "tool": "read",
+            "state": {
+                "status": "completed",
+                "input": {"filePath": "src/a.js"},
+                "output": "ok",
+            },
+        },
+    }
+
+    trace, rejected = parse_opencode_jsonl(
+        "\n".join((json.dumps(event), json.dumps(event))), ToolPolicy()
+    )
+
+    assert rejected == 0
+    assert len(trace) == 1
+
+
+def test_call_lifecycle_keeps_terminal_state_and_original_input_identity():
+    call_id = "part-read-lifecycle-1"
+    tool_input = {"filePath": "src/a.js"}
+    stdout = "\n".join(
+        (
+            json.dumps(
+                {
+                    "type": "tool_use",
+                    "part": {
+                        "id": call_id,
+                        "type": "tool",
+                        "tool": "read",
+                        "state": {"status": "pending", "input": tool_input},
+                    },
+                }
+            ),
+            json.dumps(
+                {
+                    "type": "tool_result",
+                    "id": call_id,
+                    "tool": "read",
+                    "state": {
+                        "status": "completed",
+                        "exitCode": 0,
+                        "output": "ok",
+                    },
+                }
+            ),
+        )
+    )
+
+    trace, rejected = parse_opencode_jsonl(stdout, ToolPolicy())
+
+    assert rejected == 0
+    assert len(trace) == 1
+    assert trace[0].sequence == 1
+    assert trace[0].status == "completed"
+    assert trace[0].input_sha256 == hashlib.sha256(
+        json.dumps(
+            tool_input,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    assert trace[0].exit_code == 0
+    assert trace[0].output_sha256 == hashlib.sha256(b"ok").hexdigest()
+
+
 def test_400_and_499_are_classified_without_persisting_raw_error():
     codes = classify_error_text(
-        '(invalid_url) missing scheme; HTTP 499 context canceled; status code: 429'
+        "(invalid_url) missing scheme; HTTP 499 context canceled; status code: 429"
     )
 
     assert codes == ("invalid_url", "client_cancelled", "rate_limited")

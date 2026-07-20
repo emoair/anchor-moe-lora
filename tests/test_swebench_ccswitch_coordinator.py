@@ -382,6 +382,65 @@ def test_duplicate_edit_family_retries_planner_before_tool_policy(
     assert store.load_output(_chain().task_id, "tool_policy", 1) == corrected_policy
 
 
+def test_resume_replaces_duplicate_planner_and_rebinds_policy_once(
+    tmp_path: Path,
+) -> None:
+    responses = _responses()
+    chain = _chain()
+    orders = {order["stage"]: order for order in chain.orders}
+    duplicate_planner = {
+        "schema_version": "anchor.swebench-planner-output.v1",
+        "work_items": ["edit"],
+        "tool_proposals": [
+            {"proposal_id": "edit-1", "tool": "edit", "input": {"path": "a"}},
+            {"proposal_id": "write-1", "tool": "write", "input": {"path": "b"}},
+        ],
+    }
+    stale_policy = {
+        "schema_version": "anchor.swebench-tool-policy-output.v1",
+        "decisions": [
+            {"proposal_id": "edit-1", "decision": "APPROVE"},
+            {"proposal_id": "write-1", "decision": "APPROVE"},
+        ],
+    }
+    corrected_planner = responses["planner"]
+    corrected_policy = responses["tool_policy"]
+    store = MODULE.RecordStore(tmp_path / "run")
+    for stage, output in (
+        ("planner", duplicate_planner),
+        ("tool_policy", stale_policy),
+    ):
+        store.write(
+            chain=chain,
+            order=orders[stage],
+            stage=stage,
+            revision=1,
+            context={},
+            output=output,
+        )
+    backend = _SequencedTeacherBackend(
+        responses,
+        planner=[corrected_planner],
+        tool_policy=[corrected_policy],
+    )
+
+    assert MODULE.run_chain(chain, backend, store, max_revisions=2) == "completed"
+    assert backend.calls[:2] == [("planner", 1), ("tool_policy", 1)]
+    planner_retry = backend.teacher_contexts["planner"][0]["contract_retry"]
+    policy_retry = backend.teacher_contexts["tool_policy"][0]["contract_retry"]
+    assert planner_retry["reason_code"] == "planner_duplicate_family"
+    assert policy_retry["reason_code"] == "tool_policy_missing_decision"
+    assert store.load_output(chain.task_id, "planner", 1) == corrected_planner
+    assert store.load_output(chain.task_id, "tool_policy", 1) == corrected_policy
+    assert store.public_metrics()["stage_counts"] == {
+        "planner": 1,
+        "tool_policy": 1,
+        "domain_builder": 2,
+        "domain_review": 2,
+        "security": 1,
+    }
+
+
 def test_no_approved_write_gets_one_tool_policy_retry(tmp_path: Path) -> None:
     responses = _responses()
     denied_write = {
@@ -1906,6 +1965,11 @@ def test_real_tool_call_and_result_projections_correlate_without_aliasing() -> N
     planner = {
         "tool_proposals": [
             {
+                "proposal_id": "edit-1",
+                "tool": "edit",
+                "input": {"path": "src/a.py"},
+            },
+            {
                 "proposal_id": "validate-1",
                 "tool": "bash",
                 "input": {"command": "anchor-validate test"},
@@ -1914,6 +1978,7 @@ def test_real_tool_call_and_result_projections_correlate_without_aliasing() -> N
     }
     tool_policy = {
         "decisions": [
+            {"proposal_id": "edit-1", "decision": "APPROVE"},
             {"proposal_id": "validate-1", "decision": "APPROVE"},
         ]
     }
@@ -2023,6 +2088,40 @@ def test_tool_trace_alias_binding_remains_fail_closed_when_ambiguous() -> None:
         "decisions": [
             {"proposal_id": "edit-1", "decision": "APPROVE"},
             {"proposal_id": "write-1", "decision": "APPROVE"},
+        ]
+    }
+
+    with pytest.raises(
+        MODULE.CoordinatorError,
+        match="builder_tool_trace_proposal_binding_invalid",
+    ):
+        MODULE._project_agent_tool_trace(execution, planner, tool_policy)
+
+
+def test_tool_trace_binding_rejects_duplicate_policy_decisions() -> None:
+    execution = AgentExecution(
+        exit_code=0,
+        timed_out=False,
+        duration_ms=1.0,
+        trace=(
+            ToolTraceEntry(
+                sequence=1,
+                source="agent",
+                tool="write",
+                status="completed",
+                input_sha256="c" * 64,
+            ),
+        ),
+    )
+    planner = {
+        "tool_proposals": [
+            {"proposal_id": "edit-1", "tool": "edit", "input": {"path": "a.py"}},
+        ]
+    }
+    tool_policy = {
+        "decisions": [
+            {"proposal_id": "edit-1", "decision": "DENY"},
+            {"proposal_id": "edit-1", "decision": "APPROVE"},
         ]
     }
 

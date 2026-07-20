@@ -1053,6 +1053,8 @@ def approved_builder_policy(
         decision = item.get("decision")
         if (
             not isinstance(proposal_id, str)
+            or not proposal_id
+            or proposal_id != proposal_id.strip()
             or proposal_id in decision_map
             or decision not in {"APPROVE", "DENY"}
         ):
@@ -1070,6 +1072,8 @@ def approved_builder_policy(
         tool_input = proposal.get("input")
         if (
             not isinstance(proposal_id, str)
+            or not proposal_id
+            or proposal_id != proposal_id.strip()
             or proposal_id in proposal_ids
             or not isinstance(tool, str)
             or not isinstance(tool_input, Mapping)
@@ -1510,6 +1514,8 @@ def load_execution_lock(
             "runtime_adapter_sha256",
             "coordinator",
             "coordinator_sha256",
+            "route_diagnostics",
+            "route_diagnostics_sha256",
             "representative_probe_runner",
             "representative_probe_runner_sha256",
             "representative_probe_builder",
@@ -1640,6 +1646,7 @@ def load_execution_lock(
         (validator, "adapter"),
         (validator, "runtime_adapter"),
         (validator, "coordinator"),
+        (validator, "route_diagnostics"),
         (validator, "representative_probe_runner"),
         (validator, "representative_probe_builder"),
         (validator, "tool_contract"),
@@ -1666,6 +1673,7 @@ def load_execution_lock(
         "adapter_sha256",
         "runtime_adapter_sha256",
         "coordinator_sha256",
+        "route_diagnostics_sha256",
         "representative_probe_runner_sha256",
         "representative_probe_builder_sha256",
         "tool_contract_sha256",
@@ -2482,6 +2490,9 @@ def inspect_execution_environment(
     coordinator = _project_path(
         root, validator["coordinator"], "execution_lock_path_escape"
     )
+    route_diagnostics = _project_path(
+        root, validator["route_diagnostics"], "execution_lock_path_escape"
+    )
     representative_probe_runner = _project_path(
         root,
         validator["representative_probe_runner"],
@@ -2529,6 +2540,9 @@ def inspect_execution_environment(
         sha256_file(runtime_adapter) if runtime_adapter.is_file() else None
     )
     coordinator_hash = sha256_file(coordinator) if coordinator.is_file() else None
+    route_diagnostics_hash = (
+        sha256_file(route_diagnostics) if route_diagnostics.is_file() else None
+    )
     representative_probe_runner_hash = (
         sha256_file(representative_probe_runner)
         if representative_probe_runner.is_file()
@@ -2571,6 +2585,7 @@ def inspect_execution_environment(
         and adapter_hash == validator["adapter_sha256"]
         and runtime_adapter_hash == validator["runtime_adapter_sha256"]
         and coordinator_hash == validator["coordinator_sha256"]
+        and route_diagnostics_hash == validator["route_diagnostics_sha256"]
         and representative_probe_runner_hash
         == validator["representative_probe_runner_sha256"]
         and representative_probe_builder_hash
@@ -2883,6 +2898,7 @@ def inspect_execution_environment(
                 "adapter_sha256": adapter_hash,
                 "runtime_adapter_sha256": runtime_adapter_hash,
                 "coordinator_sha256": coordinator_hash,
+                "route_diagnostics_sha256": route_diagnostics_hash,
                 "representative_probe_runner_sha256": (
                     representative_probe_runner_hash
                 ),

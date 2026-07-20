@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import asdict
 from dataclasses import dataclass
+import ipaddress
+import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -52,6 +53,12 @@ _CAPTURE_LOCK = threading.Lock()
 _SESSION_ID = __import__("re").compile(r"^ses_[A-Za-z0-9_-]{4,128}$")
 _MEMORY_LIMIT = re.compile(r"^[1-9][0-9]*(?:[KMGTP](?:i?B)?|[kmg])$")
 _CPU_LIMIT = re.compile(r"^(?:0\.[0-9]*[1-9][0-9]*|[1-9][0-9]*(?:\.[0-9]+)?)$")
+_AUDITED_ROUTE_NETWORKS = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in ("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
+MIN_PROBE_TIMEOUT_SECONDS = 150.0
+DEFAULT_PROBE_TIMEOUT_SECONDS = 300.0
 
 
 def _public_outcome_capture(outcome: PublicOutcome | None) -> dict[str, object] | None:
@@ -116,6 +123,8 @@ class AnchorSandboxOptions:
     cpus: str | None = None
     pids: int | None = None
     timeout_seconds: int | None = None
+    route_host: str | None = None
+    route_port: int | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -136,11 +145,29 @@ class AnchorSandboxOptions:
         for value, name in (
             (self.pids, "pids"),
             (self.timeout_seconds, "timeout_seconds"),
+            (self.route_port, "route_port"),
         ):
             if value is not None and (
                 isinstance(value, bool) or not isinstance(value, int) or value < 1
             ):
                 raise ValueError(f"anchor sandbox {name} must be a positive integer")
+        if self.route_port is not None and self.route_port > 65535:
+            raise ValueError("anchor sandbox route_port must be at most 65535")
+        if self.route_host is not None:
+            try:
+                address = ipaddress.ip_address(self.route_host)
+            except ValueError as exc:
+                raise ValueError(
+                    "anchor sandbox route_host must be a literal local IP"
+                ) from exc
+            if not isinstance(address, ipaddress.IPv4Address) or not any(
+                address in network for network in _AUDITED_ROUTE_NETWORKS
+            ):
+                raise ValueError("anchor sandbox route_host must be local")
+        if (self.route_host is None) != (self.route_port is None):
+            raise ValueError(
+                "anchor sandbox route_host and route_port must be supplied together"
+            )
 
     def command_options(self) -> list[str]:
         result: list[str] = []
@@ -158,6 +185,9 @@ class AnchorSandboxOptions:
             result.extend(("--pids", str(self.pids)))
         if self.timeout_seconds is not None:
             result.extend(("--timeout", str(self.timeout_seconds)))
+        if self.route_host is not None and self.route_port is not None:
+            result.extend(("--route-host", self.route_host))
+            result.extend(("--route-port", str(self.route_port)))
         return result
 
     def cleanup_command_options(self) -> list[str]:
@@ -241,9 +271,16 @@ class OpenCodeExecutor:
         session_capture: ControlledSessionCapture | None = None,
         sandbox_options: AnchorSandboxOptions | None = None,
         provider: OpenCodeProvider = DEFAULT_PROVIDER,
+        probe_timeout_seconds: float = DEFAULT_PROBE_TIMEOUT_SECONDS,
     ) -> None:
         if not isinstance(provider, OpenCodeProvider):
             raise ValueError("provider must be an audited OpenCodeProvider")
+        if (
+            isinstance(probe_timeout_seconds, bool)
+            or not isinstance(probe_timeout_seconds, (int, float))
+            or probe_timeout_seconds < MIN_PROBE_TIMEOUT_SECONDS
+        ):
+            raise ValueError("probe_timeout_seconds must be at least 150 seconds")
         self.executable = executable
         self.extra_environment = dict(extra_environment or {})
         self.provider = provider
@@ -254,6 +291,7 @@ class OpenCodeExecutor:
         ).resolve()
         self.session_capture = session_capture
         self.sandbox_options = sandbox_options or AnchorSandboxOptions()
+        self.probe_timeout_seconds = float(probe_timeout_seconds)
         self._attestation: BinaryAttestation | None = None
 
     @property
@@ -336,11 +374,16 @@ class OpenCodeExecutor:
             with tempfile.TemporaryDirectory(
                 prefix="opencode-behavioral-probe-",
                 dir=config_path.parent.parent,
+                # Windows scanners can briefly retain a just-exited OpenCode
+                # file handle. These directories contain only offline probe
+                # fixtures, never credentials or task/sample content.
+                ignore_cleanup_errors=True,
             ) as probe_root:
                 passed, reason = run_behavioral_probe(
                     attestation.executable,
                     probe_root=Path(probe_root),
                     environment=environment,
+                    timeout_seconds=self.probe_timeout_seconds,
                 )
             if not passed:
                 return False, reason
@@ -348,12 +391,14 @@ class OpenCodeExecutor:
                 with tempfile.TemporaryDirectory(
                     prefix="opencode-responses-wire-probe-",
                     dir=config_path.parent.parent,
+                    ignore_cleanup_errors=True,
                 ) as probe_root:
                     passed, reason = run_responses_wire_probe(
                         attestation.executable,
                         probe_root=Path(probe_root),
                         environment=environment,
                         provider=self.provider,
+                        timeout_seconds=self.probe_timeout_seconds,
                     )
                 if not passed:
                     return False, reason
@@ -605,6 +650,13 @@ class OpenCodeExecutor:
         except (OSError, subprocess.TimeoutExpired, ValueError):
             return "anchor_sandbox_cleanup_failed"
         return None if completed.returncode == 0 else "anchor_sandbox_cleanup_failed"
+
+    def cleanup_sandbox(self, *, sample_id: str, workspace: Path) -> None:
+        """Explicitly reap any deterministic leftover before final receipt issue."""
+
+        code = self._cleanup_sandbox(sample_id=sample_id, workspace=workspace)
+        if code is not None:
+            raise RuntimeError(code)
 
     def finalize_capture(
         self,

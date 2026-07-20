@@ -18,6 +18,10 @@ from anchor_mvp.tooling.opencode_artifact import (
     verify_binary_attestation,
     verify_launch_identity,
 )
+from anchor_mvp.tooling.tool_contract import (
+    EXECUTION_TOOL_CONTRACT_V3_VERSION,
+    v3_contract_descriptor,
+)
 
 
 def _write_attested_artifact(tmp_path: Path):
@@ -34,25 +38,8 @@ def _write_attested_artifact(tmp_path: Path):
                 "patch": patch.name,
                 "patch_sha256": sha256_file(patch),
                 "bun_version": "1.3.14",
-                "tool_contract_version": "anchor.execution-tool-contract.v2",
-                "tool_contract": {
-                    "version": "anchor.execution-tool-contract.v2",
-                    "tools": [
-                        "apply_patch",
-                        "bash",
-                        "edit",
-                        "glob",
-                        "grep",
-                        "list",
-                        "read",
-                        "write",
-                    ],
-                    "bash_commands": [
-                        "npm run build --if-present",
-                        "npm run lint --if-present",
-                        "npm run test --if-present",
-                    ],
-                },
+                "tool_contract_version": EXECUTION_TOOL_CONTRACT_V3_VERSION,
+                "tool_contract": v3_contract_descriptor(),
                 "required_tests": {
                     "core": ["test/config/behavior.test.ts"],
                     "opencode": ["test/session/behavior.test.ts"],
@@ -84,25 +71,8 @@ def _write_attested_artifact(tmp_path: Path):
                 "patch_sha256": sha256_file(patch),
                 "patch_source_manifest_sha256": sha256_file(source),
                 "bun_version": "1.3.14",
-                "tool_contract_version": "anchor.execution-tool-contract.v2",
-                "tool_contract": {
-                    "version": "anchor.execution-tool-contract.v2",
-                    "tools": [
-                        "apply_patch",
-                        "bash",
-                        "edit",
-                        "glob",
-                        "grep",
-                        "list",
-                        "read",
-                        "write",
-                    ],
-                    "bash_commands": [
-                        "npm run build --if-present",
-                        "npm run lint --if-present",
-                        "npm run test --if-present",
-                    ],
-                },
+                "tool_contract_version": EXECUTION_TOOL_CONTRACT_V3_VERSION,
+                "tool_contract": v3_contract_descriptor(),
                 "tests_executed": True,
                 "required_tests": required_tests,
                 "typecheck_executed": True,
@@ -120,25 +90,8 @@ def _write_attested_artifact(tmp_path: Path):
         "patch_sha256": sha256_file(patch),
         "patch_source_manifest_sha256": sha256_file(source),
         "bun_version": "1.3.14",
-        "tool_contract_version": "anchor.execution-tool-contract.v2",
-        "tool_contract": {
-            "version": "anchor.execution-tool-contract.v2",
-            "tools": [
-                "apply_patch",
-                "bash",
-                "edit",
-                "glob",
-                "grep",
-                "list",
-                "read",
-                "write",
-            ],
-            "bash_commands": [
-                "npm run build --if-present",
-                "npm run lint --if-present",
-                "npm run test --if-present",
-            ],
-        },
+        "tool_contract_version": EXECUTION_TOOL_CONTRACT_V3_VERSION,
+        "tool_contract": v3_contract_descriptor(),
         "lockfile_sha256": "2" * 64,
     }
     platform_manifests: dict[str, Path] = {}
@@ -266,10 +219,38 @@ def test_artifact_attestation_requires_converter_tool_contract(tmp_path: Path):
     artifact = _write_attested_artifact(tmp_path)
     source = artifact["source"]
     source_data = json.loads(source.read_text(encoding="utf-8"))
-    source_data["tool_contract"]["tools"].append("task")
+    source_data["tool_contract"]["model_tools"].append("task")
     source.write_text(json.dumps(source_data), encoding="utf-8")
 
     with pytest.raises(ValueError, match="differs from the converter"):
+        verify_binary_attestation(
+            artifact["executable"],
+            patch_manifest=source,
+            linux_executable=artifact["linux"],
+        )
+
+
+@pytest.mark.parametrize(
+    ("version", "nested_version"),
+    [
+        ("anchor.execution-tool-contract.v2", "anchor.execution-tool-contract.v2"),
+        ("anchor.execution-tool-contract.v4", EXECUTION_TOOL_CONTRACT_V3_VERSION),
+        (EXECUTION_TOOL_CONTRACT_V3_VERSION, "anchor.execution-tool-contract.v4"),
+    ],
+)
+def test_artifact_attestation_rejects_legacy_or_drifted_contract_version(
+    tmp_path: Path,
+    version: str,
+    nested_version: str,
+):
+    artifact = _write_attested_artifact(tmp_path)
+    source = artifact["source"]
+    source_data = json.loads(source.read_text(encoding="utf-8"))
+    source_data["tool_contract_version"] = version
+    source_data["tool_contract"]["version"] = nested_version
+    source.write_text(json.dumps(source_data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="tool contract"):
         verify_binary_attestation(
             artifact["executable"],
             patch_manifest=source,

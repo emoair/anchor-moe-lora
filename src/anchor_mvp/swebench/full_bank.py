@@ -1837,7 +1837,7 @@ def _attribution_text(config: FullBankConfig) -> str:
         "This train-only public metadata projection is derived from "
         "`SWE-bench/SWE-bench` at immutable revision "
         f"`{config.dataset_revision}`.\n\n"
-        "Upstream project: https://github.com/SWE-bench/SWE-bench  \n"
+        "Upstream project: https://github.com/SWE-bench/SWE-bench\n"
         "Upstream software license: MIT (`SPDX-License-Identifier: MIT`).\n\n"
         "The export contains only public issue metadata and deterministic "
         "routing records. The original parquet and runtime outputs are not "

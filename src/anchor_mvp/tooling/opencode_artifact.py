@@ -9,7 +9,10 @@ from pathlib import Path
 import re
 from typing import Any
 
-from .tool_contract import EXECUTION_TOOL_CONTRACT_VERSION, contract_descriptor
+from .tool_contract import (
+    EXECUTION_TOOL_CONTRACT_V3_VERSION,
+    v3_contract_descriptor,
+)
 
 
 BUILD_MANIFEST_SCHEMA = "anchor.patched-opencode.v1"
@@ -125,9 +128,9 @@ def verify_binary_attestation(
         raise ValueError("unsupported patch source manifest schema")
     if source.get("repository") != AUDITED_REPOSITORY:
         raise ValueError("patch source repository is not the audited upstream")
-    if source.get("tool_contract_version") != EXECUTION_TOOL_CONTRACT_VERSION:
+    if source.get("tool_contract_version") != EXECUTION_TOOL_CONTRACT_V3_VERSION:
         raise ValueError("patch source tool contract version differs from the converter")
-    if source.get("tool_contract") != contract_descriptor():
+    if source.get("tool_contract") != v3_contract_descriptor():
         raise ValueError("patch source tool contract differs from the converter")
     required_tests = source.get("required_tests")
     if not isinstance(required_tests, dict):
@@ -151,8 +154,8 @@ def verify_binary_attestation(
         "opencode_version": source.get("upstream_version"),
         "patch_sha256": source.get("patch_sha256"),
         "bun_version": source.get("bun_version"),
-        "tool_contract_version": EXECUTION_TOOL_CONTRACT_VERSION,
-        "tool_contract": contract_descriptor(),
+        "tool_contract_version": EXECUTION_TOOL_CONTRACT_V3_VERSION,
+        "tool_contract": v3_contract_descriptor(),
         "binary": binary.name,
         "tests_executed": True,
         "required_tests": required_tests,
@@ -187,8 +190,8 @@ def verify_binary_attestation(
         "patch_sha256": source.get("patch_sha256"),
         "patch_source_manifest_sha256": source_digest,
         "bun_version": source.get("bun_version"),
-        "tool_contract_version": EXECUTION_TOOL_CONTRACT_VERSION,
-        "tool_contract": contract_descriptor(),
+        "tool_contract_version": EXECUTION_TOOL_CONTRACT_V3_VERSION,
+        "tool_contract": v3_contract_descriptor(),
     }
     source_mismatches = [
         name

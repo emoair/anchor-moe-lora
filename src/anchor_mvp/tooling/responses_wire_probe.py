@@ -15,6 +15,7 @@ from .config import AGENT_ID, OpenCodeProvider
 
 WIRE_MARKER = "anchor-responses-wire-probe-v1"
 WIRE_CALL_ID = "call_anchor_read"
+DEFAULT_PROBE_TIMEOUT_SECONDS = 300.0
 # These fields and only these fields are present in the independently verified
 # Ark/OpenCode Responses request contract.  The two SDK-added fields below are
 # also value-locked in ``ResponsesWireTranscript.validate``; accepting them by
@@ -33,7 +34,69 @@ ARK_VERIFIED_RESPONSE_FIELDS = frozenset(
     }
 )
 ARK_VERIFIED_INCLUDE = ("reasoning.encrypted_content",)
-ARK_VERIFIED_TOOLS = ({"type": "function", "name": "read", "parameters": {}},)
+ARK_VERIFIED_TOOL_KEYS = frozenset(
+    {"description", "name", "parameters", "strict", "type"}
+)
+ARK_VERIFIED_PARAMETER_KEYS = frozenset({"properties", "required", "type"})
+ARK_VERIFIED_PARAMETER_PROPERTIES = {
+    "filePath": "string",
+    "limit": "integer",
+    "offset": "integer",
+}
+ARK_VERIFIED_PROPERTY_KEYS = frozenset({"description", "type"})
+ARK_VERIFIED_REQUIRED = ("filePath",)
+
+
+def _is_nonempty_description(value: object) -> bool:
+    """Descriptions are metadata, but must remain present and well formed.
+
+    The probe deliberately does not retain description bodies.  Locking their
+    exact prose would require capturing content that is irrelevant to the tool
+    capability boundary.  Names, types, schema keys, and required fields are
+    still matched exactly below.
+    """
+
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _validate_read_tool(value: object) -> bool:
+    """Match the current read-only Responses wire schema, fail closed."""
+
+    if not isinstance(value, Mapping) or set(value) != ARK_VERIFIED_TOOL_KEYS:
+        return False
+    if (
+        value.get("type") != "function"
+        or value.get("name") != "read"
+        or value.get("strict") is not False
+        or not _is_nonempty_description(value.get("description"))
+    ):
+        return False
+    parameters = value.get("parameters")
+    if (
+        not isinstance(parameters, Mapping)
+        or set(parameters) != ARK_VERIFIED_PARAMETER_KEYS
+        or parameters.get("type") != "object"
+    ):
+        return False
+    required = parameters.get("required")
+    if not isinstance(required, list) or tuple(required) != ARK_VERIFIED_REQUIRED:
+        return False
+    properties = parameters.get("properties")
+    if (
+        not isinstance(properties, Mapping)
+        or set(properties) != set(ARK_VERIFIED_PARAMETER_PROPERTIES)
+    ):
+        return False
+    for name, expected_type in ARK_VERIFIED_PARAMETER_PROPERTIES.items():
+        property_schema = properties.get(name)
+        if (
+            not isinstance(property_schema, Mapping)
+            or set(property_schema) != ARK_VERIFIED_PROPERTY_KEYS
+            or property_schema.get("type") != expected_type
+            or not _is_nonempty_description(property_schema.get("description"))
+        ):
+            return False
+    return True
 
 
 def _walk(value: object):
@@ -86,7 +149,11 @@ class ResponsesWireTranscript:
                     f"Responses wire reasoning drift on turn {turn}: expected max",
                 )
             tools = request.get("tools")
-            if not isinstance(tools, list) or tuple(tools) != ARK_VERIFIED_TOOLS:
+            if (
+                not isinstance(tools, list)
+                or len(tools) != 1
+                or not _validate_read_tool(tools[0])
+            ):
                 return (
                     False,
                     "Responses wire tools drift on turn "
@@ -264,7 +331,7 @@ def run_responses_wire_probe(
     probe_root: Path,
     environment: Mapping[str, str],
     provider: OpenCodeProvider,
-    timeout_seconds: float = 45.0,
+    timeout_seconds: float = DEFAULT_PROBE_TIMEOUT_SECONDS,
 ) -> tuple[bool, str]:
     """Capture an offline two-turn Responses request and fail on extra fields."""
 

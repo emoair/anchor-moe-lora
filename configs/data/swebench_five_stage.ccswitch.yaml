@@ -29,7 +29,7 @@ components:
 execution_contract:
   attestation: artifacts/tooling/opencode-patched/multilang-execution-attestation.json
   lock: configs/tooling/swebench_execution_v3.lock.json
-  lock_sha256: 043c4749586ba3a35240c894b9bd6a519f4a8e977019c9c49c9649b6b1b47888
+  lock_sha256: 14463771cf16d1c88842e78b3415f4cdf349075e1be364fc09fd15650eec3084
   required_schema: anchor.multilang-execution-attestation.v1
   required_tool_contract_version: anchor.execution-tool-contract.v3
 

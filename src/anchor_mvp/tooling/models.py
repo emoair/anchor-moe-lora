@@ -80,6 +80,7 @@ class ToolTraceEntry:
     exit_code: int | None = None
     duration_ms: float | None = None
     output_sha256: str | None = None
+    input_sha256: str | None = None
 
 
 @dataclass(frozen=True)

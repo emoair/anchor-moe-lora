@@ -20,10 +20,10 @@
   "dataset_revision": "7074ef12ea2a6f70a228943c1336553333c22786",
   "files": [
     {
-      "bytes": 602,
+      "bytes": 600,
       "path": "ATTRIBUTION.md",
       "records": 0,
-      "sha256": "be7ab965f6beb69560233c273d04f42131e64f040b4b36a7fc3f4fed6dac10f7"
+      "sha256": "9c8449e2f69723923d914309296f7dcd7e5adef26dbbb810c9b76d2097221de3"
     },
     {
       "bytes": 525940,

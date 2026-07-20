@@ -68,7 +68,7 @@
           "manifest_path": "datasets/public/swebench-full-bank-v1/manifest.json",
           "path": "datasets/public/swebench-full-bank-v1",
           "present": true,
-          "sha256": "87557575c87d3132daf950cf7f19c9a3823b4806f81751b524e13a19e29197df",
+          "sha256": "55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28",
           "strict_max_file_bytes": 52428800,
           "validated": true
         }
@@ -409,10 +409,10 @@
     "payload_file_count": 63,
     "payload_inventory": [
       {
-        "bytes": 602,
+        "bytes": 600,
         "path": "ATTRIBUTION.md",
         "records": 0,
-        "sha256": "be7ab965f6beb69560233c273d04f42131e64f040b4b36a7fc3f4fed6dac10f7"
+        "sha256": "9c8449e2f69723923d914309296f7dcd7e5adef26dbbb810c9b76d2097221de3"
       },
       {
         "bytes": 525940,
@@ -789,7 +789,7 @@
     ],
     "public_export_manifest": "datasets/public/swebench-full-bank-v1/manifest.json",
     "public_file_count": 64,
-    "public_manifest_sha256": "87557575c87d3132daf950cf7f19c9a3823b4806f81751b524e13a19e29197df",
+    "public_manifest_sha256": "55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28",
     "raw_source_excluded": true,
     "strict_max_file_bytes": 52428800
   },

@@ -13,6 +13,16 @@ def digest_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", errors="replace")).hexdigest()
 
 
+def _digest_json(value: object) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return digest_text(encoded)
+
+
 def classify_kimi_400_error(value: str) -> str:
     """Reduce a trusted Kimi HTTP 400 body to one fixed, content-free category."""
 
@@ -37,13 +47,29 @@ def classify_kimi_400_error(value: str) -> str:
 def classify_error_text(value: str) -> tuple[str, ...]:
     lowered = value.lower()
     codes: list[str] = []
-    if "invalid_url" in lowered or "invalid url" in lowered or "missing scheme" in lowered:
+    if (
+        "invalid_url" in lowered
+        or "invalid url" in lowered
+        or "missing scheme" in lowered
+    ):
         codes.append("invalid_url")
-    if "context canceled" in lowered or "context cancelled" in lowered or "http 499" in lowered:
+    if (
+        "context canceled" in lowered
+        or "context cancelled" in lowered
+        or "http 499" in lowered
+    ):
         codes.append("client_cancelled")
-    if "rate limit" in lowered or "status code: 429" in lowered or "http 429" in lowered:
+    if (
+        "rate limit" in lowered
+        or "status code: 429" in lowered
+        or "http 429" in lowered
+    ):
         codes.append("rate_limited")
-    if "invalid authentication" in lowered or "status code: 401" in lowered or "http 401" in lowered:
+    if (
+        "invalid authentication" in lowered
+        or "status code: 401" in lowered
+        or "http 401" in lowered
+    ):
         codes.append("authentication_failed")
     if _is_missing_reasoning_content_400(lowered):
         codes.append("missing_reasoning_content")
@@ -61,7 +87,9 @@ def _is_missing_reasoning_content_400(lowered: str) -> bool:
 
     if not _HTTP_400_SIGNAL.search(lowered):
         return False
-    has_reasoning_field = "reasoning_content" in lowered or "reasoning content" in lowered
+    has_reasoning_field = (
+        "reasoning_content" in lowered or "reasoning content" in lowered
+    )
     missing_signal = any(
         marker in lowered
         for marker in (
@@ -129,7 +157,9 @@ def classify_error_metadata(stdout: str, stderr: str) -> tuple[str, ...]:
                         continue
                     if status == 400:
                         codes.append(
-                            "invalid_url" if "invalid_url" in item_codes else "invalid_request"
+                            "invalid_url"
+                            if "invalid_url" in item_codes
+                            else "invalid_request"
                         )
                     elif status == 401:
                         codes.append("authentication_failed")
@@ -195,7 +225,10 @@ def parse_public_outcome(stdout: str) -> PublicOutcome | None:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if not isinstance(event, dict) or str(event.get("type", "")).casefold() != "text":
+        if (
+            not isinstance(event, dict)
+            or str(event.get("type", "")).casefold() != "text"
+        ):
             continue
         part = event.get("part")
         if not isinstance(part, dict) or str(part.get("type", "")).casefold() not in {
@@ -208,7 +241,10 @@ def parse_public_outcome(stdout: str) -> PublicOutcome | None:
             continue
         for value in (text,):
             candidate = _json_candidate(value)
-            if not candidate or candidate.get("schema_version") != "anchor.public-outcome.v1":
+            if (
+                not candidate
+                or candidate.get("schema_version") != "anchor.public-outcome.v1"
+            ):
                 continue
             if forbidden.intersection(str(key).casefold() for key in candidate):
                 continue
@@ -239,7 +275,11 @@ def parse_public_outcome(stdout: str) -> PublicOutcome | None:
             clean_repairs = tuple(str(item).strip() for item in repairs)
             if any(not item or len(item) > 600 for item in clean_repairs):
                 continue
-            if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 1000:
+            if (
+                not isinstance(summary, str)
+                or not summary.strip()
+                or len(summary.strip()) > 1000
+            ):
                 continue
             accepted = PublicOutcome(
                 status=status,
@@ -248,6 +288,8 @@ def parse_public_outcome(stdout: str) -> PublicOutcome | None:
                 final_summary=summary.strip(),
             )
     return accepted
+
+
 def _first_string(mapping: dict[str, Any], names: tuple[str, ...]) -> str | None:
     for name in names:
         value = mapping.get(name)
@@ -278,13 +320,15 @@ def parse_opencode_jsonl(
     """
 
     trace: list[ToolTraceEntry] = []
-    rejected = 0
-    seen: set[tuple[str, str | None, int | None, str]] = set()
+    call_indexes: dict[str, int] = {}
     for line in stdout.splitlines():
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
+        seen_without_id: set[tuple[str, str | None, str | None, int | None, str]] = (
+            set()
+        )
         for item in _walk_dicts(event):
             event_type = str(item.get("type", "")).lower()
             tool = _first_string(item, ("tool", "toolName", "tool_name", "name"))
@@ -304,6 +348,16 @@ def parse_opencode_jsonl(
             raw_state_input = state.get("input")
             state_input: dict[str, Any] = (
                 raw_state_input if isinstance(raw_state_input, dict) else {}
+            )
+            actual_input = (
+                raw_state_input
+                if isinstance(raw_state_input, dict)
+                else raw_tool_input
+                if isinstance(raw_tool_input, dict)
+                else None
+            )
+            input_sha256 = (
+                _digest_json(actual_input) if actual_input is not None else None
             )
             command = (
                 _first_string(item, ("command", "cmd"))
@@ -326,21 +380,71 @@ def parse_opencode_jsonl(
                 else:
                     command_hash = policy.command_digest(command)
             if not allowed:
-                rejected += 1
                 status = "rejected"
-            key = (tool, safe_command or command_hash, exit_code, status)
-            if key in seen:
-                continue
-            seen.add(key)
-            trace.append(
-                ToolTraceEntry(
-                    sequence=len(trace) + 1,
-                    source="agent",
-                    tool=tool,
-                    status=status,
-                    command=safe_command,
-                    command_sha256=command_hash,
-                    exit_code=exit_code,
+            raw_output = state.get("output", item.get("output"))
+            output_sha256: str | None = None
+            if isinstance(raw_output, str):
+                output_sha256 = digest_text(raw_output)
+            elif isinstance(raw_output, (dict, list)):
+                output_sha256 = digest_text(
+                    json.dumps(
+                        raw_output,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
                 )
+            call_id = _first_string(item, ("callID", "call_id", "id")) or _first_string(
+                state, ("callID", "call_id", "id")
             )
+            if call_id is None:
+                key = (
+                    tool,
+                    safe_command or command_hash,
+                    input_sha256,
+                    exit_code,
+                    status,
+                )
+                if key in seen_without_id:
+                    continue
+                seen_without_id.add(key)
+            entry = ToolTraceEntry(
+                sequence=len(trace) + 1,
+                source="agent",
+                tool=tool,
+                status=status,
+                input_sha256=input_sha256,
+                command=safe_command,
+                command_sha256=command_hash,
+                exit_code=exit_code,
+                output_sha256=output_sha256,
+            )
+            if call_id is None or call_id not in call_indexes:
+                if call_id is not None:
+                    call_indexes[call_id] = len(trace)
+                trace.append(entry)
+                continue
+
+            index = call_indexes[call_id]
+            previous = trace[index]
+            trace[index] = ToolTraceEntry(
+                sequence=previous.sequence,
+                source="agent",
+                tool=entry.tool,
+                status=(
+                    "rejected"
+                    if "rejected" in {previous.status, entry.status}
+                    else entry.status
+                ),
+                input_sha256=entry.input_sha256 or previous.input_sha256,
+                command=entry.command or previous.command,
+                command_sha256=entry.command_sha256 or previous.command_sha256,
+                exit_code=(
+                    entry.exit_code
+                    if entry.exit_code is not None
+                    else previous.exit_code
+                ),
+                output_sha256=entry.output_sha256 or previous.output_sha256,
+            )
+    rejected = sum(item.status == "rejected" for item in trace)
     return tuple(trace), rejected

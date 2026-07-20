@@ -2173,6 +2173,15 @@ def _project_agent_tool_trace(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Split one real trace into correlated call and result projections."""
 
+    # Revalidate the immutable authorization pair at the trace boundary.  This
+    # prevents duplicate decision IDs or malformed proposals from being folded
+    # by the lookup maps below if this helper is ever called outside builder().
+    try:
+        approved_builder_policy(planner, tool_policy)
+    except ExecutionContractError as error:
+        raise CoordinatorError(
+            "builder_tool_trace_proposal_binding_invalid"
+        ) from error
     decisions = {
         str(item.get("proposal_id")): str(item.get("decision"))
         for item in tool_policy.get("decisions", [])

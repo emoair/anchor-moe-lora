@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from anchor_mvp.tooling import (
     AgentExecution,
     AnchorSandboxOptions,
@@ -82,6 +84,77 @@ def test_live_environment_is_isolated_and_preserves_real_client_identity(tmp_pat
     assert "OPENCODE_CONFIG_CONTENT" not in environment
     assert environment["XDG_DATA_HOME"].startswith(str(tmp_path))
     assert environment["XDG_CACHE_HOME"].startswith(str(tmp_path))
+
+
+def test_probe_timeout_is_operator_configurable_but_cannot_restore_old_false_negative():
+    assert OpenCodeExecutor(probe_timeout_seconds=225).probe_timeout_seconds == 225.0
+    for value in (149.9, 0, True, "300"):
+        with pytest.raises(
+            ValueError, match="probe_timeout_seconds must be at least 150 seconds"
+        ):
+            OpenCodeExecutor(probe_timeout_seconds=value)
+
+
+@pytest.mark.parametrize(
+    "route_host",
+    (
+        "127.0.0.0",
+        "127.255.255.255",
+        "10.0.0.0",
+        "10.255.255.255",
+        "172.16.0.0",
+        "172.31.255.255",
+        "192.168.0.0",
+        "192.168.255.255",
+    ),
+)
+def test_anchor_sandbox_route_host_accepts_exact_audited_ipv4_ranges(route_host):
+    options = AnchorSandboxOptions(route_host=route_host, route_port=1)
+
+    assert options.command_options()[-4:] == [
+        "--route-host",
+        route_host,
+        "--route-port",
+        "1",
+    ]
+
+
+@pytest.mark.parametrize(
+    "route_host",
+    (
+        "126.255.255.255",
+        "128.0.0.0",
+        "9.255.255.255",
+        "11.0.0.0",
+        "172.15.255.255",
+        "172.32.0.0",
+        "192.167.255.255",
+        "192.169.0.0",
+        "169.254.169.254",
+        "192.0.0.1",
+        "::1",
+    ),
+)
+def test_anchor_sandbox_route_host_rejects_addresses_outside_audited_ranges(
+    route_host,
+):
+    with pytest.raises(ValueError, match="route_host must be local"):
+        AnchorSandboxOptions(route_host=route_host, route_port=18080)
+
+
+@pytest.mark.parametrize("route_port", (1, 65535))
+def test_anchor_sandbox_route_port_accepts_audited_boundaries(route_port):
+    assert AnchorSandboxOptions(
+        route_host="127.0.0.1", route_port=route_port
+    ).route_port == route_port
+
+
+@pytest.mark.parametrize("route_port", (0, 65536, True, 1.5))
+def test_anchor_sandbox_route_port_rejects_values_outside_audited_boundaries(
+    route_port,
+):
+    with pytest.raises(ValueError):
+        AnchorSandboxOptions(route_host="127.0.0.1", route_port=route_port)
 
 
 def test_provider_key_is_aliased_only_in_the_child_environment(monkeypatch, tmp_path):
@@ -337,8 +410,11 @@ def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
         ),
     )
 
-    def fake_behavioral_probe(executable, *, probe_root, environment):
+    def fake_behavioral_probe(
+        executable, *, probe_root, environment, timeout_seconds
+    ):
         observed["probe_root"] = probe_root
+        observed["timeout_seconds"] = timeout_seconds
         return True, "verified"
 
     monkeypatch.setattr(
@@ -349,6 +425,7 @@ def test_patched_probe_uses_a_sibling_root_to_avoid_parent_config_merge(
     assert attestation_kwargs["linux_executable"] is None
     assert config_path.parent not in observed["probe_root"].parents
     assert observed["probe_root"].parent == config_path.parent.parent
+    assert observed["timeout_seconds"] == 300.0
 
 
 def test_export_precedes_isolated_runtime_deletion(monkeypatch, tmp_path):

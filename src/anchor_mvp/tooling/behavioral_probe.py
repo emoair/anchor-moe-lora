@@ -14,6 +14,7 @@ from .config import AGENT_ID
 
 
 PROBE_MARKER = "anchor-offline-probe-marker-v1"
+DEFAULT_PROBE_TIMEOUT_SECONDS = 300.0
 
 
 @dataclass
@@ -211,7 +212,7 @@ def run_behavioral_probe(
     *,
     probe_root: Path,
     environment: Mapping[str, str],
-    timeout_seconds: float = 45.0,
+    timeout_seconds: float = DEFAULT_PROBE_TIMEOUT_SECONDS,
 ) -> tuple[bool, str]:
     probe_root.mkdir(parents=True, exist_ok=True)
     workspace = probe_root / "workspace"

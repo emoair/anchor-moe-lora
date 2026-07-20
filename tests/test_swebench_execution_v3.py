@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import anchor_mvp.tooling.swebench_execution_v3 as execution_v3
 from anchor_mvp.tooling.swebench_execution_v3 import (
     DISTILLATION_VALIDATION_STATE_SCHEMA,
     ExecutionContractError,
@@ -22,6 +23,7 @@ from anchor_mvp.tooling.swebench_execution_v3 import (
     distillation_lineage_sha256,
     distillation_validation_state_sha256,
     evaluate_v3_gold_gate,
+    load_execution_lock,
     resolve_official_instance_image_key,
     sha256_file,
     sign_distillation_execution_receipt,
@@ -562,6 +564,36 @@ def test_builder_policy_rejects_ambiguous_approved_edit_permission_family() -> N
         approved_builder_policy(planner, decisions)
 
 
+@pytest.mark.parametrize("proposal_id", ["", " ", " edit-1", "edit-1 "])
+def test_builder_policy_rejects_noncanonical_proposal_ids(proposal_id: str) -> None:
+    planner = {
+        "tool_proposals": [
+            {"proposal_id": proposal_id, "tool": "edit", "input": {"path": "a.py"}},
+        ]
+    }
+    decisions = {
+        "decisions": [{"proposal_id": "edit-1", "decision": "APPROVE"}]
+    }
+
+    with pytest.raises(ExecutionContractError, match="proposal_invalid"):
+        approved_builder_policy(planner, decisions)
+
+
+@pytest.mark.parametrize("proposal_id", ["", " ", " edit-1", "edit-1 "])
+def test_builder_policy_rejects_noncanonical_decision_ids(proposal_id: str) -> None:
+    planner = {
+        "tool_proposals": [
+            {"proposal_id": "edit-1", "tool": "edit", "input": {"path": "a.py"}},
+        ]
+    }
+    decisions = {
+        "decisions": [{"proposal_id": proposal_id, "decision": "APPROVE"}]
+    }
+
+    with pytest.raises(ExecutionContractError, match="decision_invalid"):
+        approved_builder_policy(planner, decisions)
+
+
 def test_v3_descriptor_separates_visible_iteration_from_hidden_official_eval() -> None:
     descriptor = v3_contract_descriptor()
     assert "bash" in descriptor["model_tools"]
@@ -951,6 +983,10 @@ def test_real_local_dry_probe_is_false_with_exact_remaining_gates() -> None:
     assert report["bindings"]["canonical_worktree"]["native_wsl_root"].startswith("/")
     assert report["bindings"]["validator"]["self_test"] is True
     assert report["bindings"]["validator"]["rejects_arbitrary_commands"] is True
+    assert report["bindings"]["validator"]["route_diagnostics_sha256"] == sha256_file(
+        ROOT / "src/anchor_mvp/tooling/route_diagnostics.py"
+    )
+    assert report["bindings"]["validator"]["code_bound"] is True
     remaining = set(report["remaining_gates"])
     assert {
         "instance_image_probe_missing",
@@ -998,6 +1034,53 @@ def test_real_local_dry_probe_is_false_with_exact_remaining_gates() -> None:
         "official_testspec_on_final_diff": False,
         "manifest_self_claim_sufficient": False,
     }
+
+
+@pytest.mark.parametrize("field", ["route_diagnostics", "route_diagnostics_sha256"])
+def test_execution_lock_requires_route_diagnostics_binding(
+    tmp_path: Path, field: str
+) -> None:
+    value = json.loads(LOCK.read_text(encoding="utf-8"))
+    del value["validator"][field]
+    lock = tmp_path / "execution-lock.json"
+    lock.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(
+        ExecutionContractError, match="execution_lock_validator_shape_invalid"
+    ):
+        load_execution_lock(ROOT, lock)
+
+
+def test_execution_lock_rejects_route_diagnostics_path_escape(tmp_path: Path) -> None:
+    value = json.loads(LOCK.read_text(encoding="utf-8"))
+    value["validator"]["route_diagnostics"] = "../route_diagnostics.py"
+    lock = tmp_path / "execution-lock.json"
+    lock.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(ExecutionContractError, match="execution_lock_path_escape"):
+        load_execution_lock(ROOT, lock)
+
+
+def test_route_diagnostics_tampering_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route_module = (ROOT / "src/anchor_mvp/tooling/route_diagnostics.py").resolve()
+    original_sha256_file = execution_v3.sha256_file
+    tampered_sha256 = _digest("tampered-route-diagnostics")
+
+    def _tampered_sha256_file(path: Path) -> str:
+        if path.resolve() == route_module:
+            return tampered_sha256
+        return original_sha256_file(path)
+
+    monkeypatch.setattr(execution_v3, "sha256_file", _tampered_sha256_file)
+    report = execution_v3.build_execution_attestation(ROOT, LOCK)
+
+    validator = report["bindings"]["validator"]
+    assert validator["route_diagnostics_sha256"] == tampered_sha256
+    assert validator["code_bound"] is False
+    assert report["ready"] is False
+    assert "sealed_validator_code_binding_failed" in report["remaining_gates"]
 
 
 def test_schema_claim_cannot_replace_recomputed_attestation(tmp_path: Path) -> None:

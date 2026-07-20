@@ -1,8 +1,16 @@
+import inspect
+
+from anchor_mvp.tooling.behavioral_probe import (
+    DEFAULT_PROBE_TIMEOUT_SECONDS as BEHAVIORAL_PROBE_TIMEOUT_SECONDS,
+    run_behavioral_probe,
+)
 from anchor_mvp.tooling import OpenCodeProvider
 from anchor_mvp.tooling.responses_wire_probe import (
+    DEFAULT_PROBE_TIMEOUT_SECONDS as RESPONSES_PROBE_TIMEOUT_SECONDS,
     ResponsesWireTranscript,
     WIRE_CALL_ID,
     WIRE_MARKER,
+    run_responses_wire_probe,
 )
 
 
@@ -18,6 +26,33 @@ def _provider() -> OpenCodeProvider:
     )
 
 
+def _read_tool() -> dict[str, object]:
+    return {
+        "type": "function",
+        "name": "read",
+        "description": "Local read tool",
+        "strict": False,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filePath": {
+                    "description": "File path",
+                    "type": "string",
+                },
+                "limit": {
+                    "description": "Line limit",
+                    "type": "integer",
+                },
+                "offset": {
+                    "description": "Line offset",
+                    "type": "integer",
+                },
+            },
+            "required": ["filePath"],
+        },
+    }
+
+
 def _requests() -> list[dict[str, object]]:
     base = {
         "include": ["reasoning.encrypted_content"],
@@ -28,7 +63,7 @@ def _requests() -> list[dict[str, object]]:
         "store": False,
         "stream": True,
         "tool_choice": "auto",
-        "tools": [{"type": "function", "name": "read", "parameters": {}}],
+        "tools": [_read_tool()],
     }
     return [
         base,
@@ -149,8 +184,11 @@ def test_responses_wire_contract_rejects_tool_schema_or_allowlist_drift_on_any_t
     for turn in (0, 1):
         requests = _requests()
         requests[turn]["tools"] = [
-            {"type": "function", "name": "read", "parameters": {}},
-            {"type": "function", "name": "bash", "parameters": {}},
+            _read_tool(),
+            {
+                **_read_tool(),
+                "name": "bash",
+            },
         ]
 
         assert ResponsesWireTranscript(
@@ -162,18 +200,78 @@ def test_responses_wire_contract_rejects_tool_schema_or_allowlist_drift_on_any_t
         )
 
     requests = _requests()
-    requests[1]["tools"] = [
-        {
-            "type": "function",
-            "name": "read",
-            "parameters": {"type": "object"},
-        }
-    ]
+    changed = _read_tool()
+    changed["parameters"] = {"type": "object"}
+    requests[1]["tools"] = [changed]
     assert (
         ResponsesWireTranscript(
             paths=["/v1/responses", "/v1/responses"], requests=requests
         ).validate(_provider())[0]
         is False
+    )
+
+
+def test_responses_wire_contract_rejects_any_current_read_schema_drift():
+    mutations = []
+
+    extra_tool_field = _read_tool()
+    extra_tool_field["unexpected"] = True
+    mutations.append(extra_tool_field)
+
+    missing_description = _read_tool()
+    del missing_description["description"]
+    mutations.append(missing_description)
+
+    extra_parameter_field = _read_tool()
+    extra_parameter_field["parameters"]["additionalProperties"] = False
+    mutations.append(extra_parameter_field)
+
+    changed_required = _read_tool()
+    changed_required["parameters"]["required"] = ["filePath", "offset"]
+    mutations.append(changed_required)
+
+    extra_property = _read_tool()
+    extra_property["parameters"]["properties"]["encoding"] = {
+        "description": "Encoding",
+        "type": "string",
+    }
+    mutations.append(extra_property)
+
+    changed_property_type = _read_tool()
+    changed_property_type["parameters"]["properties"]["limit"]["type"] = (
+        "number"
+    )
+    mutations.append(changed_property_type)
+
+    extra_property_keyword = _read_tool()
+    extra_property_keyword["parameters"]["properties"]["offset"]["minimum"] = 0
+    mutations.append(extra_property_keyword)
+
+    for tool in mutations:
+        requests = _requests()
+        requests[0]["tools"] = [tool]
+        assert ResponsesWireTranscript(
+            paths=["/v1/responses", "/v1/responses"], requests=requests
+        ).validate(_provider()) == (
+            False,
+            "Responses wire tools drift on turn 1: expected the exact local read allowlist",
+        )
+
+
+def test_offline_probe_defaults_allow_current_binary_startup_latency():
+    assert BEHAVIORAL_PROBE_TIMEOUT_SECONDS >= 150.0
+    assert RESPONSES_PROBE_TIMEOUT_SECONDS >= 150.0
+    assert (
+        inspect.signature(run_behavioral_probe)
+        .parameters["timeout_seconds"]
+        .default
+        == BEHAVIORAL_PROBE_TIMEOUT_SECONDS
+    )
+    assert (
+        inspect.signature(run_responses_wire_probe)
+        .parameters["timeout_seconds"]
+        .default
+        == RESPONSES_PROBE_TIMEOUT_SECONDS
     )
 
 
