@@ -143,6 +143,48 @@ release package is created.
   layer), Ruff, JSON/YAML parsing, exact fixture/physical-schema hash checks,
   and an independent static review with no remaining P0/P1 finding.
 
+## Long-context token inventory
+
+- The post-projector producer emits the body-free record contract
+  `anchor.long-context-token-inventory.v1` and manifest contract
+  `anchor.long-context-token-inventory-manifest.v1`. It does not change the
+  frozen projector v2, sidecar v2, or segment-plan v1 bytes.
+- Policy/schema SHA-256 values are: config
+  `79cd230b161bc91b802854e60df9453677b1c963d38eb9f156347ab56ad00abe`,
+  record schema
+  `aab3e64a41d16c50816da7b03e05a8fb2d1c2b74ac1359f663b70485b34d706f`,
+  and manifest schema
+  `8b0d199b2b7dfafa88237ad1fdec538090404b0081a8b07f7136b121fc6932e0`.
+- The final synthetic integration inventory manifest is
+  `73ef649b890854ecdecfa1da7f814b746796a9ac486f62328d82c815bbaffc0e`.
+  Its three partitions contain 5 records each and bind 15 records, 2 task
+  bundles, 89 segment references, and 25 unique segment IDs. The source
+  task-ID digest is identical to the authenticated projector manifest. The
+  train-clean, train-noisy, and calibration-clean partition SHA-256 values are
+  respectively
+  `d58471790406130cfbbde0b473a296665227f920f4f338455302fde462167846`,
+  `dfc3e5423ca4368a3974d9cdfc312af540b75c44aa41ff5c43ff940343c60bc1`,
+  and `6fcc71a051cab56ab253ffe8cf23983c5e13f3515f8651a6eeb00bc27f7712e5`.
+- The producer first proves bundle/split/five-role invariants, then sends only
+  the ordered causal segment whitelist to the exact local counter. Current,
+  future, and forbidden blocks are never selected, tokenized, serialized, or
+  persisted. The inventory contains no body, preview, rendered input, target,
+  token-ID array, or hidden-evaluation material.
+- The checked-in fixture uses an explicitly synthetic exact tokenizer binding.
+  It verifies authentication and deterministic accounting only and is not
+  Gemma-compatible evidence. A real inventory requires offline local tokenizer
+  assets plus tokenizer ID/revision/runtime, chat-template, serialization, and
+  special-token-policy hashes. Unknown identity fails closed; cache-reuse
+  savings remain zero.
+- The fixed buckets are 8K, 16K, 32K, 64K, and 128K measurement candidates;
+  256K is capability-only; 1 Mi is research-only and blocked; values above
+  1 Mi are rejected. All buckets remain unevaluated and keep quality,
+  allocation, execution, distillation, and training authorization false.
+- Fresh-pycache projector/release/inventory validation collects 84 tests and
+  passes 83 with one platform-permission skip for directory-symlink creation on
+  Windows. Ruff, formatting, `py_compile`, Draft 2020-12 instance validation,
+  physical hash/count checks, and body/absolute-path scans pass.
+
 Historical v1 notes follow.
 
 - A provider-free post-Gold projector is implemented in

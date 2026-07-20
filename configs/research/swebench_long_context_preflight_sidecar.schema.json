@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/long-context-token-inventory-v1.json",
+  "title": "Exact long-context token inventory record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "task_bundle_sha256",
+    "task_id_sha256",
+    "split",
+    "variant",
+    "stage",
+    "expert",
+    "source_partition_sha256",
+    "source_line_sha256",
+    "segment_plan_sha256",
+    "segment_count",
+    "private_delta_segment_count",
+    "ordered_segment_ids_sha256",
+    "terminal_prefix_lineage_sha256",
+    "tokenizer_binding_sha256",
+    "input_tokens",
+    "shared_prefix_input_tokens",
+    "private_delta_input_tokens",
+    "reserved_output_tokens",
+    "total_tokens",
+    "bucket",
+    "gate",
+    "cache_identity_status",
+    "reuse_savings_tokens",
+    "evaluation_status",
+    "quality_validated",
+    "allocation_validated",
+    "execution_authorized",
+    "provider_requests"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.long-context-token-inventory.v1"},
+    "record_id": {
+      "type": "string",
+      "pattern": "^long-context-token-inventory-v1:[0-9a-f]{64}$"
+    },
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "task_id_sha256": {"$ref": "#/$defs/sha256"},
+    "split": {"enum": ["train", "calibration"]},
+    "variant": {"enum": ["clean", "noisy"]},
+    "stage": {"$ref": "#/$defs/stage"},
+    "expert": {"$ref": "#/$defs/expert"},
+    "source_partition_sha256": {"$ref": "#/$defs/sha256"},
+    "source_line_sha256": {"$ref": "#/$defs/sha256"},
+    "segment_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "segment_count": {"type": "integer", "minimum": 1},
+    "private_delta_segment_count": {"type": "integer", "minimum": 0},
+    "ordered_segment_ids_sha256": {"$ref": "#/$defs/sha256"},
+    "terminal_prefix_lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "tokenizer_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "input_tokens": {"type": "integer", "minimum": 1},
+    "shared_prefix_input_tokens": {"type": "integer", "minimum": 1},
+    "private_delta_input_tokens": {"type": "integer", "minimum": 0},
+    "reserved_output_tokens": {"const": 4096},
+    "total_tokens": {"type": "integer", "minimum": 4097},
+    "bucket": {"$ref": "#/$defs/bucket"},
+    "gate": {"$ref": "#/$defs/gate"},
+    "cache_identity_status": {"const": "identity_unbound"},
+    "reuse_savings_tokens": {"const": 0},
+    "evaluation_status": {"const": "not_evaluated"},
+    "quality_validated": {"const": false},
+    "allocation_validated": {"const": false},
+    "execution_authorized": {"const": false},
+    "provider_requests": {"const": 0}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "bucket": {"const": "le_8k"}
+        },
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"maximum": 8192},
+          "gate": {"const": "measurement_candidate"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_16k"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 8193, "maximum": 16384},
+          "gate": {"const": "measurement_candidate"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_32k"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 16385, "maximum": 32768},
+          "gate": {"const": "measurement_candidate"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_64k"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 32769, "maximum": 65536},
+          "gate": {"const": "measurement_candidate"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_128k"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 65537, "maximum": 131072},
+          "gate": {"const": "measurement_candidate"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_256k"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 131073, "maximum": 262144},
+          "gate": {"const": "capability_only"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"bucket": {"const": "le_1m"}},
+        "required": ["bucket"]
+      },
+      "then": {
+        "properties": {
+          "total_tokens": {"minimum": 262145, "maximum": 1048576},
+          "gate": {"const": "research_only_blocked"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"split": {"const": "calibration"}},
+        "required": ["split"]
+      },
+      "then": {"properties": {"variant": {"const": "clean"}}}
+    },
+    {
+      "if": {
+        "properties": {"variant": {"const": "clean"}},
+        "required": ["variant"]
+      },
+      "then": {
+        "properties": {
+          "private_delta_segment_count": {"const": 0},
+          "private_delta_input_tokens": {"const": 0}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"variant": {"const": "noisy"}},
+        "required": ["variant"]
+      },
+      "then": {
+        "properties": {
+          "split": {"const": "train"},
+          "private_delta_segment_count": {"type": "integer", "minimum": 1},
+          "private_delta_input_tokens": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"stage": {"const": "planner"}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"expert": {"const": "planner"}}}
+    },
+    {
+      "if": {
+        "properties": {"stage": {"const": "tool_policy"}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"expert": {"const": "tool_policy"}}}
+    },
+    {
+      "if": {
+        "properties": {"stage": {"const": "domain_builder"}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"expert": {"const": "frontend_gen"}}}
+    },
+    {
+      "if": {
+        "properties": {"stage": {"const": "domain_review"}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"expert": {"const": "frontend_review"}}}
+    },
+    {
+      "if": {
+        "properties": {"stage": {"const": "security"}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"expert": {"const": "security_gate"}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "bucket": {
+      "enum": [
+        "le_8k",
+        "le_16k",
+        "le_32k",
+        "le_64k",
+        "le_128k",
+        "le_256k",
+        "le_1m"
+      ]
+    },
+    "gate": {
+      "enum": [
+        "measurement_candidate",
+        "capability_only",
+        "research_only_blocked"
+      ]
+    },
+    "stage": {
+      "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+    },
+    "expert": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    }
+  }
+}

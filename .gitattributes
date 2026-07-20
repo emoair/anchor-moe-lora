@@ -6,6 +6,7 @@
 *.jsonl text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+*.sha256 text eol=lf
 *.toml text eol=lf
 *.py text eol=lf
 *.pyi text eol=lf

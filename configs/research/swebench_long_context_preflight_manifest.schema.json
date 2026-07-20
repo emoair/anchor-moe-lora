@@ -1,0 +1,528 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/long-context-token-inventory-manifest-v1.json",
+  "title": "Exact long-context token inventory manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "inventory_mode",
+    "target_model_tokenizer_match",
+    "bucket_basis",
+    "input",
+    "producer",
+    "tokenizer_binding",
+    "token_accounting",
+    "model_contract",
+    "bucket_policy",
+    "files",
+    "counts",
+    "split_group_key",
+    "task_id_cross_binding_key",
+    "task_id_cross_binding_transform",
+    "all_five_role_views_same_split",
+    "split_before_augmentation",
+    "forbidden_current_future_excluded_before_serialization",
+    "manifest_sha256_sidecar_required",
+    "approximate_inventory_emitted",
+    "null_inventory_emitted",
+    "provider_requests",
+    "canonical_gold_written",
+    "evaluation_status",
+    "quality_validated",
+    "capability_validated",
+    "allocation_validated",
+    "execution_authorized",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.long-context-token-inventory-manifest.v1"},
+    "status": {
+      "enum": ["synthetic_fixture_inventory_ready", "exact_token_inventory_ready"]
+    },
+    "inventory_mode": {
+      "enum": ["synthetic_fixture", "local_exact_tokenizer"]
+    },
+    "target_model_tokenizer_match": {
+      "enum": ["not_applicable", "consumer_verification_required"]
+    },
+    "bucket_basis": {"const": "bound_tokenizer_total_tokens"},
+    "input": {"$ref": "#/$defs/input"},
+    "producer": {"$ref": "#/$defs/producer"},
+    "tokenizer_binding": {"$ref": "#/$defs/tokenizer_binding"},
+    "token_accounting": {"$ref": "#/$defs/token_accounting"},
+    "model_contract": {"$ref": "#/$defs/model_contract"},
+    "bucket_policy": {"$ref": "#/$defs/bucket_policy"},
+    "files": {
+      "type": "array",
+      "prefixItems": [
+        {"$ref": "#/$defs/train_clean"},
+        {"$ref": "#/$defs/train_noisy"},
+        {"$ref": "#/$defs/calibration_clean"}
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "counts": {"$ref": "#/$defs/counts"},
+    "split_group_key": {"const": "task_bundle_sha256"},
+    "task_id_cross_binding_key": {"const": "task_id_sha256"},
+    "task_id_cross_binding_transform": {
+      "const": "sha256_utf8_training_record_task_board_task_id"
+    },
+    "all_five_role_views_same_split": {"const": true},
+    "split_before_augmentation": {"const": true},
+    "forbidden_current_future_excluded_before_serialization": {"const": true},
+    "manifest_sha256_sidecar_required": {"const": true},
+    "approximate_inventory_emitted": {"const": false},
+    "null_inventory_emitted": {"const": false},
+    "provider_requests": {"const": 0},
+    "canonical_gold_written": {"const": false},
+    "evaluation_status": {"const": "not_evaluated"},
+    "quality_validated": {"const": false},
+    "capability_validated": {"const": false},
+    "allocation_validated": {"const": false},
+    "execution_authorized": {"const": false},
+    "claim_scope": {
+      "enum": ["synthetic_fixture_contract_only", "exact_bound_tokenizer_inventory_only"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tokenizer_binding": {
+            "properties": {
+              "backend": {"const": "explicit_synthetic_tokenizer"}
+            },
+            "required": ["backend"]
+          }
+        },
+        "required": ["tokenizer_binding"]
+      },
+      "then": {
+        "properties": {
+          "status": {"const": "synthetic_fixture_inventory_ready"},
+          "inventory_mode": {"const": "synthetic_fixture"},
+          "target_model_tokenizer_match": {"const": "not_applicable"},
+          "claim_scope": {"const": "synthetic_fixture_contract_only"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tokenizer_binding": {
+            "properties": {
+              "backend": {"const": "local_offline_tokenizer"}
+            },
+            "required": ["backend"]
+          }
+        },
+        "required": ["tokenizer_binding"]
+      },
+      "then": {
+        "properties": {
+          "status": {"const": "exact_token_inventory_ready"},
+          "inventory_mode": {"const": "local_exact_tokenizer"},
+          "target_model_tokenizer_match": {
+            "const": "consumer_verification_required"
+          },
+          "claim_scope": {"const": "exact_bound_tokenizer_inventory_only"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "minLength": 1, "maxLength": 256},
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projector_manifest_schema_version",
+        "projector_manifest_sha256",
+        "projector_manifest_sha256_sidecar_sha256",
+        "projector_manifest_schema_sha256",
+        "projector_config_sha256",
+        "projector_sidecar_schema_sha256",
+        "segment_plan_schema_sha256",
+        "partitions"
+      ],
+      "properties": {
+        "projector_manifest_schema_version": {
+          "const": "anchor.swebench-taskboard-projector-manifest.v2"
+        },
+        "projector_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_sha256_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_config_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "partitions": {
+          "type": "array",
+          "prefixItems": [
+            {"$ref": "#/$defs/train_clean"},
+            {"$ref": "#/$defs/train_noisy"},
+            {"$ref": "#/$defs/calibration_clean"}
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "producer_version",
+        "config_schema_version",
+        "config_sha256",
+        "record_schema_version",
+        "record_schema_sha256",
+        "manifest_schema_sha256"
+      ],
+      "properties": {
+        "name": {"const": "anchor.long-context-token-inventory"},
+        "producer_version": {"const": "anchor.long-context-token-inventory-producer.v1"},
+        "config_schema_version": {"const": "anchor.long-context-token-inventory-config.v1"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_version": {"const": "anchor.long-context-token-inventory.v1"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "tokenizer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "tokenizer_id",
+        "tokenizer_revision",
+        "tokenizer_label_source",
+        "tokenizer_assets_sha256",
+        "tokenizer_runtime_sha256",
+        "chat_template_sha256",
+        "serialization_policy_sha256",
+        "special_token_policy_sha256",
+        "synthetic_fixture_only",
+        "network_access",
+        "exact_token_counts"
+      ],
+      "properties": {
+        "backend": {
+          "enum": ["local_offline_tokenizer", "explicit_synthetic_tokenizer"]
+        },
+        "tokenizer_id": {"$ref": "#/$defs/identifier"},
+        "tokenizer_revision": {"$ref": "#/$defs/identifier"},
+        "tokenizer_label_source": {
+          "const": "caller_supplied_and_hash_bound"
+        },
+        "tokenizer_assets_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_runtime_sha256": {"$ref": "#/$defs/sha256"},
+        "chat_template_sha256": {"$ref": "#/$defs/sha256"},
+        "serialization_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "special_token_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "synthetic_fixture_only": {"type": "boolean"},
+        "network_access": {"const": false},
+        "exact_token_counts": {"const": true}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backend": {"const": "explicit_synthetic_tokenizer"}
+            },
+            "required": ["backend"]
+          },
+          "then": {
+            "properties": {"synthetic_fixture_only": {"const": true}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"backend": {"const": "local_offline_tokenizer"}},
+            "required": ["backend"]
+          },
+          "then": {
+            "properties": {"synthetic_fixture_only": {"const": false}}
+          }
+        }
+      ]
+    },
+    "token_accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_tokens_source",
+        "reserved_output_tokens",
+        "total_tokens_formula",
+        "scope_attribution_formula",
+        "cache_identity_status",
+        "reuse_savings_tokens"
+      ],
+      "properties": {
+        "input_tokens_source": {"const": "exact_serialized_input"},
+        "reserved_output_tokens": {"const": 4096},
+        "total_tokens_formula": {"const": "input_tokens_plus_reserved_output_tokens"},
+        "scope_attribution_formula": {
+          "const": "shared_prefix_input_tokens_plus_private_delta_input_tokens_equals_input_tokens"
+        },
+        "cache_identity_status": {"const": "identity_unbound"},
+        "reuse_savings_tokens": {"const": 0}
+      }
+    },
+    "model_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "model_family",
+        "parameter_scale",
+        "text_layers",
+        "sliding_attention_layers",
+        "global_attention_layers",
+        "sliding_window",
+        "max_position_embeddings",
+        "architecture_verified_by_preflight"
+      ],
+      "properties": {
+        "source": {"const": "caller_supplied_metadata_only"},
+        "model_family": {"const": "gemma4"},
+        "parameter_scale": {"const": "12B"},
+        "text_layers": {"const": 48},
+        "sliding_attention_layers": {"const": 40},
+        "global_attention_layers": {"const": 8},
+        "sliding_window": {"const": 1024},
+        "max_position_embeddings": {"const": 262144},
+        "architecture_verified_by_preflight": {"const": false}
+      }
+    },
+    "bucket_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["le_8k", "le_16k", "le_32k", "le_64k", "le_128k", "le_256k", "le_1m", "gt_1m"],
+      "properties": {
+        "le_8k": {"$ref": "#/$defs/bucket_le_8k"},
+        "le_16k": {"$ref": "#/$defs/bucket_le_16k"},
+        "le_32k": {"$ref": "#/$defs/bucket_le_32k"},
+        "le_64k": {"$ref": "#/$defs/bucket_le_64k"},
+        "le_128k": {"$ref": "#/$defs/bucket_le_128k"},
+        "le_256k": {"$ref": "#/$defs/bucket_le_256k"},
+        "le_1m": {"$ref": "#/$defs/bucket_le_1m"},
+        "gt_1m": {"$ref": "#/$defs/bucket_gt_1m"}
+      }
+    },
+    "bucket_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lower_bound_exclusive", "upper_bound_inclusive", "gate"],
+      "properties": {
+        "lower_bound_exclusive": {"type": "integer", "minimum": 0},
+        "upper_bound_inclusive": {
+          "oneOf": [
+            {"type": "integer", "minimum": 1},
+            {"const": "unbounded"}
+          ]
+        },
+        "gate": {
+          "enum": ["measurement_candidate", "capability_only", "research_only_blocked", "reject"]
+        }
+      }
+    },
+    "bucket_le_8k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 0},
+        "upper_bound_inclusive": {"const": 8192},
+        "gate": {"const": "measurement_candidate"}
+      }}]
+    },
+    "bucket_le_16k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 8192},
+        "upper_bound_inclusive": {"const": 16384},
+        "gate": {"const": "measurement_candidate"}
+      }}]
+    },
+    "bucket_le_32k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 16384},
+        "upper_bound_inclusive": {"const": 32768},
+        "gate": {"const": "measurement_candidate"}
+      }}]
+    },
+    "bucket_le_64k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 32768},
+        "upper_bound_inclusive": {"const": 65536},
+        "gate": {"const": "measurement_candidate"}
+      }}]
+    },
+    "bucket_le_128k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 65536},
+        "upper_bound_inclusive": {"const": 131072},
+        "gate": {"const": "measurement_candidate"}
+      }}]
+    },
+    "bucket_le_256k": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 131072},
+        "upper_bound_inclusive": {"const": 262144},
+        "gate": {"const": "capability_only"}
+      }}]
+    },
+    "bucket_le_1m": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 262144},
+        "upper_bound_inclusive": {"const": 1048576},
+        "gate": {"const": "research_only_blocked"}
+      }}]
+    },
+    "bucket_gt_1m": {
+      "allOf": [{"$ref": "#/$defs/bucket_base"}, {"properties": {
+        "lower_bound_exclusive": {"const": 1048576},
+        "upper_bound_inclusive": {"const": "unbounded"},
+        "gate": {"const": "reject"}
+      }}]
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "records", "split", "variant"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"type": "integer", "minimum": 1},
+        "split": {"enum": ["train", "calibration"]},
+        "variant": {"enum": ["clean", "noisy"]}
+      }
+    },
+    "train_clean": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "train/clean.jsonl"},
+        "split": {"const": "train"},
+        "variant": {"const": "clean"}
+      }}]
+    },
+    "train_noisy": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "train/noisy.jsonl"},
+        "split": {"const": "train"},
+        "variant": {"const": "noisy"}
+      }}]
+    },
+    "calibration_clean": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "calibration/clean.jsonl"},
+        "split": {"const": "calibration"},
+        "variant": {"const": "clean"}
+      }}]
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "unique_task_bundles",
+        "task_ids_sha256",
+        "segment_references",
+        "unique_segments",
+        "by_split",
+        "by_variant",
+        "by_stage",
+        "by_expert",
+        "by_bucket",
+        "by_gate"
+      ],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1},
+        "unique_task_bundles": {"type": "integer", "minimum": 1},
+        "task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_references": {"type": "integer", "minimum": 1},
+        "unique_segments": {"type": "integer", "minimum": 1},
+        "by_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "calibration"],
+          "properties": {
+            "train": {"type": "integer", "minimum": 1},
+            "calibration": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_variant": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["clean", "noisy"],
+          "properties": {
+            "clean": {"type": "integer", "minimum": 1},
+            "noisy": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_stage": {"$ref": "#/$defs/by_stage"},
+        "by_expert": {"$ref": "#/$defs/by_expert"},
+        "by_bucket": {"$ref": "#/$defs/by_bucket"},
+        "by_gate": {"$ref": "#/$defs/by_gate"}
+      }
+    },
+    "by_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "domain_builder", "domain_review", "security"],
+      "properties": {
+        "planner": {"type": "integer", "minimum": 0},
+        "tool_policy": {"type": "integer", "minimum": 0},
+        "domain_builder": {"type": "integer", "minimum": 0},
+        "domain_review": {"type": "integer", "minimum": 0},
+        "security": {"type": "integer", "minimum": 0}
+      }
+    },
+    "by_expert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+      "properties": {
+        "planner": {"type": "integer", "minimum": 0},
+        "tool_policy": {"type": "integer", "minimum": 0},
+        "frontend_gen": {"type": "integer", "minimum": 0},
+        "frontend_review": {"type": "integer", "minimum": 0},
+        "security_gate": {"type": "integer", "minimum": 0}
+      }
+    },
+    "by_bucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["le_8k", "le_16k", "le_32k", "le_64k", "le_128k", "le_256k", "le_1m", "gt_1m"],
+      "properties": {
+        "le_8k": {"type": "integer", "minimum": 0},
+        "le_16k": {"type": "integer", "minimum": 0},
+        "le_32k": {"type": "integer", "minimum": 0},
+        "le_64k": {"type": "integer", "minimum": 0},
+        "le_128k": {"type": "integer", "minimum": 0},
+        "le_256k": {"type": "integer", "minimum": 0},
+        "le_1m": {"type": "integer", "minimum": 0},
+        "gt_1m": {"type": "integer", "minimum": 0}
+      }
+    },
+    "by_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measurement_candidate", "capability_only", "research_only_blocked", "reject"],
+      "properties": {
+        "measurement_candidate": {"type": "integer", "minimum": 0},
+        "capability_only": {"type": "integer", "minimum": 0},
+        "research_only_blocked": {"type": "integer", "minimum": 0},
+        "reject": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
