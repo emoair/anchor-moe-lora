@@ -1,0 +1,67 @@
+{
+  "schema_version": "anchor.neural-swarm-cuda-grouped-probe-summary.v1",
+  "claim_scope": "microbenchmark_only",
+  "measured_at": "2026-07-20",
+  "environment": {
+    "device": "NVIDIA GeForce RTX 3080 Ti",
+    "compute_capability": "8.6",
+    "device_count": 1,
+    "driver": "591.86",
+    "torch": "2.5.1+cu121",
+    "torch_cuda": "12.1",
+    "cudnn": 90100
+  },
+  "common": {
+    "dtype": "float16",
+    "hidden_size": 2048,
+    "warmup": 5,
+    "shared_dense_projection": true,
+    "rank_grouped_implementation": "pytorch_batched_gemm",
+    "custom_fused_kernel": false,
+    "attention_included": false,
+    "kv_reconstruction_included": false,
+    "inter_gpu_traffic_included": false
+  },
+  "runs": [
+    {
+      "token_count": 128,
+      "ranks": [8, 16, 32, 64],
+      "streams": 4,
+      "iterations": 30,
+      "serial_median_ms": 0.3199999928474426,
+      "streamed_median_ms": 0.39270399510860443,
+      "rank_grouped_median_ms": 0.2887519896030426,
+      "streamed_speedup": 0.814863094934761,
+      "rank_grouped_speedup": 1.1082174473926838
+    },
+    {
+      "token_count": 128,
+      "ranks": [16, 16, 16, 16],
+      "streams": 4,
+      "iterations": 30,
+      "serial_median_ms": 0.23040000349283218,
+      "streamed_median_ms": 0.3041280061006546,
+      "rank_grouped_median_ms": 0.09931199997663498,
+      "streamed_speedup": 0.7575757538639132,
+      "rank_grouped_speedup": 2.3199613696938752
+    },
+    {
+      "token_count": 512,
+      "ranks": [16, 16, 16, 16],
+      "streams": 4,
+      "iterations": 20,
+      "serial_median_ms": 0.26316800713539124,
+      "streamed_median_ms": 0.34515199065208435,
+      "rank_grouped_median_ms": 0.18534399569034576,
+      "streamed_speedup": 0.7624699096713785,
+      "rank_grouped_speedup": 1.4198895742760724
+    }
+  ],
+  "conclusion": {
+    "stream_overlap_promoted": false,
+    "rank_grouping_promoted_to_next_probe": true,
+    "reason": "rank-grouped batched GEMM beat serial execution in all measured runs",
+    "strongest_observed_case": "four homogeneous rank-16 experts at 128 tokens",
+    "not_an_end_to_end_serving_result": true
+  }
+}

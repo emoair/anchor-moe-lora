@@ -16,6 +16,15 @@ This is not a neural Mixture-of-Experts layer. The claim under test is whether
 specialized adapters plus explicit routing beat a mixed adapter **under matched
 call, token, and wall-time budgets**.
 
+## Neural Swarm research branch
+
+The `research/neural-swarm-kv` branch explores a task-to-token Adapter-MoE with
+correctness-aware KV sharing and rank-grouped residual execution. Start with the
+[English RFC](docs/rfcs/neural_swarm_kv.md) or the
+[简体中文 RFC](docs/rfcs/neural_swarm_kv.zh-CN.md). This branch labels
+cross-adapter base-cache reuse as approximate after hidden states diverge; it
+does not claim lossless O(1) multi-LoRA inference.
+
 ## What is implemented
 
 - SOP-injected, asynchronous and resumable teacher-data generation.

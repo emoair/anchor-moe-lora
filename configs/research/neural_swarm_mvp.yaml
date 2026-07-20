@@ -1,0 +1,39 @@
+schema_version: anchor.neural-swarm-experiment.v1
+claim_scope: research_only
+
+routing:
+  initial_granularity: branch
+  future_granularity: token
+  token_top_k: 1
+
+cache_modes:
+  - isolated
+  - exact_layer_frontier
+  - approx_disaggregated
+
+quality_gates:
+  compare_against: isolated
+  required_metrics:
+    - next_token_kl
+    - hidden_state_cosine
+    - task_pass_rate
+  fallback_on_gate_failure: isolated
+
+scheduler:
+  rank_bucketed: true
+  max_parallel: 4
+  global_barrier_scope: wave
+  promoted_kernel_candidate: rank_grouped_batched_gemm
+  independent_cuda_streams_promoted: false
+
+cuda_probe:
+  script: scripts/research/benchmark_cuda_streams.py
+  hidden_size: 2048
+  token_count: 128
+  ranks: [8, 16, 32, 64]
+  warmup: 5
+  iterations: 30
+
+hardware_notes:
+  flat_unified_vram_claim: false
+  nvlink_requires_explicit_sharding_or_peer_access: true

@@ -1,0 +1,67 @@
+{
+  "schema_version": "anchor.neural-swarm-cuda-probe-summary.v1",
+  "claim_scope": "microbenchmark_only",
+  "measured_at": "2026-07-20",
+  "environment": {
+    "device": "NVIDIA GeForce RTX 3080 Ti",
+    "compute_capability": "8.6",
+    "device_count": 1,
+    "driver": "591.86",
+    "torch": "2.5.1+cu121",
+    "torch_cuda": "12.1",
+    "cudnn": 90100
+  },
+  "common": {
+    "dtype": "float16",
+    "hidden_size": 2048,
+    "warmup": 5,
+    "shared_dense_projection": true,
+    "attention_included": false,
+    "kv_reconstruction_included": false,
+    "inter_gpu_traffic_included": false
+  },
+  "runs": [
+    {
+      "token_count": 128,
+      "ranks": [8, 16, 32, 64],
+      "streams": 4,
+      "iterations": 30,
+      "serial_median_ms": 0.22783999890089035,
+      "streamed_median_ms": 0.32927998900413513,
+      "median_speedup": 0.6919339361920019
+    },
+    {
+      "token_count": 128,
+      "ranks": [16, 16, 16, 16],
+      "streams": 4,
+      "iterations": 30,
+      "serial_median_ms": 0.2457599937915802,
+      "streamed_median_ms": 0.303616002202034,
+      "median_speedup": 0.809443481269624
+    },
+    {
+      "token_count": 128,
+      "ranks": [8, 16, 32, 64],
+      "streams": 2,
+      "iterations": 30,
+      "serial_median_ms": 0.2380800023674965,
+      "streamed_median_ms": 0.3152959942817688,
+      "median_speedup": 0.7550999907557749
+    },
+    {
+      "token_count": 512,
+      "ranks": [16, 16, 16, 16],
+      "streams": 4,
+      "iterations": 20,
+      "serial_median_ms": 0.275968000292778,
+      "streamed_median_ms": 0.37376001477241516,
+      "median_speedup": 0.7383561359842536
+    }
+  ],
+  "conclusion": {
+    "stream_overlap_promoted": false,
+    "reason": "all measured streamed medians were slower than serial execution",
+    "next_candidate": "grouped_or_fused_heterogeneous_lora_kernel",
+    "not_an_end_to_end_serving_result": true
+  }
+}
