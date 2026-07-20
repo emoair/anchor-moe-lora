@@ -1,371 +1,285 @@
-# Anchor-MoE-LoRA 简中端到端快速上手
+# Anchor-MoE-LoRA 简体中文快速上手
 
-> 当前项目绝对路径：`D:\LLM\anchor-moe-lora`
->
-> **重要门禁：live gold 必须使用仓库构建并校验的 patched OpenCode，不得使用 PATH 中的官方裸版。**
-> Windows 与 WSL/Linux 产物、一次性 Podman 沙箱、受控 raw export 和清理链已经接入；默认仍只做
-> 离线预检。只有进程级 API key、held-out 分离和 patched capability probe 全部通过后，才允许
-> 显式添加 `--confirm-live`。不要读取历史真实 session。
+[English](QUICKSTART.md) | [简体中文](QUICKSTART.zh-CN.md)
 
-本文所有不带 `--confirm-live` 的示例均可离线执行。任何 live 命令都必须在完成文中门禁后手动运行。
+本文只讲正式全题库主线，不把历史 synthetic collector 冒充正式证据。
 
-## 1. 环境与路径
+## 0. 先认清当前边界
 
-推荐使用已经准备好的独立 Conda 环境，不修改 `base`：
+正式语料是固定版本的 `SWE-bench/SWE-bench` **train** 投影：
+
+- 19,008 张公开题卡；
+- 95,040 个依赖绑定工单，每题严格五个；
+- `planner -> tool_policy -> domain_builder -> domain_review -> security`；
+- 9,504 个 `en-US` 和 9,504 个 `zh-CN` 路由分配。
+
+语言路由不等于中文翻译已完成，题卡也不等于 Gold。只有真实魔改 OpenCode 工具轨迹、
+review/security PASS、至少一条非平凡公开验证命令成功、清理成功，以及 HMAC 认证的训练
+回执都绑定同一个最终 patch，该题才能进入正式 Gold。其证据等级是
+`real_sandbox_self_verified`，明确不声称官方 SWE-bench PASS。
+
+截至 2026-07-18 的证据刷新：
+
+- 公开题库、正式 WebUI、协调器、Gold 导出器、不可变快照桥接、A-F schedule 代码和
+  formal-v3 评测集成均已实现并通过离线测试；
+- 当前 OpenCode v3 patch 能对固定上游 clean apply，并通过离线契约测试；它的唯一
+  正式身份来自 `patches/opencode/patch-manifest.json`；
+- 通用 train 沙箱会物化题卡绑定的公开仓库与 `base_commit`，在最终工具调用后独立复核
+  最终 diff/state 并签发 HMAC 训练回执；该 repo+commit 自验证执行契约已 **READY**；
+- 该训练回执只表示 `real_sandbox_self_verified`，不表示官方 SWE-bench PASS；官方
+  heldout/TestSpec 评测保持独立、尚未完成，并且不阻塞 train 蒸馏；
+- 尚未运行任何真实 Provider 单题 pilot；
+- 尚未完成 19,008 题正式 LIVE；
+- `artifacts/swebench/full-bank-live-v1/training-export/` 不存在；
+- formal-v3 A-F 训练和 heldout/GPU 评测均未执行。
+
+因此当前可以确认的是“train 执行契约 READY”，不是“真实蒸馏已经完成”。第一次真实
+动作仍必须是单题 pilot；在 pilot 产出认证回执前，不得声称已有 LIVE Gold。输入 key
+不能绕过任何仍失败的组件、题库、路由或 checkpoint 门禁。
+
+## 1. 在仓库目录打开 PowerShell
 
 ```powershell
-conda activate anchor-mvp
 Set-Location D:\LLM\anchor-moe-lora
+```
+
+`anchor.ps1` 按以下顺序寻找 Python 3.10+：`-PythonExe`、
+`ANCHOR_MVP_PYTHON`、`.venv`、`anchor-mvp` Conda 环境、`py -3.11`。在本机当前
+PowerShell 窗口固定已知环境：
+
+```powershell
+$env:ANCHOR_MVP_PYTHON = "$HOME\.conda\envs\anchor-mvp\python.exe"
+& $env:ANCHOR_MVP_PYTHON -c "import sys; print(sys.executable); print(sys.version)"
+```
+
+如果该文件不存在，先建立/激活等价的 Python 3.10+ 环境并安装本仓库。不要把 Provider
+key 写进 YAML、`.env`、命令行参数或 Git 文件：
+
+```powershell
+conda create -n anchor-mvp python=3.11 -y
+conda activate anchor-mvp
 python -m pip install -e ".[teacher,dev]"
-python -m pytest -q
+$env:ANCHOR_MVP_PYTHON = (Get-Command python).Source
 ```
 
-本机可直接定位解释器为：
+只有真正承担后续训练/推理的机器才需要额外安装 `training` 和 `serving` extras。
 
-```text
-C:\Users\Air\.conda\envs\anchor-mvp\python.exe
-```
+## 2. 第一次只运行三条零额度命令
 
-若尚未安装环境，执行：
+下面三条命令不会读取 Provider key，不会请求模型，不会启动 GPU 训练，也不会打开
+heldout 题目正文。
 
 ```powershell
-.\scripts\environment\bootstrap_windows.ps1
+# 紧凑只读状态。
+.\anchor.ps1 -Action status
+
+# 启动或重新连接本地控制面板。
+.\anchor.ps1 -Action ui
+
+# 只运行正式协调器离线门禁。
+.\anchor.ps1 -Action distill-swebench
 ```
 
-确认当前运行的不是错误 Python：
+执行 `-Action ui` 后打开 <http://127.0.0.1:8765/>。页面默认选中 Formal
+SWE-bench，显示组件、题库、执行、镜像/路由、本地化和 live-start 门禁及精确原因码；
+同时提供并发、重试/重连、安全 Stop、checkpoint Resume、吞吐、ETA、请求/token/成本和
+后端断连状态。
+
+当前预期应看到通用 train 的 `execution_contract_ready` 为 **READY**，同时明确看到
+“尚无真实 Provider pilot”的事实。其他组件、题库或路由门禁若失败，Start 仍保持禁用；
+WebUI 不能把失败门禁改成成功。官方 heldout 评测是独立的非阻塞状态，不参与 train
+Start 判定。
+
+## 3. 核验魔改 OpenCode 与 CC Switch 身份
+
+不要从旧报告复制 OpenCode 哈希，始终读取当前 manifest：
 
 ```powershell
-python -c "import sys, anchor_mvp; print(sys.executable); print(anchor_mvp.__file__)"
+$OpenCodePatch = Get-Content patches\opencode\patch-manifest.json -Raw |
+  ConvertFrom-Json
+$OpenCodePatch.baseline_commit
+$OpenCodePatch.patch_sha256
+$OpenCodePatch.tool_contract_version
 ```
 
-## 2. 第一次运行必须离线
+当前 manifest 固定 OpenCode 1.17.18 上游和
+`anchor.execution-tool-contract.v3`。只有 binary bundle 绑定同一份 source manifest，且
+验证/行为测试通过时，才能视为当前构建。
 
-先用 mock teacher 跑完五类数据，不访问网络、不消耗额度：
+魔改 CC Switch 负责 Provider/模型切换、精确 MAX 档位、计价和请求/token/成本统计。
+正式 profile 是 GLM-5.2 MAX 与 Kimi-K3 MAX。组件 manifest 显示 ready，不等于
+WSL/Podman 沙箱已在真实任务中成功连到该路由。
+
+更长的离线组件诊断命令：
 
 ```powershell
-$dryRun = Join-Path $env:TEMP "anchor-moe-lora-dry-run"
-python -m anchor_mvp data `
-  --config configs/data/smoke.yaml `
-  --dry-run `
-  --output-dir $dryRun `
-  --seed-count 1 `
-  --concurrency 1 `
-  run
+.\anchor.ps1 -Action preflight -AllowIncomplete
 ```
 
-预期：`plan/tool_policy/frontend/review/security` 各写入 1 条，`errors` 为空。
+`-AllowIncomplete` 只用于诊断，绝不授予 LIVE 权限。
 
-检查 OpenCode batch、Skill 哈希和 held-out 分离，但不启动 OpenCode：
+## 4. 先跑单题 pilot，再逐档 Resume
+
+通用 train 自验证链不依赖官方 heldout/TestSpec。它在隔离沙箱中检出题卡绑定的公开
+仓库与 `base_commit`，只接受最后一次工具调用对最终 diff/state 的有效验证，再由训练
+supervisor 复核并签发 HMAC 回执。仓库/提交、容器镜像、工具轨迹、最终 patch、验证结果
+与清理状态任一不匹配都会 fail-closed。
+
+本次仓库更新**尚未运行真实 Provider pilot**。推荐使用 WebUI：确认 train 的组件、题库、
+执行、路由和 live-start 门禁全部 READY 后，才在密码框输入本次操作的 key。key 只传给
+所选子进程环境，浏览器密码框随后清空；它不会写入配置、状态、日志或 Git。官方 heldout
+评测即使仍显示“未完成”，也不阻塞 train pilot。
+
+如果使用 CLI，key 只放在当前 PowerShell 进程。任务上限是同一个 checkpoint 的**累计值**：
 
 ```powershell
-python scripts/tooling/run_live.py `
-  --batch-config configs/tooling/opencode_distillation_ramp.yaml
+$env:ARK_CODING_API_KEY = '<只为当前 PowerShell 粘贴>'
+
+# 1. 单题、并发 1 的真实 pilot。
+.\anchor.ps1 -Action distill-swebench -ConfirmLive -Concurrency 1 -MaxTasks 1
+
+# 2. pilot 认证通过后，只 Resume 同一个 checkpoint，逐档扩大累计上限。
+.\anchor.ps1 -Action distill-swebench -ConfirmLive -Resume -Concurrency 8  -MaxTasks 16
+.\anchor.ps1 -Action distill-swebench -ConfirmLive -Resume -Concurrency 16 -MaxTasks 48
+.\anchor.ps1 -Action distill-swebench -ConfirmLive -Resume -Concurrency 24 -MaxTasks 96
+.\anchor.ps1 -Action distill-swebench -ConfirmLive -Resume -Concurrency 30 -MaxTasks 156
+
+# 子进程退出后清除当前进程变量。
+Remove-Item Env:ARK_CODING_API_KEY -ErrorAction SilentlyContinue
 ```
 
-预期包含：`DRY RUN`、`candidate_count=1`、`requested_stages=1`。即使显示
-`opencode_available=True`，也不代表已经满足 patched-binary live 门禁。
+每一档结束后先检查认证成功数、失败原因、请求/token 增量、速度和 checkpoint 身份，再继续
+下一档。已经通过完整五阶段、最终状态复核、HMAC 和清理检查的成功前缀会在 Resume 时按
+哈希复核后跳过，始终可供后续 partial Gold 导出；失败或未完成任务保持可重试，绝不进入
+Gold，也不会污染成功前缀。出现稳定的系统性并发错误时回到上一档；单个难题的验证失败只
+重试该题，不应伪装成成功。
 
-## 3. Provider preset、模型发现与手动选择
+## 5. 先导出认证 Gold，再冻结快照
 
-当前 preset：
-
-| preset | 协议 | 默认 Base URL | 默认模型/选择方式 | key 环境变量 |
-| --- | --- | --- | --- | --- |
-| `kimi-code-openai` | OpenAI | `https://api.kimi.com/coding/v1` | `kimi-for-coding` | `KIMI_API_KEY` |
-| `kimi-code-anthropic` | Anthropic | `https://api.kimi.com/coding/` | `kimi-for-coding` | `KIMI_API_KEY` |
-| `kimi-platform-openai` | OpenAI | `https://api.moonshot.cn/v1` | 手动/发现 | `MOONSHOT_API_KEY` |
-| `openai` | OpenAI | `https://api.openai.com/v1` | 手动/发现 | `OPENAI_API_KEY` |
-| `anthropic` | Anthropic | `https://api.anthropic.com` | 手动/发现 | `ANTHROPIC_API_KEY` |
-| `custom-openai` | OpenAI | 必填 | 手动/发现 | 默认 `TEACHER_API_KEY` |
-| `custom-anthropic` | Anthropic | 必填 | 手动/发现 | 默认 `TEACHER_API_KEY` |
-
-### 不带 key 的安全检查
-
-以下命令不会发请求；结果应为 `missing_credential`：
+只有协调器进入终态后才执行。下面命令不会请求 Provider，也不会启动 GPU 训练。
 
 ```powershell
-python -m anchor_mvp data --provider kimi-code-openai models
+$Python = $env:ANCHOR_MVP_PYTHON
+
+# 只导出完整且自验证训练回执通过 HMAC 认证的五段链。
+& $Python scripts\data\export_swebench_formal_gold.py
+
+# 发布不可变 formal-v3 数据快照。
+& $Python scripts\data\prepare_full_v3_snapshot.py `
+  --config configs\orchestration\full_v3_snapshot.yaml
+
+Test-Path artifacts\swebench\full-bank-live-v1\training-export\partitions\manifest.json
+Test-Path artifacts\formal_v3\dataset\manifest.json
 ```
 
-Kimi Code 没有在本项目中配置稳定的公开 quota API，因此以下命令应返回 `unsupported`：
+五阶段链、真实工具轨迹、有效验证结果、diff、清理、review/security 决策、通用 train
+沙箱镜像与 repo+commit 绑定或私有训练回执缺失时，该题会被剔除；认证产物一旦损坏或
+被篡改则整次导出 fail-closed。
+已封顶的 `stopped_checkpoint_resumable` checkpoint 可以导出，已认证成功样本保持可用，未完成
+样本继续可重试。导出不声称官方 SWE-bench PASS，也不保留隐藏思维字段。绝不能直接从仍在
+增长的 LIVE 输出目录训练。
+
+中间封顶 checkpoint 必须用全新的版本化 `--output-dir`；导出目录不可变。默认规范
+`training-export` 路径应保留给真正准备冻结的快照。封顶 manifest 可作为显式 partial
+数据集使用，但不能声称全题库已完成。
+
+任一 `Test-Path` 为 `False` 就停止。不得拿历史 `data/automated_v3`、c10、384+128、
+mock 或 partial-Gold 目录替代。
+
+## 6. 物化并训练完整 A-F 对照
+
+正式矩阵如下：
+
+| 组 | 控制结构 |
+| --- | --- |
+| A | 冻结原生 Q4 基座，无 LoRA、不训练；评测指数基准 100 |
+| B | 一个 mixed rank-16 LoRA，在五阶段复用 |
+| C | 五个独立满规格 rank-16 专家 |
+| D | 五个固定小专家，rank 为 `3/3/4/3/3`，总预算严格对齐 B |
+| E | 五个 calibration 自适应专家，每个 rank `<=16`，总预算可变 |
+| F | 与 E 相同的自适应机制，但物化总参数量严格对齐 B |
+
+B-F 必须使用同一个不可变快照，并保持总 sample exposure 和逐阶段 sample exposure 相等。
+E/F 只能根据 calibration-from-train 确定并冻结 rank，不能先看 heldout。
+
+先运行只生成 schedule 的预检：
 
 ```powershell
-python -m anchor_mvp data --provider kimi-code-openai quota
+.\scripts\train\formal_v3_preflight.ps1
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm A
 ```
 
-`kimi-platform-openai` 才支持官方 balance capability；它需要 `MOONSHOT_API_KEY`，并且会发出
-真实查询。Quota 查询只是信息，不会自动放宽 automation 预算。
-
-### 发现模型
-
-模型发现会调用标准 `/models` 接口，必须有 key：
+长训练前必须先做同一快照上的资源 smoke/probe：
 
 ```powershell
-python -m anchor_mvp data `
-  --provider custom-openai `
-  --base-url https://gateway.example.com/v1 `
-  --api-key-env TEACHER_API_KEY `
-  models
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm smoke -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm probe -Execute
 ```
 
-不要把完整 endpoint 填入 `--base-url`。`.../models`、`.../messages`、
-`.../chat/completions`、自然语言描述、缺少协议头或含空格的值都会在请求前被拒绝。
-
-### 手动模型与 `--force-model`
-
-对已知模型 ID，使用：
+只有 `-Execute` 会启动 GPU job。单 GPU 一次只跑一组：
 
 ```powershell
-python -m anchor_mvp data `
-  --provider custom-openai `
-  --base-url https://gateway.example.com/v1 `
-  --api-key-env TEACHER_API_KEY `
-  --model provider-model-id `
-  --force-model `
-  probe
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm B -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm C -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm D -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm E -AllocationManifest <E.json> -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm F -AllocationManifest <F.json> -Execute
 ```
 
-`--force-model` 只表示跳过 discovery，不表示跳过生成请求；`probe` 仍会调用 provider。
-`--model-index N` 只能用于本次 discovery 成功后返回的零基索引。Provider 返回顺序可能变化，
-长期自动化优先固定 `--model`。
+本地低显存 profile 目标约 9 GiB，但序列截断为 64 token；它明确不是 full-context 训练。
+B–F 统一使用保守的一轮 `5e-5` 学习率，不允许某一组私下使用不同超参。后续更高精度
+云端 profile 必须作为独立版本实验。
 
-## 4. key 只进入当前进程环境
+## 7. A-F 评测不得复用 formal-v2 产物
 
-不要把 key 写入 YAML、JSON、`.env`、命令行参数、日志或 Git。PowerShell 7：
+六组 formal-v3 registry 完整后，使用全新的 VersionId。第一组命令仅离线预检，不读取
+heldout 正文：
 
 ```powershell
-$env:KIMI_API_KEY = Read-Host -MaskInput "Kimi Code key"
-try {
-  python -m anchor_mvp data `
-    --config configs/data/default.yaml `
-    --model kimi-for-coding `
-    --force-model `
-    probe
-} finally {
-  Remove-Item Env:KIMI_API_KEY -ErrorAction SilentlyContinue
-}
+.\scripts\benchmark\run_formal_v3_af.ps1 -VersionId formal-v3-001 -Finalize
+.\scripts\benchmark\run_formal_v3_af.ps1 -VersionId formal-v3-001
 ```
 
-只有完成离线 dry-run 后，才从 1 seed、并发 1 开始：
+只有显式授权的命令才允许打开 heldout 并启动 GPU 评测：
 
 ```powershell
-$env:KIMI_API_KEY = Read-Host -MaskInput "Kimi Code key"
-try {
-  python -m anchor_mvp data `
-    --config configs/data/default.yaml `
-    --model kimi-for-coding `
-    --force-model `
-    --seed-count 1 `
-    --concurrency 1 `
-    run
-} finally {
-  Remove-Item Env:KIMI_API_KEY -ErrorAction SilentlyContinue
-}
+.\scripts\benchmark\run_formal_v3_af.ps1 `
+  -VersionId formal-v3-001 `
+  -Execute `
+  -AuthorizeHeldoutAccess
 ```
 
-## 5. Automation、quota epoch 与失败账本
+`-Resume` 只能续跑完全相同版本/输出 checkpoint。A 归一化为 100；B 是单一 mixed
+adapter；C-F 是五阶段串行 runtime-LoRA 热切换。formal-v1/v2 的 adapter、报告和 registry
+都不是 formal-v3 证据。
 
-Automation 默认并发为 `1`。`concurrency_stages` 可由操作者填写任意非空正整数序列，代码中
-没有固定 `1 -> 2 -> 4 -> 8` 或最大 8 的上限；每一档仍必须通过 schema、重复率、安全和
-frozen held-out 门禁。查看状态：
+## 8. 快速排障
+
+- **Start 禁用/BLOCKED：**看正式原因码，不要粘贴 key，也不要切换到 synthetic。
+- **网页显示与后端断开：**运行 `.\anchor.ps1 -Action ui`，再刷新
+  `http://127.0.0.1:8765/`。
+- **HTTP 400 `invalid_url`：**工具收到自然语言或缺少 `http://`/`https://` 的地址；修复
+  真正 URL 字段，不要重试错误文本。
+- **HTTP 499/context canceled：**客户端、网络或超时在完成前取消请求；核对 checkpoint、
+  路由和 timeout，再精确 Resume，不能另起重复任务。
+- **token/成本未知：**面板只报告 Provider 返回的精确 usage，不会按文本长度偷偷估算。
+- **中文数量是 9,504 但本地化缺失：**这是路由分配，不是中文正文已生成的证明。
+- **训练预检 BLOCKED：**核对认证 training-export 和不可变快照；不能为了让命令跑起来
+  而降低门禁。
+
+## 9. 历史 collector 与发布边界
+
+历史 synthetic 实验仍有显式入口：
 
 ```powershell
-.\scripts\data\show_automation_status.ps1 -Config configs/data/automation.yaml
+.\anchor.ps1 -Action distill-synthetic -ConfirmLegacySynthetic
 ```
 
-真正启动前检查 `configs/data/automation.yaml`：
+它会直接调用 CompatibleTeacher，不会产生 formal-v3 所需的真实魔改 OpenCode 工具/
+评测证据。旧 c10 与 384+128 配置只是历史对照，不是全题库失败后的回退方案。
 
-- `quota_epoch_id`：仅在 provider 额度窗口确实重置后改成新 ID；
-- `max_requests`、`max_output_tokens_total`：只约束当前 quota epoch；
-- `audit_ledger`：跨窗口累计，不因 epoch 重置而删除；
-- `max_failure_retries`：同一 `(seed, task, error-class)` 的有界重试；
-- 超限失败进入 quarantine，不再重复扣费或调用下游。
+公开 Git 只能包含源码、配置、文档、审计过且单文件小于 50 MiB 的公开 train 投影，以及
+不含正文的 manifest/audit。必须排除 Provider key、私有 HMAC key/回执、未获准公开的
+教师/session 正文、heldout 正文、权重、adapter、checkpoint、runs、日志和私有评测记录。
 
-Live 启动会消耗额度：
-
-```powershell
-$env:KIMI_API_KEY = Read-Host -MaskInput "Kimi Code key"
-try {
-  .\scripts\data\start_automation.ps1 -Config configs/data/automation.yaml
-} finally {
-  Remove-Item Env:KIMI_API_KEY -ErrorAction SilentlyContinue
-}
-```
-
-不要通过删除 `status.json` 来“重置额度”；这会破坏审计链。修改新的 `quota_epoch_id`，旧窗口
-会进入 `quota_history`，累计失败账本仍保留。
-
-## 6. 受控 OpenCode execution gold
-
-### 当前状态：patched 沙箱管线已构建，默认仍只预检
-
-当前官方 OpenCode 版本：`1.17.18`。以下命令只预检：
-
-```powershell
-python scripts/tooling/run_live.py `
-  --batch-config configs/tooling/opencode_distillation_ramp.yaml
-```
-
-只有在进程级 key 和 dry-run 均通过后才添加 `--confirm-live`。patched binary/runner 必须同时满足：
-
-1. session 只能写入该样本的隔离 XDG data 目录；
-2. 在 runtime 清理前得到受控 raw export；
-3. sidecar 记录匹配的 session ID、validator 完整 stdout/stderr 和 public outcome；
-4. raw export 与 sidecar 进入 fail-closed converter；
-5. converter 完成后才删除隔离 session；
-6. 不读取 `%USERPROFILE%\.local\share\opencode\opencode.db` 中的历史 session。
-
-当前默认只配置一个候选、一个并发 stage。首次 live 放行命令：
-
-```powershell
-python scripts/tooling/run_live.py `
-  --batch-config configs/tooling/opencode_distillation_ramp.yaml `
-  --max-stages 1 `
-  --confirm-live
-```
-
-当前只有 `sidex-p0-001-stable-status-sort` 具备一致的任务、fixture 和冻结验收合同；其余题目仍是
-deferred。要增加并发，必须同时在 batch 配置中增加正整数 stage、样本数和已经审计的候选；单独把
-`--max-stages` 调大仍会被拒绝。
-
-### attempts 与 accepted gold 不是一回事
-
-默认输出：
-
-```text
-artifacts/tooling/live_attempts.jsonl       所有尝试，含失败原因
-artifacts/tooling/live_gold.accepted.jsonl  仅通过全部门禁的 accepted gold
-```
-
-失败、timeout、无 tool、无改动、修改冻结测试、缺少 public outcome 或 validator 失败的 attempt
-不能进入 accepted gold。不要把 attempts 文件当训练集。
-
-## 7. Raw export + sidecar 转候选 JSONL
-
-官方 `opencode export --sanitize` 会删除任务正文、assistant 正文、tool input/result 和 diff，
-所以只能分享/取证，不能做完整训练轨迹。Converter 会拒绝 `[redacted:...]` 占位符。
-
-patched runner 应在隔离 session 尚存在时执行等价于：
-
-```powershell
-opencode export <controlled-session-id> > runs/capture/session.raw.json
-```
-
-不要加 `--sanitize`，也不要对历史真实 session 执行。Raw export 只能来自 disposable fixture，且必须
-配套 `anchor.controlled-session-capture.v1` sidecar。转换：
-
-```powershell
-python scripts/tooling/convert_session_export.py `
-  --export runs/capture/session.raw.json `
-  --capture runs/capture/sidecar.json `
-  --workspace runs/tooling-live/sample-workspace `
-  --heldout-cases configs/benchmark/heldout_cases_v1.jsonl `
-  --heldout-fixtures-root examples/benchmark/fixtures `
-  --heldout-manifest artifacts/benchmark/heldout_v1/manifest.json `
-  --output artifacts/tooling/session_candidates.jsonl `
-  --quarantine artifacts/tooling/session_quarantine.jsonl
-```
-
-候选会保留：完整任务输入、公开 assistant 输出、按顺序且共享 `call_id` 的
-`tool_call/tool_result`、受控 read/edit/apply_patch 结果、build/test/lint 完整 stdout/stderr、
-最终 diff 和 public outcome。
-
-以下任一命中会整条 quarantine，不会 REDACT 后混入训练：secret/credential、环境字段或环境读取、
-工作区外路径、二进制/控制字符、大小超限、held-out 相似内容、损失性 sanitized export、未知 tool、
-非 allowlist bash 命令、失败 validator、缺少 final diff/public outcome。
-
-## 8. 如何确认样本真的可入训
-
-只有同时满足以下条件才可从候选晋级训练快照：
-
-- 来源是受控 fixture，而非历史 session；
-- attempt `success=true`，且存在 accepted gold；
-- task、初始源码、package、测试和脚本 SHA 与候选合同一致；
-- `requires_changes=true` 时确实产生源码 diff；
-- protected tests/package/TASK 没有被代理修改；
-- build、test、lint 全部 `PASS` 且 exit code 为 0；
-- public outcome 为 `completed`；
-- trajectory 中至少有真实 `tool_call -> tool_result`；
-- converter 输出候选而非 quarantine；
-- secret、绝对路径和 frozen held-out 门禁通过；
-- reasoning/thinking/system/provider metadata 不在候选 JSONL；
-- 训练前再次冻结数据 SHA，并与 benchmark held-out 分离。
-
-## 9. 常见故障
-
-### HTTP 400 / `invalid_url`
-
-通常是把自然语言或完整 endpoint 当作 Base URL。正确示例：
-
-```text
-https://api.kimi.com/coding/v1
-https://api.kimi.com/coding/
-```
-
-错误示例包括缺少 `https://`、包含空格、`https://the repo for...`，或直接填
-`.../chat/completions`。先用 preset，避免手拼 URL。
-
-### HTTP 499 / `context canceled`
-
-表示客户端在服务端返回前取消：用户中断、网络断开、wrapper timeout 都可能导致。它不等于服务端
-5xx。检查 `wall_clock_deadline_seconds`、`timeout_seconds` 和外层终止信号；不要无限重试，因为请求
-可能已经消耗额度。Automation 会持久化 cooldown/失败分类。
-
-### 零 tool call
-
-只输出建议、没有实际编辑/验证，不是 execution gold。检查：任务是否明确要求执行、Skill prompt 是否
-加载、OpenCode JSONL 是否包含 tool event、权限是否允许 read/edit 和三条 npm 命令。项目通过
-`requires_changes`、真实 diff、validator 与 public outcome 联合门禁阻止“嘴上完成”。
-
-### `--sanitize` 后没有正文/tool result
-
-这是官方预期行为，不是解析 bug。Sanitize 会主动抹掉这些字段。不要尝试从占位符恢复；改用受控 raw
-export + sidecar converter。任何 sanitized export 都不能入训。
-
-### 模型发现失败但已知模型可用
-
-使用 `--model <真实模型ID> --force-model` 跳过 discovery。注意这不会跳过后续 probe/run 的真实请求。
-
-### quota 已重置但 automation 仍显示旧失败
-
-旧失败属于累计审计历史。更新 `quota_epoch_id` 开新窗口，不删除 ledger；已 quarantine 的重复失败仍
-保持隔离，避免再次浪费额度。
-
-## 10. A/B/C/D/E/F 对照不要混淆
-
-所有组都使用同一冻结 Q4 基座、五阶段 DAG、数据切分、token cap 和评测题：
-
-主路由的“五阶段”指五种专家，不代表固定五次调用：
-
-`planner -> tool_policy -> (frontend <-> review，最多 2 轮) -> security`
-
-审查 LoRA 只允许输出版本化公共 JSON：`PASS` 且 `issues=[]`，或
-`REVISE` 且带精简问题列表。`REVISE` 会把当前代码和问题重新交给同一个
-frontend LoRA；歧义、超时、字段不合规或轮次耗尽均 fail closed，security
-不会运行。通过后，security 接收需求、最终代码和公共工具轨迹摘要。
-
-注意兼容边界：旧 `data_review.jsonl` 的目标是“完整修复代码”，仅供旧
-`PipelineRouter.run()`/旧 benchmark 使用；新主路由需要单独的
-`review_verdict` adapter，以及 `data_review_verdict_v2.jsonl` 和
-`data_frontend_revision_v2.jsonl`（`anchor.review-loop-data.v2`）。未配置
-`review_verdict` 时主路由会直接阻断，绝不会把旧审查 LoRA 悄悄当成新契约。
-
-| 组 | Adapter 设计 | 主要用途 |
-| --- | --- | --- |
-| A | 五阶段都不用 LoRA | 原生 Q4，指数基准 100 |
-| B | 同一个 mixed rank-16 LoRA 复用五阶段 | 单 LoRA 混合基线 |
-| C | 五个独立 rank-16 专家 | 最大容量 routed 对照，不与 B 做等参数结论 |
-| D | 手工固定 `3/3/4/3/3`，总 rank/参数严格等于 B | B/D 等预算主对照 |
-| E | 校准集上自适应非均匀分配；每阶段 rank `<=16`，总预算可变 | 容量—性能 Pareto 搜索 |
-| F | 与 E 使用同一自适应算法，但总 rank/物化参数硬匹配 B | B/D/F 等预算主对照 |
-
-因此公平预算的主结论来自 **B vs D vs F**；C 展示满容量 routed 上界，E 展示总预算可变的
-Pareto 前沿。E/F 的 rank 只能在 calibration split 上冻结，不能窥视 held-out。
-
-## 11. 架构与评测入口
-
-- 五阶段 DAG 与 A/B/C/D/E/F 定义：`docs/architecture_five_stage_mvp.md`
-- 评测控制变量：`docs/serving_benchmark.md`
-- Provider 细节：`docs/teacher_providers.md`
-- OpenCode session converter 的源码证据：`docs/opencode_session_distillation.md`
-- 当前完成度和阻塞项：`docs/PROJECT_STATUS.md`
+没有新的明确指令，不得创建 Git tag、GitHub Release 或版本包。

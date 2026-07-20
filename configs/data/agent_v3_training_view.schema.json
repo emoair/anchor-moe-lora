@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/agent-v3-training-view-v1.json",
+  "title": "Agent v3 de-branded stable-core and dynamic-tools training view",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_id",
+    "source_snapshot_sha256",
+    "stable_core",
+    "examples",
+    "normalization"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.agent-v3-training-view.v1"},
+    "sample_id": {"$ref": "#/$defs/identifier"},
+    "source_snapshot_sha256": {"$ref": "#/$defs/sha256"},
+    "stable_core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "messages"],
+      "properties": {
+        "schema_version": {"const": "anchor.agent-stable-core.v1"},
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "content"],
+            "properties": {
+              "role": {"const": "system"},
+              "content": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "context_messages", "dynamic_tools", "target"],
+        "properties": {
+          "request_id": {"$ref": "#/$defs/identifier"},
+          "context_messages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/message"}
+          },
+          "dynamic_tools": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["schema_version", "tools"],
+            "properties": {
+              "schema_version": {"const": "anchor.dynamic-tools.v1"},
+              "tools": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/tool"}}
+            }
+          },
+          "target": {"$ref": "#/$defs/message"}
+        }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_instructions_replaced",
+        "provider_extensions_removed",
+        "hidden_reasoning_removed",
+        "tool_descriptions"
+      ],
+      "properties": {
+        "source_instructions_replaced": {"const": true},
+        "provider_extensions_removed": {"const": true},
+        "hidden_reasoning_removed": {"const": true},
+        "tool_descriptions": {"enum": ["omitted", "canonical_registry"]}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string"},
+        {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["type"]}}
+      ]
+    },
+    "tool_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "function"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {"const": "function"},
+        "function": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "arguments"],
+          "properties": {
+            "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"},
+            "arguments": {"type": "string"}
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {"enum": ["user", "assistant", "tool"]},
+        "content": {"$ref": "#/$defs/content"},
+        "tool_calls": {"type": "array", "items": {"$ref": "#/$defs/tool_call"}},
+        "tool_call_id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"}
+      },
+      "not": {"required": ["reasoning_content"]}
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "function"],
+      "properties": {
+        "type": {"const": "function"},
+        "function": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "parameters"],
+          "properties": {
+            "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"},
+            "description": {"type": "string"},
+            "parameters": {"type": "object"}
+          }
+        }
+      }
+    }
+  }
+}

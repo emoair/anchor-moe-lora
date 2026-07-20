@@ -16,6 +16,17 @@ Usage: build_patched_opencode_wsl.sh [options]
   --skip-install        Do not run bun install (manifest records the skip)
   --skip-tests          Do not run focused tests (manifest records the skip)
   --skip-typecheck      Do not run the OpenCode typecheck (manifest records the skip)
+  --fresh-install-attempted
+                        Record that a fresh install was attempted before this fallback
+  --fresh-install-failure REASON
+                        Allowed fallback reason: failed_external_tls
+  --third-party-deps-reused
+                        Record audited reuse of Linux third-party dependencies
+  --reused-deps-lock-sha256 HASH
+                        Required lock hash for an audited dependency fallback
+  --models-dev-json PATH  Offline models.dev api.json snapshot for the build
+  --models-dev-sha256 HASH
+                        Required SHA-256 for --models-dev-json
 
 No option resets, cleans, or reuses a dirty checkout. Pick a new --checkout-root
 after an interrupted build. Build Windows separately with build_patched_opencode.ps1,
@@ -29,6 +40,12 @@ bun_sha256="${BUN_SHA256:-}"
 skip_install=0
 skip_tests=0
 skip_typecheck=0
+fresh_install_attempted=0
+fresh_install_failure=""
+third_party_deps_reused=0
+reused_deps_lock_sha256=""
+models_dev_json=""
+models_dev_sha256=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,6 +55,12 @@ while [[ $# -gt 0 ]]; do
     --skip-install) skip_install=1; shift ;;
     --skip-tests) skip_tests=1; shift ;;
     --skip-typecheck) skip_typecheck=1; shift ;;
+    --fresh-install-attempted) fresh_install_attempted=1; shift ;;
+    --fresh-install-failure) fresh_install_failure="$2"; shift 2 ;;
+    --third-party-deps-reused) third_party_deps_reused=1; shift ;;
+    --reused-deps-lock-sha256) reused_deps_lock_sha256="$2"; shift 2 ;;
+    --models-dev-json) models_dev_json="$2"; shift 2 ;;
+    --models-dev-sha256) models_dev_sha256="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -112,6 +135,11 @@ upstream_version="$(manifest_value upstream_version)"
 tool_contract_version="$(manifest_value tool_contract_version)"
 patch_path="$(dirname "$patch_manifest")/$patch_name"
 
+[[ "$tool_contract_version" == "anchor.execution-tool-contract.v3" ]] || {
+  echo "Formal OpenCode builds require anchor.execution-tool-contract.v3; v2 artifacts must remain not-ready" >&2
+  exit 2
+}
+
 [[ "$repository" == "https://github.com/anomalyco/opencode.git" ]] || { echo "Patch manifest repository is not the audited upstream" >&2; exit 2; }
 [[ "$baseline_commit" =~ ^[0-9a-f]{40}$ && "$expected_patch_sha" =~ ^[0-9a-f]{64}$ ]] || { echo "Patch manifest has invalid source identity" >&2; exit 2; }
 [[ -f "$patch_path" ]] || { echo "Patch is missing: $patch_path" >&2; exit 2; }
@@ -151,12 +179,61 @@ if [[ -n "$bun_sha256" ]]; then
   [[ "$bun_sha256" =~ ^[0-9a-f]{64}$ && "$bun_sha" == "$bun_sha256" ]] || { echo "Bun SHA-256 does not match --bun-sha256" >&2; exit 2; }
 fi
 
+current_lock_sha="$(sha256_file "$checkout_root/bun.lock")"
+if (( third_party_deps_reused )); then
+  (( skip_install )) || { echo "Third-party dependency reuse requires --skip-install" >&2; exit 2; }
+  (( fresh_install_attempted )) || { echo "Dependency fallback requires --fresh-install-attempted" >&2; exit 2; }
+  [[ "$fresh_install_failure" == "failed_external_tls" ]] || {
+    echo "Dependency fallback requires --fresh-install-failure failed_external_tls" >&2
+    exit 2
+  }
+  reused_deps_lock_sha256="${reused_deps_lock_sha256,,}"
+  [[ "$reused_deps_lock_sha256" =~ ^[0-9a-f]{64}$ && "$reused_deps_lock_sha256" == "$current_lock_sha" ]] || {
+    echo "Reused dependency lock hash does not match the current checkout" >&2
+    exit 2
+  }
+elif [[ -n "$fresh_install_failure" || -n "$reused_deps_lock_sha256" ]]; then
+  echo "Fallback metadata was provided without --third-party-deps-reused" >&2
+  exit 2
+fi
+if [[ -n "$models_dev_json" || -n "$models_dev_sha256" ]]; then
+  [[ -f "$models_dev_json" ]] || { echo "models.dev snapshot is missing: $models_dev_json" >&2; exit 2; }
+  models_dev_json="$(readlink -f "$models_dev_json")"
+  models_dev_sha256="${models_dev_sha256,,}"
+  observed_models_dev_sha256="$(sha256_file "$models_dev_json")"
+  [[ "$models_dev_sha256" =~ ^[0-9a-f]{64}$ && "$models_dev_sha256" == "$observed_models_dev_sha256" ]] || {
+    echo "models.dev snapshot SHA-256 mismatch" >&2
+    exit 2
+  }
+  export MODELS_DEV_API_JSON="$models_dev_json"
+else
+  observed_models_dev_sha256=""
+fi
+
 export BUN_CONFIG_MAX_HTTP_REQUESTS=4
 export BUN_INSTALL_CACHE_DIR="${BUN_INSTALL_CACHE_DIR:-$HOME/.cache/anchor-moe-lora/opencode-build/bun-cache/$target}"
 mkdir -p "$BUN_INSTALL_CACHE_DIR"
 if (( ! skip_install )); then
   run_in "$checkout_root" "$bun_path" install --frozen-lockfile
 fi
+
+# Reused third-party dependencies are acceptable, but Bun's workspace links
+# must resolve into this exact checkout.  This prevents a clean v3 checkout
+# from loading stale v2 @opencode-ai packages through absolute symlinks.
+workspace_link_count=0
+while IFS= read -r -d '' workspace_link; do
+  [[ -L "$workspace_link" ]] || { echo "Workspace package is not a symbolic link: $workspace_link" >&2; exit 2; }
+  resolved_target="$(readlink -f "$workspace_link")"
+  case "$resolved_target" in
+    "$checkout_root"/packages/*) ;;
+    *) echo "Workspace package resolves outside the current checkout: $workspace_link -> $resolved_target" >&2; exit 2 ;;
+  esac
+  workspace_link_count=$((workspace_link_count + 1))
+done < <(
+  find "$checkout_root/node_modules" "$checkout_root/packages" \
+    -path '*/node_modules/@opencode-ai/*' -type l -print0
+)
+(( workspace_link_count > 0 )) || { echo "OpenCode workspace dependency scope contains no packages" >&2; exit 2; }
 
 mapfile -t core_tests < <(python3 - "$patch_manifest" <<'PY'
 import json
@@ -196,7 +273,7 @@ patch_manifest_sha="$(sha256_file "$patch_manifest")"
 lockfile_sha="$(sha256_file "$checkout_root/bun.lock")"
 platform_manifest="$output_root/linux-x64.manifest.json"
 
-python3 - "$patch_manifest" "$platform_manifest" "$target" "$binary_sha" "$bun_version" "$bun_sha" "$patch_sha" "$patch_manifest_sha" "$lockfile_sha" "$skip_install" "$skip_tests" "$skip_typecheck" <<'PY'
+python3 - "$patch_manifest" "$platform_manifest" "$target" "$binary_sha" "$bun_version" "$bun_sha" "$patch_sha" "$patch_manifest_sha" "$lockfile_sha" "$skip_install" "$skip_tests" "$skip_typecheck" "$workspace_link_count" "$fresh_install_attempted" "$fresh_install_failure" "$third_party_deps_reused" "$reused_deps_lock_sha256" "$observed_models_dev_sha256" <<'PY'
 import json
 import sys
 
@@ -213,6 +290,12 @@ import sys
     skip_install,
     skip_tests,
     skip_typecheck,
+    workspace_link_count,
+    fresh_install_attempted,
+    fresh_install_failure,
+    third_party_deps_reused,
+    reused_deps_lock_sha256,
+    models_dev_snapshot_sha256,
 ) = sys.argv[1:]
 with open(patch_manifest, encoding="utf-8-sig") as handle:
     source = json.load(handle)
@@ -233,11 +316,25 @@ platform = {
     },
     "bun": {"version": bun_version, "sha256": bun_sha},
     "node_gyp_version": None,
-    "install": {"executed": skip_install == "0", "linker": "default", "cache_scope": target},
+    "install": {
+        "executed": skip_install == "0",
+        "linker": "default",
+        "cache_scope": target,
+        "fresh_install_attempted": fresh_install_attempted == "1",
+        "fresh_install_failure": fresh_install_failure or None,
+        "third_party_deps_reused": third_party_deps_reused == "1",
+        "reused_deps_lock_sha256": reused_deps_lock_sha256 or None,
+    },
     "checks": {
         "tests_executed": skip_tests == "0",
         "required_tests": source["required_tests"],
         "test_exclusions": [],
+        "workspace_link_audit": {
+            "executed": True,
+            "count": int(workspace_link_count),
+            "required_root": "checkout/packages",
+        },
+        "models_dev_snapshot_sha256": models_dev_snapshot_sha256 or None,
         "typecheck_executed": skip_typecheck == "0",
         "build_smoke_executed": True,
     },

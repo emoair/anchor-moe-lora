@@ -1,0 +1,24 @@
+{
+  "case_count": 6,
+  "collision_count": 0,
+  "collisions": [],
+  "content_emitted": false,
+  "manifest_sha256": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c",
+  "schema_version": "anchor.leak-audit.v1",
+  "similarity_threshold": 0.86,
+  "sop_source_count": 5,
+  "source_file_sha256": [
+    "00b8a1b6dc2f7935190adf851cb680415728fb804f543ebecfd56c0bf929af99",
+    "0620ed27aee569c9c4371b1b7a457ebb0edcd1a91db0e9f4f98a3eef35b1ba83",
+    "53c4277acaa2efc6a9bd60dbfbf514f47671c40f720e55a4c28d1f54835ce80e",
+    "59fe1045308d059ce4abeeccb2cb1bd20ba897b718c82e0f00c62896ba0a419d",
+    "a3e5ee209f45533b02aeb5fb69a4a7dbc35fe0b72bea32f35489c48127b71697",
+    "c04732d76e7761028a602568db1c47893b59676e5eb26e8b67bcb79eb1164db4",
+    "c456e0bf54cb503af055a3cf39214ad863188f57592ed443404bb53107fc4384",
+    "eb8cd0eebab698b95fb1d8f1856e3d60565beb04219e391583b3d4104b690940",
+    "ef13c5a1bdb4f5edb9e1da10a55a44d1b68537d01d7a28136ed32cfa7b81b9fa",
+    "f45350843170e98c3574d2e07fdd6365a0d99df671fdd43ba7d43668c4c3351a"
+  ],
+  "status": "PASS",
+  "training_source_count": 5
+}

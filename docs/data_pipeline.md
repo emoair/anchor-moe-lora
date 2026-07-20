@@ -309,10 +309,23 @@ scripts/data/start_automation.ps1 `
 Visible live entrypoint, only after inspecting the mock status and gate events:
 
 ```powershell
-$env:KIMI_API_KEY = Read-Host -MaskInput "Kimi Code key"
-scripts/data/start_automation.ps1 -Config configs/data/automation.yaml
+scripts/data/start_automation.ps1 `
+  -Config configs/data/automation.yaml `
+  -ValidateConfig
+scripts/data/start_automation.ps1 `
+  -Config configs/data/automation.yaml `
+  -PromptForApiKey
 scripts/data/show_automation_status.ps1 -Config configs/data/automation.yaml
 ```
+
+`start_automation.ps1` resolves the credential variable name from the selected YAML
+`api_key_env`; it is not tied to Kimi or to `KIMI_API_KEY`. `-PromptForApiKey` masks
+the value, injects it only into the launch process so the Python child can inherit it,
+and removes the prompted value when the child exits. The value is never written to
+the config, command line, status, or logs. `-ValidateConfig` validates the complete
+automation/provider contract without reading a credential or sending a provider
+request. The launcher prefers the project `.venv` or `anchor-mvp` Conda Python 3.11;
+use `-PythonExe <path>` or process-local `ANCHOR_MVP_PYTHON` to override discovery.
 
 `configs/data/automation.full_v3.yaml` is the isolated full-corpus profile. The legacy
 stage marker remains 128 for an explicit status-binding migration, while the v2 contract

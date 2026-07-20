@@ -1,0 +1,75 @@
+# Incremental 128-task shard. Combined with the frozen 384-task GLM shard,
+# this produces a 512-source-task question bank without mutating old data.
+# Every request in this shard, including seed generation and all five expert
+# stages, is pinned to the kimi-k3 teacher on the same Ark Coding endpoint.
+provider: custom-openai-responses
+protocol: openai_responses
+base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+model: kimi-k3
+force_model: true
+discover_models: false
+api_key_env: ARK_CODING_API_KEY
+user_agent: claude-code/2.1.7
+
+sop_dir: skills
+output_dir: data/automated_v3_shards/ark_kimi_k3_delta128_offset400000_c8
+task_card_config: configs/data/task_cards.v1.yaml
+seed_index_offset: 400000
+heldout_cases: configs/benchmark/heldout_cases_v1.jsonl
+heldout_fixtures_root: examples/benchmark/fixtures
+heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+
+# Translation may use up to sixteen concurrent requests. Eight here keeps the
+# combined operator ceiling at twenty-four, below the verified ceiling of 30.
+concurrency_stages: [8]
+stage_seed_counts: [128]
+raw_collection_target: 128
+# The source question-bank target is exactly 128. The gold floor tolerates
+# hard teacher failures while retries continue to target all five stages.
+minimum_gold_records_per_task: 96
+collection_policy: collect_then_partition
+
+min_success_rate: 1.0
+max_duplicate_rate: 0.0
+max_safety_violations: 0
+max_failures: 128
+# 128 seed calls + (128 * 5 expert calls) = 768 successful calls. Two
+# request-local retries make 2,304 the strict wire-request envelope.
+max_requests: 2304
+max_output_tokens_total: 294912000
+quota_epoch_id: ark-kimi-k3-delta128-c8-v1
+max_failure_retries: 2
+max_quality_retry_rounds: 2
+max_stagnant_gate_rounds: 3
+minimum_label_counts:
+  tool_policy:
+    APPROVE: 12
+    ESCALATE: 12
+    BLOCK: 12
+  security:
+    PASS: 20
+    BLOCK: 20
+
+artifact_validation_fixture: examples/data/fixtures/tsx-fragment
+artifact_validation_workspace_root: runs/data-validation/ark_kimi_k3_delta128
+artifact_validation_timeout_seconds: 30
+
+timeout_seconds: 600
+wall_clock_deadline_seconds: 18000
+max_retries: 2
+max_tokens: 128000
+thinking_enabled: true
+thinking_effort: max
+thinking_effort_seed: max
+thinking_effort_plan: max
+thinking_effort_tool_policy: max
+thinking_effort_frontend: max
+thinking_effort_review: max
+thinking_effort_security: max
+thinking_budget_tokens: 1024
+stream_openai: true
+stream_options_include_usage: false
+
+cooldown_seconds: 7200
+cooldown_poll_seconds: 60

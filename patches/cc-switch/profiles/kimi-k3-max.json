@@ -1,0 +1,30 @@
+{
+  "schema_version": "anchor.ccswitch-route-profile.v1",
+  "profile_id": "kimi-k3-max",
+  "protocol": "openai_responses",
+  "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
+  "key_env": "ARK_CODING_API_KEY",
+  "model_selection": {
+    "mode": "manual",
+    "manual_model_id": "kimi-k3",
+    "force_manual_model": true,
+    "discovery_path": "/models",
+    "preferred_model_pattern": "^kimi-k3$"
+  },
+  "reasoning": {
+    "field": "reasoning.effort",
+    "effort": "max"
+  },
+  "pricing": null,
+  "network": {
+    "mode": "direct",
+    "proxy_url_env": null,
+    "require_physical_route": true
+  },
+  "route": {
+    "listen_address": "127.0.0.1",
+    "port": 15732,
+    "max_retries": 3,
+    "user_agent": "claude-code"
+  }
+}

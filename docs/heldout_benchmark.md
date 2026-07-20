@@ -134,9 +134,11 @@ py -m anchor_mvp.benchmark.heldout_cli mock-e2e `
   --leak-audit artifacts\benchmark\heldout_v1\leak_audit.prebulk.json `
   --specs configs\benchmark\heldout_q4_v1.json `
   --output-dir runs\heldout-mock-v1 `
+  --authorize-heldout-access `
   --no-vram
 ```
 
 For a live run, replace `mock-e2e` with `run`, pass `--output` and `--metrics`,
 then invoke `evaluate` on the raw records. The evaluator deliberately offers no
-training-data option.
+training-data option. The `run`, `mock-e2e`, and `evaluate` paths all require
+`--authorize-heldout-access`; without it they fail before opening the case file.

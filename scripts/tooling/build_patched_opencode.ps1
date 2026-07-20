@@ -71,6 +71,7 @@ $PatchPath = Join-Path (Split-Path -Parent $PatchManifestPath) ([string]$patchSo
 $ExpectedPatchSha256 = ([string]$patchSource.patch_sha256).ToLowerInvariant()
 $ExpectedBunVersion = [string]$patchSource.bun_version
 $ToolContract = $patchSource.tool_contract
+$RequiredToolContractVersion = "anchor.execution-tool-contract.v3"
 if ($Repository -ne "https://github.com/anomalyco/opencode.git") {
     throw "Patch source repository is not the audited upstream"
 }
@@ -79,6 +80,14 @@ if ($BaselineCommit -notmatch '^[0-9a-f]{40}$' -or $ExpectedPatchSha256 -notmatc
 }
 if ($null -eq $ToolContract -or [string]$ToolContract.version -ne [string]$patchSource.tool_contract_version) {
     throw "Patch source manifest contains an invalid tool contract"
+}
+if ([string]$patchSource.tool_contract_version -ne $RequiredToolContractVersion) {
+    throw "Formal OpenCode builds require $RequiredToolContractVersion; v2 artifacts must not be rebuilt or marked ready"
+}
+if ([string]$ToolContract.model_bash_policy.network -ne "none-with-supervisor-unix-socket-loopback-bridge" -or
+    [string]$ToolContract.model_bash_policy.workdir -ne "/testbed" -or
+    [string]$ToolContract.hidden_official_eval.network -ne "none") {
+    throw "Patch source manifest does not contain the formal v3 isolation contract"
 }
 if (-not (Test-Path -LiteralPath $PatchPath -PathType Leaf)) {
     throw "Patch is missing: $PatchPath"
@@ -189,9 +198,34 @@ if (-not $SkipInstall) {
     }
 }
 
+# Bun workspace packages are junctions. Reusing a dependency tree is permitted
+# only when every @opencode-ai workspace link resolves back into this exact
+# checkout; otherwise a clean v3 tree can silently execute stale v2 source.
+$workspaceScope = Join-Path $CheckoutRoot "node_modules\@opencode-ai"
+if (-not (Test-Path -LiteralPath $workspaceScope -PathType Container)) {
+    throw "OpenCode workspace dependency scope is missing: $workspaceScope"
+}
+$workspacePackageRoot = [IO.Path]::GetFullPath((Join-Path $CheckoutRoot "packages")).TrimEnd([char[]]"\/") + [IO.Path]::DirectorySeparatorChar
+$workspaceLinks = @(Get-ChildItem -LiteralPath $workspaceScope -Force -Directory)
+if ($workspaceLinks.Count -eq 0) {
+    throw "OpenCode workspace dependency scope contains no packages"
+}
+foreach ($workspaceLink in $workspaceLinks) {
+    $targets = @($workspaceLink.Target | Where-Object { $_ })
+    if ($workspaceLink.LinkType -notin @("Junction", "SymbolicLink") -or $targets.Count -ne 1) {
+        throw "Workspace package is not one audited link: $($workspaceLink.FullName)"
+    }
+    $resolvedTarget = [IO.Path]::GetFullPath([string]$targets[0])
+    if (-not $resolvedTarget.StartsWith($workspacePackageRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Workspace package resolves outside the current checkout: $($workspaceLink.Name) -> $resolvedTarget"
+    }
+}
+
 $windowsBaselineTestExclusions = @()
 if (-not $SkipTests) {
-    $coreTests = @("test") + @($patchSource.required_tests.core)
+    # Windows child-process and Git-heavy tests can exceed Bun's 5 s default
+    # under load even when their assertions complete correctly in isolation.
+    $coreTests = @("test", "--timeout", "60000") + @($patchSource.required_tests.core)
     Invoke-Checked $BunPath $coreTests (Join-Path $CheckoutRoot "packages\core")
     # These upstream Windows baseline cases are known /bin/sh-dependent timeouts.
     $windowsBaselineTestExclusions = @(
@@ -203,12 +237,12 @@ if (-not $SkipTests) {
     $promptTest = "test/session/prompt.test.ts"
     $agentTest = "test/agent/agent.test.ts"
     $otherOpenCodeTests = @($patchSource.required_tests.opencode | Where-Object { $_ -ne $promptTest -and $_ -ne $agentTest })
-    Invoke-Checked $BunPath (@("test") + $otherOpenCodeTests) (Join-Path $CheckoutRoot "packages\opencode")
+    Invoke-Checked $BunPath (@("test", "--timeout", "60000") + $otherOpenCodeTests) (Join-Path $CheckoutRoot "packages\opencode")
     $promptExclusions = @($windowsBaselineTestExclusions | Where-Object { $_ -ne "project reference directories are allowed for external_directory" })
     $promptPattern = "^(?!(?:" + (($promptExclusions | ForEach-Object { [regex]::Escape($_) }) -join "|") + ")$).*"
-    Invoke-Checked $BunPath @("test", $promptTest, "--test-name-pattern", $promptPattern) (Join-Path $CheckoutRoot "packages\opencode")
+    Invoke-Checked $BunPath @("test", "--timeout", "60000", $promptTest, "--test-name-pattern", $promptPattern) (Join-Path $CheckoutRoot "packages\opencode")
     $agentPattern = "^(?!(?:" + [regex]::Escape("project reference directories are allowed for external_directory") + ")$).*"
-    Invoke-Checked $BunPath @("test", $agentTest, "--test-name-pattern", $agentPattern) (Join-Path $CheckoutRoot "packages\opencode")
+    Invoke-Checked $BunPath @("test", "--timeout", "60000", $agentTest, "--test-name-pattern", $agentPattern) (Join-Path $CheckoutRoot "packages\opencode")
 }
 if (-not $SkipTypecheck) {
     Invoke-Checked $BunPath @("run", "--cwd", "packages/opencode", "typecheck") $CheckoutRoot
@@ -265,6 +299,7 @@ $platformManifest = [ordered]@{
         tests_executed = -not $SkipTests
         required_tests = [ordered]@{ core = @($patchSource.required_tests.core); opencode = @($patchSource.required_tests.opencode) }
         test_exclusions = @($windowsBaselineTestExclusions)
+        workspace_link_audit = [ordered]@{ executed = $true; count = $workspaceLinks.Count; required_root = "checkout/packages" }
         typecheck_executed = -not $SkipTypecheck
         build_smoke_executed = $true
     }
@@ -289,6 +324,7 @@ $legacyManifest = [ordered]@{
     tests_executed = -not $SkipTests
     required_tests = [ordered]@{ core = @($patchSource.required_tests.core); opencode = @($patchSource.required_tests.opencode) }
     windows_baseline_test_exclusions = @($windowsBaselineTestExclusions)
+    workspace_link_audit = [ordered]@{ executed = $true; count = $workspaceLinks.Count; required_root = "checkout/packages" }
     typecheck_executed = -not $SkipTypecheck
     binary_sha256 = $binarySha
     binary = "opencode-anchor.exe"

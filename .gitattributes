@@ -1,2 +1,29 @@
-# Unified-diff context represents a blank line as one leading space; do not flag that syntax as file whitespace.
-patches/opencode/*.patch whitespace=-trailing
+# Hash-bound manifests, datasets, source files, and patches must keep identical
+# bytes on Windows and Unix even when a contributor has core.autocrlf=true.
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.py text eol=lf
+*.pyi text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.rs text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+
+*.parquet -text
+*.safetensors -text
+*.gguf -text
+*.exe -text
+
+# Unified-diff context represents a blank line as one leading space; do not
+# flag that syntax as file whitespace. Patch bytes themselves remain LF-bound.
+patches/opencode/*.patch text eol=lf whitespace=-trailing

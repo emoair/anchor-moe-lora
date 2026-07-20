@@ -3,11 +3,22 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 from pathlib import Path
 import sys
 from typing import Sequence
 
+from .batch import (
+    BatchConfig,
+    build_live_teacher,
+    compile_manifest,
+    compile_work_orders,
+    load_replay_teacher,
+    load_validated_cards,
+    run_batch,
+    write_work_orders,
+)
 from .importer import ImportConfig, import_metadata_cards
 from .schema import SWEBenchValidationError
 
@@ -50,12 +61,81 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="validate and print a content-free manifest without writing files",
     )
+    compile_parser = subparsers.add_parser(
+        "compile",
+        help="split imported cards into five dependency-bound work orders",
+    )
+    compile_parser.add_argument("--cards-jsonl", type=Path, required=True)
+    compile_parser.add_argument("--import-manifest", type=Path, required=True)
+    compile_parser.add_argument("--work-orders-output", type=Path)
+    compile_parser.add_argument(
+        "--write",
+        action="store_true",
+        help="write work orders; without this flag compile is read-only",
+    )
+    batch_parser = subparsers.add_parser(
+        "batch",
+        help="run replay/live five-stage chains from a pinned batch config",
+    )
+    batch_parser.add_argument("--config", type=Path, required=True)
+    batch_parser.add_argument(
+        "--allow-live",
+        action="store_true",
+        help="explicitly permit provider requests when config mode is live",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "compile":
+        try:
+            cards = load_validated_cards(
+                args.cards_jsonl.resolve(), args.import_manifest.resolve()
+            )
+            orders = compile_work_orders(cards)
+            manifest = compile_manifest(cards)
+            if args.write:
+                if args.work_orders_output is None:
+                    raise SWEBenchValidationError(
+                        "--write requires --work-orders-output"
+                    )
+                write_work_orders(args.work_orders_output.resolve(), orders)
+                manifest["files_written"] = 1
+                manifest["work_orders_output"] = str(args.work_orders_output.resolve())
+        except (OSError, SWEBenchValidationError, ValueError) as exc:
+            print(f"anchor-swebench: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(manifest, ensure_ascii=False, sort_keys=True))
+        return 0
+    if args.command == "batch":
+        repo_root = Path(__file__).resolve().parents[3]
+        try:
+            config = BatchConfig.load(repo_root, args.config.resolve())
+            if config.mode == "dry-run":
+                cards = load_validated_cards(config.cards_jsonl, config.import_manifest)
+                if config.max_cards is not None:
+                    cards = cards[: config.max_cards]
+                result = compile_manifest(cards)
+            else:
+                if config.mode == "live" and not args.allow_live:
+                    raise SWEBenchValidationError(
+                        "live mode requires the explicit --allow-live flag"
+                    )
+                teacher = (
+                    load_replay_teacher(config.replay_responses_jsonl)
+                    if config.mode == "replay"
+                    and config.replay_responses_jsonl is not None
+                    else build_live_teacher(config.provider or {})
+                )
+                batch = asyncio.run(run_batch(config, teacher=teacher))
+                result = dict(batch.manifest)
+        except (OSError, SWEBenchValidationError, ValueError, RuntimeError) as exc:
+            print(f"anchor-swebench: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
     if args.command != "import":
         parser.error("unknown command")
     config = ImportConfig(

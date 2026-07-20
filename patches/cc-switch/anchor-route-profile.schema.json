@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/anchor/ccswitch-route-profile.schema.json",
+  "title": "Anchor CC Switch route profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "protocol",
+    "base_url",
+    "key_env",
+    "model_selection",
+    "reasoning",
+    "network",
+    "route"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.ccswitch-route-profile.v1"},
+    "profile_id": {"type": "string", "minLength": 1},
+    "protocol": {"enum": ["openai_responses", "openai_chat"]},
+    "base_url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+    "model_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "manual_model_id", "force_manual_model"],
+      "properties": {
+        "mode": {"enum": ["manual", "discover", "discover_or_manual"]},
+        "manual_model_id": {"type": "string", "minLength": 1},
+        "force_manual_model": {"type": "boolean"},
+        "discovery_path": {"type": "string", "default": "/models"},
+        "preferred_model_pattern": {"type": ["string", "null"]}
+      }
+    },
+    "reasoning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "effort"],
+      "properties": {
+        "field": {"enum": ["none", "reasoning.effort", "reasoning_effort"]},
+        "effort": {"type": "string", "minLength": 1}
+      }
+    },
+    "pricing": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["input_per_million", "output_per_million"],
+      "properties": {
+        "input_per_million": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$"},
+        "output_per_million": {"type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$"},
+        "cache_read_per_million": {"type": "string", "default": "0"},
+        "cache_creation_per_million": {"type": "string", "default": "0"},
+        "source": {"type": "string"},
+        "verified_at": {"type": "string"}
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "proxy_url_env", "require_physical_route"],
+      "properties": {
+        "mode": {"enum": ["direct", "proxy", "inherit"], "default": "direct"},
+        "proxy_url_env": {"type": ["string", "null"], "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+        "require_physical_route": {"type": "boolean", "default": false}
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["listen_address", "port", "max_retries", "user_agent"],
+      "properties": {
+        "listen_address": {"const": "127.0.0.1"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "max_retries": {"type": "integer", "minimum": 0, "maximum": 30},
+        "user_agent": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

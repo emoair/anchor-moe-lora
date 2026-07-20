@@ -84,10 +84,14 @@ means the preparation configuration itself is invalid.
 
 After a freeze exists, `configs/orchestration/distill_train_handoff_v3.yaml` binds the
 coordinator to that immutable directory, a distinct state directory, and the
-`automation.full_v3.ark_glm52.max384.c8.yaml` 384-raw/256-gold/c8 collection contract.
-Snapshot preparation, handoff, and formal-v3 training all require 256 complete-chain
-records per expert. A legacy 128-record snapshot is rejected even when its hashes are
-self-consistent. The coordinator still requires the strict patched-OpenCode execution
+`automation.full_v3.ark_glm52.max384.c8.yaml` collection contract for the legacy bounded
+collector. For the full SWE-bench formal-v3 path, 256 complete-chain train records per
+expert is only the quality floor, never the dataset ceiling. The canonical candidate bank
+contains 19,008 tasks and 95,040 five-stage work orders. Snapshot publication freezes every
+execution-Gold accepted task, applies the pinned train/calibration allowlists, keeps external
+heldout content hash-only, and materializes A-F optimizer steps from the resulting train-Gold
+count. A legacy 128-record snapshot is still rejected even when its hashes are self-consistent.
+The coordinator still requires the strict patched-OpenCode execution
 proof. A collect-first sample placed in the negative partition is not accepted execution
 gold, and snapshot readiness never substitutes for that gate. The referenced
 `formal_v3_lowmem_common.yaml` must independently exist and pass its training preflight

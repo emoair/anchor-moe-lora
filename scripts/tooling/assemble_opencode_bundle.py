@@ -17,6 +17,7 @@ from typing import Any, Mapping
 
 PLATFORM_SCHEMA = "anchor.patched-opencode.platform.v1"
 BUNDLE_SCHEMA = "anchor.patched-opencode.bundle.v1"
+REQUIRED_TOOL_CONTRACT = "anchor.execution-tool-contract.v3"
 TARGET_MANIFESTS = {
     "windows-x64": "windows-x64.manifest.json",
     "linux-x64": "linux-x64.manifest.json",
@@ -96,6 +97,28 @@ def _validate_platform(
     missing = [key for key in SOURCE_KEYS if key not in source]
     if missing:
         raise ValueError(f"{target}: source contract is missing {','.join(missing)}")
+    if source.get("tool_contract_version") != REQUIRED_TOOL_CONTRACT:
+        raise ValueError(
+            f"{target}: only {REQUIRED_TOOL_CONTRACT} artifacts may enter the formal bundle"
+        )
+    contract = _mapping(source.get("tool_contract"), f"{target}.source.tool_contract")
+    model_policy = _mapping(
+        contract.get("model_bash_policy"),
+        f"{target}.source.tool_contract.model_bash_policy",
+    )
+    hidden_eval = _mapping(
+        contract.get("hidden_official_eval"),
+        f"{target}.source.tool_contract.hidden_official_eval",
+    )
+    if (
+        contract.get("version") != REQUIRED_TOOL_CONTRACT
+        or model_policy.get("workdir") != "/testbed"
+        or model_policy.get("network")
+        != "none-with-supervisor-unix-socket-loopback-bridge"
+        or hidden_eval.get("network") != "none"
+        or hidden_eval.get("fresh_container") is not True
+    ):
+        raise ValueError(f"{target}: formal v3 isolation contract is incomplete")
     binary = _mapping(value.get("binary"), f"{target}.binary")
     binary_path = _relative_file(artifact_root, binary.get("path"), f"{target}.binary.path")
     observed_relative = binary_path.relative_to(artifact_root.resolve()).as_posix()

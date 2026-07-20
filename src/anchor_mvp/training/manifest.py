@@ -62,6 +62,14 @@ def build_manifest(
         "training_profile": {
             "runtime_engine": config["training"].get("runtime_engine", "trainer"),
             "max_seq_length": config["training"]["max_seq_length"],
+            "sequence_contract": config["training"].get("sequence_contract"),
+            "truncation_policy": config["training"].get("truncation_policy"),
+            "full_trajectory_training": config["training"].get(
+                "full_trajectory_training"
+            ),
+            "runtime_sequence_statistics": (
+                "written_after_execution_to_runtime_observations.sequence_statistics"
+            ),
             "max_steps": config["training"]["max_steps"],
             "per_device_train_batch_size": config["training"][
                 "per_device_train_batch_size"
@@ -74,6 +82,18 @@ def build_manifest(
             "sample_order": config["training"].get("sample_order"),
             "maximum_training_peak_vram_gib": config["training"].get(
                 "maximum_training_peak_vram_gib"
+            ),
+            "activation_offload_to_cpu": config["training"].get(
+                "activation_offload_to_cpu", False
+            ),
+            "activation_offload_pin_memory": config["training"].get(
+                "activation_offload_pin_memory", True
+            ),
+            "cuda_allocator_expandable_segments": config["training"].get(
+                "cuda_allocator_expandable_segments", False
+            ),
+            "probe_sample_selector": config["training"].get(
+                "probe_sample_selector", "first"
             ),
         },
         "config_sha256": config_fingerprint(config),
@@ -97,6 +117,43 @@ def build_manifest(
             "complete_epochs": exposures // records if records else None,
             "balanced_complete_epochs": bool(records and exposures % records == 0),
         }
+        resolved = config["training"].get("resolved_exposure")
+        if isinstance(resolved, Mapping):
+            manifest["sample_exposure_plan"].update(
+                {
+                    "derivation": resolved.get("mode"),
+                    "target_epochs": resolved.get("epochs"),
+                    "records_per_stage": resolved.get("records_per_stage"),
+                    "optimizer_steps_per_stage": resolved.get(
+                        "optimizer_steps_per_stage"
+                    ),
+                    "padding_exposures_per_stage": resolved.get(
+                        "padding_exposures_per_stage"
+                    ),
+                    "planned_exposures_by_stage": resolved.get(
+                        "planned_exposures_by_stage"
+                    ),
+                    "padding_exposures_by_stage": resolved.get(
+                        "padding_exposures_by_stage"
+                    ),
+                    "arm_total_sample_exposures": resolved.get(
+                        "arm_total_sample_exposures"
+                    ),
+                    "control_invariant": resolved.get("control_invariant"),
+                    "dataset_snapshot_sha256": resolved.get(
+                        "dataset_snapshot_sha256"
+                    ),
+                    "snapshot_manifest_sha256": resolved.get(
+                        "snapshot_manifest_sha256"
+                    ),
+                    "heldout_content_read": resolved.get(
+                        "heldout_content_read"
+                    ),
+                    "evaluation_contract": resolved.get(
+                        "evaluation_contract"
+                    ),
+                }
+            )
         manifest["safety_checkpoints"] = {
             "save_steps": int(config["training"]["save_steps"]),
             "resume_capability": "adapter_weights_warm_start_only",

@@ -1,5 +1,5 @@
 diff --git a/packages/core/src/v1/config/agent.ts b/packages/core/src/v1/config/agent.ts
-index b220bd7..53d7c8d 100644
+index b220bd7ef87d7e34598673fdb5ec8fa9c7a3146c..53d7c8d06d8a8db1c7c8b50e6683e81fb50dc44e 100644
 --- a/packages/core/src/v1/config/agent.ts
 +++ b/packages/core/src/v1/config/agent.ts
 @@ -34,6 +34,10 @@ const AgentSchema = Schema.StructWithRest(
@@ -22,7 +22,7 @@ index b220bd7..53d7c8d 100644
    "options",
    "permission",
 diff --git a/packages/core/src/v1/session.ts b/packages/core/src/v1/session.ts
-index b4ce31e..5e5708c 100644
+index b4ce31e5f09addaed569c08941ae7b0888708df0..5e5708c61edf0317dbe06fbc097615ea56d8d57c 100644
 --- a/packages/core/src/v1/session.ts
 +++ b/packages/core/src/v1/session.ts
 @@ -66,3 +66,13 @@ export const ContextOverflowError = NamedError.create("ContextOverflowError", {
@@ -41,7 +41,7 @@ index b4ce31e..5e5708c 100644
 +})
 diff --git a/packages/core/test/config/v1-agent-initial-tool-call.test.ts b/packages/core/test/config/v1-agent-initial-tool-call.test.ts
 new file mode 100644
-index 0000000..1968f21
+index 0000000000000000000000000000000000000000..1968f213349a0559fb8ad0aa6a0e62f3a909ed40
 --- /dev/null
 +++ b/packages/core/test/config/v1-agent-initial-tool-call.test.ts
 @@ -0,0 +1,17 @@
@@ -63,7 +63,7 @@ index 0000000..1968f21
 +  expect(configured.options).toEqual({ providerSpecificFlag: "kept" })
 +})
 diff --git a/packages/opencode/src/agent/agent.ts b/packages/opencode/src/agent/agent.ts
-index 536a642..895f438 100644
+index 536a642fe49fb5211e66c2e2ad689856a03254c0..895f4389f19c9b42716f8c116ef1e6ede515f90f 100644
 --- a/packages/opencode/src/agent/agent.ts
 +++ b/packages/opencode/src/agent/agent.ts
 @@ -52,6 +52,7 @@ export const Info = Schema.Struct({
@@ -84,15 +84,16 @@ index 536a642..895f438 100644
          }
 diff --git a/packages/opencode/src/anchor/sandbox.ts b/packages/opencode/src/anchor/sandbox.ts
 new file mode 100644
-index 0000000..1fbb7a9
+index 0000000000000000000000000000000000000000..dbb5731f3d5baea6823e4e4f9dd12d2e23678601
 --- /dev/null
 +++ b/packages/opencode/src/anchor/sandbox.ts
-@@ -0,0 +1,654 @@
+@@ -0,0 +1,800 @@
 +import { randomUUID } from "node:crypto"
 +import { mkdir, rm } from "node:fs/promises"
++import net from "node:net"
 +import path from "node:path"
 +import { Process } from "@/util/process"
-+import type { Result, RunOptions } from "@/util/process"
++import type { Child, Options, Result, RunOptions } from "@/util/process"
 +
 +export type AnchorHost = "windows-wsl" | "linux"
 +export type AnchorSupervisor = "direct" | "wsl-root-systemd"
@@ -100,6 +101,12 @@ index 0000000..1fbb7a9
 +/** Official Node 22 bookworm-slim linux/amd64 manifest digest, refreshed 2026-07-13. */
 +export const DEFAULT_ANCHOR_IMAGE =
 +  "docker.io/library/node@sha256:a149cd71dccd68704a07d4e4ca3e610c27301852b0f556865cfdb6e2856f8bed"
++export const ANCHOR_TOOL_CONTRACT = "anchor.execution-tool-contract.v3" as const
++export const CANONICAL_TESTBED = "/testbed" as const
++export const ANCHOR_ROUTE_SOCKET = "/run/anchor-route/ccswitch.sock" as const
++export const ANCHOR_ROUTE_HOST = "127.0.0.1" as const
++export const ANCHOR_ROUTE_PORT = 18080 as const
++export const ANCHOR_ROUTE_CLIENT_TOKEN = "anchor-local-route" as const
 +
 +export interface AnchorSandboxSpec {
 +  workspace: string
@@ -113,12 +120,15 @@ index 0000000..1fbb7a9
 +  pids?: number
 +  timeout?: number
 +  supervisor?: AnchorSupervisor
++  routeHost?: string
++  routePort?: number
 +}
 +
 +export interface AnchorContainerPaths {
 +  workspace: string
 +  config: string
 +  state: string
++  route: string
 +  linuxExecutable?: string
 +}
 +
@@ -131,6 +141,7 @@ index 0000000..1fbb7a9
 +
 +export interface CommandRunner {
 +  run(command: string[], options?: RunOptions): Promise<Result>
++  spawn?(command: string[], options?: Options): Child
 +}
 +
 +export class AnchorSandboxError extends Error {
@@ -142,7 +153,56 @@ index 0000000..1fbb7a9
 +
 +const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/
 +const MEMORY = /^\d+(?:\.\d+)?(?:[KMGTP]i?B?|B)?$/i
-+const systemRunner: CommandRunner = { run: Process.run }
++const systemRunner: CommandRunner = { run: Process.run, spawn: Process.spawn }
++
++const HOST_UNIX_ROUTE_RELAY = String.raw`
++import os,socket,sys,threading
++path,host,port=sys.argv[1],sys.argv[2],int(sys.argv[3])
++try: os.unlink(path)
++except FileNotFoundError: pass
++server=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
++server.bind(path); os.chmod(path,0o600); server.listen(32)
++allowed={b'/anchor/health',b'/anchor/v1/models',b'/anchor/v1/responses',b'/anchor/v1/chat/completions',b'/v1/models',b'/v1/responses',b'/v1/chat/completions'}
++def pump(src,dst):
++    try:
++        while True:
++            chunk=src.recv(65536)
++            if not chunk: break
++            dst.sendall(chunk)
++    except OSError: pass
++    try: dst.shutdown(socket.SHUT_WR)
++    except OSError: pass
++def handle(client):
++    upstream=None
++    try:
++        head=b''
++        while b'\r\n\r\n' not in head and len(head)<65536:
++            chunk=client.recv(4096)
++            if not chunk: return
++            head+=chunk
++        header,sep,rest=head.partition(b'\r\n\r\n')
++        if not sep: return
++        lines=header.split(b'\r\n'); parts=lines[0].split(b' ')
++        if len(parts)!=3 or parts[0].upper()==b'CONNECT': return
++        target=parts[1]
++        if b'://' in target or b'#' in target or target.split(b'?',1)[0] not in allowed: return
++        hosts=[line.split(b':',1)[1].strip().lower() for line in lines[1:] if line.lower().startswith(b'host:')]
++        if hosts != [b'127.0.0.1:18080']: return
++        upstream=socket.create_connection((host,port),timeout=10)
++        upstream.sendall(header+sep+rest)
++        a=threading.Thread(target=pump,args=(client,upstream),daemon=True)
++        b=threading.Thread(target=pump,args=(upstream,client),daemon=True)
++        a.start(); b.start(); a.join(); b.join()
++    finally:
++        try: client.close()
++        except OSError: pass
++        if upstream is not None:
++            try: upstream.close()
++            except OSError: pass
++while True:
++    client,_=server.accept()
++    threading.Thread(target=handle,args=(client,),daemon=True).start()
++`
 +
 +export function validateRunID(value: string): string {
 +  if (!RUN_ID.test(value)) throw new AnchorSandboxError("anchor_run_id_invalid")
@@ -205,6 +265,37 @@ index 0000000..1fbb7a9
 +  return image
 +}
 +
++export function validateLocalRouteTarget(host: string | undefined, port: number | undefined) {
++  const target = host ?? ANCHOR_ROUTE_HOST
++  const octets = target.split(".").map(Number)
++  const privateAddress =
++    octets.length === 4 &&
++    octets.every((value) => Number.isInteger(value) && value >= 0 && value <= 255) &&
++    (octets[0] === 127 ||
++      octets[0] === 10 ||
++      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
++      (octets[0] === 192 && octets[1] === 168))
++  if (!privateAddress) throw new AnchorSandboxError("anchor_route_host_not_local")
++  const targetPort = port ?? ANCHOR_ROUTE_PORT
++  if (!Number.isSafeInteger(targetPort) || targetPort < 1 || targetPort > 65535) {
++    throw new AnchorSandboxError("anchor_route_port_invalid")
++  }
++  return { host: target, port: targetPort }
++}
++
++export function routeUnitName(runID: string) {
++  return `anchor-route-${validateRunID(runID)}`
++}
++
++export function resolveRouteDirectory(runID: string, host: AnchorHost, environment: NodeJS.ProcessEnv = process.env) {
++  const safe = validateRunID(runID)
++  if (host === "windows-wsl") return `/run/anchor-opencode/${safe}`
++  const runtime = environment.XDG_RUNTIME_DIR
++  if (runtime?.startsWith("/")) return path.posix.join(runtime, "anchor-opencode", safe)
++  const uid = typeof process.getuid === "function" ? process.getuid() : 65534
++  return `/tmp/anchor-opencode-${uid}/${safe}`
++}
++
 +export function scrubHostEnvironment(input: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
 +  const blocked = new Set([
 +    "KIMI_CODE_API_KEY",
@@ -214,56 +305,21 @@ index 0000000..1fbb7a9
 +    "PODMAN_HOST",
 +    "WSLENV",
 +  ])
-+  return Object.fromEntries(Object.entries(input).filter(([key]) => !blocked.has(key.toUpperCase())))
++  const credential = /(?:API_?KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i
++  return Object.fromEntries(
++    Object.entries(input).filter(([key]) => !blocked.has(key.toUpperCase()) && !credential.test(key)),
++  )
 +}
 +
 +export function containerName(runID: string) {
 +  return `anchor-${validateRunID(runID)}`
 +}
 +
-+/** Deterministic so `anchor cleanup --run-id` can remove a secret left by a crashed task. */
-+export function secretName(runID: string) {
-+  return `anchor-key-${validateRunID(runID)}`
-+}
-+
-+/** Name of the one-child environment variable used to feed `podman secret create --env`. */
-+export function secretEnvironmentName(runID: string, nonce = randomUUID()) {
-+  const task = validateRunID(runID).replaceAll("-", "_").toUpperCase()
-+  return `ANCHOR_SECRET_${task}_${nonce.replaceAll("-", "").toUpperCase()}`.slice(0, 180)
-+}
-+
 +export function systemdUnitName(runID: string, nonce = randomUUID()) {
 +  return `anchor-${validateRunID(runID)}-${nonce.replaceAll("-", "")}`.slice(0, 120)
 +}
 +
-+/**
-+ * Keep the provider credential in a one-child environment only.  WSLENV `/u`
-+ * is the documented Windows-to-WSL direction, so the value reaches rootful
-+ * Podman without appearing in argv, a config file, or a log payload.
-+ */
-+export function buildSecretEnvironment(input: {
-+  host: AnchorHost
-+  environment: NodeJS.ProcessEnv
-+  variable: string
-+  value: string
-+}): NodeJS.ProcessEnv {
-+  const environment = { ...input.environment, [input.variable]: input.value }
-+  if (input.host !== "windows-wsl") return environment
-+
-+  environment.WSLENV = `${input.variable}/u`
-+  return environment
-+}
-+
-+export function buildSecretCreateArgs(secret: string, variable: string) {
-+  return ["secret", "create", "--env=true", secret, variable]
-+}
-+
-+export function buildHostExecCommand(input: {
-+  host: AnchorHost
-+  distro?: string
-+  root?: boolean
-+  command: string[]
-+}) {
++export function buildHostExecCommand(input: { host: AnchorHost; distro?: string; root?: boolean; command: string[] }) {
 +  if (input.host === "linux") return input.command
 +  if (!input.distro?.trim()) throw new AnchorSandboxError("anchor_wsl_distro_missing")
 +  return [
@@ -340,14 +396,18 @@ index 0000000..1fbb7a9
 +    "--read-only",
 +    "--tmpfs",
 +    "/tmp:rw,noexec,nosuid,size=256m",
++    "--network",
++    "none",
 +    "--workdir",
-+    "/workspace",
++    CANONICAL_TESTBED,
 +    "--mount",
-+    `type=bind,src=${input.paths.workspace},dst=/workspace,rw`,
++    `type=bind,src=${input.paths.workspace},dst=${CANONICAL_TESTBED},rw`,
 +    "--mount",
 +    `type=bind,src=${input.paths.state},dst=/anchor/state,rw`,
 +    "--mount",
 +    `type=bind,src=${input.paths.config},dst=/anchor/config/opencode.json,ro`,
++    "--mount",
++    `type=bind,src=${input.paths.route},dst=/run/anchor-route,ro`,
 +    "--env",
 +    "OPENCODE_CONFIG=/anchor/config/opencode.json",
 +    "--env",
@@ -362,6 +422,8 @@ index 0000000..1fbb7a9
 +    "OPENCODE_DISABLE_MODELS_FETCH=true",
 +    "--env",
 +    "OPENCODE_AUTO_SHARE=false",
++    "--env",
++    `ANCHOR_LOCAL_ROUTE_CLIENT_TOKEN=${ANCHOR_ROUTE_CLIENT_TOKEN}`,
 +    "--env",
 +    "HOME=/anchor/state/home",
 +    "--env",
@@ -383,8 +445,6 @@ index 0000000..1fbb7a9
 +      String(input.limits.cpus),
 +      "--pids-limit",
 +      String(input.limits.pids),
-+      "--network",
-+      "slirp4netns",
 +    )
 +  }
 +  if (input.paths.linuxExecutable) {
@@ -399,26 +459,18 @@ index 0000000..1fbb7a9
 +  paths: AnchorContainerPaths
 +  limits: AnchorLimits
 +  rootful: boolean
-+  secret: string
 +  opencodeArgs: string[]
 +}) {
 +  const executable = input.paths.linuxExecutable ? "/anchor/bin/opencode" : "opencode"
-+  // Rootful Podman in this WSL host cannot create its default CNI bridge because
-+  // its nftables/iptables NAT backend is incompatible.  Use the userspace
-+  // network only for the task run; export remains explicitly offline below.
-+  const network = input.rootful ? ["--network", "slirp4netns"] : []
 +  return [
 +    ...containerBaseArgs(input),
-+    ...network,
-+    "--secret",
-+    `source=${input.secret},target=anchor_api_key,type=mount,mode=0400`,
 +    "--entrypoint",
 +    "/bin/sh",
 +    input.image,
 +    "-c",
-+    'export KIMI_CODE_API_KEY="$(cat \"$1\")"; shift; exec "$@"',
++    'bridge="$1"; shift; "$bridge" anchor _route-bridge & bridge_pid=$!; sleep 1; kill -0 "$bridge_pid"; exec "$@"',
 +    "anchor-entrypoint",
-+    "/run/secrets/anchor_api_key",
++    executable,
 +    executable,
 +    ...input.opencodeArgs,
 +  ]
@@ -433,16 +485,14 @@ index 0000000..1fbb7a9
 +  sessionID: string
 +}) {
 +  const executable = input.paths.linuxExecutable ? "/anchor/bin/opencode" : "opencode"
-+  return [
-+    ...containerBaseArgs(input),
-+    "--network",
-+    "none",
-+    "--entrypoint",
-+    executable,
-+    input.image,
-+    "export",
-+    input.sessionID,
-+  ]
++  const base = containerBaseArgs(input)
++  const routeMount = `type=bind,src=${input.paths.route},dst=/run/anchor-route,ro`
++  const index = base.indexOf(routeMount)
++  if (index !== -1) base.splice(index - 1, 2)
++  const token = `ANCHOR_LOCAL_ROUTE_CLIENT_TOKEN=${ANCHOR_ROUTE_CLIENT_TOKEN}`
++  const tokenIndex = base.indexOf(token)
++  if (tokenIndex !== -1) base.splice(tokenIndex - 1, 2)
++  return [...base, "--entrypoint", executable, input.image, "export", input.sessionID]
 +}
 +
 +async function toWslPath(
@@ -474,18 +524,21 @@ index 0000000..1fbb7a9
 +  const linuxExecutable = input.spec.linuxExecutable
 +    ? absolute(input.spec.linuxExecutable, "anchor_linux_executable_not_absolute")
 +    : undefined
++  const route = resolveRouteDirectory(input.spec.runID, input.host, input.environment)
 +  await mkdir(local.state, { recursive: true })
 +  if (input.host === "linux") {
 +    return {
 +      local,
-+      container: { ...local, linuxExecutable } satisfies AnchorContainerPaths,
++      container: { ...local, route, linuxExecutable } satisfies AnchorContainerPaths,
 +    }
 +  }
 +  const converted = await Promise.all([
 +    toWslPath(input.runner, input.spec.wslDistro, local.workspace, input.environment),
 +    toWslPath(input.runner, input.spec.wslDistro, local.config, input.environment),
 +    toWslPath(input.runner, input.spec.wslDistro, local.state, input.environment),
-+    linuxExecutable ? toWslPath(input.runner, input.spec.wslDistro, linuxExecutable, input.environment) : Promise.resolve(undefined),
++    linuxExecutable
++      ? toWslPath(input.runner, input.spec.wslDistro, linuxExecutable, input.environment)
++      : Promise.resolve(undefined),
 +  ])
 +  return {
 +    local,
@@ -493,6 +546,7 @@ index 0000000..1fbb7a9
 +      workspace: converted[0],
 +      config: converted[1],
 +      state: converted[2],
++      route,
 +      linuxExecutable: converted[3],
 +    } satisfies AnchorContainerPaths,
 +  }
@@ -520,53 +574,163 @@ index 0000000..1fbb7a9
 +  if (result.code !== 0) throw new AnchorSandboxError("anchor_container_remove_failed")
 +}
 +
-+async function removeSecret(input: {
-+  spec: Pick<AnchorSandboxSpec, "runID" | "wslDistro" | "supervisor">
-+  host: AnchorHost
-+  supervisor: AnchorSupervisor
-+  limits: AnchorLimits
-+  secret: string
-+  runner: CommandRunner
-+  environment: NodeJS.ProcessEnv
-+}) {
-+  const listed = await input.runner.run(
-+    buildPodmanCommand({
-+      host: input.host,
-+      distro: input.spec.wslDistro,
-+      supervisor: input.supervisor,
-+      operation: "manage",
-+      podmanArgs: ["secret", "ls", "--format", "{{.Name}}"],
-+      limits: input.limits,
-+    }),
-+    { env: input.environment, envMode: "replace", nothrow: true },
-+  )
-+  if (listed.code !== 0) throw new AnchorSandboxError("anchor_secret_list_failed")
-+  const secret = input.secret
-+  if (!listed.stdout.toString().split(/\r?\n/).includes(secret)) return
-+
-+  const removed = await input.runner.run(
-+    buildPodmanCommand({
-+      host: input.host,
-+      distro: input.spec.wslDistro,
-+      supervisor: input.supervisor,
-+      operation: "manage",
-+      podmanArgs: ["secret", "rm", secret],
-+      limits: input.limits,
-+    }),
-+    { env: input.environment, envMode: "replace", nothrow: true },
-+  )
-+  if (removed.code !== 0) throw new AnchorSandboxError("anchor_secret_remove_failed")
++interface RouteRelay {
++  directory: string
++  socket: string
++  unit?: string
++  child?: Child
 +}
 +
-+async function cleanupRuntimeResources(input: {
-+  spec: Pick<AnchorSandboxSpec, "runID" | "wslDistro" | "supervisor">
++function routeCommand(input: { host: AnchorHost; distro?: string; root?: boolean; command: string[] }) {
++  return buildHostExecCommand(input)
++}
++
++async function stopRouteRelay(
++  input: {
++    spec: Pick<AnchorSandboxSpec, "runID" | "wslDistro">
++    host: AnchorHost
++    runner: CommandRunner
++    environment: NodeJS.ProcessEnv
++  },
++  relay?: RouteRelay,
++) {
++  const directory = relay?.directory ?? resolveRouteDirectory(input.spec.runID, input.host, input.environment)
++  if (relay?.child && relay.child.exitCode === null && relay.child.signalCode === null) {
++    relay.child.kill("SIGTERM")
++    await relay.child.exited.catch(() => 1)
++  }
++  if (input.host === "windows-wsl") {
++    await input.runner.run(
++      routeCommand({
++        host: input.host,
++        distro: input.spec.wslDistro,
++        root: true,
++        command: ["systemctl", "stop", relay?.unit ?? routeUnitName(input.spec.runID)],
++      }),
++      { env: input.environment, envMode: "replace", nothrow: true },
++    )
++  }
++  const removed = await input.runner.run(
++    routeCommand({
++      host: input.host,
++      distro: input.spec.wslDistro,
++      root: input.host === "windows-wsl",
++      command: ["rm", "-rf", "--", directory],
++    }),
++    { env: input.environment, envMode: "replace", nothrow: true },
++  )
++  if (removed.code !== 0) throw new AnchorSandboxError("anchor_route_socket_remove_failed")
++}
++
++async function startRouteRelay(input: {
++  spec: AnchorSandboxSpec
 +  host: AnchorHost
-+  supervisor: AnchorSupervisor
-+  limits: AnchorLimits
-+  secret: string
 +  runner: CommandRunner
 +  environment: NodeJS.ProcessEnv
-+}) {
++  limits: AnchorLimits
++}): Promise<RouteRelay> {
++  const target = validateLocalRouteTarget(input.spec.routeHost, input.spec.routePort)
++  const directory = resolveRouteDirectory(input.spec.runID, input.host, input.environment)
++  const socket = path.posix.join(directory, "ccswitch.sock")
++  const unit = routeUnitName(input.spec.runID)
++  const prepared = await input.runner.run(
++    routeCommand({
++      host: input.host,
++      distro: input.spec.wslDistro,
++      root: input.host === "windows-wsl",
++      command: ["install", "-d", "-m", "700", directory],
++    }),
++    { env: input.environment, envMode: "replace", nothrow: true },
++  )
++  if (prepared.code !== 0) throw new AnchorSandboxError("anchor_route_socket_stage_failed")
++
++  let child: Child | undefined
++  if (input.host === "windows-wsl") {
++    const started = await input.runner.run(
++      routeCommand({
++        host: input.host,
++        distro: input.spec.wslDistro,
++        root: true,
++        command: [
++          "systemd-run",
++          "--quiet",
++          "--collect",
++          `--unit=${unit}`,
++          "-p",
++          `RuntimeMaxSec=${input.limits.timeout + 120}s`,
++          "--",
++          "python3",
++          "-c",
++          HOST_UNIX_ROUTE_RELAY,
++          socket,
++          target.host,
++          String(target.port),
++        ],
++      }),
++      { env: input.environment, envMode: "replace", nothrow: true },
++    )
++    if (started.code !== 0) throw new AnchorSandboxError("anchor_route_socket_start_failed")
++  } else {
++    if (!input.runner.spawn) throw new AnchorSandboxError("anchor_route_spawn_unavailable")
++    child = input.runner.spawn(["python3", "-c", HOST_UNIX_ROUTE_RELAY, socket, target.host, String(target.port)], {
++      env: input.environment,
++      envMode: "replace",
++    })
++  }
++
++  for (let attempt = 0; attempt < 50; attempt++) {
++    const ready = await input.runner.run(
++      routeCommand({
++        host: input.host,
++        distro: input.spec.wslDistro,
++        root: input.host === "windows-wsl",
++        command: ["test", "-S", socket],
++      }),
++      { env: input.environment, envMode: "replace", nothrow: true },
++    )
++    if (ready.code === 0) return { directory, socket, unit: input.host === "windows-wsl" ? unit : undefined, child }
++    if (child && child.exitCode !== null) break
++    await new Promise((resolve) => setTimeout(resolve, 20))
++  }
++  await stopRouteRelay(input, { directory, socket, unit, child })
++  throw new AnchorSandboxError("anchor_route_socket_start_failed")
++}
++
++export function runContainerRouteBridge(
++  socketPath: string = ANCHOR_ROUTE_SOCKET,
++  port: number = ANCHOR_ROUTE_PORT,
++): Promise<never> {
++  if (socketPath !== ANCHOR_ROUTE_SOCKET || port !== ANCHOR_ROUTE_PORT) {
++    throw new AnchorSandboxError("anchor_route_bridge_target_invalid")
++  }
++  return new Promise((_, reject) => {
++    const server = net.createServer((client) => {
++      const upstream = net.createConnection({ path: socketPath })
++      client.pipe(upstream)
++      upstream.pipe(client)
++      const close = () => {
++        client.destroy()
++        upstream.destroy()
++      }
++      client.once("error", close)
++      upstream.once("error", close)
++    })
++    server.once("error", reject)
++    server.listen({ host: ANCHOR_ROUTE_HOST, port, exclusive: true })
++  })
++}
++
++async function cleanupRuntimeResources(
++  input: {
++    spec: Pick<AnchorSandboxSpec, "runID" | "wslDistro" | "supervisor">
++    host: AnchorHost
++    supervisor: AnchorSupervisor
++    limits: AnchorLimits
++    runner: CommandRunner
++    environment: NodeJS.ProcessEnv
++  },
++  relay?: RouteRelay,
++) {
 +  const errors: unknown[] = []
 +  try {
 +    await removeContainer(input)
@@ -574,7 +738,7 @@ index 0000000..1fbb7a9
 +    errors.push(error)
 +  }
 +  try {
-+    await removeSecret(input)
++    await stopRouteRelay(input, relay)
 +  } catch (error) {
 +    errors.push(error)
 +  }
@@ -595,42 +759,24 @@ index 0000000..1fbb7a9
 +export async function runSandboxed(
 +  spec: AnchorSandboxSpec,
 +  opencodeArgs: string[],
-+  options: { runner?: CommandRunner; apiKey?: string; platform?: NodeJS.Platform } = {},
++  options: { runner?: CommandRunner; platform?: NodeJS.Platform } = {},
 +) {
 +  const runner = options.runner ?? systemRunner
-+  const apiKey = options.apiKey ?? process.env.KIMI_CODE_API_KEY
-+  if (!apiKey) throw new AnchorSandboxError("anchor_api_key_missing")
 +  const host = resolveAnchorHost(options.platform)
 +  const supervisor = resolveSupervisor(spec.supervisor, host)
 +  const rootful = host === "windows-wsl" && supervisor === "wsl-root-systemd"
 +  const environment = scrubHostEnvironment()
 +  const limits = resolveLimits(spec)
-+  const secret = secretName(spec.runID)
-+  const cleanup = { spec, host, supervisor, limits, secret, runner, environment }
++  const cleanup = { spec, host, supervisor, limits, runner, environment }
++  let relay: RouteRelay | undefined
 +  let operationFailed = false
 +  let operationError: unknown
 +  try {
 +    // A deterministic name allows recovery after a crash before starting a new task with this run id.
 +    await cleanupRuntimeResources(cleanup)
 +    const paths = await resolveContainerPaths({ spec, host, runner, environment })
-+    const variable = secretEnvironmentName(spec.runID)
 +    const image = resolveImage(spec)
-+    const created = await runner.run(
-+      buildPodmanCommand({
-+        host,
-+        distro: spec.wslDistro,
-+        supervisor,
-+        operation: "manage",
-+        podmanArgs: buildSecretCreateArgs(secret, variable),
-+        limits,
-+      }),
-+      {
-+        env: buildSecretEnvironment({ host, environment, variable, value: apiKey }),
-+        envMode: "replace",
-+        nothrow: true,
-+      },
-+    )
-+    if (created.code !== 0) throw new AnchorSandboxError("anchor_secret_create_failed")
++    relay = await startRouteRelay({ spec, host, runner, environment, limits })
 +    return await withHostTimeout(limits.timeout, (abort) =>
 +      runner.run(
 +        buildPodmanCommand({
@@ -644,7 +790,6 @@ index 0000000..1fbb7a9
 +            paths: paths.container,
 +            limits,
 +            rootful,
-+            secret,
 +            opencodeArgs,
 +          }),
 +          limits,
@@ -659,7 +804,7 @@ index 0000000..1fbb7a9
 +    throw error
 +  } finally {
 +    try {
-+      await cleanupRuntimeResources(cleanup)
++      await cleanupRuntimeResources(cleanup, relay)
 +    } catch (cleanupError) {
 +      if (operationFailed) {
 +        throw new AggregateError([operationError, cleanupError], "anchor_run_and_cleanup_failed")
@@ -680,6 +825,8 @@ index 0000000..1fbb7a9
 +  const rootful = host === "windows-wsl" && supervisor === "wsl-root-systemd"
 +  const environment = scrubHostEnvironment()
 +  const limits = resolveLimits(spec)
++  const cleanup = { spec, host, supervisor, limits, runner, environment }
++  await cleanupRuntimeResources(cleanup)
 +  const paths = await resolveContainerPaths({ spec, host, runner, environment })
 +  const image = resolveImage(spec)
 +  try {
@@ -705,7 +852,7 @@ index 0000000..1fbb7a9
 +      ),
 +    )
 +  } finally {
-+    await removeContainer({ spec, host, supervisor, limits, runner, environment })
++    await cleanupRuntimeResources(cleanup)
 +  }
 +}
 +
@@ -727,7 +874,6 @@ index 0000000..1fbb7a9
 +      host,
 +      supervisor,
 +      limits,
-+      secret: secretName(input.runID),
 +      runner,
 +      environment,
 +    })
@@ -744,16 +890,17 @@ index 0000000..1fbb7a9
 +}
 diff --git a/packages/opencode/src/cli/cmd/anchor.ts b/packages/opencode/src/cli/cmd/anchor.ts
 new file mode 100644
-index 0000000..3298531
+index 0000000000000000000000000000000000000000..a4985fe554ec3dad4c97d4487cf7c6e6ad304b4a
 --- /dev/null
 +++ b/packages/opencode/src/cli/cmd/anchor.ts
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,246 @@
 +import { Effect } from "effect"
 +import type { Argv } from "yargs"
 +import {
 +  AnchorSandboxError,
 +  cleanupSandboxed,
 +  exportSandboxed,
++  runContainerRouteBridge,
 +  runSandboxed,
 +  type AnchorSandboxSpec,
 +  type AnchorSupervisor,
@@ -772,6 +919,8 @@ index 0000000..3298531
 +  pids: number
 +  timeout: number
 +  supervisor: AnchorSupervisor
++  "route-host": string
++  "route-port": number
 +}
 +
 +interface CleanupArgs {
@@ -788,7 +937,7 @@ index 0000000..3298531
 +    .option("workspace", {
 +      type: "string",
 +      demandOption: true,
-+      describe: "absolute host workspace directory mounted as /workspace",
++      describe: "absolute host worktree mounted at canonical /testbed",
 +    })
 +    .option("config", {
 +      type: "string",
@@ -834,6 +983,16 @@ index 0000000..3298531
 +      default: DEFAULT_SUPERVISOR,
 +      describe: "execution supervisor (Windows defaults to root systemd-run; Linux defaults to direct)",
 +    })
++    .option("route-host", {
++      type: "string",
++      default: "127.0.0.1",
++      describe: "fixed private/loopback CC Switch target visible only to the supervisor",
++    })
++    .option("route-port", {
++      type: "number",
++      default: 18080,
++      describe: "fixed local CC Switch target port",
++    })
 +}
 +
 +function spec(args: SharedArgs): AnchorSandboxSpec {
@@ -848,6 +1007,8 @@ index 0000000..3298531
 +    pids: args.pids,
 +    timeout: args.timeout,
 +    supervisor: args.supervisor,
++    routeHost: args["route-host"],
++    routePort: args["route-port"],
 +  }
 +}
 +
@@ -886,7 +1047,7 @@ index 0000000..3298531
 +      const inner = [
 +        "run",
 +        "--dir",
-+        "/workspace",
++        "/testbed",
 +        "--format",
 +        args.format,
 +        "--model",
@@ -953,15 +1114,34 @@ index 0000000..3298531
 +  }),
 +})
 +
++export const AnchorRouteBridgeCommand = effectCmd({
++  command: "_route-bridge",
++  describe: "internal fixed loopback-to-supervisor Unix socket bridge",
++  instance: false,
++  builder: (yargs: Argv) => yargs.strict(),
++  handler: Effect.fn("Cli.anchor.route-bridge")(function* () {
++    try {
++      yield* Effect.promise(() => runContainerRouteBridge())
++    } catch (error) {
++      return yield* fail(domainError(error))
++    }
++  }),
++})
++
 +export const AnchorCommand = cmd({
 +  command: "anchor",
 +  describe: "run Anchor distillation tasks through WSL Podman sandboxes",
 +  builder: (yargs) =>
-+    yargs.command(AnchorRunCommand).command(AnchorExportCommand).command(AnchorCleanupCommand).demandCommand(),
++    yargs
++      .command(AnchorRunCommand)
++      .command(AnchorExportCommand)
++      .command(AnchorCleanupCommand)
++      .command(AnchorRouteBridgeCommand)
++      .demandCommand(),
 +  async handler() {},
 +})
 diff --git a/packages/opencode/src/index.ts b/packages/opencode/src/index.ts
-index 13540a7..0ad5270 100644
+index 13540a73a36fcb27f591011d9147c60073055b45..0ad52704620487cfa8a57904522bce4b7c534b70 100644
 --- a/packages/opencode/src/index.ts
 +++ b/packages/opencode/src/index.ts
 @@ -25,6 +25,7 @@ import { EOL } from "os"
@@ -981,14 +1161,14 @@ index 13540a7..0ad5270 100644
    .command(DbCommand)
    .fail((msg, err) => {
 diff --git a/packages/opencode/src/session/prompt.ts b/packages/opencode/src/session/prompt.ts
-index eb116f6..83d9a88 100644
+index eb116f6b960f6da4115ffb262695af6162ac2045..927011a260071c92b03dc57a7e915825a37a81b2 100644
 --- a/packages/opencode/src/session/prompt.ts
 +++ b/packages/opencode/src/session/prompt.ts
 @@ -81,6 +81,18 @@ IMPORTANT:
  
  const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
  
-+const INITIAL_TOOL_CONTRACT = "anchor.execution-tool-contract.v2" as const
++const INITIAL_TOOL_CONTRACT = "anchor.execution-tool-contract.v3" as const
 +export const INITIAL_TOOL_LOCAL_ALLOWLIST = new Set([
 +  "read",
 +  "edit",
@@ -1014,14 +1194,20 @@ index eb116f6..83d9a88 100644
          model: {
            providerID: model.providerID,
            modelID: model.modelID,
-@@ -1107,12 +1123,42 @@ const layer = Layer.effect(
+@@ -1107,13 +1123,40 @@ const layer = Layer.effect(
              lastAssistantMsg?.parts.some(
                (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
              ) ?? false
+-
+-          if (
+-            lastAssistant?.finish &&
+-            !["tool-calls"].includes(lastAssistant.finish) &&
+-            !hasToolCalls &&
 +          const terminalAssistant =
 +            lastAssistant?.finish !== undefined &&
 +            lastAssistant.finish !== "tool-calls" &&
-+            lastUser.id < lastAssistant.id
+             lastUser.id < lastAssistant.id
+-          ) {
 +
 +          if (lastAssistant && terminalAssistant && lastUser.initialToolCall?.required === true) {
 +            const durableEligibleTools = new Set(lastUser.initialToolCall.eligibleTools ?? [])
@@ -1050,18 +1236,12 @@ index eb116f6..83d9a88 100644
 +              break
 +            }
 +          }
- 
-           if (
--            lastAssistant?.finish &&
--            !["tool-calls"].includes(lastAssistant.finish) &&
--            !hasToolCalls &&
--            lastUser.id < lastAssistant.id
-+            terminalAssistant &&
-+            !hasToolCalls
-           ) {
++
++          if (terminalAssistant && !hasToolCalls) {
              const orphan = lastAssistantMsg?.parts.find(
                (part): part is SessionV1.ToolPart => part.type === "tool" && isOrphanedInterruptedTool(part),
-@@ -1139,7 +1185,65 @@ const layer = Layer.effect(
+             )
+@@ -1139,7 +1182,65 @@ const layer = Layer.effect(
              }).pipe(Effect.ignore, Effect.forkIn(scope))
  
            const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
@@ -1127,7 +1307,7 @@ index eb116f6..83d9a88 100644
  
            if (task?.type === "subtask") {
              yield* handleSubtask({ task, model, lastUser, sessionID, session, msgs })
-@@ -1163,41 +1267,25 @@ const layer = Layer.effect(
+@@ -1163,41 +1264,25 @@ const layer = Layer.effect(
              lastFinished.summary !== true &&
              (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
            ) {
@@ -1179,7 +1359,7 @@ index eb116f6..83d9a88 100644
            yield* sessions.updateMessage(msg)
  
            const finalizeInterruptedAssistant = Effect.gen(function* () {
-@@ -1248,6 +1336,57 @@ const layer = Layer.effect(
+@@ -1248,6 +1333,54 @@ const layer = Layer.effect(
                  },
                })
              }
@@ -1230,14 +1410,11 @@ index eb116f6..83d9a88 100644
 +              )
 +              return "break" as const
 +            }
-+            const requestTools =
-+              initialToolEnabled && isLastStep
-+                ? {}
-+                : eligibleTools
++            const requestTools = initialToolEnabled && isLastStep ? {} : eligibleTools
  
              if (step === 1)
                yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
-@@ -1267,7 +1406,6 @@ const layer = Layer.effect(
+@@ -1267,7 +1400,6 @@ const layer = Layer.effect(
                ...(mcpInstructions ? [mcpInstructions] : []),
                ...(skills ? [skills] : []),
              ]
@@ -1245,7 +1422,7 @@ index eb116f6..83d9a88 100644
              if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
              const result = yield* handle.process({
                user: lastUser,
-@@ -1280,11 +1418,35 @@ const layer = Layer.effect(
+@@ -1280,11 +1412,35 @@ const layer = Layer.effect(
                  ...modelMsgs,
                  ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
                ],
@@ -1283,7 +1460,7 @@ index eb116f6..83d9a88 100644
              if (structured !== undefined) {
                handle.message.structured = structured
                handle.message.finish = handle.message.finish ?? "stop"
-@@ -1318,6 +1480,14 @@ const layer = Layer.effect(
+@@ -1318,6 +1474,14 @@ const layer = Layer.effect(
  
              if (result === "stop") return "break" as const
              if (result === "compact") {
@@ -1298,7 +1475,7 @@ index eb116f6..83d9a88 100644
                yield* compaction.create({
                  sessionID,
                  agent: lastUser.agent,
-@@ -1496,6 +1666,39 @@ const ModelRef = Schema.Struct({
+@@ -1496,6 +1660,39 @@ const ModelRef = Schema.Struct({
    modelID: ModelV2.ID,
  })
  
@@ -1339,7 +1516,7 @@ index eb116f6..83d9a88 100644
    sessionID: SessionID,
    messageID: Schema.optional(MessageID),
 diff --git a/packages/opencode/src/util/process.ts b/packages/opencode/src/util/process.ts
-index 173210f..2b52ee7 100644
+index 173210f23c95d3f4ecb0302ea4128785a9e0a505..2b52ee780a712ce215fcbc5c5dc7534c4b52ad82 100644
 --- a/packages/opencode/src/util/process.ts
 +++ b/packages/opencode/src/util/process.ts
 @@ -6,10 +6,13 @@ import { errorMessage } from "./error"
@@ -1374,7 +1551,7 @@ index 173210f..2b52ee7 100644
      shell: opts.shell,
      abort: opts.abort,
 diff --git a/packages/opencode/test/agent/agent.test.ts b/packages/opencode/test/agent/agent.test.ts
-index efeaf40..cfda80a 100644
+index efeaf408a259bb192c62135bdb4ec4ee5ff361fb..cfda80a873fa5496ab9104605e4f977203ae6ace 100644
 --- a/packages/opencode/test/agent/agent.test.ts
 +++ b/packages/opencode/test/agent/agent.test.ts
 @@ -69,6 +69,32 @@ it.instance("build agent has correct default properties", () =>
@@ -1412,36 +1589,39 @@ index efeaf40..cfda80a 100644
      const plan = yield* load((svc) => svc.get("plan"))
 diff --git a/packages/opencode/test/anchor/sandbox.test.ts b/packages/opencode/test/anchor/sandbox.test.ts
 new file mode 100644
-index 0000000..472e6d6
+index 0000000000000000000000000000000000000000..f6ea62030d61e2a341de33bb35b4d7b9f31cca9a
 --- /dev/null
 +++ b/packages/opencode/test/anchor/sandbox.test.ts
-@@ -0,0 +1,487 @@
+@@ -0,0 +1,225 @@
 +import { expect, test } from "bun:test"
 +import { mkdtemp, rm } from "node:fs/promises"
 +import { tmpdir } from "node:os"
 +import path from "node:path"
-+import type { Result, RunOptions } from "@/util/process"
 +import {
++  ANCHOR_ROUTE_CLIENT_TOKEN,
++  ANCHOR_ROUTE_PORT,
++  ANCHOR_ROUTE_SOCKET,
++  ANCHOR_TOOL_CONTRACT,
 +  AnchorSandboxError,
 +  buildContainerExportArgs,
 +  buildContainerRunArgs,
-+  buildPodmanCommand,
-+  buildSecretCreateArgs,
-+  buildSecretEnvironment,
 +  cleanupSandboxed,
 +  containerName,
 +  exportSandboxed,
 +  resolveAnchorHost,
 +  resolveLimits,
++  resolveRouteDirectory,
 +  resolveSandboxPaths,
 +  resolveSupervisor,
++  routeUnitName,
++  runContainerRouteBridge,
 +  runSandboxed,
 +  scrubHostEnvironment,
-+  secretEnvironmentName,
-+  secretName,
++  validateLocalRouteTarget,
 +  validateRunID,
 +  type CommandRunner,
 +} from "@/anchor/sandbox"
++import type { Result, RunOptions } from "@/util/process"
 +
 +function result(code = 0, stdout = "", stderr = ""): Result {
 +  return { code, stdout: Buffer.from(stdout), stderr: Buffer.from(stderr) }
@@ -1450,461 +1630,196 @@ index 0000000..472e6d6
 +class FakeRunner implements CommandRunner {
 +  readonly commands: string[][] = []
 +  readonly options: (RunOptions | undefined)[] = []
-+  private readonly secrets = new Set<string>()
 +
 +  async run(command: string[], options?: RunOptions): Promise<Result> {
 +    this.commands.push(command)
 +    this.options.push(options)
-+    const podman = command.indexOf("podman")
-+    const podmanArgs = podman === -1 ? [] : command.slice(podman + 1)
-+    if (podmanArgs[0] === "secret" && podmanArgs[1] === "create") {
-+      this.secrets.add(podmanArgs.at(-2)!)
-+      return result()
-+    }
-+    if (podmanArgs[0] === "secret" && podmanArgs[1] === "ls") {
-+      return result(0, [...this.secrets].join("\n") + (this.secrets.size ? "\n" : ""))
-+    }
-+    if (podmanArgs[0] === "secret" && podmanArgs[1] === "rm") {
-+      this.secrets.delete(podmanArgs[2])
-+      return result()
-+    }
 +    if (command.includes("wslpath")) return result(0, "/mnt/c/anchor-path\n")
-+    if (command.includes("export")) return result(0, '{"info":{"id":"ses_anchor"}}\n')
-+    if (command.includes("run")) return result(0, '{"type":"step_start","sessionID":"ses_anchor"}\n')
++    if (command.includes("test") && command.includes("-S")) return result()
++    const podman = command.indexOf("podman")
++    const args = podman === -1 ? [] : command.slice(podman + 1)
++    if (args[0] === "run" && args.includes("export")) return result(0, '{"info":{"id":"ses_anchor"}}\n')
++    if (args[0] === "run") return result(0, '{"type":"step_start","sessionID":"ses_anchor"}\n')
 +    return result()
 +  }
 +}
 +
-+class ContainerCleanupRejectingRunner extends FakeRunner {
-+  private containerRemovals = 0
-+
-+  override async run(command: string[], options?: RunOptions): Promise<Result> {
-+    const podman = command.indexOf("podman")
-+    const podmanArgs = podman === -1 ? [] : command.slice(podman + 1)
-+    if (podmanArgs[0] === "rm" && podmanArgs.includes(containerName("task-cleanup-reject"))) {
-+      this.containerRemovals += 1
-+      if (this.containerRemovals === 2) {
-+        this.commands.push(command)
-+        this.options.push(options)
-+        throw new Error("container cleanup spawn rejected")
-+      }
-+    }
-+    return super.run(command, options)
-+  }
++const limits = { memory: "4G", cpus: 2, pids: 256, timeout: 900 }
++const paths = {
++  workspace: "/var/lib/anchor/tasks/task-01/testbed",
++  config: "/var/lib/anchor/tasks/task-01/opencode.json",
++  state: "/var/lib/anchor/tasks/task-01/state",
++  route: "/run/anchor-opencode/task-01",
++  linuxExecutable: "/var/lib/anchor/bin/opencode",
 +}
 +
-+class StaleSecretRunner extends FakeRunner {
-+  override async run(command: string[], options?: RunOptions): Promise<Result> {
-+    const podman = command.indexOf("podman")
-+    const podmanArgs = podman === -1 ? [] : command.slice(podman + 1)
-+    if (podmanArgs[0] === "secret" && podmanArgs[1] === "ls") {
-+      this.commands.push(command)
-+      this.options.push(options)
-+      return result(0, `${secretName("task-stale")}\n`)
-+    }
-+    return super.run(command, options)
-+  }
-+}
-+
-+class SecretRemovalFailingRunner extends FakeRunner {
-+  override async run(command: string[], options?: RunOptions): Promise<Result> {
-+    const podman = command.indexOf("podman")
-+    const podmanArgs = podman === -1 ? [] : command.slice(podman + 1)
-+    if (podmanArgs[0] === "secret" && podmanArgs[1] === "rm") {
-+      this.commands.push(command)
-+      this.options.push(options)
-+      return result(7, "", "secret removal failed")
-+    }
-+    return super.run(command, options)
-+  }
-+}
-+
-+test("validates run ids and contains config and state under one workspace", () => {
++test("publishes the formal v3 tool contract and canonical testbed", () => {
++  expect(ANCHOR_TOOL_CONTRACT).toBe("anchor.execution-tool-contract.v3")
 +  expect(validateRunID("task_01-ok")).toBe("task_01-ok")
-+  expect(() => validateRunID("../escape")).toThrow(AnchorSandboxError)
-+  expect(() => validateRunID("a/../../b")).toThrow("anchor_run_id_invalid")
-+
++  expect(() => validateRunID("../escape")).toThrow("anchor_run_id_invalid")
 +  const workspace = path.resolve("workspace")
-+  const paths = resolveSandboxPaths({
-+    workspace,
-+    config: path.join(workspace, ".anchor", "opencode.json"),
-+    runID: "task_01-ok",
-+  })
-+  expect(paths.state).toBe(path.join(paths.workspace, ".anchor", "sandbox", "task_01-ok"))
-+  expect(() =>
-+    resolveSandboxPaths({
-+      workspace: "relative-workspace",
-+      config: path.resolve("config.json"),
-+      runID: "task_01-ok",
-+    }),
-+  ).toThrow("anchor_workspace_not_absolute")
++  const resolved = resolveSandboxPaths({ workspace, config: path.join(workspace, "opencode.json"), runID: "task-01" })
++  expect(resolved.workspace).toBe(workspace)
 +})
 +
-+test("selects the appropriate host and supervisor without excluding Linux", () => {
++test("selects Windows WSL or native Linux supervisors", () => {
 +  expect(resolveAnchorHost("win32")).toBe("windows-wsl")
 +  expect(resolveAnchorHost("linux")).toBe("linux")
 +  expect(resolveSupervisor(undefined, "windows-wsl")).toBe("wsl-root-systemd")
 +  expect(resolveSupervisor(undefined, "linux")).toBe("direct")
 +  expect(() => resolveSupervisor("wsl-root-systemd", "linux")).toThrow("anchor_supervisor_host_mismatch")
++  expect(resolveLimits({})).toEqual(limits)
 +})
 +
-+test("uses the one-task resource defaults and rejects non-positive limits", () => {
-+  expect(resolveLimits({})).toEqual({ memory: "4G", cpus: 2, pids: 256, timeout: 900 })
-+  expect(() => resolveLimits({ pids: 0 })).toThrow("anchor_pids_invalid")
-+  expect(() => resolveLimits({ cpus: 0 })).toThrow("anchor_cpus_invalid")
-+  expect(() => resolveLimits({ timeout: 1.5 })).toThrow("anchor_timeout_invalid")
++test("accepts only a fixed private or loopback CC Switch target", () => {
++  expect(validateLocalRouteTarget("127.0.0.1", 18080)).toEqual({ host: "127.0.0.1", port: 18080 })
++  expect(validateLocalRouteTarget("172.20.0.1", 18081)).toEqual({ host: "172.20.0.1", port: 18081 })
++  expect(() => validateLocalRouteTarget("1.1.1.1", 443)).toThrow("anchor_route_host_not_local")
++  expect(() => validateLocalRouteTarget("169.254.169.254", 80)).toThrow("anchor_route_host_not_local")
++  expect(() => validateLocalRouteTarget("127.0.0.1", 0)).toThrow("anchor_route_port_invalid")
 +})
 +
-+test("scrubs sensitive variables case-insensitively and removes inherited WSLENV", () => {
++test("scrubs inherited credentials before supervisor or container launch", () => {
 +  const environment = scrubHostEnvironment({
 +    Path: "kept",
-+    kimi_code_api_key: "must-not-reach-podman",
-+    OpEnCoDe_CoNfIg_CoNtEnT: "must-not-reach-podman",
-+    wSlEnV: "OTHER_SECRET/u",
++    KIMI_CODE_API_KEY: "drop",
++    ARK_CODING_API_KEY: "drop",
++    providerToken: "drop",
++    DATABASE_PASSWORD: "drop",
++    WSLENV: "drop/u",
 +  })
-+  expect(environment.Path).toBe("kept")
-+  expect(Object.keys(environment).map((key) => key.toUpperCase())).not.toContain("KIMI_CODE_API_KEY")
-+  expect(Object.keys(environment).map((key) => key.toUpperCase())).not.toContain("OPENCODE_CONFIG_CONTENT")
-+  expect(Object.keys(environment).map((key) => key.toUpperCase())).not.toContain("WSLENV")
++  expect(environment).toEqual({ Path: "kept" })
 +})
 +
-+test("creates a short-lived secret environment without placing its value in Podman argv", () => {
-+  const variable = secretEnvironmentName("task-05", "a0a0a0a0-a0a0-a0a0-a0a0-a0a0a0a0a0a0")
-+  const windows = buildSecretEnvironment({
-+    host: "windows-wsl",
-+    environment: { WSLENV: "EXISTING/p:OTHER/u" },
-+    variable,
-+    value: "sensitive-api-key",
-+  })
-+  const linux = buildSecretEnvironment({
-+    host: "linux",
-+    environment: { WSLENV: "EXISTING/p" },
-+    variable,
-+    value: "sensitive-api-key",
-+  })
-+  const args = buildSecretCreateArgs("anchor-key-task-05", variable)
-+
-+  expect(windows[variable]).toBe("sensitive-api-key")
-+  expect(windows.WSLENV).toBe(`${variable}/u`)
-+  expect(linux[variable]).toBe("sensitive-api-key")
-+  expect(linux.WSLENV).toBe("EXISTING/p")
-+  expect(args).toEqual(["secret", "create", "--env=true", "anchor-key-task-05", variable])
-+  expect(args.join("\n")).not.toContain("sensitive-api-key")
-+  expect(args).not.toContain("-")
++test("uses a supervisor-private deterministic Unix socket directory", () => {
++  expect(resolveRouteDirectory("task-01", "windows-wsl")).toBe("/run/anchor-opencode/task-01")
++  expect(resolveRouteDirectory("task-01", "linux", { XDG_RUNTIME_DIR: "/run/user/1000" })).toBe(
++    "/run/user/1000/anchor-opencode/task-01",
++  )
++  expect(routeUnitName("task-01")).toBe("anchor-route-task-01")
 +})
 +
-+test("constructs a socket-free, argv-safe one-workspace run container", () => {
++test("constructs a network-none canonical /testbed model container with only the route socket", () => {
 +  const args = buildContainerRunArgs({
-+    image: "registry.example/anchor@sha256:abc",
++    image: "registry.example/instance@sha256:abc",
 +    runID: "task-01",
-+    paths: {
-+      workspace: "/mnt/c/workspace",
-+      config: "/mnt/c/workspace/.anchor/opencode.json",
-+      state: "/mnt/c/workspace/.anchor/sandbox/task-01",
-+      linuxExecutable: "/mnt/c/binaries/opencode-linux-x64",
-+    },
-+    limits: { memory: "4G", cpus: 2, pids: 256, timeout: 900 },
-+    rootful: false,
-+    secret: "anchor-key-task-01-nonce",
-+    opencodeArgs: ["run", "--format", "json", "safe prompt"],
++    paths,
++    limits,
++    rootful: true,
++    opencodeArgs: ["run", "--dir", "/testbed", "prompt"],
 +  })
 +  const rendered = args.join("\n")
-+
-+  expect(args).toContain("--userns=keep-id")
-+  expect(args).toContain("--cap-drop=ALL")
-+  expect(args).toContain("--security-opt=no-new-privileges")
-+  expect(args).toContain("--read-only")
-+  expect(args).toContain("--memory")
-+  expect(args).toContain("4G")
-+  expect(args).toContain("--pids-limit")
-+  expect(args).toContain("--entrypoint")
-+  expect(args.filter((value) => value.includes("dst=/workspace")).length).toBe(1)
-+  expect(rendered).not.toContain("podman.sock")
-+  expect(rendered).not.toContain("docker.sock")
-+  expect(rendered).not.toContain("CONTAINER_HOST")
-+  expect(rendered).not.toContain("sensitive-api-key")
-+  expect(rendered).toContain("source=anchor-key-task-01-nonce,target=anchor_api_key")
-+  expect(rendered).toContain("HOME=/anchor/state/home")
-+  expect(rendered).toContain("dst=/anchor/bin/opencode,ro")
-+  const shell = args.indexOf("-c")
-+  expect(args.slice(shell, shell + 5)).toEqual([
-+    "-c",
-+    'export KIMI_CODE_API_KEY="$(cat \"$1\")"; shift; exec "$@"',
-+    "anchor-entrypoint",
-+    "/run/secrets/anchor_api_key",
-+    "/anchor/bin/opencode",
-+  ])
-+})
-+
-+test("keeps export in the same sandbox state without providing a provider secret", () => {
-+  const args = buildContainerExportArgs({
-+    image: "registry.example/anchor@sha256:abc",
-+    runID: "task-02",
-+    paths: {
-+      workspace: "/mnt/c/workspace",
-+      config: "/mnt/c/workspace/.anchor/opencode.json",
-+      state: "/mnt/c/workspace/.anchor/sandbox/task-02",
-+    },
-+    limits: { memory: "4G", cpus: 2, pids: 256, timeout: 900 },
-+    rootful: false,
-+    sessionID: "ses_anchor",
-+  })
-+  expect(args).toContain("export")
-+  expect(args).toContain("ses_anchor")
 +  expect(args).toContain("none")
-+  expect(args).toContain("type=bind,src=/mnt/c/workspace/.anchor/sandbox/task-02,dst=/anchor/state,rw")
-+  expect(args).not.toContain("--secret")
++  expect(args).not.toContain("slirp4netns")
++  expect(rendered).toContain("dst=/testbed,rw")
++  expect(rendered).not.toContain("dst=/workspace")
++  expect(rendered).toContain("dst=/run/anchor-route,ro")
++  expect(rendered).toContain(`ANCHOR_LOCAL_ROUTE_CLIENT_TOKEN=${ANCHOR_ROUTE_CLIENT_TOKEN}`)
++  expect(rendered).not.toContain("--secret")
++  expect(rendered).not.toContain("KIMI_CODE_API_KEY")
++  expect(rendered).toContain("anchor _route-bridge")
++  expect(rendered).toContain("--cgroups=disabled")
 +})
 +
-+test("uses a root systemd service on WSL while secret management stays in the same rootful Podman store", () => {
-+  const limits = { memory: "4G", cpus: 2, pids: 256, timeout: 900 }
-+  expect(
-+    buildPodmanCommand({
-+      host: "windows-wsl",
-+      distro: "Ubuntu-22.04",
-+      supervisor: "wsl-root-systemd",
-+      operation: "run",
-+      podmanArgs: ["run", "--cgroups=disabled"],
-+      limits,
-+      unit: "anchor-task-unit",
-+    }).join(" "),
-+  ).toBe(
-+    "wsl.exe --distribution Ubuntu-22.04 --user root --exec systemd-run --quiet --wait --collect --pipe --unit=anchor-task-unit -p MemoryMax=4G -p CPUQuota=200% -p TasksMax=256 -p RuntimeMaxSec=900s -- podman run --cgroups=disabled",
-+  )
-+  const management = buildPodmanCommand({
-+    host: "windows-wsl",
-+    distro: "Ubuntu-22.04",
-+    supervisor: "wsl-root-systemd",
-+    operation: "manage",
-+    podmanArgs: ["secret", "rm", "anchor-key"],
-+    limits,
-+  })
-+  expect(management.join(" ")).toBe("wsl.exe --distribution Ubuntu-22.04 --user root --exec podman secret rm anchor-key")
-+  expect(management).not.toContain("systemd-run")
-+})
-+
-+test("keeps Linux on direct rootless Podman and makes WSL rootful runs cgroup-independent", () => {
-+  const limits = { memory: "4G", cpus: 2, pids: 256, timeout: 900 }
-+  expect(
-+    buildPodmanCommand({
-+      host: "linux",
-+      supervisor: "direct",
-+      operation: "run",
-+      podmanArgs: ["info"],
-+      limits,
-+    }),
-+  ).toEqual(["podman", "info"])
-+
-+  const rootful = buildContainerRunArgs({
-+    image: "registry.example/anchor@sha256:abc",
-+    runID: "task-rootful",
-+    paths: {
-+      workspace: "/mnt/c/workspace",
-+      config: "/mnt/c/workspace/.anchor/opencode.json",
-+      state: "/mnt/c/workspace/.anchor/sandbox/task-rootful",
-+    },
-+    limits,
-+    rootful: true,
-+    secret: "anchor-key-task-rootful",
-+    opencodeArgs: ["run", "prompt"],
-+  })
-+  expect(rootful).toContain("--cgroups=disabled")
-+  expect(rootful).not.toContain("--userns=keep-id")
-+  expect(rootful).not.toContain("--memory")
-+  expect(rootful).toContain("slirp4netns")
-+  expect(rootful).toContain("/tmp:rw,noexec,nosuid,size=256m")
-+
-+  const rootfulExport = buildContainerExportArgs({
-+    image: "registry.example/anchor@sha256:abc",
-+    runID: "task-rootful-export",
-+    paths: {
-+      workspace: "/mnt/c/workspace",
-+      config: "/mnt/c/workspace/.anchor/opencode.json",
-+      state: "/mnt/c/workspace/.anchor/sandbox/task-rootful-export",
-+    },
++test("constructs a fresh network-none export boundary without route socket or route token", () => {
++  const args = buildContainerExportArgs({
++    image: "registry.example/instance@sha256:abc",
++    runID: "task-01",
++    paths,
 +    limits,
 +    rootful: true,
 +    sessionID: "ses_anchor",
 +  })
-+  expect(rootfulExport.filter((value) => value === "--network")).toHaveLength(1)
-+  expect(rootfulExport).toContain("none")
-+  expect(rootfulExport).not.toContain("slirp4netns")
++  const rendered = args.join("\n")
++  expect(args.filter((item) => item === "--network")).toHaveLength(1)
++  expect(args).toContain("none")
++  expect(rendered).not.toContain("/run/anchor-route")
++  expect(rendered).not.toContain("ANCHOR_LOCAL_ROUTE_CLIENT_TOKEN")
++  expect(rendered).not.toContain("_route-bridge")
 +})
 +
-+test("creates the provider secret from a short-lived environment and removes it after a single run", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-"))
++test("the in-container bridge target is immutable", () => {
++  expect(ANCHOR_ROUTE_SOCKET).toBe("/run/anchor-route/ccswitch.sock")
++  expect(ANCHOR_ROUTE_PORT).toBe(18080)
++  expect(() => runContainerRouteBridge("/tmp/attacker.sock", 18080)).toThrow("anchor_route_bridge_target_invalid")
++  expect(() => runContainerRouteBridge(ANCHOR_ROUTE_SOCKET, 8080)).toThrow("anchor_route_bridge_target_invalid")
++})
++
++test("formal run starts a fixed-filter relay and destroys container, unit, and socket directory", async () => {
++  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-v3-"))
 +  const runner = new FakeRunner()
 +  try {
 +    const response = await runSandboxed(
 +      {
 +        workspace,
-+        config: path.join(workspace, ".anchor", "opencode.json"),
-+        runID: "task-03",
-+        wslDistro: "Ubuntu",
-+        image: "registry.example/anchor@sha256:abc",
++        config: path.join(workspace, "opencode.json"),
++        runID: "task-formal",
++        wslDistro: "Ubuntu-22.04",
++        linuxExecutable: path.join(workspace, "opencode"),
++        image: "registry.example/instance@sha256:abc",
++        routeHost: "172.20.0.1",
++        routePort: 18080,
 +      },
-+      ["run", "--format", "json", "prompt"],
-+      { runner, apiKey: "sensitive-api-key", platform: "win32" },
++      ["run", "--dir", "/testbed", "prompt"],
++      { runner, platform: "win32" },
 +    )
-+
-+    expect(response.stdout.toString()).toContain("ses_anchor")
-+    const rendered = runner.commands.flat().join("\n")
-+    expect(rendered).not.toContain("sensitive-api-key")
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("create"))).toBe(true)
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("rm"))).toBe(true)
-+    expect(runner.commands.some((command) => command.includes("rm") && command.includes(containerName("task-03")))).toBe(
-+      true,
-+    )
-+    const createIndex = runner.commands.findIndex((command) => command.includes("secret") && command.includes("create"))
-+    const createCommand = runner.commands[createIndex]
-+    const createEnvironment = runner.options[createIndex]?.env
-+    const variable = createCommand.at(-1)
-+    expect(createCommand).toContain("--env=true")
-+    expect(variable).toStartWith("ANCHOR_SECRET_TASK_03_")
-+    expect(createEnvironment?.[variable!]).toBe("sensitive-api-key")
-+    expect(createEnvironment?.KIMI_CODE_API_KEY).toBeUndefined()
-+    expect(createEnvironment?.WSLENV).toBe(`${variable}/u`)
-+    expect(runner.commands[createIndex]).toContain("root")
-+    expect(runner.commands[createIndex]).not.toContain("systemd-run")
-+    const runCommand = runner.commands.find((command) => command.includes("podman") && command.includes("run"))
-+    const runIndex = runner.commands.findIndex((command) => command === runCommand)
-+    expect(runCommand).toContain("systemd-run")
-+    expect(runCommand).toContain("--cgroups=disabled")
-+    expect(runCommand).not.toContain("--userns=keep-id")
-+    expect(runner.options[runIndex]?.env?.[variable!]).toBeUndefined()
-+    expect(runner.options[runIndex]?.env?.WSLENV).toBeUndefined()
++    expect(response.code).toBe(0)
++    const relay = runner.commands.find((command) => command.includes("systemd-run") && command.includes("python3"))
++    expect(relay).toBeDefined()
++    const relaySource = relay?.[relay.indexOf("-c") + 1] ?? ""
++    expect(relaySource).toContain("parts[0].upper()==b'CONNECT'")
++    expect(relaySource).toContain("hosts != [b'127.0.0.1:18080']")
++    expect(relaySource).toContain("target.split(b'?',1)[0] not in allowed")
++    expect(relay).toContain("172.20.0.1")
++    const model = runner.commands.find((command) => command.includes("podman") && command.includes("run"))
++    expect(model).toContain("none")
++    expect(model).not.toContain("slirp4netns")
++    expect(
++      runner.commands.some((command) => command.includes("rm") && command.includes(containerName("task-formal"))),
++    ).toBe(true)
++    expect(runner.commands.some((command) => command.includes("systemctl") && command.includes("stop"))).toBe(true)
++    expect(
++      runner.commands.some((command) => command.includes("rm") && command.includes("/run/anchor-opencode/task-formal")),
++    ).toBe(true)
 +    expect(runner.options.every((option) => option?.envMode === "replace")).toBe(true)
 +  } finally {
-+    await cleanupSandboxed({ workspace, runID: "task-03", wslDistro: "Ubuntu" }, { runner })
++    await cleanupSandboxed(
++      { workspace, runID: "task-formal", wslDistro: "Ubuntu-22.04" },
++      { runner, platform: "win32" },
++    )
 +    await rm(workspace, { recursive: true, force: true })
 +  }
 +})
 +
-+test("exports through Podman and does not create a provider secret", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-"))
++test("fresh export performs stale model/socket cleanup before offline launch", async () => {
++  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-v3-export-"))
 +  const runner = new FakeRunner()
 +  try {
 +    const response = await exportSandboxed(
 +      {
 +        workspace,
-+        config: path.join(workspace, ".anchor", "opencode.json"),
-+        runID: "task-04",
-+        wslDistro: "Ubuntu",
-+        image: "registry.example/anchor@sha256:abc",
++        config: path.join(workspace, "opencode.json"),
++        runID: "task-export",
++        wslDistro: "Ubuntu-22.04",
++        image: "registry.example/instance@sha256:abc",
 +      },
 +      "ses_anchor",
 +      { runner, platform: "win32" },
 +    )
-+    expect(response.stdout.toString()).toContain("ses_anchor")
-+    expect(runner.commands.some((command) => command.includes("export") && command.includes("ses_anchor"))).toBe(true)
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("create"))).toBe(false)
-+    expect(runner.commands.some((command) => command.includes("systemd-run"))).toBe(true)
-+  } finally {
-+    await cleanupSandboxed({ workspace, runID: "task-04", wslDistro: "Ubuntu" }, { runner })
-+    await rm(workspace, { recursive: true, force: true })
-+  }
-+})
-+
-+test("runs on Linux without WSL path conversion or a systemd wrapper", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-linux-"))
-+  const runner = new FakeRunner()
-+  try {
-+    const response = await runSandboxed(
-+      {
-+        workspace,
-+        config: path.join(workspace, ".anchor", "opencode.json"),
-+        runID: "task-linux",
-+        image: "registry.example/anchor@sha256:abc",
-+      },
-+      ["run", "--format", "json", "prompt"],
-+      { runner, apiKey: "sensitive-api-key", platform: "linux" },
-+    )
-+    expect(response.stdout.toString()).toContain("ses_anchor")
-+    expect(runner.commands.some((command) => command.includes("wsl.exe"))).toBe(false)
-+    expect(runner.commands.some((command) => command.includes("wslpath"))).toBe(false)
-+    expect(runner.commands.some((command) => command.includes("systemd-run"))).toBe(false)
-+    expect(runner.commands.some((command) => command[0] === "podman" && command.includes("--userns=keep-id"))).toBe(true)
-+    const createIndex = runner.commands.findIndex((command) => command.includes("secret") && command.includes("create"))
-+    const variable = runner.commands[createIndex].at(-1)
-+    expect(runner.options[createIndex]?.env?.[variable!]).toBe("sensitive-api-key")
-+    expect(runner.options[createIndex]?.env?.WSLENV).toBeUndefined()
-+  } finally {
-+    await cleanupSandboxed({ workspace, runID: "task-linux" }, { runner, platform: "linux" })
-+    await rm(workspace, { recursive: true, force: true })
-+  }
-+})
-+
-+test("attempts secret cleanup even when container cleanup rejects", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-cleanup-"))
-+  const runner = new ContainerCleanupRejectingRunner()
-+  try {
-+    const error = await runSandboxed(
-+      {
-+        workspace,
-+        config: path.join(workspace, ".anchor", "opencode.json"),
-+        runID: "task-cleanup-reject",
-+        wslDistro: "Ubuntu",
-+        image: "registry.example/anchor@sha256:abc",
-+      },
-+      ["run", "prompt"],
-+      { runner, apiKey: "sensitive-api-key" },
-+    ).catch((error) => error)
-+    expect(error).toBeInstanceOf(Error)
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("rm"))).toBe(true)
-+  } finally {
-+    await rm(workspace, { recursive: true, force: true })
-+  }
-+})
-+
-+test("reports a non-zero secret cleanup result after attempting removal", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-secret-cleanup-"))
-+  const runner = new SecretRemovalFailingRunner()
-+  try {
-+    const error = await runSandboxed(
-+      {
-+        workspace,
-+        config: path.join(workspace, ".anchor", "opencode.json"),
-+        runID: "task-secret-remove-fail",
-+        wslDistro: "Ubuntu",
-+        image: "registry.example/anchor@sha256:abc",
-+      },
-+      ["run", "prompt"],
-+      { runner, apiKey: "sensitive-api-key" },
-+    ).catch((error) => error)
-+    expect(error).toBeInstanceOf(AnchorSandboxError)
-+    expect((error as AnchorSandboxError).code).toBe("anchor_secret_remove_failed")
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("rm"))).toBe(true)
-+  } finally {
-+    await rm(workspace, { recursive: true, force: true })
-+  }
-+})
-+
-+test("cleanup removes deterministic stale Podman resources", async () => {
-+  const workspace = await mkdtemp(path.join(tmpdir(), "anchor-sandbox-stale-"))
-+  const runner = new StaleSecretRunner()
-+  try {
-+    await cleanupSandboxed(
-+      {
-+        workspace,
-+        runID: "task-stale",
-+        wslDistro: "Ubuntu",
-+      },
-+      { runner },
-+    )
-+    expect(runner.commands.some((command) => command.includes("rm") && command.includes(containerName("task-stale")))).toBe(
-+      true,
-+    )
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes("ls"))).toBe(true)
-+    expect(runner.commands.some((command) => command.includes("secret") && command.includes(secretName("task-stale")))).toBe(
-+      true,
-+    )
-+    expect(runner.options.every((option) => option?.envMode === "replace")).toBe(true)
++    expect(response.code).toBe(0)
++    const launch = runner.commands.findIndex((command) => command.includes("podman") && command.includes("run"))
++    const stop = runner.commands.findIndex((command) => command.includes("systemctl") && command.includes("stop"))
++    expect(stop).toBeGreaterThanOrEqual(0)
++    expect(stop).toBeLessThan(launch)
++    const args = runner.commands[launch].join("\n")
++    expect(args).toContain("--network\nnone")
++    expect(args).not.toContain("/run/anchor-route")
 +  } finally {
 +    await rm(workspace, { recursive: true, force: true })
 +  }
 +})
 diff --git a/packages/opencode/test/lib/llm-server.ts b/packages/opencode/test/lib/llm-server.ts
-index 245acc7..b7a149d 100644
+index 245acc7280f553ae4a8f13ffa05c97257e88587d..b7a149d59467175e41e651ce344c53b11613a7ea 100644
 --- a/packages/opencode/test/lib/llm-server.ts
 +++ b/packages/opencode/test/lib/llm-server.ts
 @@ -493,6 +493,14 @@ export class Reply {
@@ -1924,7 +1839,7 @@ index 245acc7..b7a149d 100644
      this.#hang = false
 diff --git a/packages/opencode/test/session/initial-tool-call.test.ts b/packages/opencode/test/session/initial-tool-call.test.ts
 new file mode 100644
-index 0000000..210f83d
+index 0000000000000000000000000000000000000000..210f83dadab6766e3d8282fda62d9acee8f05113
 --- /dev/null
 +++ b/packages/opencode/test/session/initial-tool-call.test.ts
 @@ -0,0 +1,103 @@
@@ -2032,7 +1947,7 @@ index 0000000..210f83d
 +  })
 +})
 diff --git a/packages/opencode/test/session/prompt.test.ts b/packages/opencode/test/session/prompt.test.ts
-index 491ad06..2cf26b3 100644
+index 491ad06aaf478a272046465343fbcd5c8880ead6..1dba848259689f07772bcee72bcd82e056b59cdc 100644
 --- a/packages/opencode/test/session/prompt.test.ts
 +++ b/packages/opencode/test/session/prompt.test.ts
 @@ -303,6 +303,26 @@ function providerCfg(url: string) {
@@ -2079,7 +1994,7 @@ index 491ad06..2cf26b3 100644
 +    initialToolCall: {
 +      required: true,
 +      agent: "anchor-gold",
-+      policy: "anchor.execution-tool-contract.v2",
++      policy: "anchor.execution-tool-contract.v3",
 +      eligibleTools: ["read", "glob"],
 +    },
 +    model: ref,
@@ -2139,7 +2054,7 @@ index 491ad06..2cf26b3 100644
  const addSubtask = (sessionID: SessionID, messageID: MessageID, model = ref) =>
    Effect.gen(function* () {
      const session = yield* Session.Service
-@@ -714,6 +804,336 @@ noLLMServer.instance.skip(
+@@ -714,6 +804,330 @@ noLLMServer.instance.skip(
    { config: cfg },
  )
  
@@ -2162,7 +2077,7 @@ index 491ad06..2cf26b3 100644
 +    expect(userMessage.info.role === "user" && userMessage.info.initialToolCall).toEqual({
 +      required: true,
 +      agent: "anchor-gold",
-+      policy: "anchor.execution-tool-contract.v2",
++      policy: "anchor.execution-tool-contract.v3",
 +    })
 +    yield* llm.tool("glob", { pattern: "**/*.definitely-missing" })
 +    yield* llm.text("done")
@@ -2179,9 +2094,7 @@ index 491ad06..2cf26b3 100644
 +    )
 +    const persistedTools =
 +      persisted?.info.role === "user" ? (persisted.info.initialToolCall?.eligibleTools ?? []).toSorted() : []
-+    const requestTools = (
-+      (inputs[0]?.tools as Array<{ function?: { name?: string } }> | undefined) ?? []
-+    )
++    const requestTools = ((inputs[0]?.tools as Array<{ function?: { name?: string } }> | undefined) ?? [])
 +      .flatMap((tool) => (tool.function?.name ? [tool.function.name] : []))
 +      .toSorted()
 +    expect(persistedTools).toEqual(requestTools)
@@ -2342,11 +2255,7 @@ index 491ad06..2cf26b3 100644
 +    Effect.gen(function* () {
 +      const prompt = yield* SessionPrompt.Service
 +      const sessions = yield* Session.Service
-+      for (const variant of [
-+        undefined,
-+        { tool: "read", providerExecuted: true },
-+        { tool: "task" },
-+      ] as const) {
++      for (const variant of [undefined, { tool: "read", providerExecuted: true }, { tool: "task" }] as const) {
 +        const chat = yield* sessions.create({ title: "Resume anchor" })
 +        yield* seedDurableTerminal(chat.id, variant)
 +        const result = yield* prompt.loop({ sessionID: chat.id })
@@ -2406,7 +2315,7 @@ index 491ad06..2cf26b3 100644
 +      expect(result.info.error.data.statusCode).toBe(401)
 +    }
 +    expect(result.info.role === "assistant" && result.info.initialToolCallAudit).toMatchObject({
-+      contract: "anchor.execution-tool-contract.v2",
++      contract: "anchor.execution-tool-contract.v3",
 +      status: "unsatisfied",
 +      reason: "provider_ignored_required",
 +    })
@@ -2477,7 +2386,7 @@ index 491ad06..2cf26b3 100644
    Effect.gen(function* () {
      const { llm } = yield* useServerConfig(providerCfg)
 diff --git a/packages/opencode/test/util/process.test.ts b/packages/opencode/test/util/process.test.ts
-index 934833d..9dfc208 100644
+index 934833d1d060367667a814169413f9301e596edb..9dfc208c52b5710d98f72947335e17022af76ee1 100644
 --- a/packages/opencode/test/util/process.test.ts
 +++ b/packages/opencode/test/util/process.test.ts
 @@ -77,6 +77,29 @@ describe("util.process", () => {
@@ -2511,7 +2420,7 @@ index 934833d..9dfc208 100644
      if (process.platform !== "win32") return
  
 diff --git a/packages/schema/src/v1/session.ts b/packages/schema/src/v1/session.ts
-index 75e9282..ed49007 100644
+index 75e9282..e6b3318 100644
 --- a/packages/schema/src/v1/session.ts
 +++ b/packages/schema/src/v1/session.ts
 @@ -61,6 +61,17 @@ export const ContextOverflowError = namedError("ContextOverflowError", {
@@ -2540,7 +2449,7 @@ index 75e9282..ed49007 100644
 +    Schema.Struct({
 +      required: Schema.Literal(true),
 +      agent: Schema.String,
-+      policy: Schema.Literal("anchor.execution-tool-contract.v2"),
++      policy: Schema.Literal("anchor.execution-tool-contract.v3"),
 +      eligibleTools: Schema.optional(Schema.Array(Schema.String)),
 +    }),
 +  ),
@@ -2561,7 +2470,7 @@ index 75e9282..ed49007 100644
    error: Schema.optional(AssistantErrorSchema),
 +  initialToolCallAudit: Schema.optional(
 +    Schema.Struct({
-+      contract: Schema.Literal("anchor.execution-tool-contract.v2"),
++      contract: Schema.Literal("anchor.execution-tool-contract.v3"),
 +      status: Schema.Literal("unsatisfied"),
 +      reason: InitialToolCallFailureReason,
 +      message: Schema.String,
@@ -2571,7 +2480,7 @@ index 75e9282..ed49007 100644
    modelID: Model.ID,
    providerID: Provider.ID,
 diff --git a/packages/sdk/js/src/v2/gen/types.gen.ts b/packages/sdk/js/src/v2/gen/types.gen.ts
-index 5e067f3..772c81b 100644
+index 5e067f3afb2334777c2ce87c9cc57fa9bb890eed..3209d25ac92f6811e322c1123395985af9a28f2d 100644
 --- a/packages/sdk/js/src/v2/gen/types.gen.ts
 +++ b/packages/sdk/js/src/v2/gen/types.gen.ts
 @@ -250,6 +250,12 @@ export type UserMessage = {
@@ -2581,7 +2490,7 @@ index 5e067f3..772c81b 100644
 +  initialToolCall?: {
 +    required: true
 +    agent: string
-+    policy: "anchor.execution-tool-contract.v2"
++    policy: "anchor.execution-tool-contract.v3"
 +    eligibleTools?: Array<string>
 +  }
    model: {
@@ -2614,7 +2523,7 @@ index 5e067f3..772c81b 100644
 +    | InitialToolCallError
      | ApiError
 +  initialToolCallAudit?: {
-+    contract: "anchor.execution-tool-contract.v2"
++    contract: "anchor.execution-tool-contract.v3"
 +    status: "unsatisfied"
 +    reason:
 +      | "max_steps"
@@ -2668,7 +2577,7 @@ index 5e067f3..772c81b 100644
    }
  }
 diff --git a/packages/sdk/openapi.json b/packages/sdk/openapi.json
-index d97885b..738a495 100644
+index d97885b55390ab07418de7b6935d9d4b90bdd0f8..b3874e6cd8b37e6ee703684650a359766f30547b 100644
 --- a/packages/sdk/openapi.json
 +++ b/packages/sdk/openapi.json
 @@ -16004,6 +16004,30 @@
@@ -2687,7 +2596,7 @@ index d97885b..738a495 100644
 +              },
 +              "policy": {
 +                "type": "string",
-+                "enum": ["anchor.execution-tool-contract.v2"]
++                "enum": ["anchor.execution-tool-contract.v3"]
 +              },
 +              "eligibleTools": {
 +                "type": "array",
@@ -2757,7 +2666,7 @@ index d97885b..738a495 100644
 +            "properties": {
 +              "contract": {
 +                "type": "string",
-+                "enum": ["anchor.execution-tool-contract.v2"]
++                "enum": ["anchor.execution-tool-contract.v3"]
 +              },
 +              "status": {
 +                "type": "string",

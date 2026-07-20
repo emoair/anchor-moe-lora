@@ -23,6 +23,66 @@ The page supports English and Simplified Chinese. Its first visit follows the
 browser language; the language button stores only the non-sensitive language
 preference in local storage.
 
+## Formal target is the default
+
+The control-target selector defaults to **Formal SWE-bench + CC Switch +
+OpenCode**. Four independent gates are shown: `component_ready`, `bank_ready`,
+`execution_contract_ready`, and `live_start_allowed`. The current machine may
+show the first two as ready while the execution contract and LIVE remain
+blocked; the stable reason is displayed and Start is disabled before a key is
+retained or a child is spawned.
+
+Here `execution_contract_ready` means the generic public-train distillation
+contract. The official heldout/TestSpec evaluation contract is shown
+separately as non-blocking and is never promoted to READY by train readiness.
+
+Formal mode locks the provider URL, model, protocol, reasoning, and route form
+fields because it uses the two audited CC Switch profiles (GLM 5.2 MAX and
+Kimi-K3 MAX). The page never silently ignores an apparently editable override.
+Switch to **Legacy synthetic shards** only when those manual fields should
+control the older automation runner.
+
+The formal status endpoint accepts the content-free coordinator status v2 only
+after checking run ID, checkpoint ID, config hash, execution-lock hash, resume
+mode, freshness, count invariants, and process consistency. It reports
+per-stage counts, request/token counters and rates, task speed, ETA, active
+tasks, and stable failure/reconnect reason counts. A stale, unbound historical,
+identity-mismatched, or disconnected status is shown explicitly and is not
+treated as live progress.
+
+Formal Start uses only the fixed coordinator script/config and a fixed argv
+with `shell=False`. **Safe pause** means graceful stop, not process freezing.
+**Resume checkpoint** adds the coordinator's explicit `--resume` contract and
+requires the same checkpoint/config/execution-lock binding. Concurrency defaults
+to 1 and accepts any positive integer; there is no product-level hard ceiling.
+The key stays in RAM/the selected child environment and is never returned or
+written.
+
+**Formal task cap** is optional and cumulative. Leaving it blank targets the
+full 19,008-task bank. A smaller cap ends in
+`stopped_checkpoint_resumable`; **Continue** can then select a larger cap and a
+new concurrency while preserving the exact checkpoint. This is the supported
+way to ramp concurrency without replaying authenticated successes. A capped
+Gold export carries `not_for_full_bank_completion_claim=true` unless every bank
+task has authenticated evidence.
+Every export directory is immutable. Use an explicit versioned `--output-dir`
+for an intermediate cap; reserve the coordinator config's canonical
+`training-export` path for the snapshot you actually intend to freeze.
+
+Recommended first-live ramp (caps are cumulative): `c1/cap1`, then manually
+choose **Resume checkpoint** / **Continue** at `c8/cap16`, `c16/cap48`,
+`c24/cap96`, and `c30/cap156`. The panel never auto-advances to the next tier;
+inspect the completed tier before each manual Resume. Compare counter deltas,
+because Resume preserves cumulative requests and failures. Stop and return to
+the last clean tier on any task failure, any non-retriable
+400/401/403/404/409/422, or a stale/untrusted/backend-disconnected status. For
+429/499/timeout/transport
+errors, step down when the same code repeats three times in the tier or the
+delta provider-failure rate reaches 5% after at least 20 fresh requests. Here
+`concurrency` means complete task chains and sandboxes, not only simultaneous
+provider calls; provider support for 30 does not prove local RAM/disk/sandbox
+capacity for 30.
+
 Use monitor-only mode when process controls are not needed:
 
 ```powershell
@@ -116,22 +176,37 @@ manually editable. **Check pinned diff** performs an offline read-only refresh
 and never downloads or applies metadata. The dashboard never reads the CC
 Switch database, OpenCode configuration, or provider keys.
 
+The panel is provider-neutral: operators may type any validated HTTP(S) base
+URL and syntactically valid model ID. **Probe/load models** is a convenience,
+not a gate. If listing is unsupported or fails, enable **Force model** and keep
+the exact manual ID. Formal GLM 5.2 and Kimi-K3 profiles require reasoning to be
+enabled at literal `max` for every stage; choosing a lower value fails closed.
+Non-formal profiles retain the full `low`/`medium`/`high`/`max` choice.
+
 Pinned cost is displayed only when the provider binding, exact alias, supported
 protocol, all four usage dimensions (`input`, `output`, `cache_read`, and
 `cache_write`), and reviewed price are known. Otherwise the result is explicitly
 `UNKNOWN`; no missing dimension is treated as zero.
 
-The default network route is **direct**. The child receives `NO_PROXY=*` and no
-inherited proxy URL. **Inherit detected proxy** is an explicit opt-in that copies
-the current process's proxy environment to the child. The API exposes only a
-`proxy_detected` boolean, never a proxy URL or credential.
+The default network mode is **bypass proxy environment**. The child receives
+`NO_PROXY=*` and no inherited proxy URL. This does not pin a physical NIC and
+cannot override an operating-system TUN/default route; the page displays that
+limitation explicitly. **Inherit proxy / operating-system route** is an explicit
+opt-in that copies the current process's proxy environment to the child. The API
+exposes only detection booleans and a content-free default-route audit, never a
+proxy URL or credential. Domestic-provider traffic and large (especially 10 GiB+)
+downloads require the dedicated physical-adapter route preflight; do not claim a
+real-NIC direct transfer when that preflight cannot prove it.
 
 The key is accepted only for that action, copied into a best-effort zeroizable
 RAM slot, and passed to the child as `ANCHOR_CONTROL_API_KEY`. It is not written
 to YAML/JSON, returned by an API, placed in argv, or printed by the dashboard.
 The browser password field is cleared after Start, Continue, or model discovery.
 The RAM slot is cleared after exit, stop, discovery, explicit **Clear key**, or
-server shutdown. Supplying it again is required after a dashboard restart.
+server shutdown. **Clear key is disabled and rejected while a child is active**:
+clearing only the controller slot cannot revoke the copy already inherited by
+that process. Use Safe pause first, wait for exit, and then clear. Supplying the
+key again is required after a dashboard restart.
 
 Start generates immutable, secret-free files at:
 
@@ -185,6 +260,19 @@ responses are reduced to syntactically safe model IDs and a small status enum;
 provider response bodies and credentials are never exposed. Each concurrent
 probe owns its own request-local key, probes cannot race with Start, and HTTP
 redirects are rejected so an authorization header cannot cross origins.
+
+The page deliberately separates **CC Switch component attestation** from
+**WSL/Podman live-route reachability**. A valid binary/patch hash means only that
+the Windows component is ready. It does not prove that a sandbox can reach a
+listener bound to Windows `127.0.0.1`; the dashboard reports that leg as
+"not probed / E2E unknown." Only the formal coordinator's container-side probe
+may promote it to reachable. Therefore `launch_ready=true` from the offline
+full-bank preflight is a component gate, not an end-to-end network claim.
+
+The full-bank manifest's `en-US=9504` and `zh-CN=9504` counters are deterministic
+**language-route assignments**. They do not mean 9,504 Chinese bodies have been
+translated. Until the separate zh-CN localization manifest exists and validates,
+the page reports localized text as missing and `training_ready` remains false.
 
 ## Browser and HTTP boundary
 

@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import random
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -31,7 +32,9 @@ class _JsonlMapDataset:
         if max_records is not None and max_records < 1:
             raise ValueError("max_records must be positive when provided")
         self._index: list[tuple[Path, int, int]] = []
+        self._stratum_sizes: list[int] = []
         for path in paths:
+            start_size = len(self._index)
             with path.open("rb") as handle:
                 line_number = 0
                 while True:
@@ -44,10 +47,18 @@ class _JsonlMapDataset:
                         continue
                     self._index.append((path, offset, line_number))
                     if max_records is not None and len(self._index) >= max_records:
+                        self._stratum_sizes.append(len(self._index) - start_size)
                         return
+            self._stratum_sizes.append(len(self._index) - start_size)
 
     def __len__(self) -> int:
         return len(self._index)
+
+    @property
+    def stratum_sizes(self) -> tuple[int, ...]:
+        """Return non-empty-record counts in the same order as input files."""
+
+        return tuple(self._stratum_sizes)
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         if index < 0:
@@ -71,7 +82,13 @@ class _JsonlMapDataset:
         return record
 
 
-def _make_text_collator(processor: Any, max_length: int):
+def _make_text_collator(
+    processor: Any,
+    max_length: int,
+    *,
+    strict_no_truncation: bool = False,
+    pad_to_max_length: bool = False,
+):
     """Build an assistant-preserving completion-only text collator.
 
     Gemma 4's generation prompt contains thought-channel tokens that are not
@@ -80,6 +97,18 @@ def _make_text_collator(processor: Any, max_length: int):
     tokenizer offsets, then keep recent prompt context plus the beginning of
     the completion when an example is longer than the training window.
     """
+
+    statistics: dict[str, Any] = {
+        "schema_version": "anchor.sequence-observation.v1",
+        "max_seq_length": max_length,
+        "strict_no_truncation": strict_no_truncation,
+        "sample_exposures_observed": 0,
+        "truncated_exposures": 0,
+        "rendered_tokens_total": 0,
+        "rendered_tokens_max": 0,
+        "selected_tokens_total": 0,
+        "selected_tokens_max": 0,
+    }
 
     def collate(examples: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
         rows: list[tuple[list[int], list[int]]] = []
@@ -110,6 +139,7 @@ def _make_text_collator(processor: Any, max_length: int):
                 return_offsets_mapping=True,
             )
             input_ids = [int(value) for value in encoded["input_ids"]]
+            rendered_token_count = len(input_ids)
             offsets = [tuple(value) for value in encoded["offset_mapping"]]
             target_indices = [
                 index
@@ -119,6 +149,36 @@ def _make_text_collator(processor: Any, max_length: int):
             if not target_indices:
                 raise RuntimeError("assistant content produced no target tokens")
             target_start = target_indices[0]
+            if strict_no_truncation:
+                if len(input_ids) > max_length:
+                    raise RuntimeError(
+                        "compact-v2 strict sequence contract rejects truncation: "
+                        f"rendered tokens={len(input_ids)}, window={max_length}"
+                    )
+                eot_id = getattr(processor.tokenizer, "eot_token_id", None)
+                if eot_id is None:
+                    eot_id = processor.tokenizer.convert_tokens_to_ids("<turn|>")
+                eot_indices = [
+                    index for index, value in enumerate(input_ids) if value == eot_id
+                ]
+                if not eot_indices or eot_indices[-1] <= target_indices[-1]:
+                    raise RuntimeError(
+                        "compact-v2 strict sequence contract requires a final EOT "
+                        "token after the assistant target"
+                    )
+                selected = input_ids
+                labels = [-100] * target_start + input_ids[target_start:]
+                statistics["sample_exposures_observed"] += 1
+                statistics["rendered_tokens_total"] += rendered_token_count
+                statistics["rendered_tokens_max"] = max(
+                    statistics["rendered_tokens_max"], rendered_token_count
+                )
+                statistics["selected_tokens_total"] += len(selected)
+                statistics["selected_tokens_max"] = max(
+                    statistics["selected_tokens_max"], len(selected)
+                )
+                rows.append((selected, labels))
+                continue
             completion = input_ids[target_start:]
             completion_limit = max(1, (max_length * 3) // 4)
             completion = completion[:completion_limit]
@@ -130,11 +190,27 @@ def _make_text_collator(processor: Any, max_length: int):
                 raise RuntimeError(
                     "assistant-preserving truncation produced no target tokens"
                 )
+            statistics["sample_exposures_observed"] += 1
+            statistics["truncated_exposures"] += int(
+                rendered_token_count > max_length
+            )
+            statistics["rendered_tokens_total"] += rendered_token_count
+            statistics["rendered_tokens_max"] = max(
+                statistics["rendered_tokens_max"], rendered_token_count
+            )
+            statistics["selected_tokens_total"] += len(selected)
+            statistics["selected_tokens_max"] = max(
+                statistics["selected_tokens_max"], len(selected)
+            )
             rows.append((selected, labels))
 
         import torch
 
-        sequence_length = max(len(input_ids) for input_ids, _ in rows)
+        sequence_length = (
+            max_length
+            if pad_to_max_length
+            else max(len(input_ids) for input_ids, _ in rows)
+        )
         padding_side = getattr(processor.tokenizer, "padding_side", "right")
         if padding_side not in ("left", "right"):
             raise RuntimeError(f"unsupported tokenizer padding_side={padding_side!r}")
@@ -164,6 +240,7 @@ def _make_text_collator(processor: Any, max_length: int):
             "labels": torch.tensor(padded_labels, dtype=torch.long),
         }
 
+    setattr(collate, "sequence_statistics", statistics)
     return collate
 
 
@@ -178,6 +255,9 @@ def _cuda_memory_detail(torch: Any, device: Any) -> dict[str, int]:
         "reserved_mib": int(torch.cuda.memory_reserved(device) // (1024 * 1024)),
         "peak_allocated_mib": int(
             torch.cuda.max_memory_allocated(device) // (1024 * 1024)
+        ),
+        "peak_reserved_mib": int(
+            torch.cuda.max_memory_reserved(device) // (1024 * 1024)
         ),
     }
 
@@ -362,6 +442,77 @@ def _run_one_step_smoke(
     return int(result["global_step"]), float(result["train_loss"])
 
 
+def _select_smoke_record(
+    dataset: Any,
+    processor: Any,
+    training: Mapping[str, Any],
+    *,
+    expected_max_rendered_tokens: int | None = None,
+) -> tuple[Mapping[str, Any], dict[str, Any]]:
+    """Select a smoke row without exposing its contents.
+
+    Compact-v2 probes exercise the longest *real* rendered sequence.  Padding a
+    shorter row to the configured ceiling measures unused padding rather than
+    the dataset that will actually be trained, and can incorrectly reject an
+    otherwise lossless profile on a 12 GB card.
+    """
+
+    selector = str(training.get("probe_sample_selector", "first"))
+    if selector == "first":
+        if len(dataset) < 1:
+            raise RuntimeError("smoke-gate dataset has no records")
+        record = dataset[0]
+        return record, {
+            "selector": selector,
+            "records_scanned": 1,
+            "rendered_tokens": None,
+            "record_id_sha256": hashlib.sha256(
+                str(record.get("id", "")).encode("utf-8")
+            ).hexdigest(),
+        }
+    if selector != "max_rendered_tokens":
+        raise RuntimeError(f"unsupported probe_sample_selector={selector!r}")
+    if len(dataset) < 1:
+        raise RuntimeError("smoke-gate dataset has no records")
+
+    selected: Mapping[str, Any] | None = None
+    selected_length = -1
+    selected_hash = ""
+    for index in range(len(dataset)):
+        record = dataset[index]
+        text = processor.apply_chat_template(
+            record["messages"], add_generation_prompt=False, tokenize=False
+        ).strip()
+        rendered_length = len(
+            processor.tokenizer(text, add_special_tokens=False)["input_ids"]
+        )
+        identifier_hash = hashlib.sha256(
+            str(record.get("id", "")).encode("utf-8")
+        ).hexdigest()
+        if rendered_length > selected_length or (
+            rendered_length == selected_length and identifier_hash < selected_hash
+        ):
+            selected = record
+            selected_length = rendered_length
+            selected_hash = identifier_hash
+    if selected is None:  # pragma: no cover - guarded by the non-empty check
+        raise RuntimeError("smoke-gate failed to select a record")
+    if (
+        expected_max_rendered_tokens is not None
+        and selected_length != expected_max_rendered_tokens
+    ):
+        raise RuntimeError(
+            "compact-v2 longest-row binding mismatch: "
+            f"selected={selected_length} expected={expected_max_rendered_tokens}"
+        )
+    return selected, {
+        "selector": selector,
+        "records_scanned": len(dataset),
+        "rendered_tokens": selected_length,
+        "record_id_sha256": selected_hash,
+    }
+
+
 def _sample_schedule(
     dataset_size: int,
     *,
@@ -391,6 +542,58 @@ def _sample_schedule(
     return schedule[:required]
 
 
+def _stratified_sample_schedule(
+    stratum_sizes: Sequence[int],
+    *,
+    max_steps: int,
+    gradient_accumulation_steps: int,
+    seed: int,
+) -> list[int]:
+    """Return an exact, deterministic, stage-balanced schedule.
+
+    Each input JSONL file is one stratum.  Every stratum receives the same
+    number of exposures, including its own independently shuffled epoch-prefix
+    padding, and rows are then interleaved round-robin.  This is the runtime
+    proof behind the formal-v3 B-versus-specialist exposure comparison.
+    """
+
+    sizes = [int(value) for value in stratum_sizes]
+    if not sizes or any(value < 1 for value in sizes):
+        raise RuntimeError("stratified training requires non-empty strata")
+    if len(set(sizes)) != 1:
+        raise RuntimeError("stratified training requires equal records per stratum")
+    if max_steps < 1 or gradient_accumulation_steps < 1:
+        raise RuntimeError("training steps and gradient accumulation must be positive")
+    required = max_steps * gradient_accumulation_steps
+    if required % len(sizes):
+        raise RuntimeError(
+            "stratified exposure count must be divisible by the number of strata"
+        )
+    target_per_stratum = required // len(sizes)
+    if target_per_stratum < sizes[0]:
+        raise RuntimeError(
+            "stratified formal schedule cannot expose less than one frozen epoch"
+        )
+
+    strata: list[list[int]] = []
+    offset = 0
+    for stratum_index, size in enumerate(sizes):
+        rng = random.Random(seed + (stratum_index + 1) * 1_000_003)
+        selected: list[int] = []
+        while len(selected) < target_per_stratum:
+            epoch = list(range(offset, offset + size))
+            rng.shuffle(epoch)
+            selected.extend(epoch)
+        strata.append(selected[:target_per_stratum])
+        offset += size
+
+    schedule: list[int] = []
+    for exposure_index in range(target_per_stratum):
+        for selected in strata:
+            schedule.append(selected[exposure_index])
+    return schedule
+
+
 def _schedule_sha256(schedule: Sequence[int]) -> str:
     encoded = json.dumps(list(schedule), separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
@@ -401,19 +604,30 @@ def _assert_training_peak_within_budget(
     device: Any,
     *,
     maximum_peak_vram_gib: float,
+    peak_metric: str = "allocated_or_reserved",
 ) -> dict[str, int]:
     detail = _cuda_memory_detail(torch, device)
     if not detail:
         return detail
     allocated_peak_bytes = int(torch.cuda.max_memory_allocated(device))
     reserved_peak_bytes = int(torch.cuda.max_memory_reserved(device))
-    peak_bytes = max(allocated_peak_bytes, reserved_peak_bytes)
+    if peak_metric == "allocated":
+        # Reserved memory includes reusable blocks owned by PyTorch's caching
+        # allocator.  It is not live tensor memory and can be returned without
+        # changing the computation; compact-v2 additionally enforces physical
+        # free-memory headroom after cleanup.
+        peak_bytes = allocated_peak_bytes
+    elif peak_metric == "allocated_or_reserved":
+        peak_bytes = max(allocated_peak_bytes, reserved_peak_bytes)
+    else:
+        raise RuntimeError(f"unsupported peak VRAM gate metric: {peak_metric}")
     limit_bytes = int(maximum_peak_vram_gib * 1024**3)
     if peak_bytes > limit_bytes:
         raise RuntimeError(
             "formal-v2 hard VRAM gate exceeded: "
             f"peak_allocated_gib={allocated_peak_bytes / 1024**3:.3f} "
             f"peak_reserved_gib={reserved_peak_bytes / 1024**3:.3f} "
+            f"metric={peak_metric} "
             f"limit_gib={maximum_peak_vram_gib:.3f}"
         )
     return detail
@@ -484,16 +698,50 @@ def _run_low_memory_training(
     max_steps = int(training["max_steps"])
     accumulation = int(training["gradient_accumulation_steps"])
     seed = int(training.get("seed", 0))
-    schedule = _sample_schedule(
-        len(dataset),
-        max_steps=max_steps,
-        gradient_accumulation_steps=accumulation,
-        seed=seed,
+    sample_order = str(
+        training.get("sample_order", "deterministic_epoch_shuffle_v1")
     )
+    stratum_sizes = tuple(getattr(dataset, "stratum_sizes", (len(dataset),)))
+    if sample_order == "deterministic_stage_stratified_epoch_v1":
+        schedule = _stratified_sample_schedule(
+            stratum_sizes,
+            max_steps=max_steps,
+            gradient_accumulation_steps=accumulation,
+            seed=seed,
+        )
+    else:
+        schedule = _sample_schedule(
+            len(dataset),
+            max_steps=max_steps,
+            gradient_accumulation_steps=accumulation,
+            seed=seed,
+        )
     schedule_sha256 = _schedule_sha256(schedule)
+    stratum_exposures: list[int] = []
+    offset = 0
+    for size in stratum_sizes:
+        stratum_exposures.append(
+            sum(offset <= index < offset + size for index in schedule)
+        )
+        offset += size
+    resolved_exposure = training.get("resolved_exposure")
+    if isinstance(resolved_exposure, Mapping):
+        expected_per_stage = resolved_exposure.get("padded_exposures_per_stage")
+        if (
+            not isinstance(expected_per_stage, int)
+            or any(value != expected_per_stage for value in stratum_exposures)
+        ):
+            raise RuntimeError(
+                "runtime stage exposures do not match the materialized formal plan"
+            )
     maximum_peak_vram_gib = float(training.get("maximum_training_peak_vram_gib", 9.0))
     if maximum_peak_vram_gib <= 0:
         raise RuntimeError("maximum_training_peak_vram_gib must be positive")
+    peak_vram_gate_metric = str(
+        training.get("peak_vram_gate_metric", "allocated_or_reserved")
+    )
+    if peak_vram_gate_metric not in {"allocated", "allocated_or_reserved"}:
+        raise RuntimeError("unsupported training.peak_vram_gate_metric")
 
     trainable = [
         parameter for parameter in model.parameters() if parameter.requires_grad
@@ -507,7 +755,14 @@ def _run_low_memory_training(
         optimizer = torch.optim.AdamW(trainable, lr=float(training["learning_rate"]))
     if reporter:
         reporter.emit("optimizer", "initialized", detail={"name": optimizer_name})
-    collator = _make_text_collator(processor, int(training["max_seq_length"]))
+    collator = _make_text_collator(
+        processor,
+        int(training["max_seq_length"]),
+        strict_no_truncation=(
+            training.get("sequence_contract") == "compact_v2_no_truncation"
+        ),
+        pad_to_max_length=bool(training.get("probe_pad_to_max_length", False)),
+    )
     device = model.device
     model.train()
     model.config.use_cache = False
@@ -536,13 +791,23 @@ def _run_low_memory_training(
                 "gradient_accumulation_steps": accumulation,
                 "dataset_records": len(dataset),
                 "sample_exposures": len(schedule),
+                "sample_order": sample_order,
+                "stratum_records": list(stratum_sizes),
+                "stratum_exposures": stratum_exposures,
                 "sample_schedule_sha256": schedule_sha256,
                 "maximum_training_peak_vram_gib": maximum_peak_vram_gib,
+                "peak_vram_gate_metric": peak_vram_gate_metric,
+                "activation_offload_to_cpu": bool(
+                    training.get("activation_offload_to_cpu", False)
+                ),
                 "checkpoint_resume_capability": "adapter_weights_warm_start_only",
             },
         )
     _assert_training_peak_within_budget(
-        torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+        torch,
+        device,
+        maximum_peak_vram_gib=maximum_peak_vram_gib,
+        peak_metric=peak_vram_gate_metric,
     )
     step_losses: list[float] = []
     micro_step = 0
@@ -567,10 +832,22 @@ def _run_low_memory_training(
                 raise RuntimeError("low-memory sample has no supervised tokens")
             model_inputs["logits_to_keep"] = active_positions
             model_inputs["shift_labels"] = shifted.index_select(-1, active_positions)
-            with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-                output = model(**model_inputs, use_cache=False)
-                raw_loss = output.loss
-                scaled_loss = raw_loss / accumulation
+            activation_context = (
+                torch.autograd.graph.save_on_cpu(
+                    pin_memory=bool(
+                        training.get("activation_offload_pin_memory", True)
+                    ),
+                    device_type="cuda",
+                )
+                if training.get("activation_offload_to_cpu") is True
+                and device_type == "cuda"
+                else nullcontext()
+            )
+            with activation_context:
+                with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+                    output = model(**model_inputs, use_cache=False)
+                    raw_loss = output.loss
+                    scaled_loss = raw_loss / accumulation
             loss_value = float(raw_loss.detach().float().cpu().item())
             if not math.isfinite(loss_value):
                 raise RuntimeError(
@@ -579,9 +856,56 @@ def _run_low_memory_training(
             accumulated_loss += loss_value
             scaled_loss.backward()
             memory_detail = _assert_training_peak_within_budget(
-                torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+                torch,
+                device,
+                maximum_peak_vram_gib=maximum_peak_vram_gib,
+                peak_metric=peak_vram_gate_metric,
             )
             minimum_free_mib = int(training.get("minimum_backward_free_vram_mib", 0))
+
+            # The first measurement intentionally captures the true backward
+            # peak while the result objects are still alive.  They are no
+            # longer needed once backward has populated the LoRA gradients,
+            # though, and variable-length batches can otherwise leave their
+            # released blocks in CUDA's allocator cache.  Reclaim only when
+            # the fail-closed headroom gate would fire; this is mathematically
+            # lossless and avoids paying empty_cache() on ordinary steps.
+            del (
+                active_positions,
+                batch,
+                labels,
+                model_inputs,
+                output,
+                raw_loss,
+                scaled_loss,
+                shifted,
+            )
+            if (
+                memory_detail
+                and memory_detail["free_mib"] < minimum_free_mib
+                and device_type == "cuda"
+            ):
+                torch.cuda.empty_cache()
+                recovered_detail = _assert_training_peak_within_budget(
+                    torch,
+                    device,
+                    maximum_peak_vram_gib=maximum_peak_vram_gib,
+                    peak_metric=peak_vram_gate_metric,
+                )
+                if reporter:
+                    reporter.emit(
+                        "vram_headroom_recovery",
+                        "completed",
+                        step=global_step,
+                        loss=loss_value,
+                        detail={
+                            "accumulation_index": accumulation_index,
+                            "free_mib_before": memory_detail["free_mib"],
+                            "free_mib_after": recovered_detail["free_mib"],
+                            "required_mib": minimum_free_mib,
+                        },
+                    )
+                memory_detail = recovered_detail
             if memory_detail and memory_detail["free_mib"] < minimum_free_mib:
                 raise RuntimeError(
                     "insufficient lossless VRAM headroom after micro-backward: "
@@ -595,7 +919,6 @@ def _run_low_memory_training(
                     loss=loss_value,
                     detail={"accumulation_index": accumulation_index, **memory_detail},
                 )
-            del batch, model_inputs, output, raw_loss, scaled_loss
         averaged_loss = accumulated_loss / accumulation
         torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
         optimizer.step()
@@ -603,7 +926,10 @@ def _run_low_memory_training(
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         memory_detail = _assert_training_peak_within_budget(
-            torch, device, maximum_peak_vram_gib=maximum_peak_vram_gib
+            torch,
+            device,
+            maximum_peak_vram_gib=maximum_peak_vram_gib,
+            peak_metric=peak_vram_gate_metric,
         )
         step_losses.append(averaged_loss)
         if reporter:
@@ -663,11 +989,30 @@ def _run_low_memory_training(
         "micro_steps": micro_step,
         "dataset_records": len(dataset),
         "sample_exposures": len(schedule),
+        "sample_order": sample_order,
+        "stratum_records": list(stratum_sizes),
+        "stratum_exposures": stratum_exposures,
         "sample_schedule_sha256": schedule_sha256,
         "peak_allocated_gib": peak_allocated_gib,
         "peak_reserved_gib": peak_reserved_gib,
         "maximum_training_peak_vram_gib": maximum_peak_vram_gib,
+        "peak_vram_gate_metric": peak_vram_gate_metric,
     }
+    observed_sequence = dict(
+        getattr(collator, "sequence_statistics", {})
+    )
+    observed = int(observed_sequence.get("sample_exposures_observed", 0))
+    if observed:
+        observed_sequence["truncated_fraction"] = (
+            int(observed_sequence.get("truncated_exposures", 0)) / observed
+        )
+        observed_sequence["rendered_tokens_mean"] = (
+            int(observed_sequence.get("rendered_tokens_total", 0)) / observed
+        )
+        observed_sequence["selected_tokens_mean"] = (
+            int(observed_sequence.get("selected_tokens_total", 0)) / observed
+        )
+    result["sequence_statistics"] = observed_sequence
     if reporter:
         reporter.emit(
             "manual_trainer",
@@ -874,11 +1219,31 @@ def _train_adapter_impl(
     if smoke_heldout_cases is not None:
         # This path must stay independent of the Arrow/TRL stack: it is the
         # resource-safety gate that runs before any full training job.
-        dataset = _JsonlMapDataset(dataset_paths, max_records=1)
-        if len(dataset) < 1:
-            raise RuntimeError("smoke-gate dataset has no records")
+        scan_all = training.get("probe_sample_selector") == "max_rendered_tokens"
+        dataset = _JsonlMapDataset(dataset_paths, max_records=None if scan_all else 1)
+        coverage = manifest.get("compact_v2_coverage", {})
+        experts = coverage.get("experts", {}) if isinstance(coverage, Mapping) else {}
+        expert_coverage = (
+            experts.get(config["adapter_name"], {})
+            if isinstance(experts, Mapping)
+            else {}
+        )
+        expected_max = (
+            expert_coverage.get("max_rendered_tokens")
+            if isinstance(expert_coverage, Mapping)
+            else None
+        )
+        record, selection = _select_smoke_record(
+            dataset,
+            processor,
+            training,
+            expected_max_rendered_tokens=(
+                int(expected_max) if expected_max is not None else None
+            ),
+        )
+        reporter.emit("smoke_sample_selection", "completed", detail=selection)
         global_step, train_loss = _run_one_step_smoke(
-            model, processor, dataset[0], training, torch, reporter
+            model, processor, record, training, torch, reporter
         )
     elif training.get("runtime_engine") == "manual_active_labels_v2":
         dataset = _JsonlMapDataset(dataset_paths)
@@ -955,7 +1320,17 @@ def _train_adapter_impl(
             model=model,
             args=args,
             train_dataset=dataset,
-            data_collator=_make_text_collator(processor, training["max_seq_length"]),
+            data_collator=_make_text_collator(
+                processor,
+                training["max_seq_length"],
+                strict_no_truncation=(
+                    training.get("sequence_contract")
+                    == "compact_v2_no_truncation"
+                ),
+                pad_to_max_length=bool(
+                    training.get("probe_pad_to_max_length", False)
+                ),
+            ),
             processing_class=processor,
             callbacks=[_ProgressCallback()],
         )
@@ -1034,8 +1409,17 @@ def _train_adapter_impl(
                 detail={"error_type": type(exc).__name__},
             )
 
+        changed_probe_count = sum(
+            1 for item in pre_post if item["max_abs_next_logit_delta"] > 0
+        )
+        finite_probe_deltas = bool(pre_post) and all(
+            math.isfinite(float(item["max_abs_next_logit_delta"]))
+            for item in pre_post
+        )
         checks = {
-            "one_sample_one_step": global_step == 1 and len(dataset) == 1,
+            "one_sample_one_step": global_step == 1
+            and int(training["max_steps"]) == 1
+            and int(training["gradient_accumulation_steps"]) == 1,
             "loss_finite": isinstance(train_loss, (int, float))
             and math.isfinite(train_loss),
             "peak_vram_within_device": peak_reserved_gib < total_gib,
@@ -1049,8 +1433,13 @@ def _train_adapter_impl(
             # Greedy text may legitimately remain unchanged after one step. The
             # required held-out output difference is measured on the model's
             # next-token distribution, with text change retained as evidence.
-            "heldout_output_distribution_changed": bool(pre_post)
-            and all(item["max_abs_next_logit_delta"] > 0 for item in pre_post),
+            # A one-step resource smoke proves that the adapter can update and
+            # survive reload; it is not a capability evaluation.  Requiring
+            # every unrelated public probe to move after one sample rejects a
+            # valid sparse/local update.  At least one finite non-zero delta is
+            # sufficient here; multi-case behavior is judged after training.
+            "heldout_output_distribution_changed": finite_probe_deltas
+            and changed_probe_count > 0,
         }
         smoke_evidence = {
             "executed": True,
@@ -1066,6 +1455,8 @@ def _train_adapter_impl(
             "adapter_files": sorted(adapter_files),
             "pre_post": pre_post,
             "post_reload": reload_comparison,
+            "changed_probe_count": changed_probe_count,
+            "probe_count": len(pre_post),
             "reload_error": reload_error,
             "pre_outputs": pre_public,
             "post_outputs": post_public,
@@ -1076,6 +1467,16 @@ def _train_adapter_impl(
         global_step=global_step,
         trainable_parameters=trainable_parameters,
     )
+    if manual_training is not None:
+        metadata["runtime_observations"] = {
+            "sample_order": manual_training.get("sample_order"),
+            "stratum_records": manual_training.get("stratum_records"),
+            "stratum_exposures": manual_training.get("stratum_exposures"),
+            "sample_schedule_sha256": manual_training.get(
+                "sample_schedule_sha256"
+            ),
+            "sequence_statistics": manual_training.get("sequence_statistics"),
+        }
     if smoke_evidence is not None:
         metadata["smoke_gate"] = smoke_evidence
     metadata_path = write_json(output_dir / "checkpoint_metadata.json", metadata)

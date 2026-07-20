@@ -493,6 +493,119 @@ def test_bundled_page_uses_safe_dom_updates_and_local_api_only() -> None:
     assert not re.search(r"<(?:script|link)\b[^>]+(?:src|href)=[\"']https?://", asset)
 
 
+def test_bundled_page_keeps_provider_controls_manual_and_route_claims_exact() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    for control_id in (
+        "base-url",
+        "protocol",
+        "model-id",
+        "force-model",
+        "reasoning-enabled",
+        "reasoning-effort",
+        "concurrency",
+        "formal-max-tasks",
+        "max-retries",
+        "reconnect-attempts",
+        "network-route",
+        "route-component-state",
+        "bank-gate-state",
+        "execution-contract-state",
+        "official-evaluation-state",
+        "live-start-state",
+        "container-route-state",
+        "language-routing-state",
+        "zh-localization-state",
+        "formal-runtime-state",
+        "formal-progress-state",
+        "formal-speed-state",
+        "formal-eta-state",
+        "formal-error-state",
+        "control-target",
+    ):
+        assert f'id="{control_id}"' in asset
+    assert '<input id="concurrency" type="number" min="1" step="1" value="1" required>' in asset
+    assert 'id="formal-max-tasks" type="number" min="1" max="19008"' in asset
+    assert 'id="concurrency" type="number" min="1" max=' not in asset
+    assert '<option value="max" selected>max</option>' in asset
+    assert 'postControl("/api/control/formal-start"' in asset
+    assert 'postControl("/api/control/formal-start", formalRunPayload())' in asset
+    assert 'cap=${whole(currentFormal.max_tasks)}' in asset
+    assert 'postControl("/api/control/formal-continue"' in asset
+    assert 'postControl("/api/control/formal-stop"' in asset
+    assert 'fetch("/api/control/formal-status"' in asset
+    assert 'postControl("/api/control/start", newRunPayload())' in asset
+    assert 'postControl("/api/control/continue"' in asset
+    assert 'postControl("/api/control/stop"' in asset
+    assert 'postControl("/api/control/models"' in asset
+    assert "does not pin physical NIC" in asset
+    assert "不会锁定物理网卡" in asset
+    assert "component evidence is not E2E readiness" in asset
+    assert "组件证明不等于端到端就绪" in asset
+    assert "assignment only; not translated body text" in asset
+    assert "仅为路由分配，不代表中文正文已完成" in asset
+    assert "observed npm-only v2" not in asset
+    assert "当前仅证明 npm v2" not in asset
+    assert "SAFE PAUSE (GRACEFUL STOP)" in asset
+    assert "Formal full-bank lifecycle controls are not wired" not in asset
+    assert "正式全题库的开始/暂停/继续/停止尚未接入" not in asset
+    assert "DISTILLATION RUN / WORKLOAD" in asset
+    assert "蒸馏运行 / 工作负载" in asset
+    assert "content-safe observability · local control" in asset
+    assert "内容安全监控 · 本地控制" in asset
+
+
+def test_formal_ui_hides_untrusted_or_disconnected_live_telemetry() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "const telemetryTrusted = currentFormal.telemetry_trusted === true;"
+        in asset
+    )
+    assert 'formalProgressStateNode.textContent = t("formal.telemetry_untrusted")' in asset
+    assert 'status.historical_unbound' in asset
+    assert 'status.stale_status' in asset
+    assert 'status.untrusted_status' in asset
+    assert "telemetry_trusted: false" in asset
+    assert "completed_tasks: null" in asset
+    assert "stage_counts: {}" in asset
+    assert "tasks_per_minute: null" in asset
+    assert "provider_output_tokens_per_second: null" in asset
+    assert "eta_seconds: null" in asset
+
+
+def test_formal_status_response_separates_train_and_official_gate_labels() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert "function renderFormalGates(gates, executionStatus = {})" in asset
+    assert 'id="official-evaluation-state"' in asset
+    assert "official heldout evaluation (non-blocking)" in asset
+    assert "官方 heldout 评测（不阻塞蒸馏）" in asset
+    assert (
+        "renderFormalGates(gates, (lastOptions || {}).formal_execution || {});"
+        in asset
+    )
+    assert "renderFormalGates(formalGates, formalExecution);" in asset
+    for field in (
+        "component_ready",
+        "bank_ready",
+        "execution_contract_ready",
+        "live_start_allowed",
+    ):
+        assert f"value.{field} === true" in asset
+        assert f"value.{field} === false" in asset
+    assert "execution.official_evaluation_contract_ready === true" in asset
+    assert "execution.official_evaluation_contract_ready === false" in asset
+    assert "clearKeyNode.disabled = currentFormal.can_stop === true;" in asset
+    assert "clearKeyNode.disabled = !enabled || currentControl.can_stop === true;" in asset
+
+
 def test_bundled_page_freezes_last_snapshot_and_classifies_disconnects() -> None:
     asset = (
         ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
@@ -594,6 +707,44 @@ def test_bundled_page_has_complete_persisted_bilingual_dictionary() -> None:
     assert 'const LANGUAGE_STORAGE_KEY = "anchor.dashboard.language"' in asset
     assert "navigator.language" in asset
     assert "window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)" in asset
+
+
+def test_bundled_page_has_persisted_three_state_theme_control() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert '<html lang="en" data-theme="system">' in asset
+    assert 'id="theme-toggle"' in asset
+    assert '<label class="visually-hidden" for="theme-toggle"' in asset
+    for mode in ("system", "light", "dark"):
+        assert f'<option value="{mode}" data-i18n="theme.{mode}">' in asset
+    assert 'const THEME_STORAGE_KEY = "anchor.dashboard.theme";' in asset
+    assert 'Object.freeze(["system", "light", "dark"])' in asset
+    assert "window.localStorage.getItem(THEME_STORAGE_KEY)" in asset
+    assert "window.localStorage.setItem(THEME_STORAGE_KEY, theme)" in asset
+    assert 'return "system";' in asset
+    assert "document.documentElement.dataset.theme = theme;" in asset
+    assert 'themeToggleNode.addEventListener("change"' in asset
+
+
+def test_bundled_page_theme_is_monochrome_accessible_and_system_aware() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert '@media (prefers-color-scheme: light)' in asset
+    assert 'html[data-theme="system"]' in asset
+    assert 'html[data-theme="light"]' in asset
+    assert 'html[data-theme="dark"]' in asset
+    assert '<meta name="color-scheme" content="light dark">' in asset
+    assert "--accent: #ffffff;" in asset
+    assert "--accent: #111111;" in asset
+    assert "#73f6a5" not in asset
+    assert "radial-gradient" not in asset
+    assert "button:focus-visible" in asset
+    assert "select:focus-visible" in asset
+    assert "@media (max-width: 480px)" in asset
 
 
 def test_bundled_page_surfaces_provider_scoped_glm52_pricing() -> None:

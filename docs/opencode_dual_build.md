@@ -2,6 +2,18 @@
 
 本说明只覆盖仓库内 OpenCode 补丁产物的构建与校验；不涉及蒸馏执行器、训练或任何 API 调用。
 
+## 当前 readiness 边界
+
+canonical source patch 与 `patch-manifest.json` 已升级为
+`anchor.execution-tool-contract.v3`。正式 v3 构建要求模型容器固定
+`network=none`、工作目录固定 `/testbed`，并且只通过 supervisor 持有的
+Unix socket 和容器内固定 loopback bridge 访问 CC Switch。构建脚本和 bundle
+校验器会拒绝 v2 契约。
+
+修改补丁不会自动升级仓库中已经存在的二进制。只要 Windows 与 Linux 两个平台
+尚未从当前补丁重新构建并写入匹配的 v3 manifest，旧 v2 二进制与旧 bundle 就必须
+保持 `not-ready`，不得用于正式蒸馏或 A–F 评测。
+
 在 canonical OpenCode patch 更新并完成审计前，不要执行下面的构建命令。两个构建器会从同一 `patches/opencode/patch-manifest.json` 读取官方仓库、baseline commit、canonical patch、Bun 版本和必跑测试清单。
 
 ## 产物布局与来源约束

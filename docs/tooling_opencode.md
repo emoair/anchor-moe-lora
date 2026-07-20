@@ -4,11 +4,43 @@
 
 真实工具调用可做，而且适合成为蒸馏数据的“黄金验证层”，但不应把整段 OpenCode 会话或隐藏思维链直接并入训练集。本实现让每个样本进入独立目录，只允许读写当前项目及三个确定的 npm 验证命令，并把最终结果压成不含提示词、模型正文、隐藏思维链、命令输出和密钥的 canonical JSONL。
 
-截至 2026-07-10，本机只读检查结果：
+### 2026-07-17 当前实机状态（以此为准）
 
-- Windows：Node `v24.16.0`、npm `11.16.0` 可用；`opencode` 未安装。
-- WSL：已注册 `Ubuntu-22.04`；未检测到 Linux 版 `opencode`/`node`，`npm` 只解析到 Windows 挂载路径。此前 WSL 状态检查还出现过 mirrored networking 的 `0x8007054f`，因此在修复 WSL 网络前，原生 Windows npm 路线更容易先做单样本验证。
-- 本轮没有安装 OpenCode，没有调用 Kimi API，也没有读取、写入或回显 API key。
+下面的结论来自本机二进制、配置、WSL 服务和无额度 dry preflight 的重新核验；不要再沿用
+2026-07-10 的“OpenCode 尚未安装”旧结论。
+
+- 项目只使用固定产物，不依赖全局 `opencode`：Windows 入口是
+  `artifacts/tooling/opencode-patched/opencode-anchor.exe`，WSL/Linux 入口是
+  `artifacts/tooling/opencode-patched/linux-x64/opencode-anchor`。两者都能启动并暴露
+  `anchor run`、`anchor export`、`anchor cleanup`。
+- 来源与字节身份由 `patches/opencode/patch-manifest.json`、两个平台 manifest 和
+  `artifacts/tooling/opencode-patched/bundle-manifest.json` 共同固定。显示出来的开发版
+  `--version` 字符串不是来源证明，提交、补丁和 SHA-256 才是。
+- WSL 发行版为 `Ubuntu-22.04`；WSL 内 Podman `3.4.4` 可用，`podman.socket` 为 active。
+  当前配置使用 `wsl-root-systemd` 监督器，不是隔离更强的专用 WSL 发行版。
+- 唯一批量配置入口为 `configs/tooling/opencode_distillation_ramp.yaml`。安全默认值是单沙箱、
+  `4G` 内存、`2` CPU、`256` PID、`900` 秒。代码允许更高并发，但本机尚未验收 8 个 live
+  沙箱；不要把“可配置 8”写成“已经跑通 8”。
+- 在 `$HOME\.conda\envs\anchor-mvp\python.exe`（Python 3.11）下，下面的 dry preflight
+  已通过，且 `opencode_available=True`。它不读取 key、不发教师请求、不启动 live 蒸馏：
+
+  ```powershell
+  Set-Location D:\LLM\anchor-moe-lora
+  $Python = "$HOME\.conda\envs\anchor-mvp\python.exe"
+  & $Python scripts\tooling\run_live.py `
+    --batch-config configs\tooling\opencode_distillation_ramp.yaml
+  ```
+
+- **最重要的边界**：`anchor_mvp.data.automation`（包括当前
+  `automation.full_v3.ark_kimi_k3.delta128.c8.yaml`）仍是 direct-API synthetic
+  collector，不会调用 OpenCode，也不会产生真实 `tool_call -> tool_result` 或沙箱侧车。
+  OpenCode/沙箱“已配置”不等于已经接入 Kimi-K3 新增 128 题，更不等于 512 题工具闭环完成。
+- 当前 strict execution Gold 仍为 0。正式纳入训练前，必须把 SWE-bench/执行题卡接到
+  `run_live.py`（或等价受控入口），取得 controlled export、workspace diff 和沙箱审计，再走
+  去重、heldout、分区与冻结。
+
+完整、持续更新的证据边界见 [PROJECT_STATUS.md](PROJECT_STATUS.md)；日常启动顺序见
+[中文入口](../START_HERE.zh-CN.md) 和 [English entry](../START_HERE.md)。
 
 ## 官方能力核验
 
@@ -28,12 +60,18 @@
 - 每个样本复制到 `sample-id--随机后缀` 独立目录；输入中的符号链接直接拒绝，避免路径逃逸。
 - 允许 `read/edit/glob/grep/list/bash`，拒绝 `external_directory/task/skill/webfetch/websearch/lsp`。
 - bash 默认拒绝，只允许：`npm run build --if-present`、`npm run test --if-present`、`npm run lint --if-present`。
-- OpenCode agent 最多 8 次迭代，外层进程默认 900 秒超时，单个验证命令默认 300 秒超时。Windows 超时会终止 OpenCode 进程树。
+- 当前正式配置不写死 agent 任务步数上限；终止边界是外层进程和沙箱默认 `900` 秒超时，
+  单个验证命令默认 `300` 秒超时。Windows 超时会终止 OpenCode 进程树。只有操作员在诊断时
+  显式传入 `--max-iterations`，才额外限制迭代数。
 - 会话分享关闭；默认插件、Claude Code 配置继承、模型目录拉取和 LSP 下载关闭。OpenCode 的 XDG config/data/cache 全部重定向到样本内临时目录，事件归约完成后删除，避免持久化原始会话和隐藏思维链。
-- key 只允许从进程环境变量 `KIMI_CODE_API_KEY` 读取。配置及 gold 文件中不出现 key，也不设置自定义 User-Agent/header。
+- key 只允许从 Provider 配置声明的宿主进程环境变量读取（默认 Kimi 示例为
+  `KIMI_CODE_API_KEY`，Ark/GLM 示例为 `ARK_CODING_API_KEY`）；进入沙箱时统一改名为一次性子进程
+  环境变量。配置及 gold 文件中不出现 key，也不设置伪造客户端身份的 User-Agent/header。
 - `package.json` 中没有对应脚本时结果记为 `SKIP`，不会把 npm 的 `--if-present` 零退出码误报为真实通过。默认要求 `build` 必须存在且通过；可按样本要求 `test`、`lint` 也必须通过。
 
-注意：这是一层强约束和审计，不是容器级恶意代码沙箱。npm 脚本本身可执行项目代码。对不可信仓库做真跑时，应再叠加无凭据容器/VM、网络隔离、只读依赖缓存和 CPU/内存限制。
+注意：当前已经叠加 WSL/Podman、无宿主凭据、资源限制和受控挂载，但仍是开发隔离层，
+不是可承载恶意多租户代码的强安全边界。尚缺每 workspace 磁盘配额、强制 Provider-only
+egress、专用禁用互操作的 WSL 发行版，以及真实崩溃/reaper 覆盖。
 
 ## 审计与 canonical gold JSONL
 

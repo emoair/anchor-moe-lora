@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 Workflow = Literal["single", "pipeline"]
 PromptStyle = Literal["direct", "composite"]
+ReviewProtocol = Literal["verdict_v2", "repair_code_v1", "segmented_repair_v1"]
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,11 @@ class BaselineSpec:
     group: str
     workflow: Workflow
     prompt_style: PromptStyle = "direct"
+    review_protocol: ReviewProtocol = "verdict_v2"
+    artifact_protocol: str = ""
+    segment_contract_version: str = ""
+    frontend_segment_count: int = 1
+    review_segment_count: int = 1
     model: str | None = None
     base_contract_id: str = ""
     base_source_sha256: str = ""
@@ -89,11 +95,23 @@ class BaselineSpec:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "BaselineSpec":
+        review_protocol = str(payload.get("review_protocol", "verdict_v2"))
+        if review_protocol not in {
+            "verdict_v2",
+            "repair_code_v1",
+            "segmented_repair_v1",
+        }:
+            raise ValueError(f"unsupported review_protocol: {review_protocol}")
         return cls(
             name=str(payload["name"]),
             group=str(payload["group"]),
             workflow=payload["workflow"],
             prompt_style=payload.get("prompt_style", "direct"),
+            review_protocol=review_protocol,
+            artifact_protocol=str(payload.get("artifact_protocol", "")),
+            segment_contract_version=str(payload.get("segment_contract_version", "")),
+            frontend_segment_count=int(payload.get("frontend_segment_count", 1)),
+            review_segment_count=int(payload.get("review_segment_count", 1)),
             model=payload.get("model"),
             base_contract_id=str(payload.get("base_contract_id", "")),
             base_source_sha256=str(payload.get("base_source_sha256", "")),

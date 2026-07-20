@@ -1,0 +1,29 @@
+{
+  "schema_version": "anchor.formal-af-processor.v1",
+  "processor_path": "artifacts/formal_partial_v1/forced_low_host_memory/B/adapters/mixed_all-r16/processor",
+  "training_processor_id": "google/gemma-4-12B-it",
+  "purpose": "Freeze the exact processor and chat template used by all formal-partial-v1 adapters.",
+  "files": [
+    {
+      "path": "chat_template.jinja",
+      "bytes": 17828,
+      "sha256": "f36aaa3ddf70471ab2008c8e9a1c7b36e1019b63d7b025399b1e5fc228926381"
+    },
+    {
+      "path": "processor_config.json",
+      "bytes": 1444,
+      "sha256": "56634166d3ca9d76420de0de6fd4ee824a96ebdfee18cf879429d542f1975d26"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 32169626,
+      "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "bytes": 2844,
+      "sha256": "5140ac318c072fdadb9ddfa8c4022462aad6b5794af2d4d19a471fa9eebe6f7d"
+    }
+  ],
+  "tree_sha256": "ae6785022bd50ee878a11da681346b08f7614715a4d4cfdf88b3880c153eccc2"
+}

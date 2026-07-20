@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -49,6 +50,7 @@ SECRET_CONFIG_KEYS = frozenset(
     {"api_key", "apikey", "secret", "token", "authorization", "password"}
 )
 ALLOWED_PROTOCOLS = frozenset({"openai", "openai_responses", "anthropic"})
+REASONING_EFFORTS = frozenset({"low", "medium", "high", "max"})
 NETWORK_ROUTE_MODES = frozenset({"direct", "inherit"})
 PROVIDER_BY_PROTOCOL = {
     "openai": "custom-openai",
@@ -66,6 +68,9 @@ START_FIELDS = frozenset(
         "api_key",
         "model",
         "force_model",
+        "reasoning_enabled",
+        "reasoning_effort",
+        "pricing_route",
         "task_card_config",
         "timeout_seconds",
         "max_retries",
@@ -101,6 +106,7 @@ CONTROL_PUBLIC_FIELDS = frozenset(
         "finished_at",
         "launch_config_sha256",
         "corpus_binding_sha256",
+        "provider_profile",
         "credential_loaded",
         "can_start",
         "can_stop",
@@ -243,12 +249,15 @@ def _text(payload: Mapping[str, object], name: str, pattern: re.Pattern[str]) ->
 
 
 def _integer(
-    payload: Mapping[str, object], name: str, minimum: int, maximum: int
+    payload: Mapping[str, object],
+    name: str,
+    minimum: int,
+    maximum: int | None,
 ) -> int:
     value = payload.get(name)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ControlError(400, f"invalid_{name}", f"{name} must be an integer")
-    if not minimum <= value <= maximum:
+    if value < minimum or (maximum is not None and value > maximum):
         raise ControlError(
             400, f"invalid_{name}", f"{name} is outside the allowed range"
         )
@@ -284,11 +293,149 @@ def _network_route(value: object) -> str:
     return str(value)
 
 
+def _reasoning_effort(value: object) -> str:
+    if value not in REASONING_EFFORTS:
+        raise ControlError(
+            400,
+            "invalid_reasoning_effort",
+            "Reasoning effort must be low, medium, high, or max",
+        )
+    return str(value)
+
+
+def _pricing_route(value: object) -> str:
+    if not isinstance(value, str) or LABEL_RE.fullmatch(value) is None:
+        raise ControlError(
+            400,
+            "invalid_pricing_route",
+            "Pricing route must be manual or one catalog provider ID",
+        )
+    return value
+
+
+_STAGE_REASONING_KEYS = (
+    "thinking_effort_seed",
+    "thinking_effort_plan",
+    "thinking_effort_tool_policy",
+    "thinking_effort_frontend",
+    "thinking_effort_review",
+    "thinking_effort_security",
+)
+
+
+def _required_reasoning_effort(base: Mapping[str, Any]) -> str | None:
+    """Return a provider-neutral formal-profile floor when one is declared.
+
+    New profiles may declare ``reasoning_policy.required`` explicitly. Existing
+    formal GLM/Kimi profiles are recognized by their complete all-stage MAX
+    contract, without hard-coding provider or model IDs.
+    """
+
+    policy = base.get("reasoning_policy")
+    if policy is not None:
+        if not isinstance(policy, Mapping) or set(policy) != {"required", "effort"}:
+            raise ControlError(
+                400,
+                "invalid_reasoning_policy",
+                "reasoning_policy must contain only required and effort",
+            )
+        required = policy.get("required")
+        effort = policy.get("effort")
+        if not isinstance(required, bool) or effort not in REASONING_EFFORTS:
+            raise ControlError(
+                400,
+                "invalid_reasoning_policy",
+                "reasoning_policy required/effort is invalid",
+            )
+        return str(effort) if required else None
+    if (
+        base.get("thinking_enabled") is True
+        and base.get("thinking_effort") == "max"
+        and all(base.get(key) == "max" for key in _STAGE_REASONING_KEYS)
+    ):
+        return "max"
+    return None
+
+
 def _proxy_detected() -> bool:
     try:
         return bool(getproxies())
     except (OSError, ValueError):
         return False
+
+
+def _default_route_audit() -> dict[str, object]:
+    """Return a content-free, read-only default-route warning.
+
+    ``NO_PROXY`` can bypass proxy environment variables, but it cannot override
+    a TUN adapter selected by the operating-system routing table.  This probe is
+    deliberately observational: it never adds, replaces, or deletes a route.
+    """
+
+    result: dict[str, object] = {
+        "status": "unsupported" if os.name != "nt" else "unknown",
+        "virtual_default_route_detected": None,
+        "physical_default_route_detected": None,
+        "physical_route_pinned": False,
+        "direct_semantics": "proxy_env_bypass_only",
+    }
+    if os.name != "nt":
+        return result
+    script = (
+        "$ErrorActionPreference='Stop';"
+        "@(Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' "
+        "| Select-Object ifIndex,InterfaceAlias,NextHop,RouteMetric "
+        "| ConvertTo-Json -Compress)"
+    )
+    try:
+        completed = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                script,
+            ],
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3,
+            check=False,
+        )
+        if completed.returncode != 0 or not completed.stdout.strip():
+            return result
+        decoded = json.loads(completed.stdout)
+        routes = decoded if isinstance(decoded, list) else [decoded]
+        virtual = False
+        physical = False
+        for raw in routes:
+            if not isinstance(raw, Mapping):
+                continue
+            alias = str(raw.get("InterfaceAlias", "")).casefold()
+            next_hop = str(raw.get("NextHop", ""))
+            looks_virtual = any(
+                marker in alias
+                for marker in ("tun", "tap", "clash", "flclash", "wintun", "vpn")
+            ) or next_hop.startswith("198.18.") or next_hop.startswith("198.19.")
+            if looks_virtual:
+                virtual = True
+            elif next_hop and next_hop != "0.0.0.0":
+                physical = True
+        result.update(
+            {
+                "status": "observed",
+                "virtual_default_route_detected": virtual,
+                "physical_default_route_detected": physical,
+            }
+        )
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        pass
+    return result
 
 
 def _require_fields(payload: Mapping[str, object], allowed: frozenset[str]) -> None:
@@ -307,6 +454,9 @@ class StartSpec:
     protocol: str
     model: str
     force_model: bool
+    reasoning_enabled: bool
+    reasoning_effort: str
+    pricing_route: str
     task_card_config: str
     timeout_seconds: float
     max_retries: int
@@ -337,6 +487,7 @@ class GeneratedRun:
     output_label: str
     base_config: str
     launch_config_sha256: str
+    provider_profile: dict[str, object]
     reconnect_attempts: int
     reconnect_backoff_seconds: float
     wait_cooldown: bool
@@ -413,18 +564,665 @@ class WorkspacePolicy:
                 output_label = value.get("output_label")
                 if RUN_ID_RE.fullmatch(run_id) and isinstance(output_label, str):
                     runs.append({"run_id": run_id, "output_label": output_label})
+        formal_preflight = self.formal_preflight()
+        formal_route = dict(formal_preflight["formal_route"])
+        formal_dataset = dict(formal_preflight["formal_dataset"])
+        formal_execution = dict(formal_preflight["execution_contract"])
+        formal_gates = {
+            name: formal_preflight[name]
+            for name in (
+                "component_ready",
+                "bank_ready",
+                "execution_contract_ready",
+                "live_start_allowed",
+                "reason_code",
+            )
+        }
         return {
             "base_configs": configs,
             "task_card_configs": task_cards,
             "protocols": sorted(ALLOWED_PROTOCOLS),
             "network_route_modes": ["direct", "inherit"],
             "proxy_detected": _proxy_detected(),
+            "default_route_audit": _default_route_audit(),
+            "formal_route": formal_route,
+            "formal_dataset": formal_dataset,
+            "formal_execution": formal_execution,
+            "formal_gates": formal_gates,
+            "formal_preflight": formal_preflight,
             "runs": runs[-50:],
             "limits": {
-                "concurrency_max": 64,
+                "concurrency_min": 1,
+                "concurrency_max": None,
+                "concurrency_default": 1,
                 "request_body_bytes": 16_384,
             },
         }
+
+    def formal_preflight(self) -> dict[str, object]:
+        """Return coordinator-compatible gates without reading task bodies.
+
+        This payload is deliberately narrower than the full formal coordinator
+        preflight.  It reads only public manifests, component hashes, and the
+        locked v3 execution attestation.  Candidate JSONL, heldout files,
+        credentials, provider routes, and sandboxes are outside this code path.
+        Missing or malformed fields therefore fail closed instead of being
+        inferred as ready.
+        """
+
+        formal_route = self._formal_route_status()
+        formal_dataset = self._formal_dataset_status()
+        formal_execution = self._formal_execution_status()
+        component_ready = bool(
+            formal_route.get("component_ready") is True
+            and formal_execution.get("bundle_present") is True
+        )
+        bank_ready = formal_dataset.get("bank_ready") is True
+        execution_contract_ready = formal_execution.get("ready") is True
+        live_start_allowed = bool(
+            component_ready and bank_ready and execution_contract_ready
+        )
+        if not component_ready:
+            gate_reason = "formal_component_not_ready"
+        elif not bank_ready:
+            gate_reason = "formal_bank_not_ready"
+        elif not execution_contract_ready:
+            raw_reason = formal_execution.get("reason_code")
+            gate_reason = (
+                str(raw_reason)
+                if isinstance(raw_reason, str) and raw_reason
+                else "formal_execution_contract_not_ready"
+            )
+        else:
+            raw_reason = formal_execution.get("reason_code")
+            gate_reason = (
+                str(raw_reason)
+                if isinstance(raw_reason, str) and raw_reason
+                else "generic_train_execution_contract_ready"
+            )
+        return {
+            "schema_version": "anchor.swebench-ccswitch-preflight.v1",
+            "content_free": True,
+            "offline": True,
+            "provider_requests": 0,
+            "credentials_read": False,
+            "sample_bodies_read": False,
+            "sample_bodies_printed": False,
+            "heldout_files_read": False,
+            "component_ready": component_ready,
+            "bank_ready": bank_ready,
+            "execution_contract_ready": execution_contract_ready,
+            "live_start_allowed": live_start_allowed,
+            "reason_code": gate_reason,
+            "formal_route": formal_route,
+            "formal_dataset": formal_dataset,
+            "execution_contract": formal_execution,
+            "live_started": False,
+        }
+
+    def _formal_route_status(self) -> dict[str, object]:
+        """Separate component evidence from WSL/container reachability.
+
+        The dashboard does not probe or mutate WSL/Podman networking, so even a
+        validated Windows route binary is never presented as end-to-end ready.
+        """
+
+        manifest_path = (
+            self.root
+            / "artifacts"
+            / "tooling"
+            / "ccswitch-patched"
+            / "route-manifest.json"
+        )
+        component_ready = False
+        if manifest_path.is_file() and not manifest_path.is_symlink():
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                binary = manifest.get("binary") if isinstance(manifest, Mapping) else None
+                patch = manifest.get("patch") if isinstance(manifest, Mapping) else None
+                if isinstance(binary, Mapping) and isinstance(patch, Mapping):
+                    binary_path = (self.root / str(binary.get("path", ""))).resolve()
+                    patch_path = (self.root / str(patch.get("path", ""))).resolve()
+                    component_ready = bool(
+                        manifest.get("schema_version")
+                        == "anchor.ccswitch-route-manifest.v1"
+                        and manifest.get("ready") is True
+                        and binary_path.is_relative_to(self.root)
+                        and patch_path.is_relative_to(self.root)
+                        and binary_path.is_file()
+                        and patch_path.is_file()
+                        and _sha256_file(binary_path) == binary.get("sha256")
+                        and _sha256_file(patch_path) == patch.get("sha256")
+                    )
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+                component_ready = False
+        return {
+            "component_ready": component_ready,
+            "live_route_container_reachable": None,
+            "reachability_state": "not_probed_by_dashboard",
+            "e2e_ready": False,
+        }
+
+    def _formal_dataset_status(self) -> dict[str, object]:
+        manifest_path = (
+            self.root / "artifacts" / "swebench" / "full-bank-v1" / "manifest.json"
+        )
+        counts: dict[str, int] = {}
+        localization_present = False
+        bank_ready = False
+        if manifest_path.is_file() and not manifest_path.is_symlink():
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                bilingual = (
+                    manifest.get("bilingual")
+                    if isinstance(manifest, Mapping)
+                    else None
+                )
+                raw_counts = (
+                    bilingual.get("counts") if isinstance(bilingual, Mapping) else None
+                )
+                if isinstance(raw_counts, Mapping):
+                    for locale in ("en-US", "zh-CN"):
+                        value = raw_counts.get(locale)
+                        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                            counts[locale] = value
+                localization_present = bool(
+                    isinstance(bilingual, Mapping)
+                    and bilingual.get("translation_manifest_present") is True
+                )
+                bank_ready = bool(
+                    manifest.get("schema_version")
+                    == "anchor.swebench-full-bank-manifest.v2"
+                    and manifest.get("launch_ready") is True
+                    and counts == {"en-US": 9504, "zh-CN": 9504}
+                )
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                counts = {}
+                localization_present = False
+                bank_ready = False
+        return {
+            "bank_ready": bank_ready,
+            "locale_assignment_counts": counts,
+            "language_routing_only": True,
+            "zh_cn_localization_manifest_present": localization_present,
+        }
+
+    def _formal_execution_status(self) -> dict[str, object]:
+        """Use the same locked v3 verifier as the formal coordinator."""
+
+        bundle_path = (
+            self.root
+            / "artifacts"
+            / "tooling"
+            / "opencode-patched"
+            / "bundle-manifest.json"
+        )
+        coordinator_config = (
+            self.root / "configs" / "data" / "swebench_five_stage.ccswitch.yaml"
+        )
+        observed_version: str | None = None
+        bundle_present = False
+        if bundle_path.is_file() and not bundle_path.is_symlink():
+            try:
+                bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+                source = bundle.get("source") if isinstance(bundle, Mapping) else None
+                contract = (
+                    source.get("tool_contract")
+                    if isinstance(source, Mapping)
+                    else None
+                )
+                observed = (
+                    source.get("tool_contract_version")
+                    if isinstance(source, Mapping)
+                    else None
+                )
+                if isinstance(observed, str):
+                    observed_version = observed
+                bundle_present = bool(
+                    bundle.get("schema_version") == "anchor.patched-opencode.bundle.v1"
+                    and isinstance(contract, Mapping)
+                    and contract.get("version") == observed_version
+                )
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                bundle_present = False
+                observed_version = None
+        generic_verification: Mapping[str, object] = {
+            "mode": "generic_train_repo_base_commit",
+            "not_official_swebench_pass": True,
+            "ready": False,
+            "reason_code": "generic_train_execution_contract_not_ready",
+            "remaining_gates": ["execution_lock_invalid"],
+            "official_evaluation_contract_ready": False,
+            "official_evaluation_remaining_gates": [],
+        }
+        try:
+            config = load_strict_mapping(coordinator_config)
+            spec = config.get("execution_contract")
+            if not isinstance(spec, Mapping):
+                raise ValueError("execution contract spec missing")
+            attestation_path = (self.root / str(spec.get("attestation", ""))).resolve()
+            lock_path = (self.root / str(spec.get("lock", ""))).resolve()
+            lock_sha256 = spec.get("lock_sha256")
+            if (
+                not attestation_path.is_relative_to(self.root)
+                or not lock_path.is_relative_to(self.root)
+                or not isinstance(lock_sha256, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", lock_sha256)
+            ):
+                raise ValueError("execution contract path/hash invalid")
+            source_root = self.root / "src"
+            tooling_root = self.root / "scripts" / "tooling"
+            for import_root in (source_root, tooling_root):
+                if str(import_root) not in sys.path:
+                    sys.path.insert(0, str(import_root))
+            from run_swebench_ccswitch import (  # noqa: PLC0415
+                CoordinatorConfig,
+                _distillation_execution_contract_gate,
+            )
+
+            coordinator = CoordinatorConfig.load(coordinator_config)
+            result = _distillation_execution_contract_gate(coordinator)
+            if isinstance(result, Mapping):
+                generic_verification = result
+        except (ImportError, OSError, UnicodeDecodeError, ValueError, yaml.YAMLError):
+            pass
+        return {
+            "bundle_present": bundle_present,
+            "observed_tool_contract_version": observed_version,
+            "required_tool_contract_version": "anchor.execution-tool-contract.v3",
+            "mode": generic_verification.get("mode"),
+            "not_official_swebench_pass": True,
+            "ready": generic_verification.get("ready") is True,
+            "reason_code": str(
+                generic_verification.get(
+                    "reason_code", "generic_train_execution_contract_not_ready"
+                )
+            ),
+            "remaining_gates": list(
+                generic_verification.get("remaining_gates", ())
+            ),
+            "official_evaluation_contract_ready": (
+                generic_verification.get("official_evaluation_contract_ready") is True
+            ),
+            "official_evaluation_remaining_gates": list(
+                generic_verification.get("official_evaluation_remaining_gates", ())
+            ),
+            "capability_gap": (
+                None
+                if generic_verification.get("ready") is True
+                else "python_repository_validation_not_attested"
+            ),
+        }
+
+    def formal_runtime_status(self) -> dict[str, object]:
+        """Read only the coordinator's explicitly content-free status file."""
+
+        path = (
+            self.root
+            / "artifacts"
+            / "swebench"
+            / "full-bank-live-v1"
+            / "status.json"
+        )
+        empty: dict[str, object] = {
+            "available": False,
+            "state": "not_started",
+            "submitted_tasks": 0,
+            "completed_tasks": 0,
+            "expected_tasks": 19008,
+            "active_tasks": 0,
+            "counts": {"completed": 0, "blocked": 0, "failed": 0},
+            "stage_counts": {
+                "planner": 0,
+                "tool_policy": 0,
+                "domain_builder": 0,
+                "domain_review": 0,
+                "security": 0,
+            },
+            "failure_counts": {},
+            "requests": {
+                "provider_requests": None,
+                "provider_successes": None,
+                "provider_failures": None,
+                "retry_attempts": None,
+            },
+            "tokens": {
+                "input_tokens": None,
+                "output_tokens": None,
+                "total_tokens": None,
+                "cached_input_tokens": None,
+            },
+            "tasks_per_minute": None,
+            "provider_output_tokens_per_second": None,
+            "eta_seconds": None,
+            "stage_progress_available": False,
+            "token_metrics_available": False,
+            "identity_verified": False,
+            "fresh": False,
+            "formal_lifecycle_control_available": False,
+            "content_free": True,
+            "control_run_id": None,
+            "checkpoint_id": None,
+            "config_sha256": None,
+            "execution_lock_sha256": None,
+            "resume_mode": None,
+            "request_failure_counts": {},
+            "last_error_code": None,
+        }
+        if not path.is_file() or path.is_symlink():
+            return empty
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return {**empty, "state": "invalid_status"}
+        if (
+            not isinstance(value, Mapping)
+            or value.get("schema_version")
+            not in {
+                "anchor.swebench-ccswitch-status.v1",
+                "anchor.swebench-ccswitch-status.v2",
+            }
+            or value.get("content_free") is not True
+        ):
+            return {**empty, "state": "invalid_status"}
+        schema = str(value.get("schema_version"))
+        state = value.get("state")
+        submitted = value.get("submitted_tasks")
+        completed = value.get("completed_tasks")
+        elapsed = value.get("elapsed_seconds")
+        rate = value.get("tasks_per_minute")
+        counts = value.get("counts")
+        if (
+            state
+            not in {
+                "running",
+                "starting",
+                "completed",
+                "completed_with_failures",
+                "failed",
+                "stopped",
+                "stopped_checkpoint_resumable",
+            }
+            or not isinstance(submitted, int)
+            or isinstance(submitted, bool)
+            or submitted < 0
+            or not isinstance(completed, int)
+            or isinstance(completed, bool)
+            or completed < 0
+            or not isinstance(counts, Mapping)
+        ):
+            return {**empty, "state": "invalid_status"}
+        safe_counts: dict[str, int] = {}
+        for key in ("completed", "blocked", "failed"):
+            item = counts.get(key)
+            if not isinstance(item, int) or isinstance(item, bool) or item < 0:
+                return {**empty, "state": "invalid_status"}
+            safe_counts[key] = item
+        expected = value.get("expected_tasks", 19008)
+        active = value.get("active_tasks", 0)
+        if (
+            not isinstance(expected, int)
+            or isinstance(expected, bool)
+            or expected != 19008
+            or not isinstance(active, int)
+            or isinstance(active, bool)
+            or active < 0
+            or completed > submitted
+            or submitted > expected
+            or sum(safe_counts.values()) != completed
+            or active > submitted - completed
+            or (state not in {"running", "starting"} and active != 0)
+        ):
+            return {**empty, "state": "invalid_status"}
+        stage_counts = dict(empty["stage_counts"])
+        failure_counts: dict[str, int] = {}
+        requests = dict(empty["requests"])
+        tokens = dict(empty["tokens"])
+        token_rate: float | None = None
+        control_run_id: str | None = None
+        checkpoint_id: str | None = None
+        config_sha256: str | None = None
+        execution_lock_sha256: str | None = None
+        resume_mode: bool | None = None
+        request_failure_counts: dict[str, int] = {}
+        last_error_code: str | None = None
+        if schema.endswith(".v2"):
+            raw_stages = value.get("stage_counts")
+            raw_failures = value.get("failure_counts")
+            raw_requests = value.get("requests")
+            raw_tokens = value.get("tokens")
+            raw_request_failures = value.get("request_failure_counts")
+            if not all(
+                isinstance(item, Mapping)
+                for item in (
+                    raw_stages,
+                    raw_failures,
+                    raw_requests,
+                    raw_tokens,
+                    raw_request_failures,
+                )
+            ):
+                return {**empty, "state": "invalid_status"}
+            assert isinstance(raw_stages, Mapping)
+            assert isinstance(raw_failures, Mapping)
+            assert isinstance(raw_requests, Mapping)
+            assert isinstance(raw_tokens, Mapping)
+            assert isinstance(raw_request_failures, Mapping)
+            control_run_id = value.get("control_run_id")  # type: ignore[assignment]
+            checkpoint_id = value.get("checkpoint_id")  # type: ignore[assignment]
+            config_sha256 = value.get("config_sha256")  # type: ignore[assignment]
+            execution_lock_sha256 = value.get("execution_lock_sha256")  # type: ignore[assignment]
+            resume_mode = value.get("resume_mode")  # type: ignore[assignment]
+            if (
+                not isinstance(control_run_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", control_run_id)
+                or not all(
+                    isinstance(item, str) and re.fullmatch(r"[0-9a-f]{64}", item)
+                    for item in (
+                        checkpoint_id,
+                        config_sha256,
+                        execution_lock_sha256,
+                    )
+                )
+                or not isinstance(resume_mode, bool)
+            ):
+                return {**empty, "state": "invalid_status"}
+            for key in stage_counts:
+                item = raw_stages.get(key)
+                if not isinstance(item, int) or isinstance(item, bool) or item < 0:
+                    return {**empty, "state": "invalid_status"}
+                stage_counts[key] = item
+            for key, item in raw_failures.items():
+                if (
+                    not isinstance(key, str)
+                    or not re.fullmatch(r"[a-z0-9_]{1,80}", key)
+                    or not isinstance(item, int)
+                    or isinstance(item, bool)
+                    or item < 0
+                ):
+                    return {**empty, "state": "invalid_status"}
+                failure_counts[key] = item
+            for key, item in raw_request_failures.items():
+                if (
+                    not isinstance(key, str)
+                    or not re.fullmatch(r"[a-z0-9_]{1,80}", key)
+                    or not isinstance(item, int)
+                    or isinstance(item, bool)
+                    or item < 0
+                ):
+                    return {**empty, "state": "invalid_status"}
+                request_failure_counts[key] = item
+            raw_last_error = value.get("last_error_code")
+            if raw_last_error is not None and (
+                not isinstance(raw_last_error, str)
+                or not re.fullmatch(r"[a-z0-9_]{1,80}", raw_last_error)
+            ):
+                return {**empty, "state": "invalid_status"}
+            last_error_code = raw_last_error
+            for key in requests:
+                item = raw_requests.get(key)
+                if not isinstance(item, int) or isinstance(item, bool) or item < 0:
+                    return {**empty, "state": "invalid_status"}
+                requests[key] = item
+            if requests["provider_successes"] + requests["provider_failures"] > requests["provider_requests"]:
+                return {**empty, "state": "invalid_status"}
+            for key in tokens:
+                item = raw_tokens.get(key)
+                if not isinstance(item, int) or isinstance(item, bool) or item < 0:
+                    return {**empty, "state": "invalid_status"}
+                tokens[key] = item
+            raw_token_rate = value.get("provider_output_tokens_per_second")
+            if (
+                isinstance(raw_token_rate, (int, float))
+                and not isinstance(raw_token_rate, bool)
+                and math.isfinite(float(raw_token_rate))
+                and float(raw_token_rate) >= 0
+            ):
+                token_rate = float(raw_token_rate)
+            else:
+                return {**empty, "state": "invalid_status"}
+        numeric_rate: float | None
+        eta_seconds: float | None = None
+        if schema.endswith(".v2"):
+            if (
+                not isinstance(elapsed, (int, float))
+                or isinstance(elapsed, bool)
+                or not math.isfinite(float(elapsed))
+                or float(elapsed) < 0
+                or not isinstance(rate, (int, float))
+                or isinstance(rate, bool)
+                or not math.isfinite(float(rate))
+                or float(rate) < 0
+            ):
+                return {**empty, "state": "invalid_status"}
+            numeric_rate = float(rate)
+            raw_eta = value.get("eta_seconds")
+            if raw_eta is not None:
+                if (
+                    not isinstance(raw_eta, (int, float))
+                    or isinstance(raw_eta, bool)
+                    or not math.isfinite(float(raw_eta))
+                    or float(raw_eta) < 0
+                ):
+                    return {**empty, "state": "invalid_status"}
+                eta_seconds = float(raw_eta)
+        else:
+            numeric_rate = (
+                float(rate)
+                if isinstance(rate, (int, float))
+                and not isinstance(rate, bool)
+                and math.isfinite(float(rate))
+                and float(rate) > 0
+                else None
+            )
+            if (
+                numeric_rate is None
+                and isinstance(elapsed, (int, float))
+                and not isinstance(elapsed, bool)
+                and elapsed > 0
+            ):
+                numeric_rate = completed * 60.0 / float(elapsed)
+            if state == "running" and numeric_rate:
+                eta_seconds = max(
+                    0.0, (expected - completed) * 60.0 / numeric_rate
+                )
+        raw_updated = value.get("updated_at")
+        try:
+            if isinstance(raw_updated, str):
+                updated = datetime.fromisoformat(raw_updated.replace("Z", "+00:00"))
+                if updated.tzinfo is None:
+                    raise ValueError("timezone required")
+            else:
+                updated = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+            updated = updated.astimezone(timezone.utc)
+            updated_at = updated.isoformat()
+            age_seconds = (datetime.now(timezone.utc) - updated).total_seconds()
+            if age_seconds < 0:
+                raise ValueError("future status timestamp")
+        except (OSError, ValueError):
+            return {**empty, "state": "invalid_status"}
+        fresh = state not in {"running", "starting"} or age_seconds <= 10.0
+        return {
+            **empty,
+            "available": True,
+            "state": state,
+            "status_schema": schema,
+            "submitted_tasks": submitted,
+            "completed_tasks": completed,
+            "expected_tasks": expected,
+            "active_tasks": active,
+            "counts": safe_counts,
+            "stage_counts": stage_counts,
+            "failure_counts": failure_counts,
+            "requests": requests,
+            "tokens": tokens,
+            "tasks_per_minute": numeric_rate,
+            "provider_output_tokens_per_second": token_rate,
+            "eta_seconds": eta_seconds,
+            "stage_progress_available": schema.endswith(".v2"),
+            "token_metrics_available": schema.endswith(".v2"),
+            "fresh": fresh,
+            "status_age_seconds": age_seconds,
+            "updated_at": updated_at,
+            "control_run_id": control_run_id,
+            "checkpoint_id": checkpoint_id,
+            "config_sha256": config_sha256,
+            "execution_lock_sha256": execution_lock_sha256,
+            "resume_mode": resume_mode,
+            "request_failure_counts": request_failure_counts,
+            "last_error_code": last_error_code,
+        }
+
+    def formal_local_binding(self) -> dict[str, object]:
+        config_path = (
+            self.root / "configs" / "data" / "swebench_five_stage.ccswitch.yaml"
+        )
+        output_root = (
+            self.root / "artifacts" / "swebench" / "full-bank-live-v1"
+        )
+        try:
+            config = load_strict_mapping(config_path)
+            execution = config.get("execution_contract")
+            if not isinstance(execution, Mapping):
+                raise ValueError("execution contract missing")
+            lock_sha256 = execution.get("lock_sha256")
+            if not isinstance(lock_sha256, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", lock_sha256
+            ):
+                raise ValueError("execution lock hash invalid")
+            failed_startup_rearmable = False
+            try:
+                source_root = self.root / "src"
+                tooling_root = self.root / "scripts" / "tooling"
+                for import_root in (source_root, tooling_root):
+                    if str(import_root) not in sys.path:
+                        sys.path.insert(0, str(import_root))
+                from run_swebench_ccswitch import (  # noqa: PLC0415
+                    can_rearm_failed_start,
+                )
+
+                failed_startup_rearmable = can_rearm_failed_start(output_root)
+            except (ImportError, OSError, ValueError):
+                failed_startup_rearmable = False
+            return {
+                "ready": True,
+                "config_sha256": _sha256_file(config_path),
+                "execution_lock_sha256": lock_sha256,
+                "status_exists": (output_root / "status.json").is_file(),
+                "checkpoint_exists": (
+                    output_root / "checkpoint.events.jsonl"
+                ).is_file(),
+                "failed_startup_rearmable": failed_startup_rearmable,
+            }
+        except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError):
+            return {
+                "ready": False,
+                "config_sha256": None,
+                "execution_lock_sha256": None,
+                "status_exists": False,
+                "checkpoint_exists": False,
+                "failed_startup_rearmable": False,
+            }
 
     def config_path(self, relative: object) -> tuple[str, Path]:
         if not isinstance(relative, str) or not relative:
@@ -652,15 +1450,40 @@ def parse_start_spec(
     if protocol not in ALLOWED_PROTOCOLS:
         raise ControlError(400, "invalid_protocol", "Protocol is invalid")
     model = _text(payload, "model", MODEL_RE)
+    reasoning_enabled_value = payload.get(
+        "reasoning_enabled", base.get("thinking_enabled", True)
+    )
+    if not isinstance(reasoning_enabled_value, bool):
+        raise ControlError(
+            400,
+            "invalid_reasoning_enabled",
+            "reasoning_enabled must be boolean",
+        )
+    reasoning_enabled = reasoning_enabled_value
+    reasoning_effort = _reasoning_effort(
+        payload.get("reasoning_effort", base.get("thinking_effort", "medium"))
+    )
+    required_reasoning = _required_reasoning_effort(base)
+    if required_reasoning is not None and (
+        not reasoning_enabled or reasoning_effort != required_reasoning
+    ):
+        raise ControlError(
+            409,
+            "formal_reasoning_required",
+            f"Selected formal profile requires reasoning effort {required_reasoning}",
+        )
     spec = StartSpec(
         base_config=base_relative,
         output_dir=output_relative,
         seed_index_offset=_integer(payload, "seed_index_offset", 0, 2_000_000_000),
-        concurrency=_integer(payload, "concurrency", 1, 64),
+        concurrency=_integer(payload, "concurrency", 1, None),
         base_url=validate_base_url(payload.get("base_url")),
         protocol=str(protocol),
         model=model,
         force_model=_boolean(payload, "force_model"),
+        reasoning_enabled=reasoning_enabled,
+        reasoning_effort=reasoning_effort,
+        pricing_route=_pricing_route(payload.get("pricing_route", "manual")),
         task_card_config=task_relative,
         timeout_seconds=_number(payload, "timeout_seconds", 1, 3600),
         max_retries=_integer(payload, "max_retries", 0, 10),
@@ -710,6 +1533,16 @@ def generate_run(
     stage_count = (
         len(stage_counts) if isinstance(stage_counts, list) and stage_counts else 1
     )
+    provider_profile: dict[str, object] = {
+        "provider": spec.provider,
+        "protocol": spec.protocol,
+        "base_url": spec.base_url,
+        "model": spec.model,
+        "force_model": spec.force_model,
+        "reasoning_enabled": spec.reasoning_enabled,
+        "reasoning_effort": spec.reasoning_effort,
+        "pricing_route": spec.pricing_route,
+    }
     effective.update(
         {
             "provider": spec.provider,
@@ -718,6 +1551,12 @@ def generate_run(
             "model": spec.model,
             "force_model": spec.force_model,
             "discover_models": not spec.force_model,
+            "thinking_enabled": spec.reasoning_enabled,
+            "thinking_effort": spec.reasoning_effort,
+            **{
+                key: spec.reasoning_effort
+                for key in _STAGE_REASONING_KEYS
+            },
             "api_key_env": CONTROL_KEY_ENV,
             "output_dir": output_relative,
             "task_card_config": spec.task_card_config,
@@ -758,13 +1597,7 @@ def generate_run(
         "seed_index_offset": spec.seed_index_offset,
         "raw_collection_target": raw_target,
         "concurrency": spec.concurrency,
-        "provider_profile": {
-            "provider": spec.provider,
-            "protocol": spec.protocol,
-            "base_url": spec.base_url,
-            "model": spec.model,
-            "force_model": spec.force_model,
-        },
+        "provider_profile": provider_profile,
         "transport": {
             "timeout_seconds": spec.timeout_seconds,
             "max_retries": spec.max_retries,
@@ -811,6 +1644,7 @@ def generate_run(
         "reconnect_backoff_seconds": spec.reconnect_backoff_seconds,
         "wait_cooldown": spec.wait_cooldown,
         "network_route": spec.network_route,
+        "provider_profile": provider_profile,
         "credential_persisted": False,
     }
     manifest_path = run_dir / "control-manifest.json"
@@ -830,6 +1664,7 @@ def generate_run(
         output_label=output_dir.name,
         base_config=spec.base_config,
         launch_config_sha256=launch_sha,
+        provider_profile=provider_profile,
         reconnect_attempts=spec.reconnect_attempts,
         reconnect_backoff_seconds=spec.reconnect_backoff_seconds,
         wait_cooldown=spec.wait_cooldown,
@@ -916,6 +1751,56 @@ def _load_generated_run(policy: WorkspacePolicy, run_id: object) -> GeneratedRun
         and hmac.compare_digest(str(run_id), directory_run_id)
     ):
         raise ControlError(409, "run_not_trusted", "Control run cannot be resumed")
+
+    profile = control.get("provider_profile")
+    if not isinstance(profile, Mapping):
+        raise ControlError(409, "run_not_trusted", "Provider profile is missing")
+    protocol = profile.get("protocol")
+    model = profile.get("model")
+    force_model = profile.get("force_model")
+    reasoning_enabled = profile.get(
+        "reasoning_enabled", effective.get("thinking_enabled", False)
+    )
+    reasoning_effort = profile.get(
+        "reasoning_effort", effective.get("thinking_effort", "medium")
+    )
+    pricing_route = profile.get("pricing_route", "manual")
+    try:
+        base_url = validate_base_url(profile.get("base_url"))
+        safe_pricing_route = _pricing_route(pricing_route)
+    except ControlError as error:
+        raise ControlError(
+            409, "run_not_trusted", "Provider profile is invalid"
+        ) from error
+    if (
+        protocol not in ALLOWED_PROTOCOLS
+        or not isinstance(model, str)
+        or MODEL_RE.fullmatch(model) is None
+        or not isinstance(force_model, bool)
+        or not isinstance(reasoning_enabled, bool)
+        or reasoning_effort not in REASONING_EFFORTS
+        or profile.get("provider") != PROVIDER_BY_PROTOCOL[protocol]
+        or effective.get("protocol") != protocol
+        or effective.get("base_url") != base_url
+        or effective.get("model") != model
+        or effective.get("force_model") is not force_model
+        or effective.get("thinking_enabled") is not reasoning_enabled
+        or effective.get("thinking_effort") != reasoning_effort
+    ):
+        raise ControlError(409, "run_not_trusted", "Provider profile is invalid")
+    provider_profile: dict[str, object] = {
+        "provider": PROVIDER_BY_PROTOCOL[protocol],
+        "protocol": protocol,
+        "base_url": base_url,
+        "model": model,
+        "force_model": force_model,
+        "reasoning_enabled": reasoning_enabled,
+        "reasoning_effort": reasoning_effort,
+        "pricing_route": safe_pricing_route,
+    }
+    manifest_profile = manifest.get("provider_profile")
+    if manifest_profile is not None and manifest_profile != provider_profile:
+        raise ControlError(409, "run_not_trusted", "Provider profile changed")
 
     manifest_output = manifest.get("output_dir")
     effective_output = effective.get("output_dir")
@@ -1024,6 +1909,7 @@ def _load_generated_run(policy: WorkspacePolicy, run_id: object) -> GeneratedRun
         output_label=output_label,
         base_config=base_config,
         launch_config_sha256=effective_sha,
+        provider_profile=provider_profile,
         reconnect_attempts=reconnect_attempts,
         reconnect_backoff_seconds=reconnect_backoff,
         wait_cooldown=wait_cooldown,
@@ -1124,6 +2010,24 @@ class ManagedJob:
     lock_owner_token: str | None = None
 
 
+@dataclass
+class FormalJob:
+    run_id: str
+    concurrency: int
+    resume_mode: bool
+    config_sha256: str
+    execution_lock_sha256: str
+    expected_checkpoint_id: str | None
+    max_tasks: int | None = None
+    process_state: str = "starting"
+    process: ProcessLike | None = None
+    exit_code: int | None = None
+    started_at: str = field(default_factory=_iso)
+    finished_at: str | None = None
+    stop_requested: bool = False
+    last_error_code: str | None = None
+
+
 class ControlPlane:
     def __init__(
         self,
@@ -1147,15 +2051,251 @@ class ControlPlane:
         self.graceful_timeout_seconds = graceful_timeout_seconds
         self.terminate_timeout_seconds = terminate_timeout_seconds
         self.secret = SecretSlot()
+        self.formal_secret = SecretSlot()
         self.lock = threading.RLock()
         self.probe_lock = threading.Lock()
         self.probe_active = False
         self.job: ManagedJob | None = None
+        self.formal_job: FormalJob | None = None
+        self.formal_gates: dict[str, object] = {}
+        self.formal_execution: dict[str, object] = {}
         self.events: deque[dict[str, object]] = deque(maxlen=100)
         self.closed = False
 
     def options(self) -> dict[str, object]:
-        return self.policy.options()
+        value = self.policy.options()
+        gates = value.get("formal_gates")
+        execution = value.get("formal_execution")
+        if isinstance(gates, Mapping):
+            self.formal_gates = dict(gates)
+        if isinstance(execution, Mapping):
+            self.formal_execution = dict(execution)
+        return value
+
+    def formal_status(self) -> dict[str, object]:
+        runtime = self.policy.formal_runtime_status()
+        binding = self.policy.formal_local_binding()
+        with self.lock:
+            if not self.formal_gates:
+                self.options()
+            gates = dict(self.formal_gates)
+            execution = dict(self.formal_execution)
+            job = self.formal_job
+            active = bool(
+                job is not None
+                and job.process is not None
+                and job.process.poll() is None
+            )
+            local_binding_matches = bool(
+                runtime.get("available") is True
+                and binding.get("ready") is True
+                and runtime.get("config_sha256") == binding.get("config_sha256")
+                and runtime.get("execution_lock_sha256")
+                == binding.get("execution_lock_sha256")
+            )
+            identity_verified = False
+            status_reason: str | None = None
+            if job is not None and runtime.get("available") is True:
+                identity_verified = bool(
+                    local_binding_matches
+                    and runtime.get("control_run_id") == job.run_id
+                    and runtime.get("resume_mode") is job.resume_mode
+                    and (
+                        job.expected_checkpoint_id is None
+                        or runtime.get("checkpoint_id")
+                        == job.expected_checkpoint_id
+                    )
+                    and runtime.get("fresh") is True
+                )
+                if runtime.get("fresh") is not True:
+                    status_reason = "formal_status_stale"
+                elif not identity_verified:
+                    status_reason = "formal_status_identity_mismatch"
+            elif runtime.get("state") in {"running", "starting"}:
+                status_reason = "formal_status_historical_unbound"
+            process_consistent = bool(
+                not active
+                or (
+                    identity_verified
+                    and runtime.get("state")
+                    in {"starting", "running", "failed"}
+                )
+            )
+            if active and not process_consistent and status_reason is None:
+                status_reason = "formal_process_status_mismatch"
+            checkpoint_bound = bool(
+                local_binding_matches
+                and binding.get("checkpoint_exists") is True
+                and isinstance(runtime.get("checkpoint_id"), str)
+            )
+            checkpoint_terminal = runtime.get("state") in {
+                "completed",
+                "completed_with_failures",
+            }
+            gate_reason = gates.get("reason_code") or execution.get("reason_code")
+            public_runtime_state = runtime.get("state")
+            if job is None and runtime.get("state") in {"running", "starting"}:
+                public_runtime_state = "historical_unbound"
+            elif active and status_reason == "formal_status_stale":
+                public_runtime_state = "stale_status"
+            elif active and status_reason is not None:
+                public_runtime_state = "untrusted_status"
+            status = dict(runtime)
+            status.update(
+                {
+                    "state": public_runtime_state,
+                    "schema_version": "anchor.formal-control-public.v1",
+                    "target": "formal_swebench_ccswitch",
+                    "process_state": (
+                        job.process_state if job is not None else "not_started"
+                    ),
+                    "run_id": job.run_id if job is not None else None,
+                    "exit_code": job.exit_code if job is not None else None,
+                    "started_at": job.started_at if job is not None else None,
+                    "finished_at": job.finished_at if job is not None else None,
+                    "credential_loaded": self.formal_secret.configured,
+                    "concurrency": job.concurrency if job is not None else 1,
+                    "max_tasks": job.max_tasks if job is not None else None,
+                    "gates": gates,
+                    "reason_code": status_reason or gate_reason,
+                    "identity_verified": identity_verified,
+                    "local_binding_matches": local_binding_matches,
+                    "process_consistent": process_consistent,
+                    "telemetry_trusted": bool(
+                        identity_verified and process_consistent
+                    ),
+                    "can_start": bool(
+                        gates.get("live_start_allowed") is True
+                        and not active
+                        and (
+                            binding.get("status_exists") is not True
+                            or binding.get("failed_startup_rearmable") is True
+                        )
+                        and binding.get("checkpoint_exists") is not True
+                    ),
+                    "can_stop": active,
+                    "can_continue": bool(
+                        gates.get("live_start_allowed") is True
+                        and not active
+                        and checkpoint_bound
+                        and not checkpoint_terminal
+                    ),
+                    "pause_semantics": "graceful_stop_then_checkpoint_resume",
+                    "formal_lifecycle_control_available": True,
+                }
+            )
+            return status
+
+    def start_formal(self, payload: Mapping[str, object], *, resume: bool) -> dict[str, object]:
+        required = {"api_key", "concurrency"}
+        allowed = required | {"max_tasks"}
+        if not required.issubset(payload) or not set(payload).issubset(allowed):
+            raise ControlError(
+                400,
+                "invalid_formal_start",
+                "Formal start accepts api_key, concurrency, and optional max_tasks",
+            )
+        concurrency = _integer(payload, "concurrency", 1, None)
+        max_tasks = (
+            _integer(payload, "max_tasks", 1, 19008)
+            if "max_tasks" in payload
+            else None
+        )
+        credential = validate_api_key(payload.get("api_key"))
+        options = self.options()
+        gates = options.get("formal_gates")
+        reason = (
+            gates.get("reason_code")
+            if isinstance(gates, Mapping)
+            else "formal_gate_unavailable"
+        )
+        if not isinstance(gates, Mapping) or gates.get("live_start_allowed") is not True:
+            credential = ""
+            raise ControlError(
+                409,
+                str(reason or "formal_live_blocked"),
+                "Formal LIVE is blocked by the execution-contract gate",
+            )
+        with self.lock:
+            if self.closed:
+                raise ControlError(409, "control_closed", "Control plane is closed")
+            if self.job is not None and self.job.process is not None and self.job.process.poll() is None:
+                raise ControlError(409, "legacy_active", "Legacy shard process is active")
+            current = self.formal_job
+            if current is not None and current.process is not None and current.process.poll() is None:
+                raise ControlError(409, "formal_active", "Formal coordinator is active")
+            runtime = self.policy.formal_runtime_status()
+            binding = self.policy.formal_local_binding()
+            if binding.get("ready") is not True:
+                raise ControlError(409, "formal_binding_unavailable", "Formal binding is unavailable")
+            local_match = bool(
+                runtime.get("available") is True
+                and runtime.get("config_sha256") == binding.get("config_sha256")
+                and runtime.get("execution_lock_sha256")
+                == binding.get("execution_lock_sha256")
+            )
+            if resume:
+                if (
+                    binding.get("status_exists") is not True
+                    or binding.get("checkpoint_exists") is not True
+                    or not local_match
+                    or not isinstance(runtime.get("checkpoint_id"), str)
+                    or runtime.get("state")
+                    in {"completed", "completed_with_failures"}
+                ):
+                    raise ControlError(
+                        409,
+                        "formal_resume_binding_invalid",
+                        "No matching resumable formal checkpoint is available",
+                    )
+                expected_checkpoint_id = str(runtime["checkpoint_id"])
+            else:
+                if (
+                    (
+                        binding.get("status_exists") is True
+                        and binding.get("failed_startup_rearmable") is not True
+                    )
+                    or binding.get("checkpoint_exists") is True
+                ):
+                    raise ControlError(
+                        409,
+                        "formal_checkpoint_exists_use_resume",
+                        "A formal checkpoint exists; use Continue",
+                    )
+                expected_checkpoint_id = None
+            self.formal_secret.set(credential)
+            credential = ""
+            job = FormalJob(
+                run_id=f"formal-{uuid4().hex[:16]}",
+                concurrency=concurrency,
+                resume_mode=resume,
+                config_sha256=str(binding["config_sha256"]),
+                execution_lock_sha256=str(binding["execution_lock_sha256"]),
+                expected_checkpoint_id=expected_checkpoint_id,
+                max_tasks=max_tasks,
+            )
+            self.formal_job = job
+            try:
+                self._spawn_formal(job)
+            except Exception:
+                self.formal_secret.clear()
+                self.formal_job = None
+                raise
+            return self.formal_status()
+
+    def stop_formal(self, run_id: object) -> dict[str, object]:
+        if not isinstance(run_id, str):
+            raise ControlError(400, "invalid_formal_stop", "Formal run ID is required")
+        with self.lock:
+            job = self.formal_job
+            if job is None or not hmac.compare_digest(job.run_id, run_id):
+                raise ControlError(409, "formal_run_mismatch", "Formal run ID does not match")
+            if job.process is None or job.process.poll() is not None:
+                raise ControlError(409, "formal_not_active", "Formal coordinator is not active")
+            job.stop_requested = True
+            job.process_state = "stopping"
+            self.signaler.graceful(job.process)
+            return self.formal_status()
 
     def start_new(self, payload: Mapping[str, object]) -> dict[str, object]:
         spec, credential, base = parse_start_spec(payload, self.policy)
@@ -1316,7 +2456,24 @@ class ControlPlane:
 
     def clear_credential(self) -> dict[str, object]:
         with self.lock:
+            legacy_active = bool(
+                self.job is not None
+                and self.job.process is not None
+                and self.job.process.poll() is None
+            )
+            formal_active = bool(
+                self.formal_job is not None
+                and self.formal_job.process is not None
+                and self.formal_job.process.poll() is None
+            )
+            if legacy_active or formal_active:
+                raise ControlError(
+                    409,
+                    "active_credential_resident",
+                    "Safe-pause the active run before clearing its credential",
+                )
             self.secret.clear()
+            self.formal_secret.clear()
             self._event("credential_cleared", "control-plane")
             return {"credential_loaded": False}
 
@@ -1405,6 +2562,7 @@ class ControlPlane:
                     "finished_at": None,
                     "launch_config_sha256": None,
                     "corpus_binding_sha256": None,
+                    "provider_profile": None,
                     "credential_loaded": self.secret.configured,
                     "can_start": True,
                     "can_stop": False,
@@ -1450,6 +2608,7 @@ class ControlPlane:
                 "finished_at": job.finished_at,
                 "launch_config_sha256": job.generated.launch_config_sha256,
                 "corpus_binding_sha256": corpus_binding,
+                "provider_profile": dict(job.generated.provider_profile),
                 "credential_loaded": self.secret.configured,
                 "can_start": not active,
                 "can_stop": active,
@@ -1478,7 +2637,110 @@ class ControlPlane:
                 job.stop_requested = True
                 job.reconnect_cancel.set()
                 self.signaler.graceful(job.process)
+            formal = self.formal_job
+            if (
+                formal is not None
+                and formal.process is not None
+                and formal.process.poll() is None
+            ):
+                formal.stop_requested = True
+                formal.process_state = "stopping"
+                self.signaler.graceful(formal.process)
             self.secret.clear()
+            self.formal_secret.clear()
+
+    def _spawn_formal(self, job: FormalJob) -> None:
+        credential = self.formal_secret.reveal()
+        script = (
+            self.policy.root / "scripts" / "tooling" / "run_swebench_ccswitch.py"
+        ).resolve()
+        config = (
+            self.policy.root
+            / "configs"
+            / "data"
+            / "swebench_five_stage.ccswitch.yaml"
+        ).resolve()
+        if (
+            not script.is_relative_to(self.policy.root)
+            or not config.is_relative_to(self.policy.root)
+            or not script.is_file()
+            or not config.is_file()
+        ):
+            raise ControlError(
+                500,
+                "formal_entrypoint_missing",
+                "Fixed formal coordinator entrypoint is missing",
+            )
+        argv = [
+            sys.executable,
+            str(script),
+            "--config",
+            str(config),
+            "--confirm-live",
+            "--control-run-id",
+            job.run_id,
+            "--concurrency",
+            str(job.concurrency),
+        ]
+        if job.resume_mode:
+            argv.append("--resume")
+        if job.max_tasks is not None:
+            argv.extend(("--max-tasks", str(job.max_tasks)))
+        environment = os.environ.copy()
+        environment["ARK_CODING_API_KEY"] = credential
+        try:
+            process = self.popen_factory(
+                argv,
+                cwd=str(self.policy.root),
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=False,
+                **self.signaler.popen_group_kwargs(),
+            )
+        except OSError as error:
+            raise ControlError(
+                500,
+                "formal_spawn_failed",
+                "Formal coordinator could not start",
+            ) from error
+        finally:
+            environment.pop("ARK_CODING_API_KEY", None)
+            credential = ""
+        job.process = process
+        job.process_state = "running"
+        threading.Thread(
+            target=self._watch_formal,
+            args=(job.run_id, process),
+            daemon=True,
+            name=f"anchor-formal-watch-{job.run_id[-8:]}",
+        ).start()
+
+    def _watch_formal(self, run_id: str, process: ProcessLike) -> None:
+        try:
+            return_code = process.wait()
+        except (OSError, subprocess.SubprocessError):
+            return_code = 1
+        with self.lock:
+            job = self.formal_job
+            if job is None or not hmac.compare_digest(job.run_id, run_id):
+                return
+            job.exit_code = return_code
+            job.finished_at = _iso()
+            if job.stop_requested:
+                job.process_state = "stopped_checkpoint_resumable"
+            elif return_code == 0:
+                runtime = self.policy.formal_runtime_status()
+                job.process_state = (
+                    "stopped_checkpoint_resumable"
+                    if runtime.get("state") == "stopped_checkpoint_resumable"
+                    else "completed"
+                )
+            else:
+                job.process_state = "exited"
+                job.last_error_code = "formal_process_exit"
+            self.formal_secret.clear()
 
     def _spawn(self, job: ManagedJob) -> None:
         credential = self.secret.reveal()

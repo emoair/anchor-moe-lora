@@ -1,0 +1,40 @@
+{
+  "schema_version": "anchor.formal-v3-af-finalizer-config.v1",
+  "formal_version": "formal-v3",
+  "base_contract_id": "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1",
+  "base_manifest": "models/google-gemma-4-12B-bnb-nf4/anchor_quantization_manifest.json",
+  "snapshot_manifest": "artifacts/formal_v3/dataset/manifest.json",
+  "snapshot_sidecar": "artifacts/formal_v3/dataset/manifest.json.sha256",
+  "schedule_root": "artifacts/formal_v3/schedules",
+  "artifact_roots": {
+    "B": "artifacts/formal_v3/B",
+    "C": "artifacts/formal_v3/C",
+    "D": "artifacts/formal_v3/D",
+    "E": "artifacts/formal_v3/E",
+    "F": "artifacts/formal_v3/F"
+  },
+  "allocation_manifests": {
+    "E": "artifacts/formal_v3/allocations/E.json",
+    "F": "artifacts/formal_v3/allocations/F.json"
+  },
+  "heldout_metadata": {
+    "manifest_path": "artifacts/benchmark/heldout_v1/manifest.json",
+    "leak_audit_path": "artifacts/benchmark/heldout_v1/leak_audit.prebulk.json"
+  },
+  "protocol": {
+    "stages": [
+      "planner",
+      "tool_policy",
+      "frontend",
+      "review",
+      "security"
+    ],
+    "review_protocol": "verdict_v2",
+    "max_review_cycles": 2,
+    "max_tokens_per_call": 512,
+    "sampling": {
+      "temperature": 0.0,
+      "top_p": 1.0
+    }
+  }
+}

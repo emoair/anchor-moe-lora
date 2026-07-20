@@ -1,5 +1,7 @@
 # Anchor-MoE-LoRA five-stage routed-adapter MVP
 
+[English](architecture_five_stage_mvp.md) | [简体中文](architecture_five_stage_mvp.zh-CN.md)
+
 The MVP route is strictly ordered per seed:
 
 `planner -> tool_policy -> (frontend_gen <-> frontend_review, bounded) -> security_gate`
@@ -80,6 +82,61 @@ capacity (C/E).
 The checked-in adaptive benchmark entries remain `calibration_pending`. The held-out
 gate rejects them until each selected allocation has a calibration snapshot hash,
 attempt ledger, frozen ranks, materialized parameter count, and immutable manifest hash.
+
+## Roadmap after the MVP: Phase 2 context-directed expert routing
+
+Phase 1 remains the current MVP and the canonical A/B/C/D/E/F control experiment. Its
+route is deliberately fixed:
+
+`planner -> tool_policy -> (frontend_gen <-> frontend_review, bounded) -> security_gate`
+
+No Phase 2 implementation, sample, router decision, or metric may alter, relabel, append
+to, or retroactively reinterpret the Phase 1 datasets, registries, held-out set, benchmark
+records, or A--F claims. Phase 1 must finish its frozen evaluation and produce immutable
+manifests before Phase 2 data generation begins. This ordering makes the fixed route a
+real baseline instead of a moving target.
+
+Immediately after that MVP evaluation is frozen, Phase 2 starts a separate experiment:
+a planner/router observes the current public task context and chooses which expert LoRA
+to activate, call, and unload. It may skip an unnecessary expert, revisit an earlier
+expert, or create and join logical branches. The route is therefore a bounded state
+machine or task graph, not a renamed `review -> execute` serial chain. On the 12 GB
+single-GPU profile, branching is logically interleaved and still keeps at most one active
+adapter in VRAM; Phase 2 does not imply simultaneous multi-LoRA activation.
+
+The proposed router action contract is typed and auditable, for example `ACTIVATE`,
+`CALL`, `UNLOAD`, `SKIP`, `BRANCH`, `JOIN`, `RETRY`, and `STOP`. Every action records the
+public state digest, selected expert, public rationale, budget consumed, adapter lifecycle,
+tool-result summary, and next-state digest. Deterministic runtime policy retains final
+authority: a learned router cannot bypass workspace boundaries, tool allowlists, explicit
+approval, loop/call budgets, or fail-closed security rules.
+
+Phase 2 requires new distillation rather than repackaging the five fixed-stage targets.
+The new data version must contain fresh tasks and validated router trajectories in which
+the teacher receives the accumulated public context, chooses the next action/expert, sees
+the public expert or tool result, and continues until a terminal state. It must include
+positive examples of legitimate skips, retries, loops, branches and early stops, plus
+negative or rejected trajectories for adapter thrashing, repeated no-progress calls,
+unsafe transitions and budget exhaustion. Store public decisions and observable results;
+do not require hidden chain-of-thought. The dataset must have a new schema/version,
+snapshot hash, provenance graph, train/calibration split and immutable run ID. It must not
+copy Phase 1 held-out prompts, oracle labels, solutions, sample text, or derived task IDs.
+
+Phase 2 also requires a new held-out set and a new benchmark contract created only after
+the Phase 1 evaluation is frozen. The new held-out inventory must be excluded from both
+Phase 1 and Phase 2 training/distillation inputs and pass a fresh hash-based leakage audit.
+Router tuning and stopping-rule selection may use training/calibration data only. For a
+fair architecture comparison, rerun a frozen fixed-route reference on the new held-out set;
+never present a Phase 2 score on new cases versus a Phase 1 score on old cases as a direct
+gain.
+
+In addition to task quality and safety, the Phase 2 benchmark must report routing/action
+validity, expert-selection accuracy where an auditable label exists, unnecessary-call and
+skip rates, loop termination, branch completion, adapter load/unload counts, adapter
+thrashing, calls and tokens per task, end-to-end latency, peak VRAM, fail-closed rate, and
+performance under matched call/token/parameter budgets. All route traces and evaluator
+versions are frozen with the result. Phase 2 gets its own registry namespace and benchmark
+name; the historical A--F table remains the fixed-route Phase 1 result.
 
 ## Two-call live smoke
 

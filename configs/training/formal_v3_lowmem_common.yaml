@@ -4,9 +4,12 @@
     "experiment": "anchor-moe-lora-formal-v3-lowmem-C",
     "training": {
       "runtime_engine": "manual_active_labels_v2",
-      "sample_order": "deterministic_epoch_shuffle_v1",
+      "sample_order": "deterministic_stage_stratified_epoch_v1",
       "maximum_training_peak_vram_gib": 9.0,
       "max_seq_length": 64,
+      "sequence_contract": "formal_v3_lowmem_truncated_v1",
+      "truncation_policy": "assistant_preserving_prompt_tail_completion_prefix_v1",
+      "full_trajectory_training": false,
       "max_steps": 32,
       "per_device_train_batch_size": 1,
       "gradient_accumulation_steps": 4,
@@ -15,7 +18,7 @@
       "loss_logits": "active_labels_only",
       "minimum_backward_free_vram_mib": 256,
       "empty_cache_after_probe": true,
-      "learning_rate": 0.0002,
+      "learning_rate": 0.00005,
       "warmup_ratio": 0.03,
       "lr_scheduler_type": "constant_with_warmup",
       "optim": "paged_adamw_8bit",
@@ -23,7 +26,17 @@
       "save_steps": 8,
       "save_total_limit": 4,
       "report_to": "none",
-      "seed": 20260710
+      "seed": 20260710,
+      "exposure_control": {
+        "mode": "snapshot_train_epochs_v1",
+        "epochs": 1,
+        "candidate_tasks_per_stage": 19008,
+        "work_orders_per_task": 5,
+        "candidate_work_orders": 95040,
+        "accepted_rows": "all_frozen_train_gold",
+        "accumulation_padding": "deterministic_stage_stratified_epoch_prefix_v1",
+        "arm_total_exposure_control": "equal_B_through_F"
+      }
     },
     "adapters": {
       "planner": {
@@ -81,6 +94,19 @@
         "sidecar": "artifacts/formal_v3/dataset/manifest.json.sha256",
         "immutable": true,
         "minimum_records_per_expert": 256
+      },
+      "formal_v3_fullscale": {
+        "maximum_candidate_records_per_expert": 19008,
+        "candidate_work_orders": 95040,
+        "selection": "all_gold_accepted_then_split",
+        "split_contract": {
+          "schema_version": "anchor.formal-v3-gold-splits.v1",
+          "train_role": "training_only",
+          "calibration_role": "rank_allocation_only",
+          "heldout_role": "evaluation_only_hash_metadata",
+          "require_pairwise_disjoint": true,
+          "require_heldout_content_read_false": true
+        }
       },
       "required_smoke_gate_manifest": "artifacts/formal_v3/smoke/manifests/smoke-gate-frontend_gen-r16.execute.json"
     }

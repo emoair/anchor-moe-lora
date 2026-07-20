@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/agent-v3-source-snapshot-v1.json",
+  "title": "Agent v3 lossless model-visible source snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sample_id", "dataset_partition", "source", "exchanges"],
+  "properties": {
+    "schema_version": {"const": "anchor.agent-v3-source-snapshot.v1"},
+    "sample_id": {"$ref": "#/$defs/identifier"},
+    "dataset_partition": {"const": "train"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["harness", "harness_version", "protocol", "prompt_profile"],
+      "properties": {
+        "harness": {"type": "string", "minLength": 1},
+        "harness_version": {"type": "string", "minLength": 1},
+        "protocol": {"type": "string", "minLength": 1},
+        "prompt_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version", "sha256"],
+          "properties": {
+            "id": {"$ref": "#/$defs/identifier"},
+            "version": {"type": "string", "minLength": 1},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      }
+    },
+    "exchanges": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/exchange"}
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string"},
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {"type": {"type": "string", "minLength": 1}}
+          }
+        }
+      ]
+    },
+    "tool_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "function"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {"const": "function"},
+        "function": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "arguments"],
+          "properties": {
+            "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"},
+            "arguments": {"type": "string"}
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {"enum": ["system", "developer", "user", "assistant", "tool"]},
+        "content": {"$ref": "#/$defs/content"},
+        "reasoning_content": {"type": ["string", "null"]},
+        "tool_calls": {"type": "array", "items": {"$ref": "#/$defs/tool_call"}},
+        "tool_call_id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"}
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "function"],
+      "properties": {
+        "type": {"const": "function"},
+        "function": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "parameters"],
+          "properties": {
+            "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"},
+            "description": {"type": "string"},
+            "parameters": {"type": "object"}
+          }
+        }
+      }
+    },
+    "tool_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "tool_call_id", "content"],
+      "properties": {
+        "role": {"const": "tool"},
+        "tool_call_id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"},
+        "content": {"$ref": "#/$defs/content"}
+      }
+    },
+    "exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_id", "request", "response", "tool_results"],
+      "properties": {
+        "request_id": {"$ref": "#/$defs/identifier"},
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model", "messages", "tools", "tool_choice", "generation", "extensions"],
+          "properties": {
+            "model": {"type": "string", "minLength": 1},
+            "messages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/message"}},
+            "tools": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/tool"}},
+            "tool_choice": {},
+            "generation": {"type": "object"},
+            "extensions": {"type": "object"}
+          }
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "model", "assistant", "finish_reason", "usage", "extensions"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1},
+            "assistant": {"$ref": "#/$defs/message"},
+            "finish_reason": {"type": "string", "minLength": 1},
+            "usage": {"type": "object"},
+            "extensions": {"type": "object"}
+          }
+        },
+        "tool_results": {"type": "array", "items": {"$ref": "#/$defs/tool_result"}}
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import types
 
 import pytest
 
@@ -209,6 +211,69 @@ def _disk_bytes(root: Path) -> bytes:
     return b"\n".join(chunks)
 
 
+def _write_formal_status(
+    root: Path,
+    *,
+    state: str = "running",
+    updated_at: datetime | None = None,
+    completed: int = 3,
+    rate: float = 2.0,
+    eta: float | None = 300.0,
+) -> Path:
+    path = (
+        root
+        / "artifacts"
+        / "swebench"
+        / "full-bank-live-v1"
+        / "status.json"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": "anchor.swebench-ccswitch-status.v2",
+        "control_run_id": "anchor-test-run",
+        "checkpoint_id": "1" * 64,
+        "config_sha256": "2" * 64,
+        "execution_lock_sha256": "3" * 64,
+        "resume_mode": True,
+        "state": state,
+        "submitted_tasks": completed + (1 if state in {"running", "starting"} else 0),
+        "active_tasks": 1 if state in {"running", "starting"} else 0,
+        "completed_tasks": completed,
+        "expected_tasks": 19008,
+        "counts": {"completed": completed, "blocked": 0, "failed": 0},
+        "stage_counts": {
+            "planner": completed,
+            "tool_policy": completed,
+            "domain_builder": completed,
+            "domain_review": completed,
+            "security": completed,
+        },
+        "failure_counts": {},
+        "requests": {
+            "provider_requests": 8,
+            "provider_successes": 7,
+            "provider_failures": 1,
+            "retry_attempts": 1,
+        },
+        "request_failure_counts": {"http_499": 1},
+        "tokens": {
+            "input_tokens": 10,
+            "output_tokens": 20,
+            "total_tokens": 30,
+            "cached_input_tokens": 0,
+        },
+        "elapsed_seconds": 60.0,
+        "tasks_per_minute": rate,
+        "provider_output_tokens_per_second": 0.5,
+        "eta_seconds": eta,
+        "updated_at": (updated_at or datetime.now(timezone.utc)).isoformat(),
+        "last_error_code": None,
+        "content_free": True,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
 def test_start_generates_secret_free_config_and_fixed_child_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -303,6 +368,475 @@ def test_options_list_only_strict_automation_base_configs(tmp_path: Path) -> Non
     options = control.ControlPlane(root).options()
 
     assert options["base_configs"] == [{"id": "configs/data/base.yaml", "valid": True}]
+    assert options["formal_route"] == {
+        "component_ready": False,
+        "live_route_container_reachable": None,
+        "reachability_state": "not_probed_by_dashboard",
+        "e2e_ready": False,
+    }
+    assert options["formal_dataset"] == {
+        "bank_ready": False,
+        "locale_assignment_counts": {},
+        "language_routing_only": True,
+        "zh_cn_localization_manifest_present": False,
+    }
+    assert options["formal_execution"]["bundle_present"] is False
+    assert options["formal_execution"]["observed_tool_contract_version"] is None
+    assert options["formal_execution"]["required_tool_contract_version"] == (
+        "anchor.execution-tool-contract.v3"
+    )
+    assert options["formal_execution"]["ready"] is False
+    assert options["formal_execution"]["reason_code"] == (
+        "generic_train_execution_contract_not_ready"
+    )
+    assert options["formal_execution"]["remaining_gates"] == [
+        "execution_lock_invalid"
+    ]
+    assert options["formal_execution"]["not_official_swebench_pass"] is True
+    assert (
+        options["formal_execution"]["official_evaluation_contract_ready"] is False
+    )
+    assert options["formal_execution"]["capability_gap"] == (
+        "python_repository_validation_not_attested"
+    )
+    assert options["formal_gates"] == {
+        "component_ready": False,
+        "bank_ready": False,
+        "execution_contract_ready": False,
+        "live_start_allowed": False,
+        "reason_code": "formal_component_not_ready",
+    }
+    assert options["limits"]["concurrency_default"] == 1
+    assert options["limits"]["concurrency_max"] is None
+
+
+def test_concurrency_has_no_product_hard_ceiling(tmp_path: Path) -> None:
+    root = _workspace(tmp_path)
+    payload = _payload()
+    payload["concurrency"] = 512
+
+    spec, _, _ = control.parse_start_spec(payload, control.WorkspacePolicy(root))
+
+    assert spec.concurrency == 512
+
+
+def test_formal_live_is_blocked_before_credential_is_retained(tmp_path: Path) -> None:
+    root = _workspace(tmp_path)
+    manager, factory, _ = _manager(root)
+
+    with pytest.raises(control.ControlError) as caught:
+        manager.start_formal(
+            {"api_key": SENTINEL, "concurrency": 1}, resume=False
+        )
+
+    assert caught.value.status == 409
+    assert caught.value.code == "formal_component_not_ready"
+    assert manager.formal_secret.configured is False
+    assert factory.calls == []
+
+
+def test_formal_gate_reason_is_ready_when_live_start_is_allowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = control.WorkspacePolicy(_workspace(tmp_path))
+    monkeypatch.setattr(
+        policy,
+        "_formal_route_status",
+        lambda: {"component_ready": True},
+    )
+    monkeypatch.setattr(
+        policy,
+        "_formal_dataset_status",
+        lambda: {"bank_ready": True},
+    )
+    monkeypatch.setattr(
+        policy,
+        "_formal_execution_status",
+        lambda: {
+            "bundle_present": True,
+            "ready": True,
+            "reason_code": "generic_train_execution_contract_ready",
+        },
+    )
+
+    gates = policy.options()["formal_gates"]
+
+    assert gates["live_start_allowed"] is True
+    assert gates["reason_code"] == "generic_train_execution_contract_ready"
+
+
+def test_formal_status_keeps_global_official_result_non_blocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _workspace(tmp_path)
+    bundle = root / "artifacts/tooling/opencode-patched/bundle-manifest.json"
+    bundle.parent.mkdir(parents=True)
+    bundle.write_text(
+        json.dumps(
+            {
+                "schema_version": "anchor.patched-opencode.bundle.v1",
+                "source": {
+                    "tool_contract_version": "anchor.execution-tool-contract.v3",
+                    "tool_contract": {
+                        "version": "anchor.execution-tool-contract.v3"
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    coordinator_config = root / "configs/data/swebench_five_stage.ccswitch.yaml"
+    coordinator_config.write_text(
+        "execution_contract:\n"
+        "  attestation: artifacts/attestation.json\n"
+        "  lock: configs/tooling/lock.json\n"
+        f"  lock_sha256: {'a' * 64}\n",
+        encoding="utf-8",
+    )
+    fake = types.ModuleType("run_swebench_ccswitch")
+
+    class FakeCoordinatorConfig:
+        @staticmethod
+        def load(path: Path) -> object:
+            assert path == coordinator_config
+            return object()
+
+    fake.CoordinatorConfig = FakeCoordinatorConfig
+    fake._distillation_execution_contract_gate = lambda _config: {
+        "mode": "generic_train_repo_base_commit",
+        "not_official_swebench_pass": True,
+        "ready": True,
+        "reason_code": "generic_train_execution_contract_ready",
+        "remaining_gates": [],
+        "official_evaluation_contract_ready": False,
+        "official_evaluation_remaining_gates": [
+            "official_testspec_behavior_probe_missing"
+        ],
+    }
+    monkeypatch.setitem(sys.modules, "run_swebench_ccswitch", fake)
+
+    result = control.WorkspacePolicy(root)._formal_execution_status()
+
+    assert result["ready"] is True
+    assert result["reason_code"] == "generic_train_execution_contract_ready"
+    assert result["not_official_swebench_pass"] is True
+    assert result["official_evaluation_contract_ready"] is False
+    assert result["official_evaluation_remaining_gates"] == [
+        "official_testspec_behavior_probe_missing"
+    ]
+
+
+def test_formal_preflight_is_content_free_and_never_reads_candidate_jsonl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _workspace(tmp_path)
+    candidate = root / "datasets" / "public" / "swebench-full-bank-v1" / "candidate-tasks"
+    candidate.mkdir(parents=True)
+    candidate.joinpath("tasks-00000.jsonl").write_text(
+        '{"problem_statement":"DO-NOT-READ-CANDIDATE-BODY"}\n',
+        encoding="utf-8",
+    )
+    original = Path.read_text
+
+    def guarded_read_text(path: Path, *args: object, **kwargs: object) -> str:
+        assert "candidate-tasks" not in path.parts
+        assert "candidate-work-orders" not in path.parts
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read_text)
+
+    report = control.WorkspacePolicy(root).formal_preflight()
+
+    assert report["content_free"] is True
+    assert report["provider_requests"] == 0
+    assert report["credentials_read"] is False
+    assert report["sample_bodies_read"] is False
+    assert report["sample_bodies_printed"] is False
+    assert report["heldout_files_read"] is False
+    assert report["live_started"] is False
+    assert report["live_start_allowed"] is False
+    assert report["reason_code"] == "formal_component_not_ready"
+    assert "DO-NOT-READ-CANDIDATE-BODY" not in json.dumps(report)
+
+
+def test_formal_runtime_v2_uses_explicit_attempt_local_rate_and_eta(
+    tmp_path: Path,
+) -> None:
+    root = _workspace(tmp_path)
+    _write_formal_status(root, completed=90, rate=2.5, eta=123.0)
+
+    status = control.WorkspacePolicy(root).formal_runtime_status()
+
+    assert status["state"] == "running"
+    assert status["tasks_per_minute"] == 2.5
+    assert status["eta_seconds"] == 123.0
+    assert status["completed_tasks"] == 90
+    assert status["request_failure_counts"] == {"http_499": 1}
+
+
+def test_formal_runtime_starting_is_stale_and_future_timestamp_is_rejected(
+    tmp_path: Path,
+) -> None:
+    root = _workspace(tmp_path)
+    path = _write_formal_status(
+        root,
+        state="starting",
+        updated_at=datetime.now(timezone.utc) - timedelta(seconds=30),
+    )
+    status = control.WorkspacePolicy(root).formal_runtime_status()
+    assert status["state"] == "starting"
+    assert status["fresh"] is False
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["updated_at"] = (
+        datetime.now(timezone.utc) + timedelta(minutes=1)
+    ).isoformat()
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    future = control.WorkspacePolicy(root).formal_runtime_status()
+    assert future["state"] == "invalid_status"
+    assert future["available"] is False
+
+
+def test_formal_status_marks_unbound_or_stale_telemetry_untrusted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _workspace(tmp_path)
+    manager, _, _ = _manager(root)
+    manager.formal_gates = {
+        "live_start_allowed": True,
+        "reason_code": "formal_live_ready",
+    }
+    runtime = {
+        "available": True,
+        "state": "running",
+        "fresh": True,
+        "config_sha256": "2" * 64,
+        "execution_lock_sha256": "3" * 64,
+        "control_run_id": "old-process",
+        "checkpoint_id": "1" * 64,
+        "resume_mode": False,
+    }
+    monkeypatch.setattr(manager.policy, "formal_runtime_status", lambda: dict(runtime))
+    monkeypatch.setattr(
+        manager.policy,
+        "formal_local_binding",
+        lambda: {
+            "ready": True,
+            "config_sha256": "2" * 64,
+            "execution_lock_sha256": "3" * 64,
+            "status_exists": True,
+            "checkpoint_exists": True,
+        },
+    )
+
+    historical = manager.formal_status()
+    assert historical["state"] == "historical_unbound"
+    assert historical["telemetry_trusted"] is False
+
+    process = FakeProcess()
+    manager.formal_job = control.FormalJob(
+        run_id="current-process",
+        concurrency=1,
+        resume_mode=False,
+        config_sha256="2" * 64,
+        execution_lock_sha256="3" * 64,
+        expected_checkpoint_id=None,
+        process_state="running",
+        process=process,
+    )
+    runtime.update({"control_run_id": "current-process", "fresh": False})
+    stale = manager.formal_status()
+    assert stale["state"] == "stale_status"
+    assert stale["telemetry_trusted"] is False
+    assert stale["reason_code"] == "formal_status_stale"
+    process.complete(130)
+    manager.close()
+
+
+@pytest.mark.parametrize("resume", [False, True])
+def test_formal_start_and_continue_use_distinct_fixed_cli_contracts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, resume: bool
+) -> None:
+    root = _workspace(tmp_path)
+    script = root / "scripts" / "tooling" / "run_swebench_ccswitch.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("# fixed fixture entrypoint\n", encoding="utf-8")
+    config = root / "configs" / "data" / "swebench_five_stage.ccswitch.yaml"
+    config.write_text("schema_version: fixture\n", encoding="utf-8")
+    manager, factory, _ = _manager(root)
+    ready_options = {
+        "formal_gates": {
+            "component_ready": True,
+            "bank_ready": True,
+            "execution_contract_ready": True,
+            "live_start_allowed": True,
+            "reason_code": "formal_live_ready",
+        },
+        "formal_execution": {"ready": True},
+    }
+
+    def options() -> dict[str, object]:
+        manager.formal_gates = dict(ready_options["formal_gates"])
+        manager.formal_execution = dict(ready_options["formal_execution"])
+        return ready_options
+
+    monkeypatch.setattr(manager, "options", options)
+    runtime = {
+        "available": resume,
+        "state": "stopped_checkpoint_resumable" if resume else "not_started",
+        "fresh": True,
+        "config_sha256": "2" * 64 if resume else None,
+        "execution_lock_sha256": "3" * 64 if resume else None,
+        "checkpoint_id": "1" * 64 if resume else None,
+        "control_run_id": "previous-attempt" if resume else None,
+        "resume_mode": False if resume else None,
+    }
+    binding = {
+        "ready": True,
+        "config_sha256": "2" * 64,
+        "execution_lock_sha256": "3" * 64,
+        "status_exists": resume,
+        "checkpoint_exists": resume,
+    }
+    monkeypatch.setattr(manager.policy, "formal_runtime_status", lambda: dict(runtime))
+    monkeypatch.setattr(manager.policy, "formal_local_binding", lambda: dict(binding))
+
+    manager.start_formal(
+        {"api_key": SENTINEL, "concurrency": 7, "max_tasks": 16},
+        resume=resume,
+    )
+    assert manager.formal_status()["max_tasks"] == 16
+    argv, kwargs, process = factory.calls[0]
+
+    assert argv[:2] == [sys.executable, str(script.resolve())]
+    assert argv[2:5] == ["--config", str(config.resolve()), "--confirm-live"]
+    assert argv[5] == "--control-run-id"
+    assert argv[7:] == ["--concurrency", "7"] + (["--resume"] if resume else []) + [
+        "--max-tasks",
+        "16",
+    ]
+    assert kwargs["shell"] is False
+    assert SENTINEL not in json.dumps(argv)
+    assert kwargs["env"]["ARK_CODING_API_KEY"] == SENTINEL
+    with pytest.raises(control.ControlError) as caught:
+        manager.clear_credential()
+    assert caught.value.code == "active_credential_resident"
+    assert manager.formal_secret.configured is True
+    process.complete(130)
+    manager.close()
+
+
+def test_zero_work_failed_start_can_only_launch_a_fresh_formal_pilot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _workspace(tmp_path)
+    script = root / "scripts" / "tooling" / "run_swebench_ccswitch.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("# fixed fixture entrypoint\n", encoding="utf-8")
+    config = root / "configs" / "data" / "swebench_five_stage.ccswitch.yaml"
+    config.write_text("schema_version: fixture\n", encoding="utf-8")
+    manager, factory, _ = _manager(root)
+    ready_options = {
+        "formal_gates": {
+            "component_ready": True,
+            "bank_ready": True,
+            "execution_contract_ready": True,
+            "live_start_allowed": True,
+            "reason_code": "formal_live_ready",
+        },
+        "formal_execution": {"ready": True},
+    }
+
+    def options() -> dict[str, object]:
+        manager.formal_gates = dict(ready_options["formal_gates"])
+        manager.formal_execution = dict(ready_options["formal_execution"])
+        return ready_options
+
+    monkeypatch.setattr(manager, "options", options)
+    runtime = {
+        "available": True,
+        "state": "failed",
+        "fresh": True,
+        "config_sha256": "2" * 64,
+        "execution_lock_sha256": "3" * 64,
+        "checkpoint_id": "1" * 64,
+        "control_run_id": "failed-startup",
+        "resume_mode": False,
+    }
+    binding = {
+        "ready": True,
+        "config_sha256": "2" * 64,
+        "execution_lock_sha256": "3" * 64,
+        "status_exists": True,
+        "checkpoint_exists": False,
+        "failed_startup_rearmable": True,
+    }
+    monkeypatch.setattr(manager.policy, "formal_runtime_status", lambda: dict(runtime))
+    monkeypatch.setattr(manager.policy, "formal_local_binding", lambda: dict(binding))
+
+    public = manager.formal_status()
+    assert public["can_start"] is True
+    assert public["can_continue"] is False
+    with pytest.raises(control.ControlError) as caught:
+        manager.start_formal(
+            {"api_key": SENTINEL, "concurrency": 1, "max_tasks": 1},
+            resume=True,
+        )
+    assert caught.value.code == "formal_resume_binding_invalid"
+
+    manager.start_formal(
+        {"api_key": SENTINEL, "concurrency": 1, "max_tasks": 1},
+        resume=False,
+    )
+    argv, _, process = factory.calls[0]
+    assert "--resume" not in argv
+    assert argv[-2:] == ["--max-tasks", "1"]
+    process.complete(130)
+    manager.close()
+
+
+def test_clear_credential_refuses_while_legacy_child_still_holds_it(
+    tmp_path: Path,
+) -> None:
+    root = _workspace(tmp_path)
+    manager, factory, _ = _manager(root)
+    manager.start_new(_payload())
+
+    with pytest.raises(control.ControlError) as caught:
+        manager.clear_credential()
+
+    assert caught.value.status == 409
+    assert caught.value.code == "active_credential_resident"
+    assert manager.secret.configured is True
+    factory.calls[0][2].complete(130)
+    manager.close()
+
+
+def test_formal_profile_requires_literal_max_reasoning(tmp_path: Path) -> None:
+    root = _workspace(tmp_path)
+    base = root / "configs" / "data" / "base.yaml"
+    base.write_text(
+        base.read_text(encoding="utf-8")
+        + "reasoning_policy:\n  required: true\n  effort: max\n",
+        encoding="utf-8",
+    )
+    policy = control.WorkspacePolicy(root)
+    payload = _payload()
+    payload.update({"reasoning_enabled": True, "reasoning_effort": "high"})
+
+    with pytest.raises(control.ControlError) as caught:
+        control.parse_start_spec(payload, policy)
+
+    assert caught.value.status == 409
+    assert caught.value.code == "formal_reasoning_required"
+
+    payload["reasoning_effort"] = "max"
+    spec, credential, _ = control.parse_start_spec(payload, policy)
+    assert credential == SENTINEL
+    assert spec.reasoning_enabled is True
+    assert spec.reasoning_effort == "max"
 
 
 def test_network_route_inherit_is_explicit_and_never_persists_proxy(

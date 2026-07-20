@@ -27,6 +27,7 @@ training = [
   "transformers>=5.10.1,<6",
   "trl>=1.0",
 ]
+serving = ["aiohttp>=3.10"]
 download = ["huggingface-hub>=0.16"]
 dev = ["pytest>=8", "ruff>=0.14", "types-PyYAML>=6.0"]
 

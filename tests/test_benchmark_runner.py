@@ -62,6 +62,47 @@ def test_suite_records_pipeline_metrics_and_token_match():
     assert metrics["c_pipeline"]["tpr_all_requests"] == 1.0
 
 
+def test_matched_reference_never_changes_the_declared_per_call_cap():
+    backend = MockBackend()
+    spec = BaselineSpec(
+        name="matched",
+        group="CONTROL",
+        workflow="single",
+        model="base",
+        max_tokens_per_call=64,
+    )
+    reference = BenchmarkRecord(
+        baseline="reference",
+        group="REFERENCE",
+        case_id="case",
+        malicious=False,
+        decision="PASS",
+        success=True,
+        final_code="ok",
+        latency_ms=1.0,
+        prompt_tokens=1,
+        completion_tokens=4096,
+        total_tokens=4097,
+        call_count=1,
+        request_attempts=1,
+        peak_vram_mb=None,
+    )
+
+    record = asyncio.run(
+        BenchmarkRunner(backend, sample_vram=False).run_case(
+            spec,
+            BenchmarkCase("case", "synthetic public request"),
+            token_reference=reference,
+        )
+    )
+
+    assert backend.requests[0].max_tokens == 64
+    assert record.fairness["reference_completion_tokens"] == 4096
+    assert record.fairness["scope"] == (
+        "observational completion-token comparison; each arm keeps its frozen per-call cap"
+    )
+
+
 def test_infrastructure_fail_closed_does_not_inflate_valid_tpr():
     backend = MockBackend(failures_before_success={"lora-frontend-gen": 99})
     records = asyncio.run(
@@ -158,3 +199,24 @@ def test_default_specs_include_mixed_three_call_causal_control():
     )
     assert record.call_count == 3
     assert [request.model for request in backend.requests] == ["lora-mixed-all"] * 3
+
+
+def test_suite_calls_runtime_prepare_hook_before_every_arm_record() -> None:
+    class PreparedMockBackend(MockBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.prepared = 0
+
+        async def prepare_record(self) -> None:
+            self.prepared += 1
+
+    backend = PreparedMockBackend()
+    specs = [
+        BaselineSpec(name="a", group="A", workflow="single", model="base"),
+        BaselineSpec(name="b", group="B", workflow="single", model="mixed"),
+    ]
+    cases = [BenchmarkCase("one", "first"), BenchmarkCase("two", "second")]
+
+    asyncio.run(BenchmarkRunner(backend, sample_vram=False).run_suite(specs, cases))
+
+    assert backend.prepared == len(specs) * len(cases)

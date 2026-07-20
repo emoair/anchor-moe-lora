@@ -16,11 +16,20 @@ from .models import BenchmarkRecord, load_records_jsonl
 
 
 PRIMARY_ORDER = ("base_matched_calls", "mixed_matched_calls", "c_pipeline")
+FORMAL_AF_ORDER = (
+    "base_matched_calls",
+    "mixed_matched_calls",
+    "c_pipeline",
+    "d_budget_matched_pipeline",
+    "e_adaptive_pareto_pipeline",
+    "f_adaptive_budget_matched_pipeline",
+)
 BUDGET_MATCHED_ORDER = (
     "mixed_matched_calls",
     "d_budget_matched_pipeline",
     "f_adaptive_budget_matched_pipeline",
 )
+CAPACITY_ORDER = ("c_pipeline", "e_adaptive_pareto_pipeline")
 AUXILIARY_ORDER = ("a_base", "b_mixed")
 NA = "N/A"
 
@@ -74,7 +83,7 @@ def generate_report(
 
 def _baseline_order(metrics: dict[str, dict[str, Any]]) -> list[str]:
     present = set(metrics)
-    ordered = [name for name in PRIMARY_ORDER if name in present]
+    ordered = [name for name in FORMAL_AF_ORDER if name in present]
     ordered.extend(name for name in AUXILIARY_ORDER if name in present)
     ordered.extend(sorted(present - set(ordered)))
     return ordered
@@ -83,6 +92,10 @@ def _baseline_order(metrics: dict[str, dict[str, Any]]) -> list[str]:
 def _comparison_role(name: str) -> str:
     if name in PRIMARY_ORDER:
         return "primary causal"
+    if name in BUDGET_MATCHED_ORDER:
+        return "equal-budget routed"
+    if name in CAPACITY_ORDER:
+        return "capacity routed"
     if name in AUXILIARY_ORDER:
         return "auxiliary single-call"
     return "secondary fairness"
@@ -189,9 +202,36 @@ def _render_summary(
     metrics_path: Path,
 ) -> str:
     missing_primary = [name for name in PRIMARY_ORDER if name not in metrics]
+    formal_complete = all(name in metrics for name in FORMAL_AF_ORDER)
+    comparison_order = FORMAL_AF_ORDER if formal_complete else PRIMARY_ORDER
     backends = sorted({record.backend for record in records})
     provenance = _provenance_summary(records)
     generated = datetime.now(timezone.utc).isoformat()
+    review_protocols = sorted(
+        {
+            str(record.fairness.get("review_protocol", "verdict_v2"))
+            for record in records
+        }
+    )
+    repair_code_compatibility = review_protocols == ["repair_code_v1"]
+    call_contract = "5" if repair_code_compatibility else "5-7"
+    e_assignment = _adaptive_assignment_text(
+        records,
+        "e_adaptive_pareto_pipeline",
+        fallback=(
+            "Frozen heuristic preregistration `8/4/16/12/4`; calibration_pending, "
+            "not a measured Pareto optimum"
+        ),
+    )
+    f_assignment = _adaptive_assignment_text(
+        records,
+        "f_adaptive_budget_matched_pipeline",
+        fallback=(
+            "Same heuristic with frozen `4/1/6/4/1`; rank sum and trainable "
+            "parameters exactly equal B"
+        ),
+        budget_matched=True,
+    )
 
     lines = [
         "# Anchor-MoE-LoRA benchmark report",
@@ -200,6 +240,19 @@ def _render_summary(
         "not true Pass@1. Only `build_pass_at_1` backed by isolated build/test execution is "
         "reported as build Pass@1; an unset value is not an OpenCode/tool-verified result.",
         "",
+        *(
+            [
+                "> **Legacy compatibility warning:** this run uses the frozen partial-v1 "
+                "`repair_code_v1` reviewer, which returns repaired code directly. It does "
+                "not evaluate the later `anchor.domain-review-verdict.v2` review loop. The "
+                "HTML held-out artifact is also out-of-domain relative to the frozen TSX "
+                "frontend/review training targets; results must not substitute for a retrained "
+                "TSX or unified-artifact benchmark.",
+                "",
+            ]
+            if repair_code_compatibility
+            else []
+        ),
         "## Audit envelope",
         "",
         f"- Generated UTC: `{generated}`",
@@ -209,14 +262,20 @@ def _render_summary(
         f"- Backend labels: `{', '.join(backends) if backends else NA}`",
         "- Report values are recomputed from records; supplied metrics are used for audit comparison.",
         "",
-        "## Primary causal comparison",
+        "## Formal A--F comparison" if formal_complete else "## Primary causal comparison",
         "",
-        "The primary comparison is `base_matched_calls` vs `mixed_matched_calls` vs "
-        "`c_pipeline`. The held-out protocol holds the five-stage Planner -> Tool-Policy -> "
-        "Frontend -> Domain Review -> Final Security prompts, call structure, and token caps "
-        "constant. "
-        "A/B single-call results are auxiliary product-shape baselines and do not by "
-        "themselves prove expert isolation.",
+        (
+            "The formal matrix compares A through F against the native Q4 A baseline. "
+            "B/D/F are equal-parameter-budget arms; C/E are capacity arms. The held-out "
+            "protocol holds the five-stage Planner -> Tool-Policy -> Frontend -> Domain "
+            "Review -> Final Security prompts, call structure, and token caps constant."
+            if formal_complete
+            else "The primary comparison is `base_matched_calls` vs `mixed_matched_calls` "
+            "vs `c_pipeline`. The held-out protocol holds the five-stage Planner -> "
+            "Tool-Policy -> Frontend -> Domain Review -> Final Security prompts, call "
+            "structure, and token caps constant. A/B single-call results are auxiliary "
+            "product-shape baselines and do not by themselves prove expert isolation."
+        ),
         "",
     ]
     if missing_primary:
@@ -226,7 +285,7 @@ def _render_summary(
                 "",
             ]
         )
-    lines.extend(_markdown_table(metrics, [name for name in PRIMARY_ORDER if name in metrics]))
+    lines.extend(_markdown_table(metrics, [name for name in comparison_order if name in metrics]))
     lines.extend(
         [
             "",
@@ -234,12 +293,12 @@ def _render_summary(
             "",
             "| Arm | Frozen Q4 base | Adapter assignment | Calls | Runtime authority |",
             "| --- | --- | --- | ---: | --- |",
-            "| A `base_matched_calls` | Native Gemma 4 12B Q4 | No LoRA; base handles all five expert types | 5-7 | Deterministic local allowlist |",
-            "| B `mixed_matched_calls` | Same Q4 base | One `mixed-all` LoRA reused at every stage | 5-7 | Deterministic local allowlist |",
-            "| C `c_pipeline` | Same Q4 base | Five task-specific LoRAs selected by application routing | 5-7 | Deterministic local allowlist |",
-            "| D `d_budget_matched_pipeline` | Same Q4 base | Manual fixed `3/3/4/3/3`; total trainable parameters equal B | 5-7 | Deterministic local allowlist |",
-            "| E `e_adaptive_pareto_pipeline` | Same Q4 base | Calibration-selected non-uniform ranks, each at most 16; unconstrained total budget | 5-7 | Frozen allocation + deterministic allowlist |",
-            "| F `f_adaptive_budget_matched_pipeline` | Same Q4 base | E's adaptive mechanism with rank sum and trainable parameters exactly equal B | 5-7 | Frozen allocation + deterministic allowlist |",
+            f"| A `base_matched_calls` | Native Gemma 4 12B Q4 | No LoRA; base handles all five expert types | {call_contract} | Deterministic local allowlist |",
+            f"| B `mixed_matched_calls` | Same Q4 base | One `mixed-all` LoRA reused at every stage | {call_contract} | Deterministic local allowlist |",
+            f"| C `c_pipeline` | Same Q4 base | Five task-specific LoRAs selected by application routing | {call_contract} | Deterministic local allowlist |",
+            f"| D `d_budget_matched_pipeline` | Same Q4 base | Manual fixed `3/3/4/3/3`; total trainable parameters equal B | {call_contract} | Deterministic local allowlist |",
+            f"| E `e_adaptive_pareto_pipeline` | Same Q4 base | {e_assignment} | {call_contract} | Deterministic allowlist |",
+            f"| F `f_adaptive_budget_matched_pipeline` | Same Q4 base | {f_assignment} | {call_contract} | Deterministic allowlist |",
             "",
             "Model `APPROVE/BLOCK/ESCALATE` output is scored but never grants tool permission. "
             "The C arm is a task-routed adapter pipeline, not a learned neural MoE.",
@@ -255,13 +314,28 @@ def _render_summary(
                 "",
                 "### Equal adapter-parameter budget: B versus manual D versus adaptive F",
                 "",
-                "B, D, and F have the same materialized trainable parameter count. B puts the whole budget in one mixed-data adapter; D uses the frozen manual 3/3/4/3/3 split; F uses the calibration-frozen adaptive split.",
+                "B, D, and F have the same materialized trainable parameter count. "
+                "B puts the whole budget in one mixed-data adapter; D uses the frozen "
+                f"manual 3/3/4/3/3 split; F uses {f_assignment}.",
                 "",
             ]
         )
         lines.extend(_markdown_table(metrics, list(BUDGET_MATCHED_ORDER)))
+    if all(name in metrics for name in CAPACITY_ORDER):
+        lines.extend(
+            [
+                "",
+                "### Capacity comparison: C versus E",
+                "",
+                "C and E do not match B's parameter budget. E uses "
+                f"{e_assignment}; only a calibration-frozen manifest may support a "
+                "Pareto claim.",
+                "",
+            ]
+        )
+        lines.extend(_markdown_table(metrics, list(CAPACITY_ORDER)))
     lines.extend(["", "## Auxiliary and secondary baselines", ""])
-    secondary = [name for name in order if name not in PRIMARY_ORDER]
+    secondary = [name for name in order if name not in comparison_order]
     lines.extend(_markdown_table(metrics, secondary))
     lines.extend(
         [
@@ -310,6 +384,50 @@ def _render_summary(
     return "\n".join(lines)
 
 
+def _adaptive_assignment_text(
+    records: list[BenchmarkRecord],
+    baseline: str,
+    *,
+    fallback: str,
+    budget_matched: bool = False,
+) -> str:
+    """Describe dynamic E/F ranks from public record metadata when available."""
+
+    stage_order = ("planner", "tool_policy", "frontend", "review", "security")
+    for record in records:
+        if record.baseline != baseline:
+            continue
+        ranks = record.fairness.get("stage_adapter_ranks")
+        status = record.fairness.get("allocation_status")
+        method = record.fairness.get("allocation_method")
+        manifest = record.fairness.get("allocation_manifest_sha256")
+        if not isinstance(ranks, dict) or set(ranks) != set(stage_order):
+            continue
+        if not all(isinstance(ranks[name], int) for name in stage_order):
+            continue
+        signature = "/".join(str(ranks[name]) for name in stage_order)
+        if status != "ready" or not isinstance(method, str) or not method:
+            return (
+                f"Frozen `{signature}` allocation remains `{status or 'calibration_pending'}`; "
+                "it is not eligible for a measured Pareto claim"
+            )
+        manifest_label = (
+            f" manifest `{str(manifest)[:12]}...`"
+            if isinstance(manifest, str) and len(manifest) == 64
+            else " frozen manifest"
+        )
+        budget = (
+            "; rank sum and materialized parameters exactly equal B"
+            if budget_matched
+            else "; each stage rank is at most 16 and total capacity may vary"
+        )
+        return (
+            f"Calibration-selected `{signature}` via `{method}` with{manifest_label}"
+            f"{budget}"
+        )
+    return fallback
+
+
 def _markdown_table(
     metrics: dict[str, dict[str, Any]], names: list[str]
 ) -> list[str]:
@@ -351,6 +469,11 @@ def _markdown_table(
 def _normalized_primary_table(metrics: dict[str, dict[str, Any]]) -> list[str]:
     if any(name not in metrics for name in PRIMARY_ORDER):
         return ["Complete A/B/C primary records are required for normalization."]
+    order = (
+        FORMAL_AF_ORDER
+        if all(name in metrics for name in FORMAL_AF_ORDER)
+        else PRIMARY_ORDER
+    )
     definitions = (
         ("Build Pass@1", "build_pass_at_1", "ratio"),
         ("Plan quality", "plan_quality_rate", "ratio"),
@@ -367,34 +490,31 @@ def _normalized_primary_table(metrics: dict[str, dict[str, Any]]) -> list[str]:
         ("Peak VRAM MiB (lower is better)", "peak_vram_mb", "number"),
         ("Cost/success tokens (lower is better)", "cost_per_success_tokens", "number"),
     )
+    labels = dict(zip(FORMAL_AF_ORDER, "ABCDEF", strict=True))
+    header = ["Metric", "A native Q4 absolute", "A index"]
+    divider = ["---", "---:", "---:"]
+    for name in order[1:]:
+        arm = labels[name]
+        header.extend([f"{arm} absolute", f"{arm} delta vs A", f"{arm} index"])
+        divider.extend(["---:", "---:", "---:"])
     rows = [
-        "| Metric | A native Q4 absolute | A index | B absolute | B delta vs A | B index | C absolute | C delta vs A | C index |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(divider) + " |",
     ]
-    base = metrics[PRIMARY_ORDER[0]]
-    mixed = metrics[PRIMARY_ORDER[1]]
-    routed = metrics[PRIMARY_ORDER[2]]
+    base = metrics[order[0]]
     for label, key, kind in definitions:
         a = base.get(key)
-        b = mixed.get(key)
-        c = routed.get(key)
-        rows.append(
-            "| "
-            + " | ".join(
+        cells = [label, _format_metric(a, kind), "100.0" if _is_number(a) else NA]
+        for name in order[1:]:
+            value = metrics[name].get(key)
+            cells.extend(
                 [
-                    label,
-                    _format_metric(a, kind),
-                    "100.0" if _is_number(a) else NA,
-                    _format_metric(b, kind),
-                    _format_delta(b, a, kind),
-                    _format_index(b, a),
-                    _format_metric(c, kind),
-                    _format_delta(c, a, kind),
-                    _format_index(c, a),
+                    _format_metric(value, kind),
+                    _format_delta(value, a, kind),
+                    _format_index(value, a),
                 ]
             )
-            + " |"
-        )
+        rows.append("| " + " | ".join(cells) + " |")
     return rows
 
 
@@ -491,6 +611,8 @@ def _color(name: str) -> str:
         "mixed_matched_calls": "#d97706",
         "c_pipeline": "#059669",
         "d_budget_matched_pipeline": "#7c3aed",
+        "e_adaptive_pareto_pipeline": "#db2777",
+        "f_adaptive_budget_matched_pipeline": "#0891b2",
         "a_base": "#64748b",
         "b_mixed": "#94a3b8",
     }.get(name, "#7c3aed")

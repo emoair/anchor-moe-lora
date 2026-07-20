@@ -1,4 +1,5 @@
 import csv
+from dataclasses import replace
 import json
 from anchor_mvp.benchmark import (
     BenchmarkRecord,
@@ -103,3 +104,61 @@ def test_record_round_trip_preserves_evaluator_provenance(tmp_path):
     loaded = load_records_jsonl(path)[0]
     assert loaded.evaluator_provenance == record.evaluator_provenance
     assert loaded.verified_build_pass is None
+
+
+def test_formal_report_normalizes_all_six_arms_against_a(tmp_path):
+    records = _records()
+    templates = records[:2]
+    for baseline, group in (
+        ("d_budget_matched_pipeline", "D"),
+        ("e_adaptive_pareto_pipeline", "E"),
+        ("f_adaptive_budget_matched_pipeline", "F"),
+    ):
+        records.extend(
+            replace(
+                item,
+                baseline=baseline,
+                group=group,
+                case_id=f"{baseline}-{item.case_id.rsplit('-', 1)[-1]}",
+            )
+            for item in templates
+        )
+
+    records_path = tmp_path / "records.jsonl"
+    metrics_path = tmp_path / "metrics.json"
+    write_records_jsonl(records, records_path)
+    metrics_path.write_text(json.dumps(compute_metrics(records)), encoding="utf-8")
+
+    paths = generate_report(records_path, metrics_path, tmp_path / "report")
+    summary = paths.summary.read_text(encoding="utf-8")
+
+    assert "Formal A--F comparison" in summary
+    assert "| F absolute | F delta vs A | F index |" in summary
+    assert "Equal adapter-parameter budget: B versus manual D versus adaptive F" in summary
+    assert "Capacity comparison: C versus E" in summary
+    assert "calibration_pending" in summary
+    assert summary.index("d_budget_matched_pipeline") < summary.index(
+        "e_adaptive_pareto_pipeline"
+    ) < summary.index("f_adaptive_budget_matched_pipeline")
+
+
+def test_repair_code_report_discloses_legacy_and_out_of_domain_scope(tmp_path):
+    records = [
+        replace(
+            item,
+            fairness={"review_protocol": "repair_code_v1"},
+        )
+        for item in _records()
+    ]
+    records_path = tmp_path / "records.jsonl"
+    metrics_path = tmp_path / "metrics.json"
+    write_records_jsonl(records, records_path)
+    metrics_path.write_text(json.dumps(compute_metrics(records)), encoding="utf-8")
+
+    paths = generate_report(records_path, metrics_path, tmp_path / "report")
+    summary = paths.summary.read_text(encoding="utf-8")
+
+    assert "Legacy compatibility warning" in summary
+    assert "does not evaluate" in summary
+    assert "HTML held-out artifact is also out-of-domain" in summary
+    assert "| 5 | Deterministic local allowlist |" in summary

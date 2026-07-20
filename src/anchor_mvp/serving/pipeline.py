@@ -65,6 +65,9 @@ class StageArtifact:
     error: str | None = None
     cycle: int | None = None
     contract_version: str | None = None
+    segment_index: int | None = None
+    segment_count: int | None = None
+    artifact_protocol: str | None = None
 
 
 @dataclass

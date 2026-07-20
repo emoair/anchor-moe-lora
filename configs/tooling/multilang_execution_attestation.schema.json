@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/anchor/multilang-execution-attestation.v1.schema.json",
+  "title": "Anchor multilingual SWE-bench execution attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool_contract_version",
+    "lock_sha256",
+    "ready",
+    "bindings",
+    "remaining_gates",
+    "content_free",
+    "oracle_material_retained"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.multilang-execution-attestation.v1"},
+    "tool_contract_version": {"const": "anchor.execution-tool-contract.v3"},
+    "lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ready": {"type": "boolean"},
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "official_harness",
+        "opencode",
+        "validator",
+        "supervisor_private_state",
+        "on_demand_image_cache",
+        "instance_image",
+        "canonical_worktree",
+        "isolation_probes"
+      ],
+      "properties": {
+        "dataset": {"type": "object"},
+        "official_harness": {"type": "object"},
+        "opencode": {"type": "object"},
+        "validator": {"type": "object"},
+        "supervisor_private_state": {"type": "object"},
+        "on_demand_image_cache": {"type": "object"},
+        "instance_image": {"type": "object"},
+        "canonical_worktree": {"type": "object"},
+        "isolation_probes": {"type": "object"}
+      }
+    },
+    "remaining_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9_]+$"}
+    },
+    "content_free": {"const": true},
+    "oracle_material_retained": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"ready": {"const": true}}},
+      "then": {"properties": {"remaining_gates": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"ready": {"const": false}}},
+      "then": {"properties": {"remaining_gates": {"minItems": 1}}}
+    }
+  ]
+}

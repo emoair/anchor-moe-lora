@@ -1286,6 +1286,37 @@ def test_ark_glm52_max384_c8_profile_is_an_exact_monotonic_expansion() -> None:
     )
 
 
+def test_ark_kimi_k3_delta128_profile_is_isolated_and_exact() -> None:
+    raw = _simple_config(
+        ROOT
+        / "configs"
+        / "data"
+        / "automation.full_v3.ark_kimi_k3.delta128.c8.yaml"
+    )
+    loaded = AutomationConfig.from_mapping(raw, repo_root=ROOT)
+
+    assert loaded.output_dir == (
+        ROOT / "data/automated_v3_shards/ark_kimi_k3_delta128_offset400000_c8"
+    ).resolve()
+    assert loaded.concurrency_stages == (8,)
+    assert loaded.stage_seed_counts == (128,)
+    assert loaded.raw_records_per_task == 128
+    assert loaded.minimum_gold_records_by_task == {task: 96 for task in TASK_TYPES}
+    assert loaded.seed_index_offset == 400000
+    assert loaded.max_requests == 2304
+    assert loaded.max_output_tokens_total == 294_912_000
+
+    workers = _build_teachers(raw, dry_run=False)
+    assert set(workers) == {"seed", *TASK_TYPES}
+    assert all(worker.protocol == "openai_responses" for worker in workers.values())
+    assert all(worker.model == "kimi-k3" for worker in workers.values())
+    assert all(worker.api_key_env == "ARK_CODING_API_KEY" for worker in workers.values())
+    assert all(
+        worker.generation_params["thinking_effort"] == "max"
+        for worker in workers.values()
+    )
+
+
 def _expansion_source() -> MonotonicExpansionSource:
     return MonotonicExpansionSource(
         concurrency_stages=(10,),

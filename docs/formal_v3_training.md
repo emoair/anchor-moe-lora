@@ -1,105 +1,213 @@
-# Formal-v3：full_v3 冻结数据的低显存训练
+# Formal-v3 full-scale A-F training
 
-Formal-v3 复用已经跑通过的 `manual_active_labels_v2` 低显存引擎，但不再从
-formal-v1 或 `data/automated_v2` 继承训练数据。所有训练配置只接受未来冻结到
-`artifacts/formal_v3/dataset/` 的 full_v3 快照；当前仍在增长或尚未通过质量门的
-`data/automated_v3` 不能直接训练。
+Formal-v3 is the training contract for the full public SWE-bench train bank.
+It does not authorize a run by itself. It accepts only an immutable execution-
+Gold snapshot and never trains directly from a growing distillation directory.
 
-## 启动前硬门
+## Scale and split contract
 
-预检必须同时满足：
+- Source population: 19,008 candidate tasks.
+- Five stage work orders per task: 95,040 total candidates.
+- A task enters the snapshot only after its five stage records pass the real
+  execution Gold gate. Rejected tasks are not backfilled with synthetic rows.
+- `minimum_records_per_expert=256` is a quality floor, not a scale ceiling.
+  The frozen accepted population may contain up to 19,008 Gold rows per stage.
+- The source-bank split is applied before Gold selection:
+  - `train`: at most 17,105 tasks; training only;
+  - `validation-from-train`: at most 1,903 tasks; E/F rank calibration only;
+  - external heldout: evaluation only, represented in the training snapshot by
+    hashes and leak-audit metadata. Its body is neither copied nor read.
+- The immutable manifest binds the actual accepted counts, balanced five-stage
+  record counts, train/calibration ID-set hashes, pairwise-disjoint proof,
+  calibration files, external-heldout manifest hash, and leakage-audit hash.
 
-1. 五个专家各有至少 256 条有效、真实教师样本；跨文件 ID 唯一且 target 非空。
-2. `manifest.json` 使用 `anchor.training-snapshot.v2`，其
-   `manifest.json.sha256` sidecar、五个文件的 basename/记录数/bytes/SHA-256、
-   `source_partition_manifest_sha256` 和顶层 `snapshot_sha256` 全部一致。
-3. 实际训练目录必须是 Transformers 可重载的 bitsandbytes NF4 目录，而不是
-   GGUF、W4A16 推理包或任意“看起来像 Q4”的目录。预检会核对量化导出 manifest、
-   来源权重 SHA、NF4/double-quant/BF16 compute-storage 配置、四个 safetensors
-   分片的存在性与 bytes、index 的 shard/总大小/NF4 quant-state 绑定。
-4. 冻结基座、`q_proj/v_proj`、BF16 LoRA、TF32、`paged_adamw_8bit`、batch 1、
-   gradient checkpointing、序列长度 64 和训练峰值不超过 9 GiB 的契约不得漂移。
-5. 正式训练前先完成同一快照上的 one-step smoke，再完成 two-step GPU probe。
+`prepare_full_v3_snapshot.py` creates this contract directly from the pinned
+source-bank manifest and allowlists configured in `full_v3_snapshot.yaml`; it
+is not a hand-written post-processing manifest.
 
-默认的 NF4 校验使用 manifest + 文件大小，不会重新读取约 7.7 GB 分片。需要发布级
-深校验时加 `-DeepBaseChecksum`，此时 BF16 来源权重和 NF4 分片都会重新计算 SHA-256。
+The training preflight fails closed if train and calibration overlap, if a
+heldout body is present/read/emitted, if accepted Gold exceeds 19,008, or if the
+five train stages are not aligned to the same complete-chain count.
 
-```powershell
-.\scripts\train\formal_v3_preflight.ps1
-.\scripts\train\formal_v3_preflight.ps1 -DeepBaseChecksum
+## Snapshot-sized exposure control
+
+Inherited checked-in `max_steps` values are compatibility placeholders for the
+older partial-data profiles. They are not the formal schedule, and a direct
+B-F adapter run without materialization is rejected. Before B-F can run,
+`scripts/train/materialize_formal_v3_schedule.py` verifies the frozen split and
+writes a snapshot-bound config under:
+
+```text
+artifacts/formal_v3/schedules/<snapshot_sha256>/<arm>.json
 ```
 
-在冻结快照尚未生成时，预检失败是预期行为；这道失败用于阻止旧数据或增长中的数据
-误入 GPU。formal-v3 的 256 条门槛与
-`automation.full_v3.ark_glm52.max384.c8.yaml` 的 384 raw / 256 strict-gold / c8
-采集合同一致；旧的 128 条快照即使文件和 sidecar 自洽，也会在配置校验、完整链证明和
-逐专家记录数校验处 fail closed。
+The formal comparison uses one train epoch:
 
-## 固定低显存参数
+- B: one rank-16 mixed adapter sees all five train-Gold stage files.
+- C/D/E/F: five independent adapters; each sees only its own stage file.
 
-- Gemma 4 12B、训练兼容的预量化 bitsandbytes NF4、基座冻结
-- NF4 double quant；BF16 compute/storage；LoRA BF16；Ampere TF32
-- `max_seq_length=64`，micro-batch 1，梯度累积 4
-- `paged_adamw_8bit`，gradient checkpointing，active-label-only loss
-- 单专家 32 optimizer steps × 4 = 128 次样本曝光
-- B 组 160 optimizer steps × 4 = 640 次样本曝光，与五个专家合计完全一致
-- 专家每 8 steps、B 每 32 steps 原子保存一次安全 checkpoint
+The shared low-memory control uses a conservative learning rate of `5e-5`,
+`constant_with_warmup`, a `0.03` warmup ratio, and exactly this one
+snapshot-derived epoch. The same optimization hyperparameters apply to B-F;
+there is no arm-specific tuning. This replaces the earlier `2e-4` exploratory
+setting to reduce small-snapshot overfitting risk, but it is still a controlled
+baseline rather than a claim of optimal convergence.
+- B-F have exactly the same total and per-stage sample exposure.
+- With accumulation `g=4` and `N` accepted train chains, each stage uses
+  `ceil(N/g)` optimizer steps. If `N` is not divisible by four, the runtime
+  independently shuffles and pads each stage, then deterministically
+  interleaves the five strata. Padding is at most three samples per stage.
+  Planned and observed per-file exposures are both recorded; aggregate mixed
+  shuffle is not accepted as proof of per-stage equality.
 
-## A–F 控制组
+For the maximum canonical source split (`N=17,105`), a specialist job has
+4,277 optimizer steps and 17,108 exposures; B has 21,385 optimizer steps. Every
+B-F arm therefore has 85,540 group-level exposures. The historic 640-exposure
+experiment is not a formal-v3 limit.
 
-| 组 | 结构 | Rank/预算 | 训练配置 |
+Every run manifest records requested/padded exposures, padding per stage,
+derived optimizer steps, target epochs, snapshot hashes, and the B-F equality
+invariant. Four approximately even safety checkpoints are derived from the
+resolved step count.
+
+## Low-memory sequence boundary
+
+`formal_v3_lowmem_*` is a controlled 3080 Ti / 9 GiB profile, not a
+full-trajectory training claim. It uses a 64-token window and the explicit
+`formal_v3_lowmem_truncated_v1` contract: recent prompt context plus the start
+of the assistant completion are retained. `full_trajectory_training=false` is
+written into the config and manifest.
+
+After an executed run, the manifest and checkpoint metadata are updated with
+runtime-observed rendered-token maximum/mean, selected-token maximum/mean, and
+the exact truncated-exposure count/fraction. Those statistics describe sample
+exposures (including deterministic padding), not just unique rows. A future
+cloud/full-context profile must use a separately audited no-truncation contract;
+these low-memory results must never be relabelled as full-context training.
+
+## A-F definitions
+
+| Arm | Structure | Rank / budget | Training exposure |
 | --- | --- | --- | --- |
-| A | 原生 Q4 基座 | 无 LoRA | 不训练 |
-| B | 一个 mixed LoRA | rank 16，10,387,456 参数 | `formal_v3_lowmem_mixed.yaml` |
-| C | 五个独立专家 | 每个 rank 16，总 rank 80 | `formal_v3_lowmem_common.yaml` |
-| D | 五个固定小专家 | `3/3/4/3/3`，总 rank 16，严格对标 B | `formal_v3_lowmem_budget.yaml` |
-| E | 复杂度自适应专家 | 每专家最大 rank 16，不限制总预算 | `formal_v3_lowmem_adaptive.yaml` |
-| F | 与 E 同一选择机制 | 总 rank 16、参数量严格对标 B | `formal_v3_lowmem_adaptive_budget.yaml` |
+| A | Frozen native Q4 base | no LoRA | none; preflight/evaluation baseline only |
+| B | One mixed LoRA | rank 16; 10,387,456 parameters | all five train stages |
+| C | Five routed experts | rank 16 each; rank sum 80 | one stage per expert |
+| D | Five fixed small experts | `3/3/4/3/3`; rank sum 16, budget matched to B | one stage per expert |
+| E | Calibration-adaptive experts | each expert <=16; no total-rank cap | one stage per expert |
+| F | Same adaptive mechanism as E | rank sum 16 and parameters exactly matched to B | one stage per expert |
 
-E/F 必须提供在 calibration split 上生成、且在打开 held-out 前冻结的
-`anchor.lora-allocation.v1` JSON。它必须准确包含五个专家，绑定本次
-`dataset_snapshot_sha256`，并提供同名 `.sha256` sidecar。launcher 还会强制检查：
+E and F require an immutable `anchor.lora-allocation.v1` plus SHA-256 sidecar.
+It must be produced only from the calibration split and frozen before heldout
+access. E must be non-uniform. F must have rank sum 16 and exactly 10,387,456
+materialized trainable parameters. Both use the same attempted-allocation and
+selection mechanism. Formal-v3 explicitly rejects the historical
+`heuristic_preregistered_calibration_pending` manifests: `selection_status`
+must be `calibration_selected_frozen`, calibration metrics must be present for
+every attempted allocation, and the selected rank signature must be one of
+those measured attempts.
 
-- `mechanism_id=stage_complexity_calibration_pareto_v1`；
-- calibration snapshot hash、完整 `attempted_allocations`、最终 `selected_ranks`、
-  selection objectives、创建与冻结时间；
-- held-out 尚未打开，且访问策略仍是 `forbidden_until_allocation_frozen`；
-- base contract、`q_proj/v_proj` 与每 rank 649,216 参数保持一致；
-- selected allocation 必须真实出现在 attempted allocations 中；
-- E 必须是非均匀 rank，F 必须满足 rank 总和 16 与 10,387,456 个物化参数。
+## Live Gold bridge
 
-物化参数由 launcher 根据 ranks 重新计算，不能靠 manifest 自报数字绕过。
-
-## 安全启动顺序
-
-入口默认只跑 preflight；只有显式 `-Execute` 才会启动 GPU。一次只能选择一个组，
-脚本使用原子 lock 保证同一时间只有一个 formal-v3 GPU launcher。
+The snapshot source is the authenticated full-bank coordinator export, not
+`data/automated_v3` and not any older synthetic partition. After a terminal
+live run, publish the strict Gold projection with:
 
 ```powershell
-# 数据冻结后先探针
+py -3.10 scripts/data/export_swebench_formal_gold.py
+py -3.10 scripts/data/prepare_full_v3_snapshot.py --config configs/orchestration/full_v3_snapshot.yaml
+```
+
+The exporter reads the protocol-separated root-owned WSL train-receipt key only
+in-process. Every accepted task must have five hash-bound stage artifacts, one
+final review PASS, one security PASS, a matching final patch, at least one
+successful nontrivial `anchor-validate` command with a model-visible real tool
+result, successful sandbox cleanup, and an authenticated
+`real_sandbox_self_verified` receipt. This train evidence explicitly sets
+`not_official_swebench_pass=true`; official heldout evaluation remains separate.
+The consumer independently re-hashes the publication manifest and every matched
+candidate task/work-order shard, requires the same manifest hash in the run
+manifest and status, reparses the exact terminal validator JSON from the
+model-visible OpenCode export, and binds that result to the immutable train
+sandbox image digest/ID, validator source hash, final patch, tool transcript,
+five-stage lineage, and post-cleanup supervisor HMAC. A receipt signed for a
+different shard, image, validator, patch, or validation state is not Gold.
+A capped `stopped_checkpoint_resumable` checkpoint may be exported so completed
+tasks remain usable, while incomplete or unverified tasks stay excluded and
+retryable. The training projection retains real builder tool calls/results,
+the sanitized OpenCode session export, and the exact workspace diff, while
+removing explicit hidden-reasoning fields. No model-supplied verdict can replace
+the supervisor receipt.
+
+## Formal-v3 evaluation binding
+
+Every materialized B–F training manifest carries
+`anchor.formal-v3-af-evaluation.v1`: the same hash-only heldout binding,
+normalization to `A=100`, A as the frozen Q4 baseline, B as one mixed adapter,
+and C/D/E/F as five-stage serial runtime-LoRA hot swaps. Evaluation artifacts
+must be isolated by formal-v3 arm and version; formal-v2 adapters, registries,
+configs, and reports are forbidden inputs.
+
+The checked-in formal-v3 evaluation control is
+`configs/benchmark/formal_v3_af_control.json`. Its independent finalizer binds
+the snapshot manifest **and its sidecar**, the common NF4/Q4 base inventory,
+all B--F materialized schedules, execute manifests, checkpoint metadata,
+progress state, adapter weights, frozen E/F calibration allocations, and only
+the external-heldout metadata hashes. It rejects every `formal-v2` source.
+
+The finalizer creates a new immutable version bundle under
+`artifacts/formal_v3/evaluation/registries/<version>/`; it never overwrites an
+existing bundle. The offline preflight does not open heldout case or fixture
+bodies. Runtime outputs are restricted to
+`runs/formal-v3/evaluation/<version>/...`; exact resume is limited to that same
+version, registry, heldout hash, backend identity, sampling contract, and
+checkpoint.
+
+```powershell
+# Read-only readiness inspection. Current checkout: BLOCKED until formal-v3
+# snapshot, calibration allocations and completed B--F artifacts exist.
+python scripts/benchmark/materialize_formal_v3_af.py `
+  --version-id formal-v3-001
+
+# Exclusively create the immutable registry/benchmark after training completes.
+.\scripts\benchmark\run_formal_v3_af.ps1 `
+  -VersionId formal-v3-001 -Finalize
+
+# Offline preflight only; no heldout body, API or GPU evaluation.
+.\scripts\benchmark\run_formal_v3_af.ps1 -VersionId formal-v3-001
+
+# The only live form. It uses the same Q4 base, A=100, B's single mixed
+# adapter and serial runtime-LoRA swaps for C/D/E/F.
+.\scripts\benchmark\run_formal_v3_af.ps1 `
+  -VersionId formal-v3-001 -Execute -AuthorizeHeldoutAccess
+```
+
+No formal-v3 heldout evaluation has been executed or claimed. With the current
+missing training artifacts the readiness command returns `BLOCKED` before any
+heldout body is opened and before any API/GPU action.
+
+## Read-only preflight and launch
+
+```powershell
+# Validates the snapshot and materializes B-F schedules. No API or GPU training.
+.\scripts\train\formal_v3_preflight.ps1
+
+# A is explicit and never creates a LoRA job, even with -Execute.
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm A
+
+# Resource gates on the same frozen snapshot.
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm smoke -Execute
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm probe -Execute
 
-# MVP 主线：五个 rank-16 LoRA，严格逐个训练
-.\scripts\train\run_formal_v3_lowmem.ps1 -Arm C -Execute
-
-# 其他对照组
+# Formal matrix. Only the explicit -Execute form starts a GPU job.
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm B -Execute
+.\scripts\train\run_formal_v3_lowmem.ps1 -Arm C -Execute
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm D -Execute
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm E -AllocationManifest <E.json> -Execute
 .\scripts\train\run_formal_v3_lowmem.ps1 -Arm F -AllocationManifest <F.json> -Execute
 ```
 
-不带 `-Execute` 时会执行相同的数据/基座预检和 adapter dry-run，不下载模型、不启动训练。
-
-## 中断与恢复边界
-
-五个专家是五个独立作业。重复运行同一组时，launcher 只有在 execute manifest、当前
-配置指纹、冻结快照 hash、最终 adapter 文件与 `checkpoint_metadata.json` 全部匹配时，
-才会跳过已完成专家，因此可在**专家作业边界**继续训练剩余专家。
-
-单个专家内部的 safety checkpoint 目前只包含 LoRA 权重，不含 optimizer、scheduler
-或 RNG 状态，能力被明确标记为 `adapter_weights_warm_start_only`。因此 launcher 遇到
-partial/stale 输出会 fail closed，不会伪装成 exact resume，也不会静默从第 0 步覆盖。
-如需利用该 checkpoint，必须先做显式 warm-start 审计并记录 optimizer/sample schedule
-重新开始；在真正接入严格绑定的 warm-start CLI 前，不应把它称为断点续训。
+Without `-Execute`, the launcher performs the same data/base checks and adapter
+dry-run only. A process lock preserves single-GPU ownership. Completed experts
+are skipped only when config, snapshot, final adapter, and checkpoint metadata
+all match. Intra-expert safety checkpoints remain adapter-weight warm starts,
+not exact optimizer/scheduler/RNG resume.

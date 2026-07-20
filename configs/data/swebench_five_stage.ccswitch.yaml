@@ -1,0 +1,70 @@
+schema_version: anchor.swebench-ccswitch-coordinator.v1
+
+# This file contains names and paths only.  Provider credentials are inherited
+# by the live child processes from the current process environment.
+bank:
+  root: datasets/public/swebench-full-bank-v1
+  manifest: datasets/public/swebench-full-bank-v1/manifest.json
+  tasks_glob: candidate-tasks/tasks-*.jsonl
+  work_orders_glob: candidate-work-orders/work-orders-*.jsonl
+  expected_tasks: 19008
+  expected_work_orders: 95040
+  required_split: train
+
+components:
+  full_bank_config: configs/data/swebench_full_bank.formal.yaml
+  opencode_bundle_manifest: artifacts/tooling/opencode-patched/bundle-manifest.json
+  opencode_patch_manifest: patches/opencode/patch-manifest.json
+  # The verifier starts from the audited bundle root so it can bind the
+  # compatibility host executable, bundle manifest, and both platform members.
+  opencode_windows_binary: artifacts/tooling/opencode-patched/opencode-anchor.exe
+  opencode_linux_binary: artifacts/tooling/opencode-patched/linux-x64/opencode-anchor
+  ccswitch_manifest: artifacts/tooling/ccswitch-patched/route-manifest.json
+  ccswitch_launcher: scripts/tooling/start_patched_ccswitch_route.ps1
+
+# P0 fail-closed placeholder.  No file is shipped at this path yet, and a
+# schema-shaped file alone is never trusted.  A future audited v3 patch must
+# provide the attestation plus a complete verifier before live execution can
+# be enabled.
+execution_contract:
+  attestation: artifacts/tooling/opencode-patched/multilang-execution-attestation.json
+  lock: configs/tooling/swebench_execution_v3.lock.json
+  lock_sha256: 043c4749586ba3a35240c894b9bd6a519f4a8e977019c9c49c9649b6b1b47888
+  required_schema: anchor.multilang-execution-attestation.v1
+  required_tool_contract_version: anchor.execution-tool-contract.v3
+
+routes:
+  glm52_max:
+    profile: patches/cc-switch/profiles/glm-5.2-max.json
+    port: 15731
+  kimi_k3_max:
+    profile: patches/cc-switch/profiles/kimi-k3-max.json
+    port: 15732
+
+runtime:
+  output_dir: artifacts/swebench/full-bank-live-v1
+  repository_cache: artifacts/swebench/repository-cache
+  workspace_root: artifacts/swebench/live-workspaces
+  # Portable default. Operators may raise this explicitly after preflight;
+  # the coordinator does not impose a product-wide hard ceiling.
+  concurrency: 1
+  max_revisions: 2
+  request_timeout_seconds: 900
+  sandbox_timeout_seconds: 900
+  max_output_tokens: 32768
+  max_retries: 3
+  # Explicit operator-owned provider egress policy.  `inherit` keeps the
+  # current Windows/TUN routing and proxy environment; no prompt or model
+  # output can override this value.
+  provider_network_mode: inherit
+  wsl_distro: Ubuntu-22.04
+  sandbox_supervisor: wsl-root-systemd
+  sandbox_memory: 4G
+  sandbox_cpus: "2"
+  sandbox_pids: 256
+  # The live launcher first probes Windows loopback. NAT fallback is limited to
+  # an address that is both a WSL default gateway and a Windows Preferred IPv4.
+  # Every candidate must pass a temporary Windows bind plus WSL TCP/accept probe.
+  # Arbitrary WLAN/private addresses are never exposed and host routes stay put.
+  sandbox_route_visibility: wsl-probed-host
+  retain_router_state: false

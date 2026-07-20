@@ -1,13 +1,23 @@
 schema_version: anchor.training-snapshot-config.v1
 project_root: ../..
 
-partition_manifest: data/automated_v3/partitions/manifest.json
-automation_status: data/automated_v3/automation/status.json
-collection_dir: data/automated_v3
-gold_dir: data/automated_v3/partitions/gold
+partition_manifest: artifacts/swebench/full-bank-live-v1/training-export/partitions/manifest.json
+automation_status: artifacts/swebench/full-bank-live-v1/training-export/automation/status.json
+collection_dir: artifacts/swebench/full-bank-live-v1/training-export
+gold_dir: artifacts/swebench/full-bank-live-v1/training-export/partitions/gold
 
 # The report is metadata-only and is always written atomically. The snapshot
 # directory is not created at all while training_ready is false.
 readiness_report: runs/full-v3-snapshot/readiness.json
 snapshot_dir: artifacts/formal_v3/dataset
 expected_minimum_gold_records_per_expert: 256
+
+# Formal A-F publication derives train/calibration membership from the pinned
+# ordinary SWE-bench train bank. The external heldout remains metadata-only:
+# this publisher hashes its manifest/audit and never opens heldout bodies.
+formal_v3_split:
+  source_bank_manifest: datasets/public/swebench-full-bank-v1/manifest.json
+  train_allowlist: datasets/public/swebench-full-bank-v1/allowlists/train.json
+  calibration_allowlist: datasets/public/swebench-full-bank-v1/allowlists/validation-from-train.json
+  heldout_manifest: artifacts/benchmark/heldout_v1/manifest.json
+  heldout_leak_audit: artifacts/benchmark/heldout_v1/leak_audit.prebulk.json

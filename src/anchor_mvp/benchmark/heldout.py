@@ -9,6 +9,13 @@ import re
 from typing import Any, Iterable, Iterator, Mapping
 
 from .models import BenchmarkCase, load_cases_jsonl
+from .segment_protocol import (
+    ARTIFACT_PROTOCOL,
+    SEGMENT_CONTRACT_VERSION,
+    SEGMENTED_REVIEW_PROTOCOL,
+    SegmentContract,
+    SegmentProtocolError,
+)
 
 
 MANIFEST_SCHEMA = "anchor.heldout-manifest.v1"
@@ -444,6 +451,13 @@ def validate_primary_specs(
     primary = [by_name[name] for name in PRIMARY_BASELINES]
     if any(spec.workflow != "pipeline" for spec in primary):
         raise HeldoutGateError("primary Q4 arms must use the matched five-stage workflow")
+    review_protocols = {spec.review_protocol for spec in primary}
+    if len(review_protocols) != 1 or not review_protocols <= {
+        "verdict_v2",
+        "repair_code_v1",
+        SEGMENTED_REVIEW_PROTOCOL,
+    }:
+        raise HeldoutGateError("primary Q4 arms must share one supported review protocol")
     if len({spec.max_tokens_per_call for spec in primary}) != 1:
         raise HeldoutGateError("primary Q4 arms must share per-stage token caps")
     if any(set(spec.stage_models) != set(PRIMARY_STAGES) for spec in primary):
@@ -480,6 +494,8 @@ def validate_primary_specs(
         controls = primary + [budget_arm]
         if any(spec.workflow != "pipeline" for spec in controls):
             raise HeldoutGateError("D must use the matched five-stage workflow")
+        if len({spec.review_protocol for spec in controls}) != 1:
+            raise HeldoutGateError("D must share the primary review protocol")
         if len({spec.max_tokens_per_call for spec in controls}) != 1:
             raise HeldoutGateError("D must share the primary per-stage token cap")
         if any(set(spec.stage_models) != set(PRIMARY_STAGES) for spec in controls):
@@ -516,6 +532,18 @@ def validate_primary_specs(
         controls = primary + [adaptive, adaptive_budget]
         if any(spec.workflow != "pipeline" for spec in controls):
             raise HeldoutGateError("E and F must use the matched five-stage workflow")
+        if len({spec.review_protocol for spec in controls}) != 1:
+            raise HeldoutGateError("E and F must share the primary review protocol")
+        if len({spec.max_tokens_per_call for spec in controls}) != 1:
+            raise HeldoutGateError("E and F must share the primary per-stage token cap")
+        if any(set(spec.stage_models) != set(PRIMARY_STAGES) for spec in controls):
+            raise HeldoutGateError("E and F must use the same five stage names")
+        if len({spec.model for spec in controls}) != 1 or len(
+            {spec.base_contract_id for spec in controls}
+        ) != 1 or len({spec.base_source_sha256 for spec in controls}) != 1 or len(
+            {spec.q4_artifact_sha256 for spec in controls}
+        ) != 1:
+            raise HeldoutGateError("E and F must use the identical frozen Q4 base")
         if any(spec.selection_split != "calibration_only" for spec in (adaptive, adaptive_budget)):
             raise HeldoutGateError("E and F allocation may use calibration_only data")
         if adaptive.allocation_method != adaptive_budget.allocation_method:
@@ -549,6 +577,55 @@ def validate_primary_specs(
             != mixed_arm.adapter_trainable_parameters
         ):
             raise HeldoutGateError("F materialized trainable parameters must exactly match B")
+
+    configured = primary + [by_name[BUDGET_MATCHED_BASELINE]]
+    if adaptive is not None and adaptive_budget is not None:
+        configured.extend((adaptive, adaptive_budget))
+    _validate_segment_contracts(configured)
+
+
+def _validate_segment_contracts(specs: Iterable[Any]) -> None:
+    """Require one explicit segment contract across every configured A--F arm."""
+
+    arms = list(specs)
+    segmented = [spec.review_protocol == SEGMENTED_REVIEW_PROTOCOL for spec in arms]
+    if not any(segmented):
+        if any(
+            spec.artifact_protocol
+            or spec.segment_contract_version
+            or spec.frontend_segment_count != 1
+            or spec.review_segment_count != 1
+            for spec in arms
+        ):
+            raise HeldoutGateError(
+                "segment settings require review_protocol=segmented_repair_v1"
+            )
+        return
+    if not all(segmented):
+        raise HeldoutGateError("all A--F arms must share the segmented review protocol")
+    bindings = {
+        (
+            spec.artifact_protocol,
+            spec.segment_contract_version,
+            spec.frontend_segment_count,
+            spec.review_segment_count,
+        )
+        for spec in arms
+    }
+    if len(bindings) != 1:
+        raise HeldoutGateError("all A--F arms must share one frozen segment contract")
+    artifact, version, frontend_count, review_count = next(iter(bindings))
+    try:
+        SegmentContract(
+            artifact_protocol=artifact,
+            contract_version=version,
+            frontend_segments=frontend_count,
+            review_segments=review_count,
+        )
+    except SegmentProtocolError as exc:
+        raise HeldoutGateError(f"invalid segmented benchmark contract: {exc}") from exc
+    if artifact != ARTIFACT_PROTOCOL or version != SEGMENT_CONTRACT_VERSION:
+        raise HeldoutGateError("unsupported segmented benchmark contract")
 
 
 _APPROVED_TOOL_LABELS = {

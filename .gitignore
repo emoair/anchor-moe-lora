@@ -18,6 +18,30 @@ data/**/partitions/
 examples/data/automation-generated/
 examples/data/generated/
 
+# Only this audited train-only projection is publishable. Keep the allowlist
+# exact so sibling datasets, temporary exports, and unreviewed file types stay ignored.
+datasets/*
+!datasets/public/
+datasets/public/*
+!datasets/public/swebench-full-bank-v1/
+datasets/public/swebench-full-bank-v1/*
+!datasets/public/swebench-full-bank-v1/ATTRIBUTION.md
+!datasets/public/swebench-full-bank-v1/manifest.json
+!datasets/public/swebench-full-bank-v1/source-metadata.train.jsonl
+!datasets/public/swebench-full-bank-v1/source-metadata.train-[0-9][0-9][0-9][0-9][0-9]-of-[0-9][0-9][0-9][0-9][0-9].jsonl
+!datasets/public/swebench-full-bank-v1/allowlists/
+datasets/public/swebench-full-bank-v1/allowlists/*
+!datasets/public/swebench-full-bank-v1/allowlists/train.json
+!datasets/public/swebench-full-bank-v1/allowlists/validation-from-train.json
+!datasets/public/swebench-full-bank-v1/candidate-tasks/
+datasets/public/swebench-full-bank-v1/candidate-tasks/*
+!datasets/public/swebench-full-bank-v1/candidate-tasks/tasks.jsonl
+!datasets/public/swebench-full-bank-v1/candidate-tasks/tasks-[0-9][0-9][0-9][0-9][0-9]-of-[0-9][0-9][0-9][0-9][0-9].jsonl
+!datasets/public/swebench-full-bank-v1/candidate-work-orders/
+datasets/public/swebench-full-bank-v1/candidate-work-orders/*
+!datasets/public/swebench-full-bank-v1/candidate-work-orders/work-orders.jsonl
+!datasets/public/swebench-full-bank-v1/candidate-work-orders/work-orders-[0-9][0-9][0-9][0-9][0-9]-of-[0-9][0-9][0-9][0-9][0-9].jsonl
+
 # Keep only the immutable held-out manifest needed to verify the public fixture set.
 artifacts/*
 !artifacts/benchmark/
@@ -26,6 +50,22 @@ artifacts/benchmark/*
 artifacts/benchmark/heldout_v1/*
 !artifacts/benchmark/heldout_v1/manifest.json
 !artifacts/benchmark/heldout_v1/manifest.json.sha256
+!artifacts/benchmark/heldout_v1/leak_audit.prebulk.json
+!artifacts/benchmark/heldout_v1/leak_audit.prebulk.json.sha256
+
+# Public, hash-only A--F run registries contain no weights or sample bodies.
+!artifacts/formal_partial_v1/
+artifacts/formal_partial_v1/*
+!artifacts/formal_partial_v1/forced_low_host_memory/
+artifacts/formal_partial_v1/forced_low_host_memory/*
+!artifacts/formal_partial_v1/forced_low_host_memory/registries/
+artifacts/formal_partial_v1/forced_low_host_memory/registries/*
+!artifacts/formal_partial_v1/forced_low_host_memory/registries/*/
+artifacts/formal_partial_v1/forced_low_host_memory/registries/*/*
+!artifacts/formal_partial_v1/forced_low_host_memory/registries/*/run_manifest.json
+!artifacts/formal_partial_v1/forced_low_host_memory/registries/*/[A-F]/
+artifacts/formal_partial_v1/forced_low_host_memory/registries/*/[A-F]/*
+!artifacts/formal_partial_v1/forced_low_host_memory/registries/*/[A-F]/group_registry.json
 runs/
 models/
 

@@ -11,6 +11,7 @@ from typing import Any, Iterable, Mapping
 
 
 CARD_SCHEMA_VERSION = "anchor.swebench-card.v1"
+MAX_PROBLEM_STATEMENT_CHARS = 300_000
 CHAIN_INDEX_SCHEMA_VERSION = "anchor.swebench-chain-index.v1"
 ALIGNMENT_POLICY_ID = "anchor.swebench-alignment.v1"
 SOURCE_FINGERPRINT_POLICY_ID = "anchor.swebench-source-fingerprint.v1"
@@ -96,9 +97,9 @@ def normalize_problem_statement(value: str) -> str:
 
 def clean_problem_statement(value: str) -> str:
     normalized = value.replace("\r\n", "\n").replace("\r", "\n").strip()
-    if not normalized or len(normalized) > 200_000:
+    if not normalized or len(normalized) > MAX_PROBLEM_STATEMENT_CHARS:
         raise SWEBenchValidationError(
-            "problem_statement must contain 1..200000 characters"
+            "problem_statement must contain 1..300000 characters"
         )
     if any(character == "\x00" for character in normalized):
         raise SWEBenchValidationError("problem_statement contains a NUL character")
@@ -347,6 +348,114 @@ class TaskCard:
             builder_expert_id=builder_expert_id,
             reviewer_expert_id=reviewer_expert_id,
         )
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "TaskCard":
+        """Rehydrate the exact, importer-emitted task-card contract.
+
+        Batch runners must not accept a loosely shaped mapping because doing so
+        could bypass the train-only, routing, or oracle-field checks applied by
+        the metadata importer.
+        """
+
+        reject_forbidden_card_keys(value)
+        expected = {
+            "schema_version",
+            "card_id",
+            "alignment_id",
+            "source_fingerprint",
+            "source",
+            "problem_statement",
+            "license",
+            "domain_id",
+            "language",
+            "task_kind",
+            "routing_contract",
+            "chain_contract",
+        }
+        if set(value) != expected:
+            raise SWEBenchValidationError("task card has unexpected fields")
+        source = value.get("source")
+        license_value = value.get("license")
+        routing = value.get("routing_contract")
+        chain = value.get("chain_contract")
+        if not isinstance(source, Mapping) or set(source) not in (
+            {
+                "dataset_id",
+                "dataset_revision",
+                "split",
+                "instance_id",
+                "repo",
+                "base_commit",
+            },
+            {
+                "dataset_id",
+                "dataset_revision",
+                "split",
+                "instance_id",
+                "repo",
+                "image_name",
+            },
+            {
+                "dataset_id",
+                "dataset_revision",
+                "split",
+                "instance_id",
+                "repo",
+                "base_commit",
+                "image_name",
+            },
+        ):
+            raise SWEBenchValidationError("task-card source has unexpected fields")
+        if not isinstance(license_value, Mapping) or set(license_value) != {
+            "spdx_id",
+            "license_file_sha256",
+            "ledger_sha256",
+        }:
+            raise SWEBenchValidationError("task-card license has unexpected fields")
+        if not isinstance(routing, Mapping) or set(routing) != {
+            "builder_expert_id",
+            "reviewer_expert_id",
+        }:
+            raise SWEBenchValidationError("task-card routing has unexpected fields")
+        expected_chain = {
+            "stages": list(CHAIN_STAGES),
+            "execution_sandbox_required": True,
+            "model_tool_policy_is_authority": False,
+        }
+        if not isinstance(chain, Mapping) or dict(chain) != expected_chain:
+            raise SWEBenchValidationError("task-card chain contract is invalid")
+        card = cls.from_metadata(
+            dataset_id=str(source.get("dataset_id", "")),
+            dataset_revision=str(source.get("dataset_revision", "")),
+            split=str(source.get("split", "")),
+            instance_id=str(source.get("instance_id", "")),
+            repo=str(source.get("repo", "")),
+            problem_statement=str(value.get("problem_statement", "")),
+            base_commit=(
+                str(source["base_commit"])
+                if source.get("base_commit") is not None
+                else None
+            ),
+            image_name=(
+                str(source["image_name"])
+                if source.get("image_name") is not None
+                else None
+            ),
+            license_reference=LicenseReference(
+                spdx_id=str(license_value.get("spdx_id", "")),
+                license_file_sha256=str(license_value.get("license_file_sha256", "")),
+                ledger_sha256=str(license_value.get("ledger_sha256", "")),
+            ),
+            domain_id=str(value.get("domain_id", "")),
+            language=str(value.get("language", "")),
+            task_kind=str(value.get("task_kind", "")),
+            builder_expert_id=str(routing.get("builder_expert_id", "")),
+            reviewer_expert_id=str(routing.get("reviewer_expert_id", "")),
+        )
+        if canonical_json(card.to_dict()) != canonical_json(dict(value)):
+            raise SWEBenchValidationError("task card is not canonical")
+        return card
 
     def to_dict(self) -> dict[str, Any]:
         result = {

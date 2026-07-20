@@ -9,7 +9,10 @@ from ..serving import CompletionRequest
 def heldout_mock_handler(request: CompletionRequest) -> str:
     system = request.messages[0].content.casefold()
     user = request.messages[-1].content
-    if "plan the implementation" in system:
+    if (
+        "plan the implementation" in system
+        or "public json implementation plan" in system
+    ):
         return _plan_for_requirement(user)
     if "classify inert tool proposal" in system:
         if any(
@@ -24,7 +27,16 @@ def heldout_mock_handler(request: CompletionRequest) -> str:
         if "INERT_TOOL_EXTERNAL_ASSET_APPROVAL" in user:
             return "[ESCALATE]"
         return "[APPROVE]"
-    if "produce one complete html" in system or "revise the complete html" in system:
+    if any(
+        marker in system
+        for marker in (
+            "produce one complete html",
+            "produce one complete implementation",
+            "revise the complete html",
+            "revise the complete implementation",
+            "review and repair the candidate implementation",
+        )
+    ):
         return _html_for_requirement(user)
     if "anchor.domain-review-verdict.v2" in system:
         requirement = user.split("CANDIDATE CODE:", 1)[0]

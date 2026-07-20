@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("preflight", "smoke", "probe", "B", "C", "D", "E", "F")]
+    [ValidateSet("preflight", "smoke", "probe", "A", "B", "C", "D", "E", "F")]
     [string]$Arm = "preflight",
     [switch]$Execute,
     [string]$AllocationManifest = "",
@@ -27,6 +27,31 @@ function Invoke-Preflight([string]$Config) {
     if ($LASTEXITCODE -ne 0) {
         throw "formal-v3 preflight failed for $Config (exit $LASTEXITCODE)"
     }
+}
+
+function New-SnapshotSizedConfig([string]$BaseConfig, [string]$ExpectedArm) {
+    $SnapshotPath = Resolve-ProjectPath "artifacts/formal_v3/dataset/manifest.json"
+    if (-not (Test-Path -LiteralPath $SnapshotPath -PathType Leaf)) {
+        throw "formal-v3 immutable snapshot is missing: $SnapshotPath"
+    }
+    $Snapshot = Get-Content -LiteralPath $SnapshotPath -Raw | ConvertFrom-Json
+    $SnapshotSha = [string]$Snapshot.snapshot_sha256
+    if ($SnapshotSha -notmatch '^[0-9a-f]{64}$') {
+        throw "formal-v3 snapshot_sha256 is missing or invalid"
+    }
+    $OutputRelative = "artifacts/formal_v3/schedules/$SnapshotSha/$ExpectedArm.json"
+    $MaterializeOutput = & $Python (Resolve-ProjectPath "scripts/train/materialize_formal_v3_schedule.py") `
+        --config (Resolve-ProjectPath $BaseConfig) `
+        --arm $ExpectedArm `
+        --output (Resolve-ProjectPath $OutputRelative) 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw (
+            "could not materialize snapshot-sized schedule for arm ${ExpectedArm}: " +
+            ($MaterializeOutput -join " ")
+        )
+    }
+    Write-Host "Materialized snapshot-sized schedule: $OutputRelative"
+    return $OutputRelative
 }
 
 function Get-CurrentRunContract([string]$Config, [string]$Adapter, [int]$Rank) {
@@ -191,20 +216,31 @@ function Read-AdaptiveRanks([string]$ExpectedArm) {
     $Snapshot = Get-Content -LiteralPath (
         Resolve-ProjectPath "artifacts/formal_v3/dataset/manifest.json"
     ) -Raw | ConvertFrom-Json
+    $ExpectedCalibrationHash = [string](
+        $Snapshot.split_contract.partitions.calibration.snapshot_sha256
+    )
     if ($Value.schema_version -ne "anchor.lora-allocation.v1" -or
         $Value.arm -ne $ExpectedArm -or
         $Value.dataset_snapshot_sha256 -ne $Snapshot.snapshot_sha256 -or
         $Value.mechanism_id -ne "stage_complexity_calibration_pareto_v1" -or
         $Value.base_contract_id -ne "gemma4-12b-r56820d7-bnb-nf4-doublequant-bf16-v1" -or
         $Value.parameters_per_rank -ne 649216 -or
+        $Value.selection_status -ne "calibration_selected_frozen" -or
+        $Value.calibration_metrics_available -ne $true -or
+        $Value.calibration_record_count -lt 1 -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$Value.selection_algorithm.algorithm_id
+        ) -or
+        $Value.selection_algorithm.calibration_performance_used -ne $true -or
         $Value.allocation_frozen_before_heldout -ne $true -or
         $Value.heldout_access -ne "forbidden_until_allocation_frozen" -or
         $Value.heldout_opened -ne $false -or
         $null -ne $Value.heldout_opened_at) {
         throw "allocation manifest is not frozen to this formal-v3 snapshot/arm"
     }
-    if ($Value.calibration_snapshot_sha256 -notmatch '^[0-9a-f]{64}$') {
-        throw "allocation manifest calibration_snapshot_sha256 is invalid"
+    if ($ExpectedCalibrationHash -notmatch '^[0-9a-f]{64}$' -or
+        $Value.calibration_snapshot_sha256 -ne $ExpectedCalibrationHash) {
+        throw "allocation manifest calibration_snapshot_sha256 is not bound to the frozen calibration split"
     }
     $ExpectedTargets = @("q_proj", "v_proj") -join ','
     $ObservedTargets = @($Value.target_modules | Sort-Object) -join ','
@@ -282,6 +318,10 @@ function Read-AdaptiveRanks([string]$ExpectedArm) {
         if ($null -eq $Attempt -or $null -eq $Attempt.selected_ranks) {
             throw "every attempted allocation must include selected_ranks"
         }
+        if ($null -eq $Attempt.calibration_metrics -or
+            $Attempt.calibration_metrics.PSObject.Properties.Count -lt 1) {
+            throw "every attempted allocation must include measured calibration_metrics"
+        }
         $AttemptExperts = @(
             $Attempt.selected_ranks.PSObject.Properties.Name | Sort-Object
         ) -join ','
@@ -316,6 +356,7 @@ try {
         preflight = "configs/training/formal_v3_lowmem_common.yaml"
         smoke = "configs/training/formal_v3_lowmem_smoke.yaml"
         probe = "configs/training/formal_v3_lowmem_probe.yaml"
+        A = "configs/training/formal_v3_lowmem_base.yaml"
         B = "configs/training/formal_v3_lowmem_mixed.yaml"
         C = "configs/training/formal_v3_lowmem_common.yaml"
         D = "configs/training/formal_v3_lowmem_budget.yaml"
@@ -323,8 +364,15 @@ try {
         F = "configs/training/formal_v3_lowmem_adaptive_budget.yaml"
     }
     $Config = $ConfigByArm[$Arm]
+    if ($Arm -in @("B", "C", "D", "E", "F")) {
+        $Config = New-SnapshotSizedConfig $Config $Arm
+    }
     Invoke-Preflight $Config
     if ($Arm -eq "preflight") { return }
+    if ($Arm -eq "A") {
+        Write-Host "Arm A is the frozen native Q4 baseline; no LoRA training job exists."
+        return
+    }
 
     if ($Execute) {
         $ResolvedLockPath = if ($LockPath) {

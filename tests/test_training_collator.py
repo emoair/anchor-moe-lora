@@ -23,6 +23,13 @@ class FakeTokenizer:
             self._vocabulary[token] = len(self._vocabulary) + 1
         return self._vocabulary[token]
 
+    @property
+    def eot_token_id(self) -> int:
+        return self.token_id("<turn|>")
+
+    def convert_tokens_to_ids(self, token: str) -> int:
+        return self.token_id(token)
+
     def __call__(
         self,
         text: str,
@@ -64,6 +71,19 @@ class FakeProcessor:
         assert tokenize is False
         del add_generation_prompt
         return " ".join(message["content"] for message in messages)
+
+
+class StrictFakeProcessor(FakeProcessor):
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool,
+        tokenize: bool,
+    ) -> str:
+        assert tokenize is False
+        del add_generation_prompt
+        return " ".join(message["content"] for message in messages) + " <turn|>"
 
 def examples() -> list[dict[str, object]]:
     return [
@@ -114,7 +134,76 @@ def test_collator_preserves_assistant_when_prompt_exceeds_window(padding_side: s
             ]
         }
     ]
-    batch = _make_text_collator(processor, max_length=4)(truncated)
+    collator = _make_text_collator(processor, max_length=4)
+    batch = collator(truncated)
     labels = batch["labels"][0].tolist()
     assert processor.token_id("answer") in labels
     assert sum(value != -100 for value in labels) == 1
+    assert collator.sequence_statistics["sample_exposures_observed"] == 1
+    assert collator.sequence_statistics["truncated_exposures"] == 1
+    assert collator.sequence_statistics["rendered_tokens_max"] == 6
+    assert collator.sequence_statistics["selected_tokens_max"] == 4
+
+
+def test_compact_v2_strict_collator_retains_entire_target_and_eot() -> None:
+    processor = StrictFakeProcessor("right")
+    batch = _make_text_collator(
+        processor, max_length=6, strict_no_truncation=True
+    )(
+        [
+            {
+                "messages": [
+                    {"role": "user", "content": "p1 p2"},
+                    {"role": "assistant", "content": "a1 a2"},
+                ]
+            }
+        ]
+    )
+    labels = batch["labels"][0].tolist()
+    assert labels == [
+        -100,
+        -100,
+        processor.token_id("a1"),
+        processor.token_id("a2"),
+        processor.token_id("<turn|>"),
+    ]
+
+
+def test_compact_v2_strict_collator_fails_instead_of_truncating() -> None:
+    processor = StrictFakeProcessor("right")
+    collator = _make_text_collator(
+        processor, max_length=4, strict_no_truncation=True
+    )
+    with pytest.raises(RuntimeError, match="rejects truncation"):
+        collator(
+            [
+                {
+                    "messages": [
+                        {"role": "user", "content": "p1 p2"},
+                        {"role": "assistant", "content": "a1 a2"},
+                    ]
+                }
+            ]
+        )
+
+
+def test_sequence_probe_can_pad_to_the_configured_maximum() -> None:
+    processor = StrictFakeProcessor("right")
+    batch = _make_text_collator(
+        processor,
+        max_length=16,
+        strict_no_truncation=True,
+        pad_to_max_length=True,
+    )(
+        [
+            {
+                "messages": [
+                    {"role": "user", "content": "p1"},
+                    {"role": "assistant", "content": "a1"},
+                ]
+            }
+        ]
+    )
+    assert batch["input_ids"].shape == (1, 16)
+    assert batch["attention_mask"].sum().item() == 3
+    assert batch["labels"][0, -1].item() == -100

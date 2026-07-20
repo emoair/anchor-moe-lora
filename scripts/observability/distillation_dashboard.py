@@ -1879,6 +1879,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             self._json(HTTPStatus.OK, self.server.controller.options())
             return
+        if path == "/api/control/formal-status":
+            if self.server.controller is None:
+                self._error(HTTPStatus.NOT_FOUND, "control_disabled")
+                return
+            self._json(HTTPStatus.OK, self.server.controller.formal_status())
+            return
         if path == "/api/catalog":
             if self.server.catalog is None:
                 self._error(HTTPStatus.NOT_FOUND, "catalog_disabled")
@@ -1921,7 +1927,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         try:
             payload = self._read_json_body()
-            if parsed.path == "/api/control/start":
+            if parsed.path == "/api/control/formal-start":
+                result = self.server.controller.start_formal(payload, resume=False)
+            elif parsed.path == "/api/control/formal-continue":
+                result = self.server.controller.start_formal(payload, resume=True)
+            elif parsed.path == "/api/control/formal-stop":
+                if set(payload) != {"run_id"}:
+                    raise ControlError(
+                        400,
+                        "invalid_formal_stop",
+                        "Formal stop requires only the active run ID",
+                    )
+                result = self.server.controller.stop_formal(payload.get("run_id"))
+            elif parsed.path == "/api/control/start":
                 result = self.server.controller.start_new(payload)
             elif parsed.path == "/api/control/continue":
                 result = self.server.controller.continue_run(payload)

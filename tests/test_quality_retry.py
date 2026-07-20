@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
@@ -16,6 +17,7 @@ from anchor_mvp.data.automation import (  # noqa: E402
     AutomationConfig,
     AutomationRunner,
     _archive_quality_retry_namespace,
+    extend_quality_retry_budget_offline,
     main,
 )
 from anchor_mvp.data.pipeline import DistillationPipeline  # noqa: E402
@@ -367,6 +369,148 @@ def test_quality_retry_budget_change_is_bound_and_rejected(tmp_path: Path) -> No
     )
     with pytest.raises(ValueError, match="config binding mismatch"):
         AutomationRunner(config=changed, teacher=MockTeacher())
+
+
+def _write_blocked_retry_status(
+    settings: AutomationConfig, *, current_worker: str | None = None
+) -> dict:
+    runner = AutomationRunner(config=settings, teacher=MockTeacher())
+    runner.status["state"] = "gate_blocked"
+    runner.status["current_worker"] = current_worker
+    runner.status["quality_retry"] = {
+        "state": "completed",
+        "generation": settings.max_quality_retry_rounds,
+        "rounds_completed": settings.max_quality_retry_rounds,
+        "stagnant_quality_rounds": 1,
+        "plan_sha256": "a" * 64,
+    }
+    runner.status["active_projection_incomplete"] = False
+    runner._save_status()
+    for generation in range(1, settings.max_quality_retry_rounds + 1):
+        generation_dir = (
+            settings.state_dir / "quality_retry" / f"generation-{generation}"
+        )
+        generation_dir.mkdir(parents=True, exist_ok=True)
+        (generation_dir / "marker.txt").write_text(
+            f"generation-{generation}", encoding="utf-8"
+        )
+    return json.loads(settings.status_path.read_text(encoding="utf-8"))
+
+
+def test_explicit_quality_retry_extension_preserves_state_and_is_idempotent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = AutomationConfig(
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path / "collection",
+        concurrency_stages=(1,),
+        stage_seed_counts=(1,),
+        max_quality_retry_rounds=2,
+    )
+    before = _write_blocked_retry_status(old)
+    extended = replace(old, max_quality_retry_rounds=3)
+    config_path = tmp_path / "automation.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"sop_dir: {old.sop_dir.as_posix()}",
+                f"output_dir: {old.output_dir.as_posix()}",
+                "concurrency_stages: [1]",
+                "stage_seed_counts: [1]",
+                "max_quality_retry_rounds: 3",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.delenv("ARK_CODING_API_KEY", raising=False)
+
+    assert main(["--config", str(config_path), "--extend-quality-retries"]) == 0
+    after = json.loads(old.status_path.read_text(encoding="utf-8"))
+    assert after["state"] == "gate_blocked"
+    assert after["current_worker"] is None
+    assert after["config_binding_sha256"] == extended.status_binding_sha256
+    assert after["quality_retry_policy"]["max_quality_retry_rounds"] == 3
+    assert after["quality_retry"] == before["quality_retry"]
+    assert after["quota_epoch"] == before["quota_epoch"]
+    assert after["quota_history"] == before["quota_history"]
+    assert after["audit_ledger"] == before["audit_ledger"]
+    assert (old.state_dir / "quality_retry" / "generation-2" / "marker.txt").read_text(
+        encoding="utf-8"
+    ) == "generation-2"
+    migration = after["migration_history"][-1]
+    assert migration["migration_type"] == "quality_retry_budget_extension_v3"
+    assert migration["previous_max_quality_retry_rounds"] == 2
+    assert migration["new_max_quality_retry_rounds"] == 3
+
+    first_bytes = old.status_path.read_bytes()
+    result = extend_quality_retry_budget_offline(extended)
+    assert result["status"] == "already_current"
+    assert old.status_path.read_bytes() == first_bytes
+
+
+def test_quality_retry_extension_rejects_tampered_binding_without_writes(
+    tmp_path: Path,
+) -> None:
+    old = AutomationConfig(
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path / "collection",
+        concurrency_stages=(1,),
+        stage_seed_counts=(1,),
+        max_quality_retry_rounds=2,
+    )
+    status = _write_blocked_retry_status(old)
+    status["config_binding_sha256"] = "0" * 64
+    old.status_path.write_text(json.dumps(status), encoding="utf-8")
+    before = old.status_path.read_bytes()
+
+    with pytest.raises(ValueError, match="source binding mismatch"):
+        extend_quality_retry_budget_offline(replace(old, max_quality_retry_rounds=3))
+    assert old.status_path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    ("state", "current_worker"),
+    [("running", None), ("gate_blocked", "security")],
+)
+def test_quality_retry_extension_rejects_active_status(
+    tmp_path: Path, state: str, current_worker: str | None
+) -> None:
+    old = AutomationConfig(
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path / "collection",
+        concurrency_stages=(1,),
+        stage_seed_counts=(1,),
+        max_quality_retry_rounds=2,
+    )
+    status = _write_blocked_retry_status(old)
+    status["state"] = state
+    status["current_worker"] = current_worker
+    old.status_path.write_text(json.dumps(status), encoding="utf-8")
+    before = old.status_path.read_bytes()
+
+    with pytest.raises(ValueError, match="stopped gate_blocked"):
+        extend_quality_retry_budget_offline(replace(old, max_quality_retry_rounds=3))
+    assert old.status_path.read_bytes() == before
+
+
+def test_quality_retry_extension_rejects_ceiling_reduction_without_writes(
+    tmp_path: Path,
+) -> None:
+    old = AutomationConfig(
+        sop_dir=ROOT / "skills",
+        output_dir=tmp_path / "collection",
+        concurrency_stages=(1,),
+        stage_seed_counts=(1,),
+        max_quality_retry_rounds=3,
+    )
+    _write_blocked_retry_status(old)
+    before = old.status_path.read_bytes()
+
+    with pytest.raises(ValueError, match="cannot be reduced"):
+        extend_quality_retry_budget_offline(replace(old, max_quality_retry_rounds=2))
+    assert old.status_path.read_bytes() == before
 
 
 def test_quality_retry_namespace_archive_hashes_untrusted_status_and_replays(

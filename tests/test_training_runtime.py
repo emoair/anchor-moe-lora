@@ -19,6 +19,7 @@ from anchor_mvp.training.runtime import (  # noqa: E402
     _run_one_step_smoke,
     _sample_schedule,
     _schedule_sha256,
+    _stratified_sample_schedule,
 )
 from anchor_mvp.training.progress import TrainingProgress  # noqa: E402
 
@@ -276,6 +277,29 @@ def test_sample_schedule_is_reproducible_and_balanced_for_frozen_snapshot() -> N
         index: 4 for index in range(15)
     }
     assert _schedule_sha256(first) == _schedule_sha256(second)
+
+
+def test_stratified_schedule_pads_and_interleaves_each_stage_exactly() -> None:
+    first = _stratified_sample_schedule(
+        [5, 5, 5, 5, 5],
+        max_steps=10,
+        gradient_accumulation_steps=4,
+        seed=20260710,
+    )
+    second = _stratified_sample_schedule(
+        [5, 5, 5, 5, 5],
+        max_steps=10,
+        gradient_accumulation_steps=4,
+        seed=20260710,
+    )
+
+    assert first == second
+    assert len(first) == 40
+    assert [
+        sum(offset <= index < offset + 5 for index in first)
+        for offset in range(0, 25, 5)
+    ] == [8, 8, 8, 8, 8]
+    assert [index // 5 for index in first[:10]] == [0, 1, 2, 3, 4] * 2
 
 
 def test_gemma4_kbit_prepare_preserves_frozen_embedding_bf16():

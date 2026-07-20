@@ -1,3 +1,5 @@
+[English](teacher_providers.md) | [简体中文](teacher_providers.zh-CN.md)
+
 # Teacher providers and model selection
 
 The data subsystem supports OpenAI-compatible Chat Completions and Anthropic-compatible
@@ -5,6 +7,18 @@ Messages providers. A provider config stores only the environment-variable **nam
 contains a credential. It rejects `api_key`, `token`, `secret`, and `authorization` fields.
 The project does not load `.env` files and never writes credential values to config,
 provenance, status, or logs.
+
+The local control panel is provider-neutral. A catalog preset is only a convenience:
+the base URL, protocol, exact model ID, reasoning switch/effort, concurrency, retry,
+reconnect, and budgets remain operator-controlled. Model discovery is optional; when
+`GET .../models` is unsupported or fails, select **Force model** and enter the exact
+model ID manually. A failed discovery never authorizes the panel to substitute a model.
+
+For the current formal teacher profiles, both GLM 5.2 and Kimi-K3 use explicit
+`reasoning_effort: max` for every stage. The generated run records that exact setting.
+Selecting a lower effort or disabling reasoning for a formal MAX profile fails closed;
+it does not silently downgrade the run. Custom/non-formal profiles may choose any
+supported effort (`low`, `medium`, `high`, or `max`).
 
 ## Presets
 
@@ -80,6 +94,33 @@ work and are interpreted as the matching Kimi Code preset when `provider` is abs
 Add `provider: kimi-code-anthropic` or `provider: kimi-code-openai` explicitly, then add
 `force_model: true` to preserve the prior fixed-model/no-discovery behavior. Do not rename
 the process environment variable unless the launching scripts are updated at the same time.
+
+## Local panel and network-route semantics
+
+Open the local control panel with `./anchor.ps1 ui`, then use
+`http://127.0.0.1:8765/`. The credential field is RAM/process-only and is cleared from
+the browser after Start, Continue, or model discovery. The child receives the selected
+credential only through `ANCHOR_CONTROL_API_KEY`; it is not written to YAML, JSON,
+argv, or logs.
+
+The panel's default **direct** mode means “do not inherit proxy URL variables and set
+`NO_PROXY=*`.” It does **not** bind a socket or process to a physical NIC and cannot
+override an operating-system TUN/default route. The panel reports proxy/TUN default-route
+detection and never labels this mode as physical-NIC-pinned. For domestic providers and
+large (especially 10 GiB+) downloads, use the repository's dedicated route/download
+preflight and verify an up physical adapter before transferring data. If the physical
+route cannot be proven, stop rather than claiming proxy-free transfer.
+
+The Windows CC Switch route component and WSL/Podman reachability are separate
+gates. A hash-attested route executable is `component_ready`; it is not E2E-ready
+until the formal coordinator proves, from the sandbox side, that the route is
+reachable. Never infer container reachability from a Windows
+`http://127.0.0.1:...` health check.
+
+The 9,504/9,504 English/Chinese counts in the full-bank manifest describe only
+locale routing. Chinese text is not complete until the zh-CN localization
+manifest is produced and validated; that missing runtime output keeps
+`training_ready=false` without blocking the initial `launch_ready=true` gate.
 
 ## Primary documentation
 

@@ -15,6 +15,7 @@ import re
 from typing import Any, Mapping, Sequence
 
 from .schema import (
+    MAX_PROBLEM_STATEMENT_CHARS,
     SWEBenchValidationError,
     TaskCard,
     canonical_json,
@@ -1115,7 +1116,9 @@ def adapt_task_card_trajectory(
     ):
         raise SWEBenchValidationError("stage expert id is unsafe")
     _safe_text(
-        card.problem_statement, "task-card problem_statement", max_length=200_000
+        card.problem_statement,
+        "task-card problem_statement",
+        max_length=MAX_PROBLEM_STATEMENT_CHARS,
     )
     inventory = WorkspaceInventory.from_mapping(workspace_inventory)
     planner = PlannerOutput.from_mapping(planner_output, card)
@@ -1275,6 +1278,76 @@ def adapt_task_card_trajectory(
     return result
 
 
+def project_task_card_builder_sessions(
+    *,
+    card: TaskCard,
+    workspace_inventory: Mapping[str, Any],
+    planner_output: Mapping[str, Any],
+    tool_policy_output: Mapping[str, Any],
+    opencode_session_exports: Sequence[Mapping[str, Any]],
+    tool_policy_expert_id: str = "tool-policy",
+) -> tuple[dict[str, Any], ...]:
+    """Validate controlled sessions and expose only review-safe builder results.
+
+    This is the pre-review half of :func:`adapt_task_card_trajectory`.  It does
+    not claim sandbox-audit trust or produce a complete chain; the final adapter
+    still recomputes and verifies that proof after review and security outputs
+    exist.
+    """
+
+    if not _SAFE_ID.fullmatch(tool_policy_expert_id):
+        raise SWEBenchValidationError("stage expert id is unsafe")
+    inventory = WorkspaceInventory.from_mapping(workspace_inventory)
+    planner = PlannerOutput.from_mapping(planner_output, card)
+    policy = ToolPolicyOutput.from_mapping(
+        tool_policy_output,
+        card=card,
+        planner=planner,
+        expected_expert_id=tool_policy_expert_id,
+    )
+    if not policy.approved_ids:
+        raise SWEBenchValidationError("tool-policy approved no executable proposal")
+    if not opencode_session_exports:
+        raise SWEBenchValidationError("one or more OpenCode revisions are required")
+    sessions = tuple(
+        _project_session_candidate(
+            _mapping(value, "OpenCode session candidate"),
+            revision=index,
+            card=card,
+            planner=planner,
+            policy=policy,
+        )
+        for index, value in enumerate(opencode_session_exports, 1)
+    )
+    result = tuple(
+        {
+            "alignment_id": card.alignment_id,
+            "source_fingerprint": card.source_fingerprint,
+            "revision": session.revision,
+            "executed_expert_id": card.builder_expert_id,
+            "input": {
+                "problem_statement": card.problem_statement,
+                "base_workspace_inventory": inventory.to_dict(),
+                "approved_tool_results": list(session.approved_results),
+            },
+            "execution_trace": list(session.tool_trace),
+            "execution_evidence": {
+                "candidate_sha256": session.candidate_sha256,
+                "source_sha256": session.source_sha256,
+                "sandbox_audit_pending": True,
+            },
+            "output": {
+                "diff": list(session.generated_diff),
+                "execution_summary": dict(session.execution_summary),
+            },
+        }
+        for session in sessions
+    )
+    _reject_forbidden_material(result)
+    json.loads(canonical_json(result))
+    return result
+
+
 __all__ = [
     "OPENCODE_CANDIDATE_SCHEMA_VERSION",
     "PLANNER_OUTPUT_SCHEMA_VERSION",
@@ -1286,4 +1359,5 @@ __all__ = [
     "WORKSPACE_INVENTORY_SCHEMA_VERSION",
     "WorkspaceInventory",
     "adapt_task_card_trajectory",
+    "project_task_card_builder_sessions",
 ]

@@ -4,13 +4,66 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
+import time
 from typing import Any, Mapping
 from uuid import uuid4
 
 
+_WINDOWS_REPLACE_RETRY_ATTEMPTS = 8
+_WINDOWS_REPLACE_RETRY_INITIAL_SECONDS = 0.025
+_WINDOWS_REPLACE_RETRY_MAX_SECONDS = 0.4
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _is_transient_windows_replace_error(exc: OSError) -> bool:
+    """Return whether a replace failed because Windows temporarily locked a file."""
+
+    return getattr(exc, "winerror", None) in {5, 32}
+
+
+def _atomic_replace_text(path: Path, text: str) -> None:
+    """Publish text atomically, tolerating short-lived Windows reader locks.
+
+    Windows does not allow ``os.replace`` while another process holds the
+    destination without delete sharing. Progress dashboards and filesystem
+    scanners can therefore race a training status update. Each write uses its
+    own same-directory temporary file and retries only the two transient
+    Win32 lock errors; every other failure remains fail-closed.
+    """
+
+    temporary = path.parent / (
+        f".{path.name}.{os.getpid()}.{uuid4().hex}.tmp"
+    )
+    delay = _WINDOWS_REPLACE_RETRY_INITIAL_SECONDS
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        for attempt in range(_WINDOWS_REPLACE_RETRY_ATTEMPTS):
+            try:
+                os.replace(temporary, path)
+                return
+            except OSError as exc:
+                if (
+                    not _is_transient_windows_replace_error(exc)
+                    or attempt == _WINDOWS_REPLACE_RETRY_ATTEMPTS - 1
+                ):
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, _WINDOWS_REPLACE_RETRY_MAX_SECONDS)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            # Never hide the original publication error with best-effort
+            # cleanup of this writer's uniquely named temporary file.
+            pass
 
 
 class TrainingProgress:
@@ -49,8 +102,6 @@ class TrainingProgress:
         with self.events_path.open("a", encoding="utf-8", newline="\n") as handle:
             handle.write(encoded + "\n")
             handle.flush()
-        temporary = self.status_path.with_suffix(".json.tmp")
-        temporary.write_text(encoded + "\n", encoding="utf-8")
-        temporary.replace(self.status_path)
+        _atomic_replace_text(self.status_path, encoded + "\n")
         print(encoded, flush=True)
         return event

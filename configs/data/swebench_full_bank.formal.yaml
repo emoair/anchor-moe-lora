@@ -1,0 +1,118 @@
+schema_version: anchor.swebench-full-bank-config.v2
+
+source:
+  dataset_id: SWE-bench/SWE-bench
+  dataset_revision: 7074ef12ea2a6f70a228943c1336553333c22786
+  split: train
+  parquet: artifacts/swebench/source/SWE-bench__SWE-bench/7074ef12ea2a6f70a228943c1336553333c22786/train-00000-of-00001.parquet
+  parquet_sha256: 0ee19c80623ebc6eeef483b597dd38f27c1dda22054e00210976d315cea87a69
+  expected_rows: 19008
+
+output_dir: artifacts/swebench/full-bank-v1
+public_manifest: configs/data/manifests/swebench_full_bank_v1.hash-only.json
+
+split:
+  algorithm: per_repo_sha256_rank_v1
+  validation_numerator: 1
+  validation_denominator: 10
+
+bilingual:
+  locales: [en-US, zh-CN]
+  assignment: global_sha256_rank_alternating_v1
+  require_localized_text_before_live: true
+
+publication:
+  shard_rows: 1000
+  max_file_bytes: 52428800
+  raw_source_publishable: false
+  audited_export_dir: datasets/public/swebench-full-bank-v1
+
+# Launch inputs and run outputs are intentionally separate. Reboot-time launch
+# preflight validates only the pinned source and component attestations. It does
+# not require the Gold/localization/tool-result manifests that the run creates.
+gates:
+  launch:
+    opencode_bundle_manifest: artifacts/tooling/opencode-patched/bundle-manifest.json
+    ccswitch_route_manifest: artifacts/tooling/ccswitch-patched/route-manifest.json
+  training:
+    gold_manifest: artifacts/swebench/gates/gold-manifest.json
+    zh_cn_localization_manifest: artifacts/swebench/gates/zh-cn-localization-manifest.json
+    real_tool_results_manifest: artifacts/swebench/gates/real-tool-results-manifest.json
+  publication:
+    mit_attribution_file: datasets/public/swebench-full-bank-v1/ATTRIBUTION.md
+
+# Provider schema is generic: URL, protocol, env-var name, model ID, discovery,
+# and forced manual selection are all configurable. This formal profile pins the
+# two current teachers and refuses any reasoning tier other than exact MAX.
+providers:
+  glm52_max:
+    provider: custom-openai-responses
+    protocol: openai_responses
+    base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+    api_key_env: ARK_CODING_API_KEY
+    model_id: glm-5-2-260617
+    user_agent: claude-code/2.1.7
+    reasoning_effort: max
+    discover_models: false
+    force_manual_model: true
+    discovery_failure_policy: require_manual_model
+  kimi_k3_max:
+    provider: custom-openai-responses
+    protocol: openai_responses
+    base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+    api_key_env: ARK_CODING_API_KEY
+    model_id: kimi-k3
+    user_agent: claude-code/2.1.7
+    reasoning_effort: max
+    discover_models: false
+    force_manual_model: true
+    discovery_failure_policy: require_manual_model
+
+stage_routes:
+  planner:
+    default_provider: glm52_max
+    frontend_provider: glm52_max
+    execution: teacher-json
+  tool_policy:
+    default_provider: glm52_max
+    frontend_provider: glm52_max
+    execution: teacher-json
+  domain_builder:
+    default_provider: glm52_max
+    frontend_provider: kimi_k3_max
+    execution: controlled-opencode-sandbox
+  domain_review:
+    default_provider: glm52_max
+    frontend_provider: kimi_k3_max
+    execution: teacher-json
+  security:
+    default_provider: glm52_max
+    frontend_provider: glm52_max
+    execution: teacher-json
+
+classification:
+  frontend_keywords:
+    - browser
+    - css
+    - dom
+    - frontend
+    - html
+    - javascript
+    - jupyterlab
+    - react
+    - stylesheet
+    - template
+    - typescript
+    - ui
+    - vue
+    - web page
+
+formal_profile:
+  enabled: true
+  required_reasoning_effort: max
+  required_provider_aliases: [glm52_max, kimi_k3_max]
+  require_real_sandbox: true
+  capture_tool_calls: true
+  capture_tool_results: true
+  capture_hidden_chain_of_thought: false
+  capture_public_reasoning_summary: true

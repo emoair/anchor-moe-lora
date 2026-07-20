@@ -10,6 +10,15 @@ from typing import Any, Mapping
 
 from .manifest import sha256_file
 from .schema import DatasetValidationError, iter_jsonl, validate_jsonl
+from .config import (
+    PARTIAL_SNAPSHOT_SCHEMA,
+    PARTIAL_TRAINING_MODE,
+)
+from .formal_v3_schedule import (
+    CANDIDATE_TASKS_PER_STAGE,
+    CANDIDATE_WORK_ORDERS,
+    SPLIT_SCHEMA,
+)
 
 
 REQUIRED_EXPERTS = (
@@ -28,6 +37,9 @@ EXPERT_TASKS = {
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TASK_BANK_FILENAME = "task_bank.jsonl"
+_PARTIAL_EXCLUSIONS = frozenset(
+    {"negative", "reject", "oracle_label_only", "heldout"}
+)
 
 
 def _gate(passed: bool, **evidence: Any) -> dict[str, Any]:
@@ -198,6 +210,384 @@ def inspect_gate_datasets(config: Mapping[str, Any], root: Path) -> dict[str, An
     }
 
 
+def _inspect_partial_dataset_snapshot_manifest(
+    config: Mapping[str, Any], root: Path, datasets: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Verify a balanced partial-Gold snapshot without granting DAG claims."""
+
+    snapshot_config = config["scale_gate"]["dataset_snapshot"]
+    manifest_path = (root / snapshot_config["manifest"]).resolve()
+    sidecar_path = (root / snapshot_config["sidecar"]).resolve()
+    report: dict[str, Any] = {
+        "required": True,
+        "passed": False,
+        "manifest_path": str(manifest_path),
+        "sidecar_path": str(sidecar_path),
+        "training_mode": PARTIAL_TRAINING_MODE,
+        "not_for_end_to_end_claim": True,
+        "errors": [],
+    }
+    errors: list[str] = report["errors"]
+    if sidecar_path != Path(str(manifest_path) + ".sha256"):
+        errors.append("snapshot sidecar must be manifest.json.sha256 beside the manifest")
+    if not manifest_path.is_file():
+        errors.append("immutable partial snapshot manifest is missing")
+    if not sidecar_path.is_file():
+        errors.append("immutable partial snapshot SHA-256 sidecar is missing")
+    if errors:
+        return report
+
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        sidecar_tokens = sidecar_path.read_text(encoding="ascii").split()
+        if not sidecar_tokens or sidecar_tokens[0] != manifest_sha256:
+            errors.append("snapshot manifest SHA-256 sidecar mismatch")
+        value = json.loads(manifest_bytes.decode("utf-8"))
+        if not isinstance(value, Mapping):
+            errors.append("snapshot manifest must be a JSON object")
+            return report
+
+        per_expert = snapshot_config["balanced_records_per_expert"]
+        exclusions = value.get("excluded")
+        contract_checks = {
+            "schema": value.get("schema_version") == PARTIAL_SNAPSHOT_SCHEMA,
+            "training_mode": value.get("training_mode") == PARTIAL_TRAINING_MODE,
+            "claim_waiver": value.get("not_for_end_to_end_claim") is True,
+            "selection_size": value.get("per_expert") == per_expert,
+            "selection_algorithm": value.get("selection")
+            == "sha256(seed:id), ascending",
+            "selection_seed": bool(
+                isinstance(value.get("seed"), int)
+                and not isinstance(value.get("seed"), bool)
+                and value["seed"] >= 0
+            ),
+            "total_records": value.get("total_records")
+            == per_expert * len(REQUIRED_EXPERTS),
+            "source_export_schema": value.get("source_export_schema_version")
+            == "anchor.per-expert-partial-gold-export.v1",
+            "source_export_hash": bool(
+                isinstance(value.get("source_export_manifest_sha256"), str)
+                and _SHA256_RE.fullmatch(value["source_export_manifest_sha256"])
+            ),
+            "source_partition_hash": bool(
+                isinstance(value.get("source_partition_manifest_sha256"), str)
+                and _SHA256_RE.fullmatch(value["source_partition_manifest_sha256"])
+            ),
+            "waivers_preserved": isinstance(value.get("waivers"), Mapping),
+            "strict_chain_count_metadata": _safe_nonnegative(
+                value.get("strict_complete_chains")
+            )
+            is not None,
+            "exclusions": bool(
+                isinstance(exclusions, Mapping)
+                and all(exclusions.get(name) is True for name in _PARTIAL_EXCLUSIONS)
+            ),
+        }
+        if not all(contract_checks.values()):
+            errors.append("partial snapshot scope or exclusion contract is invalid")
+
+        files = value.get("files")
+        if not isinstance(files, Mapping) or set(files) != set(REQUIRED_EXPERTS):
+            errors.append("snapshot manifest files must map exactly the five experts")
+            files = {}
+
+        digest_parts: list[str] = []
+        file_checks: dict[str, dict[str, bool]] = {}
+        for expert in REQUIRED_EXPERTS:
+            entry = files.get(expert)
+            observed = datasets["reports"].get(expert, {})
+            checks: dict[str, bool] = {}
+            if not isinstance(entry, Mapping):
+                errors.append(f"snapshot manifest is missing files.{expert}")
+                file_checks[expert] = checks
+                continue
+            relative = entry.get("path")
+            safe_basename = bool(
+                isinstance(relative, str)
+                and relative
+                and Path(relative).name == relative
+            )
+            configured = (
+                root / config["scale_gate"]["required_datasets"][expert]
+            ).resolve()
+            bound = (
+                (manifest_path.parent / relative).resolve() if safe_basename else None
+            )
+            checks.update(
+                {
+                    "safe_basename": safe_basename,
+                    "configured_path": bound == configured,
+                    "observed_path": observed.get("path") == str(configured),
+                    "sha256": entry.get("sha256") == observed.get("sha256"),
+                    "bytes": entry.get("bytes") == observed.get("bytes"),
+                    "records": entry.get("records")
+                    == observed.get("valid_records")
+                    == per_expert,
+                    "source_records": bool(
+                        isinstance(entry.get("source_records"), int)
+                        and not isinstance(entry.get("source_records"), bool)
+                        and entry["source_records"] >= per_expert
+                    ),
+                    "source_bytes": bool(
+                        isinstance(entry.get("source_bytes"), int)
+                        and not isinstance(entry.get("source_bytes"), bool)
+                        and entry["source_bytes"] > 0
+                    ),
+                    "source_sha256": bool(
+                        isinstance(entry.get("source_sha256"), str)
+                        and _SHA256_RE.fullmatch(entry["source_sha256"])
+                    ),
+                }
+            )
+            if not all(checks.values()):
+                errors.append(f"partial snapshot binding failed for {expert}")
+            file_checks[expert] = checks
+            if (
+                safe_basename
+                and isinstance(entry.get("sha256"), str)
+                and isinstance(entry.get("records"), int)
+                and not isinstance(entry.get("records"), bool)
+            ):
+                digest_parts.append(
+                    f"{expert}:{relative}:{entry['sha256']}:{entry['records']}"
+                )
+
+        computed_snapshot = (
+            hashlib.sha256("\n".join(digest_parts).encode()).hexdigest()
+            if len(digest_parts) == len(REQUIRED_EXPERTS)
+            else None
+        )
+        if value.get("snapshot_sha256") != computed_snapshot:
+            errors.append("snapshot_sha256 does not match immutable file bindings")
+        report.update(
+            {
+                "manifest_sha256": manifest_sha256,
+                "source_partition_manifest_sha256": value.get(
+                    "source_partition_manifest_sha256"
+                ),
+                "declared_snapshot_sha256": value.get("snapshot_sha256"),
+                "computed_snapshot_sha256": computed_snapshot,
+                "contract_checks": contract_checks,
+                "file_checks": file_checks,
+            }
+        )
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+    report["passed"] = not errors
+    return report
+
+
+def _inspect_formal_v3_split_contract(
+    manifest: Mapping[str, Any],
+    *,
+    manifest_path: Path,
+    train_complete_chain_count: int | None,
+) -> dict[str, Any]:
+    """Verify train/calibration/heldout roles without opening heldout bodies."""
+
+    report: dict[str, Any] = {
+        "required": True,
+        "passed": False,
+        "heldout_content_read": False,
+        "errors": [],
+    }
+    errors: list[str] = report["errors"]
+    population = manifest.get("population_contract")
+    split = manifest.get("split_contract")
+    if not isinstance(population, Mapping):
+        errors.append("snapshot population_contract is missing")
+        return report
+    if not isinstance(split, Mapping):
+        errors.append("snapshot train/calibration/heldout split_contract is missing")
+        return report
+
+    candidate_tasks = _safe_nonnegative(population.get("candidate_tasks_per_stage"))
+    candidate_work_orders = _safe_nonnegative(
+        population.get("candidate_work_orders")
+    )
+    gold_accepted = _safe_nonnegative(population.get("gold_accepted_tasks"))
+    if (
+        candidate_tasks != CANDIDATE_TASKS_PER_STAGE
+        or candidate_work_orders != CANDIDATE_WORK_ORDERS
+        or population.get("work_orders_per_task") != len(REQUIRED_EXPERTS)
+        or gold_accepted is None
+        or gold_accepted > CANDIDATE_TASKS_PER_STAGE
+    ):
+        errors.append("snapshot candidate/Gold population contract is invalid")
+
+    roles = split.get("partitions")
+    if (
+        split.get("schema_version") != SPLIT_SCHEMA
+        or split.get("assignment") != "source_bank_split_then_gold_gate_v1"
+        or split.get("pairwise_disjoint") is not True
+        or split.get("gold_coverage_complete") is not True
+        or split.get("heldout_content_read") is not False
+        or split.get("heldout_content_emitted") is not False
+        or not isinstance(split.get("leakage_audit_sha256"), str)
+        or not _SHA256_RE.fullmatch(str(split.get("leakage_audit_sha256")))
+        or not isinstance(roles, Mapping)
+        or set(roles) != {"train", "calibration", "heldout"}
+    ):
+        errors.append("snapshot split proof is invalid")
+        return report
+
+    train = roles["train"]
+    calibration = roles["calibration"]
+    heldout = roles["heldout"]
+    if not all(isinstance(item, Mapping) for item in (train, calibration, heldout)):
+        errors.append("snapshot split partitions must be objects")
+        return report
+    assert isinstance(train, Mapping)
+    assert isinstance(calibration, Mapping)
+    assert isinstance(heldout, Mapping)
+
+    def parse_expert_counts(value: Mapping[str, Any], label: str) -> dict[str, int]:
+        raw = value.get("gold_records_per_expert")
+        if not isinstance(raw, Mapping) or set(raw) != set(REQUIRED_EXPERTS):
+            errors.append(f"snapshot {label} expert counts are invalid")
+            return {}
+        parsed: dict[str, int] = {}
+        for expert in REQUIRED_EXPERTS:
+            count = _safe_nonnegative(raw.get(expert))
+            if count is None:
+                errors.append(f"snapshot {label} count is invalid for {expert}")
+                return {}
+            parsed[expert] = count
+        if len(set(parsed.values())) != 1:
+            errors.append(f"snapshot {label} Gold counts must be balanced")
+        return parsed
+
+    train_counts = parse_expert_counts(train, "train")
+    calibration_counts = parse_expert_counts(calibration, "calibration")
+    train_tasks = _safe_nonnegative(train.get("gold_task_count"))
+    calibration_tasks = _safe_nonnegative(calibration.get("gold_task_count"))
+    if (
+        train.get("role") != "training_only"
+        or train.get("source_partition") != "train"
+        or train.get("candidate_task_count") != 17_105
+        or train_tasks is None
+        or not train_counts
+        or any(value != train_tasks for value in train_counts.values())
+        or train_tasks != train_complete_chain_count
+        or not isinstance(train.get("ids_sha256"), str)
+        or not _SHA256_RE.fullmatch(str(train.get("ids_sha256")))
+    ):
+        errors.append("snapshot train split binding is invalid")
+    if (
+        calibration.get("role") != "rank_allocation_only"
+        or calibration.get("source_partition") != "validation-from-train"
+        or calibration.get("candidate_task_count") != 1_903
+        or calibration_tasks is None
+        or calibration_tasks < 1
+        or not calibration_counts
+        or any(value != calibration_tasks for value in calibration_counts.values())
+        or not isinstance(calibration.get("ids_sha256"), str)
+        or not _SHA256_RE.fullmatch(str(calibration.get("ids_sha256")))
+        or not isinstance(calibration.get("snapshot_sha256"), str)
+        or not _SHA256_RE.fullmatch(str(calibration.get("snapshot_sha256")))
+    ):
+        errors.append("snapshot calibration split binding is invalid")
+
+    calibration_files = calibration.get("files")
+    calibration_file_checks: dict[str, Any] = {}
+    if not isinstance(calibration_files, Mapping) or set(calibration_files) != set(
+        REQUIRED_EXPERTS
+    ):
+        errors.append("snapshot calibration files must map exactly five experts")
+    else:
+        for expert in REQUIRED_EXPERTS:
+            entry = calibration_files[expert]
+            checks: dict[str, bool] = {}
+            if not isinstance(entry, Mapping):
+                errors.append(f"snapshot calibration file is invalid for {expert}")
+                calibration_file_checks[expert] = checks
+                continue
+            relative = entry.get("path")
+            safe_relative = bool(
+                isinstance(relative, str)
+                and relative.replace("\\", "/").startswith("calibration/")
+                and ".." not in Path(relative).parts
+                and not Path(relative).is_absolute()
+            )
+            path = (manifest_path.parent / relative).resolve() if safe_relative else None
+            inside_snapshot = bool(
+                path is not None and path.is_relative_to(manifest_path.parent.resolve())
+            )
+            exists = bool(path is not None and inside_snapshot and path.is_file())
+            checks.update(
+                {
+                    "safe_relative_path": safe_relative and inside_snapshot,
+                    "regular_file": exists and not path.is_symlink() if path else False,
+                    "records": entry.get("records") == calibration_tasks,
+                    "bytes": bool(
+                        exists
+                        and isinstance(entry.get("bytes"), int)
+                        and not isinstance(entry.get("bytes"), bool)
+                        and path.stat().st_size == entry.get("bytes")
+                    ),
+                    "sha256": bool(
+                        exists
+                        and isinstance(entry.get("sha256"), str)
+                        and _SHA256_RE.fullmatch(entry["sha256"])
+                        and sha256_file(path) == entry["sha256"]
+                    ),
+                }
+            )
+            if not all(checks.values()):
+                errors.append(f"snapshot calibration file binding failed for {expert}")
+            calibration_file_checks[expert] = checks
+
+    heldout_valid = bool(
+        heldout.get("role") == "evaluation_only_hash_metadata"
+        and heldout.get("source_partition") == "external-heldout"
+        and heldout.get("content_present") is False
+        and heldout.get("content_read") is False
+        and heldout.get("content_emitted") is False
+        and isinstance(heldout.get("ids_sha256"), str)
+        and _SHA256_RE.fullmatch(str(heldout.get("ids_sha256")))
+        and isinstance(heldout.get("manifest_sha256"), str)
+        and _SHA256_RE.fullmatch(str(heldout.get("manifest_sha256")))
+        and "files" not in heldout
+    )
+    if not heldout_valid:
+        errors.append("snapshot heldout must remain hash-only and unread")
+
+    if (
+        gold_accepted is not None
+        and train_tasks is not None
+        and calibration_tasks is not None
+        and gold_accepted != train_tasks + calibration_tasks
+    ):
+        errors.append("snapshot Gold population does not equal train+calibration")
+
+    report.update(
+        {
+            "population": {
+                "candidate_tasks_per_stage": candidate_tasks,
+                "candidate_work_orders": candidate_work_orders,
+                "gold_accepted_tasks": gold_accepted,
+            },
+            "train_records_per_expert": train_counts,
+            "calibration_records_per_expert": calibration_counts,
+            "calibration_snapshot_sha256": calibration.get("snapshot_sha256"),
+            "calibration_file_checks": calibration_file_checks,
+            "heldout_hash_only": heldout_valid,
+            "heldout_ids_sha256": heldout.get("ids_sha256"),
+            "heldout_manifest_sha256": heldout.get("manifest_sha256"),
+            "leakage_audit_sha256": split.get("leakage_audit_sha256"),
+        }
+    )
+    report["passed"] = not errors
+    return report
+
+
 def inspect_dataset_snapshot_manifest(
     config: Mapping[str, Any], root: Path, datasets: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -206,6 +596,8 @@ def inspect_dataset_snapshot_manifest(
     snapshot_config = config["scale_gate"].get("dataset_snapshot")
     if snapshot_config is None:
         return {"required": False, "passed": True}
+    if snapshot_config.get("schema_version") == PARTIAL_SNAPSHOT_SCHEMA:
+        return _inspect_partial_dataset_snapshot_manifest(config, root, datasets)
 
     manifest_path = (root / snapshot_config["manifest"]).resolve()
     sidecar_path = (root / snapshot_config["sidecar"]).resolve()
@@ -313,6 +705,24 @@ def inspect_dataset_snapshot_manifest(
             else:
                 assert isinstance(raw_source_task_bank, Mapping)
                 source_task_bank_file = raw_source_task_bank
+
+        if str(config.get("experiment", "")).startswith(
+            "anchor-moe-lora-formal-v3"
+        ):
+            split_report = _inspect_formal_v3_split_contract(
+                value,
+                manifest_path=manifest_path,
+                train_complete_chain_count=source_complete_chain_count,
+            )
+            if not split_report["passed"]:
+                errors.extend(split_report["errors"])
+        else:
+            split_report = {
+                "required": False,
+                "passed": True,
+                "heldout_content_read": False,
+                "errors": [],
+            }
 
         files = value.get("files")
         if not isinstance(files, Mapping) or set(files) != set(REQUIRED_EXPERTS):
@@ -477,6 +887,7 @@ def inspect_dataset_snapshot_manifest(
                 "computed_snapshot_sha256": computed_snapshot,
                 "file_checks": file_checks,
                 "task_bank_checks": task_bank_checks,
+                "split_contract": split_report,
             }
         )
     except (

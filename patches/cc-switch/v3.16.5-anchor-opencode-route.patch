@@ -1,0 +1,724 @@
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+index e0a13d05..008fe712 100644
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -44,7 +44,7 @@ arboard = "3.6"
+ flate2 = "1"
+ brotli = "7"
+ zstd = "0.13"
+-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync"] }
++tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync", "signal"] }
+ futures = "0.3"
+ async-stream = "0.3"
+ bytes = "1.5"
+diff --git a/src-tauri/src/anchor_route.rs b/src-tauri/src/anchor_route.rs
+new file mode 100644
+index 00000000..36313cc1
+--- /dev/null
++++ b/src-tauri/src/anchor_route.rs
+@@ -0,0 +1,396 @@
++//! Headless, isolated CC Switch route for Anchor/OpenCode distillation.
++//!
++//! This route intentionally does not read or modify the user's normal
++//! `~/.cc-switch` database. The launcher must provide `CC_SWITCH_TEST_HOME`
++//! and the upstream secret remains in a named process environment variable.
++
++use crate::app_config::AppType;
++use crate::provider::{LocalProxyRequestOverrides, Provider, ProviderMeta};
++use crate::proxy::server::ProxyServer;
++use crate::{AppError, Database};
++use rust_decimal::Decimal;
++use serde_json::{json, Value};
++use std::collections::HashMap;
++use std::env;
++use std::str::FromStr;
++use std::sync::Arc;
++
++pub const APP_TYPE: &str = "anchor-opencode";
++pub const PROVIDER_ID: &str = "anchor-opencode-runtime";
++const DEFAULT_KEY_ENV: &str = "ANCHOR_ROUTE_API_KEY";
++
++#[derive(Debug, Clone)]
++struct AnchorRouteConfig {
++    base_url: String,
++    model: String,
++    api_format: String,
++    key_env: String,
++    listen_address: String,
++    listen_port: u16,
++    max_retries: u32,
++    reasoning_field: String,
++    reasoning_effort: String,
++    user_agent: String,
++    network_mode: String,
++    proxy_url_env: String,
++}
++
++impl AnchorRouteConfig {
++    fn from_env() -> Result<Self, AppError> {
++        if !env_flag("ANCHOR_ROUTE_ENABLED") {
++            return Err(AppError::Config(
++                "ANCHOR_ROUTE_ENABLED=1 is required for the dedicated route".to_string(),
++            ));
++        }
++
++        let isolated_home = required_env("CC_SWITCH_TEST_HOME")?;
++        if isolated_home.trim().is_empty() {
++            return Err(AppError::Config(
++                "CC_SWITCH_TEST_HOME must point to an isolated state directory".to_string(),
++            ));
++        }
++
++        let base_url = required_env("ANCHOR_ROUTE_BASE_URL")?;
++        validate_base_url(&base_url)?;
++        let model = required_env("ANCHOR_ROUTE_MODEL")?;
++        let key_env = optional_env("ANCHOR_ROUTE_API_KEY_ENV")
++            .unwrap_or_else(|| DEFAULT_KEY_ENV.to_string());
++        validate_env_name(&key_env, "ANCHOR_ROUTE_API_KEY_ENV")?;
++        if optional_env(&key_env).is_none() {
++            return Err(AppError::Config(format!(
++                "the API credential environment variable named by ANCHOR_ROUTE_API_KEY_ENV is not set ({key_env})"
++            )));
++        }
++
++        let api_format = match optional_env("ANCHOR_ROUTE_API_FORMAT")
++            .unwrap_or_else(|| "openai_responses".to_string())
++            .to_ascii_lowercase()
++            .as_str()
++        {
++            "responses" | "openai_responses" => "openai_responses".to_string(),
++            "chat" | "openai_chat" => "openai_chat".to_string(),
++            other => {
++                return Err(AppError::Config(format!(
++                    "unsupported ANCHOR_ROUTE_API_FORMAT: {other}"
++                )))
++            }
++        };
++
++        let reasoning_field = optional_env("ANCHOR_ROUTE_REASONING_FIELD")
++            .unwrap_or_else(|| "reasoning.effort".to_string());
++        if !matches!(
++            reasoning_field.as_str(),
++            "none" | "reasoning.effort" | "reasoning_effort"
++        ) {
++            return Err(AppError::Config(
++                "ANCHOR_ROUTE_REASONING_FIELD must be none, reasoning.effort, or reasoning_effort"
++                    .to_string(),
++            ));
++        }
++        let reasoning_effort = optional_env("ANCHOR_ROUTE_REASONING_EFFORT")
++            .unwrap_or_else(|| "max".to_string());
++
++        let network_mode = normalize_network_mode(
++            optional_env("ANCHOR_ROUTE_NETWORK_MODE")
++                .unwrap_or_else(|| "direct".to_string()),
++        )?;
++        let proxy_url_env = optional_env("ANCHOR_ROUTE_PROXY_URL_ENV")
++            .unwrap_or_else(|| "ANCHOR_ROUTE_UPSTREAM_PROXY_URL".to_string());
++        validate_env_name(&proxy_url_env, "ANCHOR_ROUTE_PROXY_URL_ENV")?;
++        if network_mode == "proxy" && optional_env(&proxy_url_env).is_none() {
++            return Err(AppError::Config(format!(
++                "network mode proxy requires the environment variable named by ANCHOR_ROUTE_PROXY_URL_ENV ({proxy_url_env})"
++            )));
++        }
++
++        Ok(Self {
++            base_url,
++            model,
++            api_format,
++            key_env,
++            listen_address: optional_env("ANCHOR_ROUTE_LISTEN_ADDRESS")
++                .unwrap_or_else(|| "127.0.0.1".to_string()),
++            listen_port: parse_env("ANCHOR_ROUTE_PORT", 15731)?,
++            max_retries: parse_env("ANCHOR_ROUTE_MAX_RETRIES", 3)?,
++            reasoning_field,
++            reasoning_effort,
++            user_agent: optional_env("ANCHOR_ROUTE_USER_AGENT")
++                .unwrap_or_else(|| "claude-code".to_string()),
++            network_mode,
++            proxy_url_env,
++        })
++    }
++
++    fn body_override(&self) -> Option<Value> {
++        reasoning_override(&self.reasoning_field, &self.reasoning_effort)
++    }
++}
++
++fn env_flag(name: &str) -> bool {
++    optional_env(name)
++        .map(|value| matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
++        .unwrap_or(false)
++}
++
++fn optional_env(name: &str) -> Option<String> {
++    env::var(name)
++        .ok()
++        .map(|value| value.trim().to_string())
++        .filter(|value| !value.is_empty())
++}
++
++fn required_env(name: &str) -> Result<String, AppError> {
++    optional_env(name).ok_or_else(|| AppError::Config(format!("missing required env: {name}")))
++}
++
++fn parse_env<T>(name: &str, default: T) -> Result<T, AppError>
++where
++    T: FromStr,
++    T::Err: std::fmt::Display,
++{
++    match optional_env(name) {
++        Some(value) => value
++            .parse::<T>()
++            .map_err(|e| AppError::Config(format!("invalid {name}: {e}"))),
++        None => Ok(default),
++    }
++}
++
++fn validate_env_name(name: &str, setting: &str) -> Result<(), AppError> {
++    let mut chars = name.chars();
++    let valid_first = chars
++        .next()
++        .map(|ch| ch == '_' || ch.is_ascii_alphabetic())
++        .unwrap_or(false);
++    if !valid_first || !chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric()) {
++        return Err(AppError::Config(
++            format!("{setting} is not a valid environment variable name"),
++        ));
++    }
++    Ok(())
++}
++
++fn normalize_network_mode(raw: String) -> Result<String, AppError> {
++    match raw.to_ascii_lowercase().as_str() {
++        "direct" => Ok("direct".to_string()),
++        "proxy" => Ok("proxy".to_string()),
++        "inherit" => Ok("inherit".to_string()),
++        other => Err(AppError::Config(format!(
++            "ANCHOR_ROUTE_NETWORK_MODE must be direct, proxy, or inherit (got {other})"
++        ))),
++    }
++}
++
++fn configure_network_policy(config: &AnchorRouteConfig) -> Result<(), AppError> {
++    const PROXY_ENV_KEYS: [&str; 8] = [
++        "HTTP_PROXY",
++        "http_proxy",
++        "HTTPS_PROXY",
++        "https_proxy",
++        "ALL_PROXY",
++        "all_proxy",
++        "NO_PROXY",
++        "no_proxy",
++    ];
++
++    let result = match config.network_mode.as_str() {
++        "direct" => {
++            for name in PROXY_ENV_KEYS {
++                env::remove_var(name);
++            }
++            // reqwest honours NO_PROXY. The wildcard bypasses inherited
++            // application-layer proxies; the launcher separately performs
++            // the optional physical-interface preflight for TUN environments.
++            env::set_var("NO_PROXY", "*");
++            env::set_var("no_proxy", "*");
++            crate::proxy::http_client::init(None)
++        }
++        "proxy" => {
++            let proxy_url = required_env(&config.proxy_url_env)?;
++            crate::proxy::http_client::init(Some(&proxy_url))
++        }
++        "inherit" => crate::proxy::http_client::init(None),
++        _ => unreachable!("network mode is validated during configuration parsing"),
++    };
++    result.map_err(|error| AppError::Config(format!("network policy initialization failed: {error}")))
++}
++
++fn validate_base_url(raw: &str) -> Result<(), AppError> {
++    let parsed = url::Url::parse(raw)
++        .map_err(|e| AppError::Config(format!("invalid ANCHOR_ROUTE_BASE_URL: {e}")))?;
++    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
++        return Err(AppError::Config(
++            "ANCHOR_ROUTE_BASE_URL must be an absolute HTTP(S) URL".to_string(),
++        ));
++    }
++    if !parsed.username().is_empty()
++        || parsed.password().is_some()
++        || parsed.query().is_some()
++        || parsed.fragment().is_some()
++    {
++        return Err(AppError::Config(
++            "ANCHOR_ROUTE_BASE_URL must not contain credentials, query, or fragment".to_string(),
++        ));
++    }
++    Ok(())
++}
++
++fn reasoning_override(field: &str, effort: &str) -> Option<Value> {
++    match field {
++        "none" => None,
++        "reasoning.effort" => Some(json!({"reasoning": {"effort": effort}})),
++        "reasoning_effort" => Some(json!({"reasoning_effort": effort})),
++        _ => None,
++    }
++}
++
++fn optional_pricing() -> Result<Option<[String; 4]>, AppError> {
++    let input = optional_env("ANCHOR_ROUTE_PRICE_INPUT_PER_MILLION");
++    let output = optional_env("ANCHOR_ROUTE_PRICE_OUTPUT_PER_MILLION");
++    let cache_read = optional_env("ANCHOR_ROUTE_PRICE_CACHE_READ_PER_MILLION");
++    let cache_creation = optional_env("ANCHOR_ROUTE_PRICE_CACHE_CREATION_PER_MILLION");
++    if input.is_none() && output.is_none() && cache_read.is_none() && cache_creation.is_none() {
++        return Ok(None);
++    }
++    let values = [
++        input.ok_or_else(|| AppError::Config("input pricing is required".to_string()))?,
++        output.ok_or_else(|| AppError::Config("output pricing is required".to_string()))?,
++        cache_read.unwrap_or_else(|| "0".to_string()),
++        cache_creation.unwrap_or_else(|| "0".to_string()),
++    ];
++    for value in &values {
++        let price = Decimal::from_str(value)
++            .map_err(|e| AppError::Config(format!("invalid model price: {e}")))?;
++        if price.is_sign_negative() {
++            return Err(AppError::Config(
++                "model pricing values must be non-negative".to_string(),
++            ));
++        }
++    }
++    Ok(Some(values))
++}
++
++fn upsert_pricing(db: &Database, model: &str, prices: &[String; 4]) -> Result<(), AppError> {
++    let conn = crate::database::lock_conn!(db.conn);
++    conn.execute(
++        "INSERT INTO model_pricing (
++            model_id, display_name, input_cost_per_million, output_cost_per_million,
++            cache_read_cost_per_million, cache_creation_cost_per_million
++         ) VALUES (?1, ?1, ?2, ?3, ?4, ?5)
++         ON CONFLICT(model_id) DO UPDATE SET
++            display_name = excluded.display_name,
++            input_cost_per_million = excluded.input_cost_per_million,
++            output_cost_per_million = excluded.output_cost_per_million,
++            cache_read_cost_per_million = excluded.cache_read_cost_per_million,
++            cache_creation_cost_per_million = excluded.cache_creation_cost_per_million",
++        rusqlite::params![model, prices[0], prices[1], prices[2], prices[3]],
++    )
++    .map_err(|e| AppError::Database(e.to_string()))?;
++    Ok(())
++}
++
++/// Start the dedicated local route from process environment configuration.
++pub async fn run_from_env() -> Result<(), AppError> {
++    let config = AnchorRouteConfig::from_env()?;
++    configure_network_policy(&config)?;
++    let db = Arc::new(Database::init()?);
++    db.ensure_proxy_config_row_exists(APP_TYPE)?;
++
++    let provider = Provider {
++        id: PROVIDER_ID.to_string(),
++        name: "Anchor OpenCode Runtime".to_string(),
++        settings_config: json!({
++            "base_url": config.base_url.clone(),
++            "model": config.model.clone(),
++            "api_format": config.api_format.clone(),
++            "api_key_env": config.key_env.clone(),
++            "env": {"ANTHROPIC_MODEL": config.model.clone()},
++        }),
++        website_url: None,
++        category: Some(APP_TYPE.to_string()),
++        created_at: None,
++        sort_index: None,
++        notes: Some("Runtime-only Anchor/OpenCode route; secret is process-env backed".to_string()),
++        meta: Some(ProviderMeta {
++            api_format: Some(config.api_format.clone()),
++            pricing_model_source: Some("request".to_string()),
++            custom_user_agent: Some(config.user_agent.clone()),
++            local_proxy_request_overrides: Some(LocalProxyRequestOverrides {
++                headers: HashMap::new(),
++                body: config.body_override(),
++            }),
++            ..ProviderMeta::default()
++        }),
++        icon: None,
++        icon_color: None,
++        in_failover_queue: false,
++    };
++    db.save_provider(APP_TYPE, &provider)?;
++    db.set_current_provider(APP_TYPE, PROVIDER_ID)?;
++
++    let mut app_config = db.get_proxy_config_for_app(APP_TYPE).await?;
++    app_config.enabled = true;
++    app_config.auto_failover_enabled = false;
++    app_config.max_retries = config.max_retries;
++    db.update_proxy_config_for_app(app_config).await?;
++    db.set_pricing_model_source(APP_TYPE, "request").await?;
++
++    if let Some(prices) = optional_pricing()? {
++        upsert_pricing(&db, &config.model, &prices)?;
++    }
++
++    let mut proxy_config = db.get_proxy_config().await?;
++    proxy_config.listen_address = config.listen_address;
++    proxy_config.listen_port = config.listen_port;
++    proxy_config.enable_logging = true;
++    db.update_proxy_config(proxy_config.clone()).await?;
++
++    let server = ProxyServer::new(proxy_config, db, None);
++    let info = server
++        .start()
++        .await
++        .map_err(|e| AppError::Message(format!("anchor route failed to start: {e}")))?;
++    println!(
++        "Anchor/OpenCode route ready at http://{}:{}/anchor/v1 (profile={}, reasoning_field={}, reasoning_effort={}, network_mode={})",
++        info.address,
++        info.port,
++        APP_TYPE,
++        config.reasoning_field,
++        config.reasoning_effort,
++        config.network_mode
++    );
++
++    tokio::signal::ctrl_c()
++        .await
++        .map_err(|e| AppError::Message(format!("failed to listen for shutdown: {e}")))?;
++    server
++        .stop()
++        .await
++        .map_err(|e| AppError::Message(format!("anchor route failed to stop: {e}")))?;
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn max_reasoning_is_preserved_after_route_override() {
++        assert_eq!(
++            reasoning_override("reasoning.effort", "max"),
++            Some(json!({"reasoning": {"effort": "max"}}))
++        );
++        assert_eq!(
++            reasoning_override("reasoning_effort", "max"),
++            Some(json!({"reasoning_effort": "max"}))
++        );
++    }
++
++    #[test]
++    fn network_policy_accepts_only_explicit_modes() {
++        assert_eq!(normalize_network_mode("DIRECT".to_string()).unwrap(), "direct");
++        assert_eq!(normalize_network_mode("proxy".to_string()).unwrap(), "proxy");
++        assert_eq!(normalize_network_mode("inherit".to_string()).unwrap(), "inherit");
++        assert!(normalize_network_mode("auto".to_string()).is_err());
++    }
++}
+diff --git a/src-tauri/src/bin/anchor-opencode-route.rs b/src-tauri/src/bin/anchor-opencode-route.rs
+new file mode 100644
+index 00000000..a4c1eb92
+--- /dev/null
++++ b/src-tauri/src/bin/anchor-opencode-route.rs
+@@ -0,0 +1,7 @@
++#[tokio::main]
++async fn main() {
++    if let Err(error) = cc_switch_lib::anchor_route::run_from_env().await {
++        eprintln!("anchor-opencode-route: {error}");
++        std::process::exit(1);
++    }
++}
+diff --git a/src-tauri/src/database/dao/proxy.rs b/src-tauri/src/database/dao/proxy.rs
+index c3c31cf7..96a1d294 100644
+--- a/src-tauri/src/database/dao/proxy.rs
++++ b/src-tauri/src/database/dao/proxy.rs
+@@ -316,7 +316,7 @@ impl Database {
+     /// 确保指定 app_type 的 proxy_config 行存在（同步版本，用于 set_* 函数）
+     ///
+     /// 使用与 schema.rs seed 相同的 per-app 默认值
+-    fn ensure_proxy_config_row_exists(&self, app_type: &str) -> Result<(), AppError> {
++    pub(crate) fn ensure_proxy_config_row_exists(&self, app_type: &str) -> Result<(), AppError> {
+         let conn = self
+             .conn
+             .lock()
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index b6e0deee..bc951d10 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -1,4 +1,5 @@
+ mod app_config;
++pub mod anchor_route;
+ mod app_store;
+ mod auto_launch;
+ mod claude_desktop_config;
+diff --git a/src-tauri/src/proxy/forwarder.rs b/src-tauri/src/proxy/forwarder.rs
+index d11e5290..cfad6a88 100644
+--- a/src-tauri/src/proxy/forwarder.rs
++++ b/src-tauri/src/proxy/forwarder.rs
+@@ -1300,7 +1300,7 @@ impl RequestForwarder {
+             Some(api_format) => super::providers::claude_api_format_needs_transform(api_format),
+             None => adapter.needs_transform(provider),
+         };
+-        let codex_responses_to_chat = matches!(app_type, AppType::Codex)
++        let codex_responses_to_chat = matches!(app_type, AppType::Codex | AppType::OpenCode)
+             && super::providers::should_convert_codex_responses_to_chat(provider, endpoint);
+         let (effective_endpoint, passthrough_query) = if codex_responses_to_chat {
+             rewrite_codex_responses_endpoint_to_chat(endpoint)
+@@ -1384,7 +1384,7 @@ impl RequestForwarder {
+             mapped_body
+         };
+ 
+-        if matches!(app_type, AppType::Codex) {
++        if matches!(app_type, AppType::Codex | AppType::OpenCode) {
+             self.apply_media_prevention(&mut request_body, provider);
+         }
+ 
+diff --git a/src-tauri/src/proxy/handler_context.rs b/src-tauri/src/proxy/handler_context.rs
+index 29be37d7..15c2833a 100644
+--- a/src-tauri/src/proxy/handler_context.rs
++++ b/src-tauri/src/proxy/handler_context.rs
+@@ -107,8 +107,19 @@ impl RequestContext {
+         let optimizer_config = state.db.get_optimizer_config().unwrap_or_default();
+         let copilot_optimizer_config = state.db.get_copilot_optimizer_config().unwrap_or_default();
+ 
+-        let current_provider_id =
+-            crate::settings::get_current_provider(&app_type).unwrap_or_default();
++        let current_provider_id = if app_type_str == app_type.as_str() {
++            crate::settings::get_current_provider(&app_type).unwrap_or_default()
++        } else {
++            // A namespaced route (for example `anchor-opencode`) deliberately
++            // shares the OpenCode/Codex wire adapter without sharing its
++            // provider namespace or device-level current-provider setting.
++            state
++                .db
++                .get_current_provider(app_type_str)
++                .ok()
++                .flatten()
++                .unwrap_or_default()
++        };
+ 
+         // 从请求体提取模型名称
+         let request_model = body
+diff --git a/src-tauri/src/proxy/handlers.rs b/src-tauri/src/proxy/handlers.rs
+index 35c3062e..cff1397b 100644
+--- a/src-tauri/src/proxy/handlers.rs
++++ b/src-tauri/src/proxy/handlers.rs
+@@ -620,6 +620,38 @@ fn decode_codex_request_body(
+ pub async fn handle_chat_completions(
+     State(state): State<ProxyState>,
+     request: axum::extract::Request,
++) -> Result<axum::response::Response, ProxyError> {
++    handle_chat_completions_for_route(
++        state,
++        request,
++        AppType::Codex,
++        "Codex",
++        "codex",
++    )
++    .await
++}
++
++/// Namespaced OpenAI Chat route for Anchor/OpenCode distillation.
++pub async fn handle_anchor_chat_completions(
++    State(state): State<ProxyState>,
++    request: axum::extract::Request,
++) -> Result<axum::response::Response, ProxyError> {
++    handle_chat_completions_for_route(
++        state,
++        request,
++        AppType::OpenCode,
++        "AnchorOpenCode",
++        "anchor-opencode",
++    )
++    .await
++}
++
++async fn handle_chat_completions_for_route(
++    state: ProxyState,
++    request: axum::extract::Request,
++    app_type: AppType,
++    tag: &'static str,
++    app_type_str: &'static str,
+ ) -> Result<axum::response::Response, ProxyError> {
+     let (parts, req_body) = request.into_parts();
+     let method = parts.method.clone();
+@@ -635,8 +667,15 @@ pub async fn handle_chat_completions(
+     let body: Value = serde_json::from_slice(&body_bytes)
+         .map_err(|e| ProxyError::Internal(format!("Failed to parse request body: {e}")))?;
+ 
+-    let mut ctx =
+-        RequestContext::new(&state, &body, &headers, AppType::Codex, "Codex", "codex").await?;
++    let mut ctx = RequestContext::new(
++        &state,
++        &body,
++        &headers,
++        app_type.clone(),
++        tag,
++        app_type_str,
++    )
++    .await?;
+     let endpoint = endpoint_with_query(&uri, "/chat/completions");
+ 
+     let is_stream = body
+@@ -647,7 +686,7 @@ pub async fn handle_chat_completions(
+     let forwarder = ctx.create_forwarder(&state);
+     let mut result = match forwarder
+         .forward_with_retry(
+-            &AppType::Codex,
++            &app_type,
+             method,
+             &endpoint,
+             body,
+@@ -686,6 +725,38 @@ pub async fn handle_chat_completions(
+ pub async fn handle_responses(
+     State(state): State<ProxyState>,
+     request: axum::extract::Request,
++) -> Result<axum::response::Response, ProxyError> {
++    handle_responses_for_route(
++        state,
++        request,
++        AppType::Codex,
++        "Codex",
++        "codex",
++    )
++    .await
++}
++
++/// Namespaced OpenAI Responses route for Anchor/OpenCode distillation.
++pub async fn handle_anchor_responses(
++    State(state): State<ProxyState>,
++    request: axum::extract::Request,
++) -> Result<axum::response::Response, ProxyError> {
++    handle_responses_for_route(
++        state,
++        request,
++        AppType::OpenCode,
++        "AnchorOpenCode",
++        "anchor-opencode",
++    )
++    .await
++}
++
++async fn handle_responses_for_route(
++    state: ProxyState,
++    request: axum::extract::Request,
++    app_type: AppType,
++    tag: &'static str,
++    app_type_str: &'static str,
+ ) -> Result<axum::response::Response, ProxyError> {
+     let (parts, req_body) = request.into_parts();
+     let method = parts.method.clone();
+@@ -701,8 +772,15 @@ pub async fn handle_responses(
+     let body: Value = serde_json::from_slice(&body_bytes)
+         .map_err(|e| ProxyError::Internal(format!("Failed to parse request body: {e}")))?;
+ 
+-    let mut ctx =
+-        RequestContext::new(&state, &body, &headers, AppType::Codex, "Codex", "codex").await?;
++    let mut ctx = RequestContext::new(
++        &state,
++        &body,
++        &headers,
++        app_type.clone(),
++        tag,
++        app_type_str,
++    )
++    .await?;
+     let endpoint = endpoint_with_query(&uri, "/responses");
+ 
+     let is_stream = body
+@@ -714,7 +792,7 @@ pub async fn handle_responses(
+     let forwarder = ctx.create_forwarder(&state);
+     let mut result = match forwarder
+         .forward_with_retry(
+-            &AppType::Codex,
++            &app_type,
+             method,
+             &endpoint,
+             body,
+diff --git a/src-tauri/src/proxy/providers/codex.rs b/src-tauri/src/proxy/providers/codex.rs
+index 35ada150..b4f021b8 100644
+--- a/src-tauri/src/proxy/providers/codex.rs
++++ b/src-tauri/src/proxy/providers/codex.rs
+@@ -412,6 +412,25 @@ impl CodexAdapter {
+ 
+     /// 从 Provider 配置中提取 API Key
+     fn extract_key(&self, provider: &Provider) -> Option<String> {
++        // Anchor/OpenCode route profiles persist only the environment variable
++        // name. Resolve the secret at request time so it never enters SQLite,
++        // manifests, patches, or logs.
++        if let Some(env_name) = provider
++            .settings_config
++            .get("api_key_env")
++            .and_then(|v| v.as_str())
++            .map(str::trim)
++            .filter(|name| !name.is_empty())
++        {
++            if let Some(key) = std::env::var(env_name)
++                .ok()
++                .map(|value| value.trim().to_string())
++                .filter(|value| !value.is_empty())
++            {
++                return Some(key);
++            }
++        }
++
+         // 1. 尝试从 env 中获取
+         if let Some(env) = provider.settings_config.get("env") {
+             if let Some(key) = env
+@@ -655,6 +674,20 @@ experimental_bearer_token = "sk-config-key"
+         assert_eq!(auth.api_key, "sk-env-key-12345678");
+     }
+ 
++    #[test]
++    fn test_extract_auth_from_named_process_environment() {
++        let adapter = CodexAdapter::new();
++        let env_name = "CC_SWITCH_ANCHOR_TEST_API_KEY";
++        std::env::set_var(env_name, "runtime-only-test-key");
++        let provider = create_provider(json!({
++            "api_key_env": env_name
++        }));
++
++        let auth = adapter.extract_auth(&provider).unwrap();
++        std::env::remove_var(env_name);
++        assert_eq!(auth.api_key, "runtime-only-test-key");
++    }
++
+     #[test]
+     fn test_build_url() {
+         let adapter = CodexAdapter::new();
+diff --git a/src-tauri/src/proxy/server.rs b/src-tauri/src/proxy/server.rs
+index 6ef02bc8..621afa93 100644
+--- a/src-tauri/src/proxy/server.rs
++++ b/src-tauri/src/proxy/server.rs
+@@ -293,6 +293,10 @@ impl ProxyServer {
+             // 健康检查
+             .route("/health", get(handlers::health_check))
+             .route("/status", get(handlers::get_status))
++            // Isolated Anchor/OpenCode namespace. These health endpoints expose
++            // process counters only; they never expose request or response bodies.
++            .route("/anchor/health", get(handlers::health_check))
++            .route("/anchor/status", get(handlers::get_status))
+             // Claude API (支持带前缀和不带前缀两种格式)
+             .route("/v1/messages", post(handlers::handle_messages))
+             .route("/claude/v1/messages", post(handlers::handle_messages))
+@@ -319,6 +323,10 @@ impl ProxyServer {
+                 "/codex/v1/chat/completions",
+                 post(handlers::handle_chat_completions),
+             )
++            .route(
++                "/anchor/v1/chat/completions",
++                post(handlers::handle_anchor_chat_completions),
++            )
+             // OpenAI Models API (Codex CLI reachability check)
+             .route("/models", get(handlers::handle_models))
+             .route("/v1/models", get(handlers::handle_models))
+@@ -327,6 +335,10 @@ impl ProxyServer {
+             .route("/v1/responses", post(handlers::handle_responses))
+             .route("/v1/v1/responses", post(handlers::handle_responses))
+             .route("/codex/v1/responses", post(handlers::handle_responses))
++            .route(
++                "/anchor/v1/responses",
++                post(handlers::handle_anchor_responses),
++            )
+             // OpenAI Responses Compact API (Codex CLI 远程压缩，透传)
+             .route(
+                 "/responses/compact",
+

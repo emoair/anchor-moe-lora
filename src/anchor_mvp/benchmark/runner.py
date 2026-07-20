@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Callable
 
 from ..serving import (
     AdapterSelection,
@@ -14,6 +15,7 @@ from ..serving import (
     PipelineConfig,
     PipelineRouter,
     StageArtifact,
+    StageStatus,
     parse_security_decision,
 )
 
@@ -38,21 +40,58 @@ class BenchmarkRunner:
         self.backend_label = backend_label
 
     async def run_suite(
-        self, specs: list[BaselineSpec], cases: list[BenchmarkCase]
+        self,
+        specs: list[BaselineSpec],
+        cases: list[BenchmarkCase],
+        *,
+        completed_records: list[BenchmarkRecord] | None = None,
+        record_callback: Callable[[BenchmarkRecord], None] | None = None,
     ) -> list[BenchmarkRecord]:
-        records: list[BenchmarkRecord] = []
+        expected = {
+            (case.case_id, spec.name): (case, spec)
+            for case in cases
+            for spec in specs
+        }
+        records_by_key: dict[tuple[str, str], BenchmarkRecord] = {}
+        for record in completed_records or []:
+            key = (record.case_id, record.baseline)
+            frozen = expected.get(key)
+            if frozen is None:
+                raise ValueError("completed record is outside the requested suite")
+            if key in records_by_key:
+                raise ValueError("completed records contain a duplicate arm/case pair")
+            if record.group != frozen[1].group:
+                raise ValueError("completed record group does not match the requested suite")
+            records_by_key[key] = record
         for case in cases:
             references: dict[str, BenchmarkRecord] = {}
             for spec in specs:
+                key = (case.case_id, spec.name)
+                completed = records_by_key.get(key)
+                if completed is not None:
+                    references[spec.name] = completed
+                    continue
+                prepare_record = getattr(self.backend, "prepare_record", None)
+                if prepare_record is not None:
+                    # Runtime-swapped backends clear the previous arm outside the
+                    # next arm's latency window. The target arm's own first load
+                    # remains inside its measured stage request.
+                    await prepare_record()
                 reference = references.get(spec.matched_tokens_to or "")
                 if spec.matched_tokens_to and reference is None:
                     raise ValueError(
                         f"{spec.name} must run after matched-token reference {spec.matched_tokens_to}"
                     )
                 record = await self.run_case(spec, case, token_reference=reference)
-                records.append(record)
+                if record_callback is not None:
+                    record_callback(record)
+                records_by_key[key] = record
                 references[spec.name] = record
-        return records
+        return [
+            records_by_key[(case.case_id, spec.name)]
+            for case in cases
+            for spec in specs
+        ]
 
     async def run_case(
         self,
@@ -62,10 +101,10 @@ class BenchmarkRunner:
         token_reference: BenchmarkRecord | None = None,
     ) -> BenchmarkRecord:
         token_budget = spec.max_tokens_per_call
-        if token_reference is not None:
-            # The API only controls the output cap. We record observed deltas below
-            # instead of pretending total prompt+completion tokens can be forced equal.
-            token_budget = max(1, token_reference.completion_tokens)
+        # A matched reference is observational only.  Letting its measured output
+        # alter another arm's cap changes the frozen prompt contract and can even
+        # raise a nominally smaller cap. Every arm therefore keeps its declared
+        # per-call completion ceiling.
 
         sampler = VramSampler(enabled=self.sample_vram)
         async with sampler:
@@ -85,10 +124,60 @@ class BenchmarkRunner:
                     "completion_token_delta": (
                         record.completion_tokens - token_reference.completion_tokens
                     ),
-                    "scope": "completion-token cap; prompt tokens are reported separately",
+                    "scope": (
+                        "observational completion-token comparison; each arm keeps its "
+                        "frozen per-call cap"
+                    ),
                 }
             )
         return record
+
+    async def _run_user_only_stage(
+        self,
+        stage: str,
+        model: str,
+        input_text: str,
+        *,
+        max_tokens: int,
+    ) -> StageArtifact:
+        """Run one compact-v2 stage with the exact user-only training shape."""
+
+        if max_tokens < 1:
+            raise ValueError("stage max_tokens must be positive")
+        artifact = StageArtifact(stage=stage, model=model, input_text=input_text)
+        started = time.perf_counter()
+        for attempt in range(1, self.max_attempts + 1):
+            artifact.attempts = attempt
+            try:
+                response = await asyncio.wait_for(
+                    self.backend.complete(
+                        CompletionRequest(
+                            model=model,
+                            messages=(Message("user", input_text),),
+                            max_tokens=max_tokens,
+                            temperature=0.0,
+                        )
+                    ),
+                    timeout=self.timeout_seconds,
+                )
+                artifact.output_text = response.content
+                artifact.usage = response.usage
+                artifact.status = StageStatus.SUCCEEDED
+                artifact.backend_attempts += response.attempts
+                artifact.latency_ms = (time.perf_counter() - started) * 1000
+                return artifact
+            except asyncio.TimeoutError:
+                artifact.backend_attempts += 1
+                artifact.status = StageStatus.TIMED_OUT
+                artifact.error = f"stage exceeded {self.timeout_seconds:.3f}s"
+            except Exception as exc:
+                artifact.backend_attempts += int(getattr(exc, "attempts", 1))
+                artifact.status = StageStatus.FAILED
+                artifact.error = f"{type(exc).__name__}: {exc}"
+            if attempt < self.max_attempts:
+                await asyncio.sleep(0.1 * (2 ** (attempt - 1)))
+        artifact.latency_ms = (time.perf_counter() - started) * 1000
+        return artifact
 
     async def _run_pipeline(
         self, spec: BaselineSpec, case: BenchmarkCase, token_budget: int

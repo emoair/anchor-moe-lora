@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/anchor/swebench-full-bank-config.v2.schema.json",
+  "title": "Anchor SWE-bench full-bank configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "output_dir",
+    "public_manifest",
+    "split",
+    "bilingual",
+    "publication",
+    "gates",
+    "providers",
+    "stage_routes",
+    "classification",
+    "formal_profile"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.swebench-full-bank-config.v2"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset_id", "dataset_revision", "split", "parquet", "parquet_sha256", "expected_rows"],
+      "properties": {
+        "dataset_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "split": {"const": "train"},
+        "parquet": {"$ref": "#/$defs/path"},
+        "parquet_sha256": {"$ref": "#/$defs/sha256"},
+        "expected_rows": {"type": "integer", "minimum": 1}
+      }
+    },
+    "output_dir": {"$ref": "#/$defs/path"},
+    "public_manifest": {"$ref": "#/$defs/path"},
+    "split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "validation_numerator", "validation_denominator"],
+      "properties": {
+        "algorithm": {"const": "per_repo_sha256_rank_v1"},
+        "validation_numerator": {"type": "integer", "minimum": 1},
+        "validation_denominator": {"type": "integer", "minimum": 2}
+      }
+    },
+    "bilingual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locales", "assignment", "require_localized_text_before_live"],
+      "properties": {
+        "locales": {"type": "array", "prefixItems": [{"const": "en-US"}, {"const": "zh-CN"}], "minItems": 2, "maxItems": 2},
+        "assignment": {"const": "global_sha256_rank_alternating_v1"},
+        "require_localized_text_before_live": {"const": true}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shard_rows", "max_file_bytes", "raw_source_publishable", "audited_export_dir"],
+      "properties": {
+        "shard_rows": {"type": "integer", "minimum": 1},
+        "max_file_bytes": {"type": "integer", "minimum": 1, "maximum": 52428800},
+        "raw_source_publishable": {"const": false},
+        "audited_export_dir": {"$ref": "#/$defs/path"}
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["launch", "training", "publication"],
+      "properties": {
+        "launch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["opencode_bundle_manifest", "ccswitch_route_manifest"],
+          "properties": {
+            "opencode_bundle_manifest": {"$ref": "#/$defs/path"},
+            "ccswitch_route_manifest": {"$ref": "#/$defs/path"}
+          }
+        },
+        "training": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gold_manifest", "zh_cn_localization_manifest", "real_tool_results_manifest"],
+          "properties": {
+            "gold_manifest": {"$ref": "#/$defs/path"},
+            "zh_cn_localization_manifest": {"$ref": "#/$defs/path"},
+            "real_tool_results_manifest": {"$ref": "#/$defs/path"}
+          }
+        },
+        "publication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mit_attribution_file"],
+          "properties": {
+            "mit_attribution_file": {"$ref": "#/$defs/path"}
+          }
+        }
+      }
+    },
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/provider"}
+    },
+    "stage_routes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "domain_builder", "domain_review", "security"],
+      "properties": {
+        "planner": {"$ref": "#/$defs/teacherRoute"},
+        "tool_policy": {"$ref": "#/$defs/teacherRoute"},
+        "domain_builder": {"$ref": "#/$defs/builderRoute"},
+        "domain_review": {"$ref": "#/$defs/teacherRoute"},
+        "security": {"$ref": "#/$defs/teacherRoute"}
+      }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frontend_keywords"],
+      "properties": {
+        "frontend_keywords": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "formal_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "required_reasoning_effort", "required_provider_aliases", "require_real_sandbox", "capture_tool_calls", "capture_tool_results", "capture_hidden_chain_of_thought", "capture_public_reasoning_summary"],
+      "properties": {
+        "enabled": {"const": true},
+        "required_reasoning_effort": {"const": "max"},
+        "required_provider_aliases": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/alias"}},
+        "require_real_sandbox": {"const": true},
+        "capture_tool_calls": {"const": true},
+        "capture_tool_results": {"const": true},
+        "capture_hidden_chain_of_thought": {"const": false},
+        "capture_public_reasoning_summary": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "path": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "alias": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "protocol", "base_url", "api_key_env", "model_id", "user_agent", "reasoning_effort", "discover_models", "force_manual_model", "discovery_failure_policy"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "protocol": {"enum": ["openai", "openai_responses", "anthropic"]},
+        "base_url": {"type": "string", "pattern": "^https?://[^\\s]+$"},
+        "api_key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+        "model_id": {"type": ["string", "null"]},
+        "user_agent": {"type": "string", "minLength": 1},
+        "reasoning_effort": {"enum": ["low", "medium", "high", "xhigh", "max"]},
+        "discover_models": {"type": "boolean"},
+        "force_manual_model": {"type": "boolean"},
+        "discovery_failure_policy": {"enum": ["fail_closed", "require_manual_model"]}
+      }
+    },
+    "teacherRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_provider", "frontend_provider", "execution"],
+      "properties": {
+        "default_provider": {"$ref": "#/$defs/alias"},
+        "frontend_provider": {"oneOf": [{"$ref": "#/$defs/alias"}, {"type": "null"}]},
+        "execution": {"const": "teacher-json"}
+      }
+    },
+    "builderRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_provider", "frontend_provider", "execution"],
+      "properties": {
+        "default_provider": {"$ref": "#/$defs/alias"},
+        "frontend_provider": {"oneOf": [{"$ref": "#/$defs/alias"}, {"type": "null"}]},
+        "execution": {"const": "controlled-opencode-sandbox"}
+      }
+    }
+  }
+}

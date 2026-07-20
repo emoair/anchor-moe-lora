@@ -6,7 +6,7 @@ import argparse
 import asyncio
 from collections import Counter
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -2154,6 +2154,8 @@ class AutomationRunner:
             return
         self.status["partition"] = partition
         self.status.pop("partition_stale_reason", None)
+        self.status["active_projection_incomplete"] = False
+        self.status["partition_refreshed_at"] = _iso()
         self.status["state"] = terminal_state
         self._event(
             "collection_partitioned",
@@ -2382,13 +2384,14 @@ class AutomationRunner:
                     return self.status
                 self.status["partition"] = partition
                 self.status.pop("partition_stale_reason", None)
+                self.status["active_projection_incomplete"] = False
+                self.status["partition_refreshed_at"] = _iso()
                 if partition.get("training_ready") is True:
                     self.status["collection_retry"] = None
                     quality_retry = self.status.get("quality_retry")
                     if isinstance(quality_retry, dict):
                         quality_retry["state"] = "completed"
                         quality_retry["completed_at"] = _iso()
-                    self.status["active_projection_incomplete"] = False
                     self.status["stage_index"] = stage_index + 1
                     self._event(
                         "collection_partitioned",
@@ -4426,6 +4429,100 @@ def prepare_quality_retry_offline(config: AutomationConfig) -> dict[str, Any]:
     return status
 
 
+def extend_quality_retry_budget_offline(
+    config: AutomationConfig,
+) -> dict[str, Any]:
+    """Explicitly extend one stopped run's bound quality-retry ceiling.
+
+    The configured ceiling is deliberately part of the v3 status binding, so
+    merely editing YAML must continue to fail closed.  This offline operation
+    proves the exact prior v3 binding by rebuilding it from the persisted
+    policy, then changes only the binding, policy, and audit history.  Retry
+    generations, archives, provider usage, and the executable cursor remain
+    untouched.
+    """
+
+    path = config.status_path
+    if not path.is_file():
+        raise ValueError("automation status is missing")
+    status = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(status, dict):
+        raise ValueError("automation status must be an object")
+    if status.get("schema_version") != AUTOMATION_SCHEMA_VERSION:
+        raise ValueError(
+            "quality retry extension requires an automation-v2 status with a v3 binding"
+        )
+    if status.get("state") != "gate_blocked" or status.get("current_worker") not in (
+        None,
+        "",
+    ):
+        raise ValueError(
+            "quality retry extension requires a stopped gate_blocked automation"
+        )
+
+    policy = status.get("quality_retry_policy")
+    if not isinstance(policy, Mapping):
+        raise ValueError("persisted quality retry policy is missing")
+    old_max = policy.get("max_quality_retry_rounds")
+    if isinstance(old_max, bool) or not isinstance(old_max, int) or old_max < 0:
+        raise ValueError("persisted quality retry ceiling is invalid")
+    new_max = config.max_quality_retry_rounds
+
+    # Reconstruct the complete old v3 contract.  Any simultaneous corpus,
+    # gate, workspace, or budget edit changes this hash and is therefore
+    # rejected instead of being smuggled through as a retry-only extension.
+    old_config = replace(config, max_quality_retry_rounds=old_max)
+    observed_binding = status.get("config_binding_sha256")
+    expected_old_binding = old_config.status_binding_sha256
+    if observed_binding != expected_old_binding:
+        raise ValueError(
+            "quality retry extension source binding mismatch; no status changes were made"
+        )
+    if new_max < old_max:
+        raise ValueError("quality retry ceiling cannot be reduced")
+    if new_max == old_max:
+        return {
+            "status": "already_current",
+            "config_binding_sha256": expected_old_binding,
+            "max_quality_retry_rounds": old_max,
+        }
+
+    history = status.setdefault("migration_history", [])
+    if not isinstance(history, list):
+        raise ValueError("automation status migration history must be a list")
+    migrated_at = _iso()
+    new_binding = config.status_binding_sha256
+    history.append(
+        {
+            "migration_type": "quality_retry_budget_extension_v3",
+            "migrated_at": migrated_at,
+            "previous_config_binding_sha256": expected_old_binding,
+            "new_config_binding_sha256": new_binding,
+            "previous_max_quality_retry_rounds": old_max,
+            "new_max_quality_retry_rounds": new_max,
+            "resume_policy": (
+                "preserve_gate_blocked_state_generations_archives_and_usage"
+            ),
+        }
+    )
+    status["config_binding_sha256"] = new_binding
+    status["quality_retry_policy"] = {
+        **dict(policy),
+        "max_quality_retry_rounds": new_max,
+        "bound_at": migrated_at,
+    }
+    status["updated_at"] = migrated_at
+    _atomic_write_json(path, status)
+    return {
+        "status": "extended",
+        "previous_config_binding_sha256": expected_old_binding,
+        "new_config_binding_sha256": new_binding,
+        "previous_max_quality_retry_rounds": old_max,
+        "new_max_quality_retry_rounds": new_max,
+        "next_state": "gate_blocked",
+    }
+
+
 def restore_quality_retry_offline(
     config: AutomationConfig, generation: int
 ) -> dict[str, Any]:
@@ -4695,6 +4792,22 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     operation.add_argument(
+        "--extend-quality-retries",
+        action="store_true",
+        help=(
+            "offline, explicit monotonic extension of the quality-retry ceiling "
+            "declared by this config; requires a stopped gate_blocked status"
+        ),
+    )
+    operation.add_argument(
+        "--export-partial-gold",
+        action="store_true",
+        help=(
+            "explicitly export independently trainable per-expert strict gold; "
+            "waives end-to-end coverage claims, never safety gates"
+        ),
+    )
+    operation.add_argument(
         "--restore-quality-generation",
         type=int,
         metavar="N",
@@ -4736,6 +4849,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         if status.get("schema_version") == AUTOMATION_SCHEMA_VERSION:
             _verify_status_config_binding(config, status)
         print(json.dumps(status, ensure_ascii=False, indent=2))
+        return 0
+    if args.export_partial_gold:
+        if args.dry_run or args.wait_cooldown:
+            print(
+                "anchor-automation: partial gold export cannot be combined "
+                "with runtime flags",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            from .partial_export import export_partial_expert_gold
+
+            exported = export_partial_expert_gold(config)
+        except (OSError, ValueError) as error:
+            print(
+                f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(exported, ensure_ascii=False, indent=2))
+        return 0
+    if args.extend_quality_retries:
+        if args.dry_run or args.wait_cooldown:
+            print(
+                "anchor-automation: quality retry extension cannot be combined "
+                "with runtime flags",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            extension = extend_quality_retry_budget_offline(config)
+        except (OSError, ValueError) as error:
+            print(
+                f"anchor-automation: {type(error).__name__}: {str(error)[:240]}",
+                file=sys.stderr,
+            )
+            return 2
+        print(json.dumps(extension, ensure_ascii=False, indent=2))
         return 0
     if args.prepare_quality_retry:
         if args.dry_run or args.wait_cooldown:
@@ -4807,6 +4958,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if persisted_status is not None:
                 persisted_status["partition"] = manifest
                 persisted_status.pop("partition_stale_reason", None)
+                persisted_status["active_projection_incomplete"] = False
                 persisted_status["partition_refreshed_at"] = _iso()
                 persisted_status["updated_at"] = _iso()
                 _atomic_write_json(config.status_path, persisted_status)

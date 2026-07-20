@@ -4,17 +4,34 @@
   "baseline_commit": "b1fc8113948b518835c2a39ece49553cffe9b30c",
   "upstream_version": "1.17.18",
   "patch": "v1.17.18-anchor-distillation.patch",
-  "patch_sha256": "d1f2984d220ce420540a3eee38ac906958c12513e832406534381fc9a3185022",
+  "patch_sha256": "b61617124977d156f5702be23b46e7564325a4e796037e6faaa89ed42543106b",
   "bun_version": "1.3.14",
-  "tool_contract_version": "anchor.execution-tool-contract.v2",
+  "tool_contract_version": "anchor.execution-tool-contract.v3",
   "tool_contract": {
-    "version": "anchor.execution-tool-contract.v2",
-    "tools": ["apply_patch", "bash", "edit", "glob", "grep", "list", "read", "write"],
-    "bash_commands": [
-      "npm run build --if-present",
-      "npm run lint --if-present",
-      "npm run test --if-present"
-    ]
+    "version": "anchor.execution-tool-contract.v3",
+    "model_tools": ["apply_patch", "bash", "edit", "glob", "grep", "list", "read", "write"],
+    "model_bash_policy": {
+      "allow_host_shell": false,
+      "command_authorization": "planner_proposal_intersect_tool_policy_approve_exact_string",
+      "execution_scope": "isolated-instance-container",
+      "workdir": "/testbed",
+      "network": "none-with-supervisor-unix-socket-loopback-bridge",
+      "route_scope": "fixed-target-ccswitch-only",
+      "public_egress_blocking": "enforced-and-behavior-probed",
+      "result_visible_to_model": true
+    },
+    "public_repo_validation": {
+      "commands": ["anchor-validate compile", "anchor-validate test", "anchor-validate lint"],
+      "phase": "model-iteration",
+      "result_visible_to_model": true
+    },
+    "hidden_official_eval": {
+      "provenance": "official-swebench-harness-system-private",
+      "phase": "post-agent",
+      "fresh_container": true,
+      "network": "none",
+      "result_visible_to_model": false
+    }
   },
   "required_tests": {
     "core": [

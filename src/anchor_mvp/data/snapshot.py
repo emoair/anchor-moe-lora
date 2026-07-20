@@ -31,6 +31,10 @@ LEGACY_PARTITION_SCHEMA = "anchor.automation-partition-manifest.v1"
 READINESS_SCHEMA = "anchor.training-snapshot-readiness.v1"
 SNAPSHOT_SCHEMA = "anchor.training-snapshot.v2"
 TASK_BANK_FILENAME = "task_bank.jsonl"
+FORMAL_SPLIT_SCHEMA = "anchor.formal-v3-gold-splits.v1"
+FORMAL_EXECUTION_LINEAGE_SCHEMA = "anchor.swebench-formal-gold-lineage.v2"
+CANDIDATE_TASKS_PER_STAGE = 19_008
+CANDIDATE_WORK_ORDERS = 95_040
 
 EXPERT_SOURCES = {
     "planner": ("plan", "data_plan.jsonl"),
@@ -67,6 +71,15 @@ def _inside(root: Path, value: object, label: str) -> Path:
 
 
 @dataclass(frozen=True)
+class FormalSplitSources:
+    source_bank_manifest: Path
+    train_allowlist: Path
+    calibration_allowlist: Path
+    heldout_manifest: Path
+    heldout_leak_audit: Path
+
+
+@dataclass(frozen=True)
 class SnapshotConfig:
     root: Path
     partition_manifest: Path
@@ -76,6 +89,7 @@ class SnapshotConfig:
     snapshot_dir: Path
     readiness_report: Path
     expected_minimum_gold_records_per_expert: int
+    formal_v3_split: FormalSplitSources | None = None
 
     @classmethod
     def load(cls, path: str | Path) -> "SnapshotConfig":
@@ -101,6 +115,32 @@ class SnapshotConfig:
             raise ValueError(
                 "expected_minimum_gold_records_per_expert must be a positive integer"
             )
+        raw_split = value.get("formal_v3_split")
+        formal_split: FormalSplitSources | None = None
+        if raw_split is not None:
+            if not isinstance(raw_split, Mapping) or set(raw_split) != {
+                "source_bank_manifest",
+                "train_allowlist",
+                "calibration_allowlist",
+                "heldout_manifest",
+                "heldout_leak_audit",
+            }:
+                raise ValueError("formal_v3_split must bind exactly five metadata files")
+
+            def split_path(name: str) -> Path:
+                raw = raw_split.get(name)
+                if not isinstance(raw, str) or not raw.strip():
+                    raise ValueError(f"formal_v3_split.{name} must be a path")
+                return _inside(root, raw, f"formal_v3_split.{name}")
+
+            formal_split = FormalSplitSources(
+                source_bank_manifest=split_path("source_bank_manifest"),
+                train_allowlist=split_path("train_allowlist"),
+                calibration_allowlist=split_path("calibration_allowlist"),
+                heldout_manifest=split_path("heldout_manifest"),
+                heldout_leak_audit=split_path("heldout_leak_audit"),
+            )
+
         config = cls(
             root=root,
             partition_manifest=_inside(
@@ -118,6 +158,7 @@ class SnapshotConfig:
                 root, required_path("readiness_report"), "readiness_report"
             ),
             expected_minimum_gold_records_per_expert=expected,
+            formal_v3_split=formal_split,
         )
         if (
             config.snapshot_dir == config.gold_dir
@@ -159,6 +200,16 @@ def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        for row in rows:
+            handle.write(
+                json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                + "\n"
+            )
 
 
 def _read_mapping(path: Path) -> Mapping[str, Any] | None:
@@ -293,6 +344,450 @@ def _validate_task_bank_jsonl(path: Path) -> int:
                 raise ValueError("task bank rows must be JSON objects")
             records += 1
     return records
+
+
+def _read_task_bank_rows(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            value = json.loads(line)
+            if not isinstance(value, Mapping):
+                raise ValueError("task bank rows must be JSON objects")
+            rows.append(dict(value))
+    return rows
+
+
+def _canonical_ids_sha256(values: set[str] | list[str]) -> str:
+    return hashlib.sha256("\n".join(sorted(values)).encode("utf-8")).hexdigest()
+
+
+def _allowlist_ids(path: Path, *, expected: int) -> tuple[set[str], dict[str, Any]]:
+    value = _read_mapping(path)
+    if value is None:
+        raise SnapshotPreparationError("formal_split_allowlist_invalid")
+    raw_ids = value.get("instance_ids")
+    if not isinstance(raw_ids, list) or not all(
+        isinstance(item, str) and item for item in raw_ids
+    ):
+        raise SnapshotPreparationError("formal_split_allowlist_invalid")
+    ids = set(raw_ids)
+    if len(ids) != expected or len(raw_ids) != expected:
+        raise SnapshotPreparationError("formal_split_allowlist_cardinality_invalid")
+    return ids, {
+        "records": expected,
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+        "ids_sha256": _canonical_ids_sha256(ids),
+    }
+
+
+def _record_instance_id(
+    record: Mapping[str, Any],
+    *,
+    task_bank_by_seed: Mapping[str, str],
+    task_bank_by_alignment: Mapping[str, str],
+) -> str | None:
+    provenance = record.get("provenance")
+    raw_input = record.get("input")
+    # Canonical TaskCard.to_dict() keeps the SWE-bench identity under the
+    # top-level ``source`` mapping. Five-stage records instead carry it in
+    # ``input.identity``. Accept both exact producer shapes before falling
+    # back to legacy provenance joins.
+    nested: list[object] = [record, record.get("source"), provenance, raw_input]
+    if isinstance(raw_input, Mapping):
+        nested.extend((raw_input.get("identity"), raw_input.get("source")))
+    for value in nested:
+        if not isinstance(value, Mapping):
+            continue
+        for field in ("instance_id", "source_instance_id"):
+            candidate = value.get(field)
+            if isinstance(candidate, str) and candidate:
+                return candidate
+    if isinstance(provenance, Mapping):
+        seed_id = provenance.get("seed_id")
+        if isinstance(seed_id, str) and seed_id in task_bank_by_seed:
+            return task_bank_by_seed[seed_id]
+        alignment_id = provenance.get("alignment_id")
+        if (
+            isinstance(alignment_id, str)
+            and alignment_id in task_bank_by_alignment
+        ):
+            return task_bank_by_alignment[alignment_id]
+    return None
+
+
+def _evaluate_formal_execution_lineage(
+    gold_by_task: Mapping[str, list[dict[str, Any]]],
+    task_bank_rows: list[dict[str, Any]],
+    partition: Mapping[str, Any],
+    minimum_gold: Mapping[str, int],
+) -> dict[str, Any]:
+    """Recompute the live SWE-bench five-stage chain using content-free IDs.
+
+    Receipt HMAC, final-patch bytes, tool traces, qualifying public validation,
+    and cleanup are verified by the formal exporter while it still has access
+    to the WSL-only train supervisor key.  This evidence is explicitly not an
+    official SWE-bench PASS.  The snapshot publisher independently proves that
+    every copied row is from that one authenticated export and that task_bank
+    contains exactly the complete accepted chains.
+    """
+
+    errors: list[str] = []
+
+    def fail(code: str) -> None:
+        if code not in errors:
+            errors.append(code)
+
+    export = partition.get("formal_execution_export")
+    checkpoint_id: object = None
+    accepted_count: object = None
+    if not isinstance(export, Mapping):
+        fail("formal_export_metadata_missing")
+    else:
+        checkpoint_id = export.get("checkpoint_id")
+        accepted_count = export.get("accepted_complete_chains")
+        if (
+            export.get("schema_version")
+            != "anchor.swebench-formal-gold-export.v2"
+            or export.get("lineage_contract") != FORMAL_EXECUTION_LINEAGE_SCHEMA
+            or not _is_sha256(checkpoint_id)
+            or isinstance(accepted_count, bool)
+            or not isinstance(accepted_count, int)
+            or accepted_count < 0
+            or export.get("distillation_execution_receipt_required") is not True
+            or export.get("evidence_tier") != "real_sandbox_self_verified"
+            or export.get("not_official_swebench_pass") is not True
+            or export.get("real_validation_evidence_required") is not True
+            or export.get("unrecovered_cleanup_or_terminal_failure_excluded")
+            is not True
+        ):
+            fail("formal_export_metadata_invalid")
+
+    task_by_instance: dict[str, str] = {}
+    for task in task_bank_rows:
+        instance = _record_instance_id(
+            task,
+            task_bank_by_seed={},
+            task_bank_by_alignment={},
+        )
+        task_id = task.get("task_id")
+        if (
+            not isinstance(instance, str)
+            or not instance
+            or not isinstance(task_id, str)
+            or not task_id
+            or instance in task_by_instance
+        ):
+            fail("formal_task_bank_identity_invalid")
+            continue
+        task_by_instance[instance] = task_id
+
+    expected = {
+        "plan": "planner",
+        "tool_policy": "tool_policy",
+        "frontend": "domain_builder",
+        "review": "domain_review",
+        "security": "security",
+    }
+    records_by_instance: dict[str, dict[str, Mapping[str, Any]]] = {}
+    for task_name, stage in expected.items():
+        seen: set[str] = set()
+        for record in gold_by_task.get(task_name, []):
+            provenance = record.get("provenance")
+            formal = (
+                provenance.get("formal_execution")
+                if isinstance(provenance, Mapping)
+                else None
+            )
+            instance = (
+                provenance.get("instance_id")
+                if isinstance(provenance, Mapping)
+                else None
+            )
+            if (
+                not isinstance(formal, Mapping)
+                or formal.get("schema_version")
+                != FORMAL_EXECUTION_LINEAGE_SCHEMA
+                or formal.get("checkpoint_id") != checkpoint_id
+                or formal.get("stage") != stage
+                or formal.get("evidence_tier") != "real_sandbox_self_verified"
+                or formal.get("not_official_swebench_pass") is not True
+                or formal.get("cleanup_success") is not True
+                or formal.get("receipt_authenticated") is not True
+                or not all(
+                    _is_sha256(formal.get(field))
+                    for field in (
+                        "artifact_sha256",
+                        "receipt_sha256",
+                        "patch_sha256",
+                    )
+                )
+                or formal.get("work_order_record_id") != record.get("id")
+                or not isinstance(instance, str)
+                or instance not in task_by_instance
+                or formal.get("task_id") != task_by_instance.get(instance)
+                or instance in seen
+            ):
+                fail("formal_stage_record_binding_invalid")
+                continue
+            revision = formal.get("revision")
+            if (
+                isinstance(revision, bool)
+                or not isinstance(revision, int)
+                or revision < 1
+                or (
+                    stage in {"planner", "tool_policy", "security"}
+                    and revision != 1
+                )
+            ):
+                fail("formal_stage_revision_invalid")
+                continue
+            source_ids = formal.get("source_record_ids")
+            if not isinstance(source_ids, list) or not all(
+                isinstance(item, str) and item for item in source_ids
+            ):
+                fail("formal_stage_lineage_ids_invalid")
+                continue
+            seen.add(instance)
+            records_by_instance.setdefault(instance, {})[stage] = record
+        if seen != set(task_by_instance):
+            fail("formal_stage_task_bank_coverage_mismatch")
+
+    for instance, stages in records_by_instance.items():
+        if set(stages) != set(expected.values()):
+            fail("formal_complete_chain_missing_stage")
+            continue
+        ordered_ids: list[str] = []
+        shared_receipt: str | None = None
+        shared_patch: str | None = None
+        builder_revision: int | None = None
+        for stage in expected.values():
+            record = stages[stage]
+            provenance = record["provenance"]
+            assert isinstance(provenance, Mapping)
+            formal = provenance["formal_execution"]
+            assert isinstance(formal, Mapping)
+            if formal.get("source_record_ids") != ordered_ids:
+                fail("formal_stage_dependency_order_mismatch")
+            ordered_ids.append(str(record["id"]))
+            receipt = str(formal["receipt_sha256"])
+            patch = str(formal["patch_sha256"])
+            if shared_receipt is None:
+                shared_receipt = receipt
+                shared_patch = patch
+            elif receipt != shared_receipt or patch != shared_patch:
+                fail("formal_chain_receipt_or_patch_fork")
+            if stage == "domain_builder":
+                builder_revision = int(formal["revision"])
+            elif stage == "domain_review" and formal.get("revision") != builder_revision:
+                fail("formal_builder_review_revision_mismatch")
+
+    complete_chain_count = (
+        len(task_by_instance)
+        if not errors and len(records_by_instance) == len(task_by_instance)
+        else 0
+    )
+    if accepted_count != len(task_by_instance):
+        fail("formal_export_accepted_count_mismatch")
+    minimum_complete_chain_count = max(minimum_gold.values(), default=0)
+    return {
+        "lineage_complete": not errors,
+        "complete_chain_count": complete_chain_count,
+        "minimum_complete_chain_count": minimum_complete_chain_count,
+        "complete_chain_count_sufficient": (
+            complete_chain_count >= minimum_complete_chain_count
+        ),
+        "lineage_edge_error_count": len(errors),
+        "lineage_edge_errors_by_edge": {
+            code: 1 for code in sorted(errors)
+        },
+        "lineage_edge_errors": [
+            {"edge": "formal_execution", "code": code}
+            for code in sorted(errors)
+        ],
+        "lineage_chain_error_count": 0,
+        "lineage_chain_errors_by_code": {},
+        "lineage_chain_errors": [],
+    }
+
+
+def _formal_split_inputs(
+    config: SnapshotConfig,
+    *,
+    gold_records_by_task: Mapping[str, list[dict[str, Any]]],
+    task_bank_rows: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Build deterministic train/calibration metadata without heldout bodies."""
+
+    sources = config.formal_v3_split
+    if sources is None:
+        return None
+    paths = (
+        sources.source_bank_manifest,
+        sources.train_allowlist,
+        sources.calibration_allowlist,
+        sources.heldout_manifest,
+        sources.heldout_leak_audit,
+    )
+    if any(not path.is_file() or path.is_symlink() for path in paths):
+        raise SnapshotPreparationError("formal_split_metadata_missing")
+
+    source_manifest = _read_mapping(sources.source_bank_manifest)
+    heldout_manifest = _read_mapping(sources.heldout_manifest)
+    leak_audit = _read_mapping(sources.heldout_leak_audit)
+    if not all(
+        isinstance(item, Mapping)
+        for item in (source_manifest, heldout_manifest, leak_audit)
+    ):
+        raise SnapshotPreparationError("formal_split_metadata_invalid")
+    assert isinstance(source_manifest, Mapping)
+    assert isinstance(heldout_manifest, Mapping)
+    assert isinstance(leak_audit, Mapping)
+
+    counts = source_manifest.get("counts")
+    if (
+        not isinstance(counts, Mapping)
+        or counts.get("tasks") != CANDIDATE_TASKS_PER_STAGE
+        or counts.get("work_orders") != CANDIDATE_WORK_ORDERS
+        or counts.get("derived_train") != 17_105
+        or counts.get("derived_validation_from_train") != 1_903
+    ):
+        raise SnapshotPreparationError("formal_split_source_population_invalid")
+    train_ids, train_binding = _allowlist_ids(
+        sources.train_allowlist, expected=17_105
+    )
+    calibration_ids, calibration_binding = _allowlist_ids(
+        sources.calibration_allowlist, expected=1_903
+    )
+    if train_ids & calibration_ids or len(train_ids | calibration_ids) != 19_008:
+        raise SnapshotPreparationError("formal_split_allowlists_overlap_or_incomplete")
+
+    file_bindings = source_manifest.get("files")
+    if not isinstance(file_bindings, list):
+        raise SnapshotPreparationError("formal_split_source_manifest_invalid")
+    by_path = {
+        item.get("path"): item
+        for item in file_bindings
+        if isinstance(item, Mapping) and isinstance(item.get("path"), str)
+    }
+    for relative, path, expected_binding in (
+        ("allowlists/train.json", sources.train_allowlist, train_binding),
+        (
+            "allowlists/validation-from-train.json",
+            sources.calibration_allowlist,
+            calibration_binding,
+        ),
+    ):
+        declared = by_path.get(relative)
+        if not isinstance(declared, Mapping) or any(
+            declared.get(field) != expected_binding[field]
+            for field in ("records", "bytes", "sha256")
+        ):
+            raise SnapshotPreparationError("formal_split_allowlist_binding_invalid")
+
+    heldout_manifest_sha = sha256_file(sources.heldout_manifest)
+    leak_audit_sha = sha256_file(sources.heldout_leak_audit)
+    if (
+        heldout_manifest.get("schema_version") != "anchor.heldout-manifest.v1"
+        or heldout_manifest.get("split") != "heldout"
+        or not _is_sha256(heldout_manifest.get("canonical_cases_sha256"))
+        or leak_audit.get("schema_version") != "anchor.leak-audit.v1"
+        or leak_audit.get("status") != "PASS"
+        or leak_audit.get("collision_count") != 0
+        or leak_audit.get("content_emitted") is not False
+        or leak_audit.get("manifest_sha256") != heldout_manifest_sha
+    ):
+        raise SnapshotPreparationError("formal_split_heldout_metadata_invalid")
+
+    task_bank_by_seed: dict[str, str] = {}
+    task_bank_by_alignment: dict[str, str] = {}
+    task_bank_by_instance: dict[str, dict[str, Any]] = {}
+    for row in task_bank_rows:
+        instance = _record_instance_id(
+            row,
+            task_bank_by_seed={},
+            task_bank_by_alignment={},
+        )
+        if not isinstance(instance, str) or instance not in train_ids | calibration_ids:
+            raise SnapshotPreparationError("formal_split_task_bank_identity_missing")
+        if instance in task_bank_by_instance:
+            raise SnapshotPreparationError("formal_split_task_bank_identity_duplicate")
+        task_bank_by_instance[instance] = row
+        seed_id = row.get("seed_id")
+        alignment_id = row.get("alignment_id")
+        if isinstance(seed_id, str):
+            task_bank_by_seed[seed_id] = instance
+        if isinstance(alignment_id, str):
+            task_bank_by_alignment[alignment_id] = instance
+
+    records: dict[str, dict[str, list[dict[str, Any]]]] = {
+        "train": {},
+        "calibration": {},
+    }
+    ids_by_task: dict[str, dict[str, set[str]]] = {
+        "train": {},
+        "calibration": {},
+    }
+    for task, rows in gold_records_by_task.items():
+        train_rows: list[tuple[str, dict[str, Any]]] = []
+        calibration_rows: list[tuple[str, dict[str, Any]]] = []
+        for row in rows:
+            instance = _record_instance_id(
+                row,
+                task_bank_by_seed=task_bank_by_seed,
+                task_bank_by_alignment=task_bank_by_alignment,
+            )
+            if instance in train_ids:
+                train_rows.append((str(instance), row))
+            elif instance in calibration_ids:
+                calibration_rows.append((str(instance), row))
+            else:
+                raise SnapshotPreparationError("formal_split_gold_identity_missing")
+        train_rows.sort(key=lambda item: item[0])
+        calibration_rows.sort(key=lambda item: item[0])
+        records["train"][task] = [row for _instance, row in train_rows]
+        records["calibration"][task] = [row for _instance, row in calibration_rows]
+        ids_by_task["train"][task] = {instance for instance, _row in train_rows}
+        ids_by_task["calibration"][task] = {
+            instance for instance, _row in calibration_rows
+        }
+
+    task_names = {task for task, _filename in EXPERT_SOURCES.values()}
+    for partition in ("train", "calibration"):
+        identity_sets = ids_by_task[partition]
+        if set(identity_sets) != task_names or len(
+            {frozenset(value) for value in identity_sets.values()}
+        ) != 1:
+            raise SnapshotPreparationError(
+                f"formal_split_{partition}_complete_chain_mismatch"
+            )
+    accepted_train_ids = next(iter(ids_by_task["train"].values()))
+    accepted_calibration_ids = next(iter(ids_by_task["calibration"].values()))
+    if not accepted_calibration_ids:
+        raise SnapshotPreparationError("formal_split_calibration_gold_empty")
+    if accepted_train_ids & accepted_calibration_ids:
+        raise SnapshotPreparationError("formal_split_gold_overlap")
+    accepted_ids = accepted_train_ids | accepted_calibration_ids
+    if set(task_bank_by_instance) != accepted_ids:
+        raise SnapshotPreparationError("formal_split_task_bank_gold_mismatch")
+
+    return {
+        "records": records,
+        "train_ids": sorted(accepted_train_ids),
+        "calibration_ids": sorted(accepted_calibration_ids),
+        "train_task_bank": [task_bank_by_instance[item] for item in sorted(accepted_train_ids)],
+        "calibration_task_bank": [
+            task_bank_by_instance[item] for item in sorted(accepted_calibration_ids)
+        ],
+        "source_manifest_sha256": sha256_file(sources.source_bank_manifest),
+        "train_allowlist": train_binding,
+        "calibration_allowlist": calibration_binding,
+        "heldout_manifest_sha256": heldout_manifest_sha,
+        "heldout_ids_sha256": heldout_manifest["canonical_cases_sha256"],
+        "leakage_audit_sha256": leak_audit_sha,
+    }
 
 
 def _snapshot_digest(
@@ -438,6 +933,7 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
     task_bank_source = config.partition_manifest.parent / TASK_BANK_FILENAME
     task_bank_before: dict[str, Any] | None = None
     task_bank_after: dict[str, Any] | None = None
+    task_bank_rows: list[dict[str, Any]] = []
     task_bank_schema_valid = False
     if not task_bank_source.is_file() or task_bank_source.is_symlink():
         block("task_bank_file_missing_or_invalid")
@@ -450,6 +946,7 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             block("task_bank_file_binding_mismatch")
         try:
             parsed_task_bank_records = _validate_task_bank_jsonl(task_bank_source)
+            task_bank_rows = _read_task_bank_rows(task_bank_source)
             task_bank_schema_valid = True
             if (
                 task_bank_before is None
@@ -737,10 +1234,23 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
         block("gold_cross_expert_duplicate_ids")
 
     if len(known_minimums) == len(EXPERTS):
-        recomputed_lineage = _evaluate_gold_lineage(
-            gold_records_by_task,
-            {task: int(value) for task, value in minimums.items() if value is not None},
-        )
+        normalized_minimums = {
+            task: int(value)
+            for task, value in minimums.items()
+            if value is not None
+        }
+        if partition.get("lineage_contract") == FORMAL_EXECUTION_LINEAGE_SCHEMA:
+            recomputed_lineage = _evaluate_formal_execution_lineage(
+                gold_records_by_task,
+                task_bank_rows,
+                partition,
+                normalized_minimums,
+            )
+        else:
+            recomputed_lineage = _evaluate_gold_lineage(
+                gold_records_by_task,
+                normalized_minimums,
+            )
         lineage_summary_fields = (
             "lineage_complete",
             "complete_chain_count",
@@ -759,12 +1269,33 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
     else:
         block("partition_lineage_recompute_unavailable")
 
+    formal_split: dict[str, Any] | None = None
+    if config.formal_v3_split is not None:
+        try:
+            formal_split = _formal_split_inputs(
+                config,
+                gold_records_by_task=gold_records_by_task,
+                task_bank_rows=task_bank_rows,
+            )
+        except SnapshotPreparationError as exc:
+            block(exc.code)
+
     capacity: dict[str, dict[str, int | None]] = {}
     actual_raw_by_task: dict[str, int] = {}
     unreachable: list[str] = []
     maximum_total = 0
+    formal_execution_export = (
+        partition.get("lineage_contract") == FORMAL_EXECUTION_LINEAGE_SCHEMA
+    )
     for _expert, (task, filename) in EXPERT_SOURCES.items():
-        collected = _count_nonempty(config.collection_dir / filename)
+        # A formal live export is already the authenticated promotion boundary:
+        # its strict Gold projection is the complete exported population.  It
+        # intentionally has no duplicate top-level "raw" JSONL mirror.  Legacy
+        # synthetic collections still count their separate raw source files.
+        if formal_execution_export:
+            collected = normalized_gold.get(task) or 0
+        else:
+            collected = _count_nonempty(config.collection_dir / filename)
         actual_raw_by_task[task] = collected
         current_gold = normalized_gold.get(task) or 0
         remaining = max((raw_collection_target or 0) - collected, 0)
@@ -860,6 +1391,28 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             "sha256": task_bank_after.get("sha256") if task_bank_after else None,
             "schema_valid": task_bank_schema_valid,
         },
+        "formal_v3_split": (
+            {
+                "configured": True,
+                "passed": formal_split is not None,
+                "candidate_tasks_per_stage": CANDIDATE_TASKS_PER_STAGE,
+                "candidate_work_orders": CANDIDATE_WORK_ORDERS,
+                "train_gold_tasks": len(formal_split["train_ids"]),
+                "calibration_gold_tasks": len(formal_split["calibration_ids"]),
+                "source_manifest_sha256": formal_split[
+                    "source_manifest_sha256"
+                ],
+                "heldout_manifest_sha256": formal_split[
+                    "heldout_manifest_sha256"
+                ],
+                "leakage_audit_sha256": formal_split[
+                    "leakage_audit_sha256"
+                ],
+                "heldout_content_read": False,
+            }
+            if formal_split is not None
+            else {"configured": config.formal_v3_split is not None, "passed": False}
+        ),
         "cross_expert_duplicate_id_count": duplicate_ids,
         "blockers": blockers,
         "snapshot": None,
@@ -887,8 +1440,149 @@ def evaluate_readiness(config: SnapshotConfig) -> tuple[dict[str, Any], dict[str
             "sha256": task_bank_after.get("sha256") if task_bank_after else None,
         },
         "heldout_gate": heldout_public,
+        "formal_v3_split": formal_split,
     }
     return report, private
+
+
+def _verify_formal_split_manifest(
+    output_dir: Path,
+    manifest: Mapping[str, Any],
+    *,
+    train_files: Mapping[str, Mapping[str, Any]],
+) -> None:
+    population = manifest.get("population_contract")
+    split = manifest.get("split_contract")
+    if population is None and split is None:
+        return
+    if not isinstance(population, Mapping) or not isinstance(split, Mapping):
+        raise SnapshotPreparationError("snapshot_formal_split_invalid")
+    roles = split.get("partitions")
+    if (
+        population.get("candidate_tasks_per_stage") != CANDIDATE_TASKS_PER_STAGE
+        or population.get("work_orders_per_task") != len(EXPERTS)
+        or population.get("candidate_work_orders") != CANDIDATE_WORK_ORDERS
+        or split.get("schema_version") != FORMAL_SPLIT_SCHEMA
+        or split.get("assignment") != "source_bank_split_then_gold_gate_v1"
+        or split.get("pairwise_disjoint") is not True
+        or split.get("gold_coverage_complete") is not True
+        or split.get("heldout_content_read") is not False
+        or split.get("heldout_content_emitted") is not False
+        or not _is_sha256(split.get("leakage_audit_sha256"))
+        or not isinstance(roles, Mapping)
+        or set(roles) != {"train", "calibration", "heldout"}
+    ):
+        raise SnapshotPreparationError("snapshot_formal_split_invalid")
+    train = roles["train"]
+    calibration = roles["calibration"]
+    heldout = roles["heldout"]
+    if not all(isinstance(value, Mapping) for value in (train, calibration, heldout)):
+        raise SnapshotPreparationError("snapshot_formal_split_invalid")
+    assert isinstance(train, Mapping)
+    assert isinstance(calibration, Mapping)
+    assert isinstance(heldout, Mapping)
+    train_count = _safe_nonnegative(train.get("gold_task_count"))
+    calibration_count = _safe_nonnegative(calibration.get("gold_task_count"))
+    train_counts = train.get("gold_records_per_expert")
+    calibration_counts = calibration.get("gold_records_per_expert")
+    if (
+        train.get("role") != "training_only"
+        or train.get("source_partition") != "train"
+        or train.get("candidate_task_count") != 17_105
+        or train_count is None
+        or not _is_sha256(train.get("ids_sha256"))
+        or not isinstance(train_counts, Mapping)
+        or set(train_counts) != set(EXPERTS)
+        or any(train_counts.get(expert) != train_count for expert in EXPERTS)
+        or any(item.get("records") != train_count for item in train_files.values())
+    ):
+        raise SnapshotPreparationError("snapshot_formal_train_invalid")
+    calibration_files = calibration.get("files")
+    calibration_task_bank = calibration.get("task_bank_file")
+    if (
+        calibration.get("role") != "rank_allocation_only"
+        or calibration.get("source_partition") != "validation-from-train"
+        or calibration.get("candidate_task_count") != 1_903
+        or calibration_count is None
+        or calibration_count < 1
+        or not _is_sha256(calibration.get("ids_sha256"))
+        or not _is_sha256(calibration.get("snapshot_sha256"))
+        or not isinstance(calibration_counts, Mapping)
+        or set(calibration_counts) != set(EXPERTS)
+        or any(
+            calibration_counts.get(expert) != calibration_count
+            for expert in EXPERTS
+        )
+        or not isinstance(calibration_files, Mapping)
+        or set(calibration_files) != set(EXPERTS)
+        or not isinstance(calibration_task_bank, Mapping)
+    ):
+        raise SnapshotPreparationError("snapshot_formal_calibration_invalid")
+    verified_calibration: dict[str, Mapping[str, Any]] = {}
+    for expert in EXPERTS:
+        item = calibration_files[expert]
+        if not isinstance(item, Mapping):
+            raise SnapshotPreparationError("snapshot_formal_calibration_invalid")
+        relative = item.get("path")
+        if (
+            not isinstance(relative, str)
+            or not relative.startswith("calibration/")
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            raise SnapshotPreparationError("snapshot_formal_calibration_invalid")
+        path = output_dir / relative
+        if (
+            not path.is_file()
+            or path.is_symlink()
+            or _file_binding(path, relative)
+            != {
+                "path": relative,
+                "records": item.get("records"),
+                "bytes": item.get("bytes"),
+                "sha256": item.get("sha256"),
+            }
+            or item.get("records") != calibration_count
+        ):
+            raise SnapshotPreparationError("snapshot_formal_calibration_invalid")
+        validate_jsonl(path, allowed_experts=[expert])
+        verified_calibration[expert] = {
+            **dict(item),
+            "source_sha256": item.get("sha256"),
+        }
+    task_bank_relative = calibration_task_bank.get("path")
+    calibration_bank_path = output_dir / str(task_bank_relative)
+    if (
+        task_bank_relative != "calibration/task_bank.jsonl"
+        or not calibration_bank_path.is_file()
+        or calibration_bank_path.is_symlink()
+        or _file_binding(calibration_bank_path, str(task_bank_relative))
+        != dict(calibration_task_bank)
+        or calibration_task_bank.get("records") != calibration_count
+    ):
+        raise SnapshotPreparationError("snapshot_formal_calibration_invalid")
+    calibration_digest_bank = {
+        **dict(calibration_task_bank),
+        "source_sha256": calibration_task_bank.get("sha256"),
+    }
+    if (
+        _snapshot_digest(verified_calibration, calibration_digest_bank)
+        != calibration.get("snapshot_sha256")
+    ):
+        raise SnapshotPreparationError("snapshot_formal_calibration_digest_invalid")
+    if (
+        heldout.get("role") != "evaluation_only_hash_metadata"
+        or heldout.get("source_partition") != "external-heldout"
+        or heldout.get("content_present") is not False
+        or heldout.get("content_read") is not False
+        or heldout.get("content_emitted") is not False
+        or not _is_sha256(heldout.get("ids_sha256"))
+        or not _is_sha256(heldout.get("manifest_sha256"))
+        or "files" in heldout
+        or population.get("gold_accepted_tasks")
+        != train_count + calibration_count
+    ):
+        raise SnapshotPreparationError("snapshot_formal_heldout_invalid")
 
 
 def _verify_frozen_snapshot(
@@ -994,6 +1688,7 @@ def _verify_frozen_snapshot(
         ):
             raise SnapshotPreparationError("snapshot_source_gold_binding_invalid")
         files[expert] = item
+    _verify_formal_split_manifest(output_dir, manifest, train_files=files)
     if _snapshot_digest(files, task_bank_item) != manifest.get("snapshot_sha256"):
         raise SnapshotPreparationError("snapshot_digest_mismatch")
     return dict(manifest), manifest_sha
@@ -1017,7 +1712,11 @@ def _freeze(
     temporary.mkdir()
     try:
         manifest_files: dict[str, dict[str, Any]] = {}
+        calibration_files: dict[str, dict[str, Any]] = {}
         private_files = private.get("files")
+        formal_split = private.get("formal_v3_split")
+        if formal_split is not None and not isinstance(formal_split, Mapping):
+            raise SnapshotPreparationError("freeze_inputs_invalid")
         if not isinstance(private_files, Mapping):
             raise SnapshotPreparationError("freeze_inputs_invalid")
         for expert in EXPERTS:
@@ -1029,13 +1728,47 @@ def _freeze(
             if not isinstance(source, Path) or not isinstance(filename, str):
                 raise SnapshotPreparationError("freeze_inputs_invalid")
             destination = temporary / filename
-            shutil.copyfile(source, destination)
+            if isinstance(formal_split, Mapping):
+                split_records = formal_split.get("records")
+                if not isinstance(split_records, Mapping):
+                    raise SnapshotPreparationError("freeze_inputs_invalid")
+                train_records = split_records.get("train")
+                calibration_records = split_records.get("calibration")
+                if not isinstance(train_records, Mapping) or not isinstance(
+                    calibration_records, Mapping
+                ):
+                    raise SnapshotPreparationError("freeze_inputs_invalid")
+                task = EXPERT_SOURCES[expert][0]
+                train_rows = train_records.get(task)
+                calibration_rows = calibration_records.get(task)
+                if not isinstance(train_rows, list) or not isinstance(
+                    calibration_rows, list
+                ):
+                    raise SnapshotPreparationError("freeze_inputs_invalid")
+                _write_jsonl(destination, train_rows)
+                calibration_destination = temporary / "calibration" / filename
+                _write_jsonl(calibration_destination, calibration_rows)
+                calibration_validation = validate_jsonl(
+                    calibration_destination, allowed_experts=[expert]
+                )
+                calibration_binding = _file_binding(
+                    calibration_destination, f"calibration/{filename}"
+                )
+                if int(calibration_validation["valid_records"]) != len(
+                    calibration_rows
+                ):
+                    raise SnapshotPreparationError("freeze_split_write_invalid")
+                calibration_files[expert] = calibration_binding
+            else:
+                shutil.copyfile(source, destination)
             copied_sha = sha256_file(destination)
-            if copied_sha != item.get("sha256"):
+            if not isinstance(formal_split, Mapping) and copied_sha != item.get(
+                "sha256"
+            ):
                 raise SnapshotPreparationError("source_changed_during_copy")
             validation = validate_jsonl(destination, allowed_experts=[expert])
             records = int(validation["valid_records"])
-            if records != item.get("records"):
+            if not isinstance(formal_split, Mapping) and records != item.get("records"):
                 raise SnapshotPreparationError("source_changed_during_copy")
             manifest_files[expert] = {
                 "path": filename,
@@ -1055,7 +1788,7 @@ def _freeze(
             or task_bank_filename != TASK_BANK_FILENAME
         ):
             raise SnapshotPreparationError("freeze_inputs_invalid")
-        expected_task_bank_binding = {
+        source_task_bank_binding = {
             "path": TASK_BANK_FILENAME,
             "records": private_task_bank.get("records"),
             "bytes": private_task_bank.get("bytes"),
@@ -1065,19 +1798,37 @@ def _freeze(
             private["partition"].get("complete_chain_count")
         )
         if not _task_bank_binding_valid(
-            expected_task_bank_binding,
+            source_task_bank_binding,
             complete_chain_count=complete_chain_count,
         ):
             raise SnapshotPreparationError("freeze_inputs_invalid")
         task_bank_destination = temporary / TASK_BANK_FILENAME
-        shutil.copyfile(task_bank_source, task_bank_destination)
+        if isinstance(formal_split, Mapping):
+            train_task_bank = formal_split.get("train_task_bank")
+            calibration_task_bank = formal_split.get("calibration_task_bank")
+            if not isinstance(train_task_bank, list) or not isinstance(
+                calibration_task_bank, list
+            ):
+                raise SnapshotPreparationError("freeze_inputs_invalid")
+            _write_jsonl(task_bank_destination, train_task_bank)
+            calibration_task_bank_path = temporary / "calibration" / TASK_BANK_FILENAME
+            _write_jsonl(calibration_task_bank_path, calibration_task_bank)
+            calibration_task_bank_binding = _file_binding(
+                calibration_task_bank_path, f"calibration/{TASK_BANK_FILENAME}"
+            )
+        else:
+            shutil.copyfile(task_bank_source, task_bank_destination)
+            calibration_task_bank_binding = None
         copied_task_bank_binding = _file_binding(
             task_bank_destination, TASK_BANK_FILENAME
         )
         if (
-            copied_task_bank_binding != expected_task_bank_binding
-            or _validate_task_bank_jsonl(task_bank_destination)
-            != expected_task_bank_binding["records"]
+            _validate_task_bank_jsonl(task_bank_destination)
+            != copied_task_bank_binding["records"]
+            or (
+                not isinstance(formal_split, Mapping)
+                and copied_task_bank_binding != source_task_bank_binding
+            )
         ):
             raise SnapshotPreparationError("task_bank_changed_during_copy")
         manifest_task_bank_file = {
@@ -1100,21 +1851,164 @@ def _freeze(
                 raise SnapshotPreparationError("source_changed_during_copy")
         if (
             _file_binding(task_bank_source, TASK_BANK_FILENAME)
-            != expected_task_bank_binding
+            != source_task_bank_binding
         ):
             raise SnapshotPreparationError("task_bank_changed_during_copy")
 
-        manifest: dict[str, Any] = {
-            "schema_version": SNAPSHOT_SCHEMA,
-            "created_at": _utc_now(),
-            "source_partition_manifest_sha256": partition_sha,
-            "source_automation_status_sha256": status_sha,
-            "selection": "all strict-gold partition records; no resampling",
-            "total_records": sum(item["records"] for item in manifest_files.values()),
-            "snapshot_sha256": _snapshot_digest(
-                manifest_files, manifest_task_bank_file
-            ),
-            "source_gate": {
+        if isinstance(formal_split, Mapping):
+            train_count = len(formal_split["train_ids"])
+            calibration_count = len(formal_split["calibration_ids"])
+            if (
+                len(set(item["records"] for item in manifest_files.values())) != 1
+                or any(item["records"] != train_count for item in manifest_files.values())
+                or len(set(item["records"] for item in calibration_files.values()))
+                != 1
+                or any(
+                    item["records"] != calibration_count
+                    for item in calibration_files.values()
+                )
+                or copied_task_bank_binding["records"] != train_count
+                or not isinstance(calibration_task_bank_binding, Mapping)
+                or calibration_task_bank_binding["records"] != calibration_count
+            ):
+                raise SnapshotPreparationError("freeze_split_cardinality_invalid")
+            source_gold_files = {
+                EXPERT_SOURCES[expert][0]: {
+                    "path": item["path"],
+                    "records": item["records"],
+                    "bytes": item["bytes"],
+                    "sha256": item["sha256"],
+                }
+                for expert, item in manifest_files.items()
+            }
+            source_task_bank = {
+                "path": TASK_BANK_FILENAME,
+                "records": copied_task_bank_binding["records"],
+                "bytes": copied_task_bank_binding["bytes"],
+                "sha256": copied_task_bank_binding["sha256"],
+            }
+            source_gate = {
+                "raw_collection_target": private["partition"].get(
+                    "raw_collection_target"
+                ),
+                "minimum_gold_records_per_task": {
+                    task: config.expected_minimum_gold_records_per_expert
+                    for task, _filename in EXPERT_SOURCES.values()
+                },
+                "collection_policy": private["partition"].get("collection_policy"),
+                "gold_count": train_count * len(EXPERTS),
+                "gold_files": source_gold_files,
+                "partition_complete": True,
+                "rejects_quarantined": True,
+                "reject_count": private["partition"].get("reject_count"),
+                "gold_integrity_ok": True,
+                "lineage_complete": True,
+                "complete_chain_count": train_count,
+                "minimum_complete_chain_count": (
+                    config.expected_minimum_gold_records_per_expert
+                ),
+                "complete_chain_count_sufficient": (
+                    train_count >= config.expected_minimum_gold_records_per_expert
+                ),
+                "lineage_edge_error_count": 0,
+                "lineage_chain_error_count": 0,
+                "near_duplicate_gate": private["partition"].get(
+                    "near_duplicate_gate"
+                ),
+                "task_card_coverage": {
+                    "passed": True,
+                    "cardinality_equal": True,
+                    "complete_chain_count": train_count,
+                    "card_count": train_count,
+                    "unique_alignment_id_count": train_count,
+                },
+                "task_bank_file": source_task_bank,
+                "heldout_gate": private["heldout_gate"],
+            }
+            assert isinstance(calibration_task_bank_binding, Mapping)
+            calibration_digest_files = {
+                expert: {
+                    **item,
+                    "source_sha256": item["sha256"],
+                }
+                for expert, item in calibration_files.items()
+            }
+            calibration_digest_bank = {
+                **calibration_task_bank_binding,
+                "source_sha256": calibration_task_bank_binding["sha256"],
+            }
+            split_contract = {
+                "schema_version": FORMAL_SPLIT_SCHEMA,
+                "assignment": "source_bank_split_then_gold_gate_v1",
+                "pairwise_disjoint": True,
+                "gold_coverage_complete": True,
+                "heldout_content_read": False,
+                "heldout_content_emitted": False,
+                "leakage_audit_sha256": formal_split["leakage_audit_sha256"],
+                "partitions": {
+                    "train": {
+                        "role": "training_only",
+                        "source_partition": "train",
+                        "candidate_task_count": 17_105,
+                        "gold_task_count": train_count,
+                        "gold_records_per_expert": {
+                            expert: train_count for expert in EXPERTS
+                        },
+                        "ids_sha256": _canonical_ids_sha256(
+                            formal_split["train_ids"]
+                        ),
+                        "allowlist_sha256": formal_split["train_allowlist"][
+                            "sha256"
+                        ],
+                    },
+                    "calibration": {
+                        "role": "rank_allocation_only",
+                        "source_partition": "validation-from-train",
+                        "candidate_task_count": 1_903,
+                        "gold_task_count": calibration_count,
+                        "gold_records_per_expert": {
+                            expert: calibration_count for expert in EXPERTS
+                        },
+                        "ids_sha256": _canonical_ids_sha256(
+                            formal_split["calibration_ids"]
+                        ),
+                        "allowlist_sha256": formal_split[
+                            "calibration_allowlist"
+                        ]["sha256"],
+                        "snapshot_sha256": _snapshot_digest(
+                            calibration_digest_files,
+                            calibration_digest_bank,
+                        ),
+                        "files": calibration_files,
+                        "task_bank_file": calibration_task_bank_binding,
+                    },
+                    "heldout": {
+                        "role": "evaluation_only_hash_metadata",
+                        "source_partition": "external-heldout",
+                        "content_present": False,
+                        "content_read": False,
+                        "content_emitted": False,
+                        "ids_sha256": formal_split["heldout_ids_sha256"],
+                        "manifest_sha256": formal_split[
+                            "heldout_manifest_sha256"
+                        ],
+                    },
+                },
+            }
+            population_contract = {
+                "candidate_tasks_per_stage": CANDIDATE_TASKS_PER_STAGE,
+                "work_orders_per_task": len(EXPERTS),
+                "candidate_work_orders": CANDIDATE_WORK_ORDERS,
+                "gold_accepted_tasks": train_count + calibration_count,
+                "source_bank_manifest_sha256": formal_split[
+                    "source_manifest_sha256"
+                ],
+            }
+            selection = (
+                "all execution-Gold accepted rows, then immutable source split"
+            )
+        else:
+            source_gate = {
                 "raw_collection_target": private["partition"].get(
                     "raw_collection_target"
                 ),
@@ -1148,10 +2042,28 @@ def _freeze(
                 "task_card_coverage": private["partition"].get("task_card_coverage"),
                 "task_bank_file": private["partition"].get("task_bank_file"),
                 "heldout_gate": private["heldout_gate"],
-            },
+            }
+            split_contract = None
+            population_contract = None
+            selection = "all strict-gold partition records; no resampling"
+
+        manifest: dict[str, Any] = {
+            "schema_version": SNAPSHOT_SCHEMA,
+            "created_at": _utc_now(),
+            "source_partition_manifest_sha256": partition_sha,
+            "source_automation_status_sha256": status_sha,
+            "selection": selection,
+            "total_records": sum(item["records"] for item in manifest_files.values()),
+            "snapshot_sha256": _snapshot_digest(
+                manifest_files, manifest_task_bank_file
+            ),
+            "source_gate": source_gate,
             "task_bank_file": manifest_task_bank_file,
             "files": manifest_files,
         }
+        if split_contract is not None and population_contract is not None:
+            manifest["population_contract"] = population_contract
+            manifest["split_contract"] = split_contract
         manifest_path = temporary / "manifest.json"
         manifest_path.write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

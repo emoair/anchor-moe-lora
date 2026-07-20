@@ -7,6 +7,24 @@ from typing import Any
 from .models import BenchmarkRecord
 
 
+A100_BASELINE = "base_matched_calls"
+A100_METRICS = (
+    "pass_at_1",
+    "build_pass_at_1",
+    "plan_quality_rate",
+    "tool_policy_accuracy",
+    "review_repair_rate",
+    "composite_success_rate",
+    "tpr_valid_security",
+    "fpr_valid_security",
+    "mean_latency_ms",
+    "mean_total_tokens",
+    "peak_vram_mb",
+    "cost_per_success_tokens",
+    "error_rate",
+)
+
+
 def compute_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, Any]]:
     """Compute transparent metric skeletons without executing untrusted code.
 
@@ -138,6 +156,42 @@ def compute_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, Any]]
                 default=None,
             ),
         }
+    indices = compute_a100_indices(output)
+    for baseline, values in output.items():
+        values["a100_baseline"] = A100_BASELINE if indices else None
+        values["a100_index"] = indices.get(baseline, {})
+        values["a100_index_definition"] = (
+            "raw arm metric / native-Q4 A metric * 100; A is fixed at 100 for "
+            "available numeric metrics; non-A is undefined when A is zero"
+        )
+    return output
+
+
+def compute_a100_indices(
+    metrics: dict[str, dict[str, Any]],
+    *,
+    baseline: str = A100_BASELINE,
+) -> dict[str, dict[str, float | None]]:
+    """Return transparent raw-ratio indices with native Q4 A fixed at 100."""
+
+    if baseline not in metrics:
+        return {}
+    reference = metrics[baseline]
+    output: dict[str, dict[str, float | None]] = {}
+    for arm, values in metrics.items():
+        indexed: dict[str, float | None] = {}
+        for key in A100_METRICS:
+            base_value = reference.get(key)
+            value = values.get(key)
+            if not _is_number(base_value) or not _is_number(value):
+                indexed[key] = None
+            elif arm == baseline:
+                indexed[key] = 100.0
+            elif float(base_value) == 0.0:
+                indexed[key] = None
+            else:
+                indexed[key] = float(value) / float(base_value) * 100.0
+        output[arm] = indexed
     return output
 
 
@@ -153,6 +207,10 @@ def _stage_attempt_count(record: BenchmarkRecord, stage_name: str) -> int:
 
 def _ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _optional_boolean_rate(items: list[BenchmarkRecord], attribute: str) -> float | None:

@@ -9,6 +9,14 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
+from .formal_v3_schedule import (
+    CANDIDATE_TASKS_PER_STAGE,
+    CANDIDATE_WORK_ORDERS,
+    SPLIT_SCHEMA,
+    FormalV3ScheduleError,
+    validate_exposure_control,
+)
+
 
 ALLOWED_ADAPTERS = (
     "planner",
@@ -20,8 +28,13 @@ ALLOWED_ADAPTERS = (
 )
 SPECIALIST_ADAPTERS = ALLOWED_ADAPTERS[:-1]
 ALLOWED_RANKS = (1, 2, 3, 4, 6, 8, 12, 16, 32, 64)
+PER_ADAPTER_TRAINING_OVERRIDE_FIELDS = frozenset({"max_steps", "save_steps"})
 _INFERENCE_ONLY_SERIALIZATION_MARKERS = ("-gguf", ".gguf", "-w4a16-ct")
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+FULL_SNAPSHOT_SCHEMA = "anchor.training-snapshot.v2"
+PARTIAL_SNAPSHOT_SCHEMA = "anchor.per-expert-partial-training-snapshot.v1"
+PARTIAL_TRAINING_MODE = "per_expert_partial_gold"
+PARTIAL_RECORDS_PER_EXPERT = 128
 
 
 class ConfigError(ValueError):
@@ -183,6 +196,7 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     max_seq_length = _positive_int(
         training.get("max_seq_length"), "training.max_seq_length"
     )
+    sequence_contract = training.get("sequence_contract")
     _positive_int(
         training.get("per_device_train_batch_size"),
         "training.per_device_train_batch_size",
@@ -198,12 +212,54 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         raise ConfigError("training.allow_tf32 must remain enabled on Ampere")
     if training.get("per_device_train_batch_size") != 1:
         raise ConfigError("the checked-in 12 GB safety profile requires batch size 1")
-    if max_seq_length > 512:
-        raise ConfigError("12 GB safety profile caps max_seq_length at 512")
+    maximum_sequence_length = (
+        4096 if sequence_contract == "compact_v2_no_truncation" else 512
+    )
+    if max_seq_length > maximum_sequence_length:
+        raise ConfigError(
+            f"training profile caps max_seq_length at {maximum_sequence_length}"
+        )
     if training.get("loss_logits") != "active_labels_only":
         raise ConfigError("training.loss_logits must remain 'active_labels_only'")
+    runtime_engine = training.get("runtime_engine", "trainer")
+    if runtime_engine not in {"trainer", "manual_active_labels_v2"}:
+        raise ConfigError(
+            "training.runtime_engine must be 'trainer' or 'manual_active_labels_v2'"
+        )
+    activation_offload = training.get("activation_offload_to_cpu", False)
+    if not isinstance(activation_offload, bool):
+        raise ConfigError("training.activation_offload_to_cpu must be boolean")
+    activation_pin = training.get("activation_offload_pin_memory", True)
+    if not isinstance(activation_pin, bool):
+        raise ConfigError("training.activation_offload_pin_memory must be boolean")
+    expandable_segments = training.get(
+        "cuda_allocator_expandable_segments", False
+    )
+    if not isinstance(expandable_segments, bool):
+        raise ConfigError(
+            "training.cuda_allocator_expandable_segments must be boolean"
+        )
+    if activation_offload and runtime_engine != "manual_active_labels_v2":
+        raise ConfigError(
+            "activation CPU offload requires manual_active_labels_v2"
+        )
     if training.get("empty_cache_after_probe") is not True:
         raise ConfigError("training.empty_cache_after_probe must remain enabled")
+    selector = training.get("probe_sample_selector", "first")
+    if selector not in {"first", "max_rendered_tokens"}:
+        raise ConfigError(
+            "training.probe_sample_selector must be 'first' or "
+            "'max_rendered_tokens'"
+        )
+    if selector == "max_rendered_tokens":
+        if sequence_contract != "compact_v2_no_truncation":
+            raise ConfigError(
+                "max_rendered_tokens smoke selection requires compact-v2"
+            )
+        if training.get("probe_pad_to_max_length") is not False:
+            raise ConfigError(
+                "max_rendered_tokens smoke selection forbids synthetic max padding"
+            )
     minimum_backward_free = _positive_int(
         training.get("minimum_backward_free_vram_mib"),
         "training.minimum_backward_free_vram_mib",
@@ -212,26 +268,76 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         raise ConfigError(
             "training.minimum_backward_free_vram_mib must be at least 256"
         )
-    runtime_engine = training.get("runtime_engine", "trainer")
-    if runtime_engine not in {"trainer", "manual_active_labels_v2"}:
-        raise ConfigError(
-            "training.runtime_engine must be 'trainer' or 'manual_active_labels_v2'"
-        )
     if runtime_engine == "manual_active_labels_v2":
-        if max_seq_length != 64:
+        if sequence_contract == "compact_v2_no_truncation":
+            if max_seq_length not in {512, 1024, 2048, 4096}:
+                raise ConfigError(
+                    "compact-v2 manual runtime requires max_seq_length in "
+                    "{512, 1024, 2048, 4096}"
+                )
+            coverage_manifest = training.get("coverage_manifest")
+            if not isinstance(coverage_manifest, str) or not coverage_manifest.strip():
+                raise ConfigError(
+                    "compact-v2 manual runtime requires training.coverage_manifest"
+                )
+            if max_seq_length > 1024:
+                expected_tier = "2k" if max_seq_length == 2048 else "4k"
+                if (
+                    training.get("experimental_sequence_profile") is not True
+                    or training.get("sequence_tier") != expected_tier
+                ):
+                    raise ConfigError(
+                        f"compact-v2 {expected_tier} requires explicit "
+                        "experimental_sequence_profile=true and matching "
+                        "training.sequence_tier"
+                    )
+            if training.get("probe_pad_to_max_length") is True and (
+                training.get("is_sequence_feasibility_probe") is not True
+                or training.get("per_device_train_batch_size") != 1
+            ):
+                raise ConfigError(
+                    "probe_pad_to_max_length requires an explicit batch-1 "
+                    "sequence feasibility probe"
+                )
+        elif max_seq_length != 64:
             raise ConfigError("formal-v2 manual runtime requires max_seq_length=64")
         if training.get("optim") != "paged_adamw_8bit":
             raise ConfigError("formal-v2 manual runtime requires paged_adamw_8bit")
         if training.get("lr_scheduler_type") != "constant_with_warmup":
             raise ConfigError("formal-v2 manual runtime requires constant_with_warmup")
-        if training.get("sample_order") != "deterministic_epoch_shuffle_v1":
+        if training.get("sample_order") not in {
+            "deterministic_epoch_shuffle_v1",
+            "deterministic_stage_stratified_epoch_v1",
+        }:
             raise ConfigError(
-                "formal-v2 manual runtime requires deterministic_epoch_shuffle_v1"
+                "manual runtime requires a supported deterministic sample order"
             )
         maximum_peak = training.get("maximum_training_peak_vram_gib")
-        if not isinstance(maximum_peak, (int, float)) or not 0 < maximum_peak <= 9.0:
+        maximum_allowed_peak = (
+            11.25
+            if sequence_contract == "compact_v2_no_truncation"
+            else 9.0
+        )
+        if (
+            not isinstance(maximum_peak, (int, float))
+            or not 0 < maximum_peak <= maximum_allowed_peak
+        ):
             raise ConfigError(
-                "formal-v2 maximum_training_peak_vram_gib must be in (0, 9.0]"
+                "manual runtime maximum_training_peak_vram_gib must be in "
+                f"(0, {maximum_allowed_peak}]"
+            )
+        peak_metric = training.get(
+            "peak_vram_gate_metric", "allocated_or_reserved"
+        )
+        if peak_metric not in {"allocated", "allocated_or_reserved"}:
+            raise ConfigError(
+                "training.peak_vram_gate_metric must be 'allocated' or "
+                "'allocated_or_reserved'"
+            )
+        if peak_metric == "allocated" and sequence_contract != "compact_v2_no_truncation":
+            raise ConfigError(
+                "allocated-only peak gating requires compact_v2_no_truncation "
+                "and its post-cleanup free-memory gate"
             )
         _positive_int(training.get("save_steps"), "training.save_steps")
 
@@ -255,9 +361,31 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             raise ConfigError(
                 f"adapters.{name}.datasets must be a non-empty list of paths"
             )
+        training_overrides = entry.get("training_overrides", {})
+        if not isinstance(training_overrides, Mapping):
+            raise ConfigError(
+                f"adapters.{name}.training_overrides must be a mapping"
+            )
+        unsupported = set(training_overrides) - PER_ADAPTER_TRAINING_OVERRIDE_FIELDS
+        if unsupported:
+            raise ConfigError(
+                f"adapters.{name}.training_overrides contains unsupported fields: "
+                f"{sorted(unsupported)}"
+            )
+        for field, value in training_overrides.items():
+            _positive_int(value, f"adapters.{name}.training_overrides.{field}")
     mixed = adapters["mixed_all"]["datasets"]
-    if len(mixed) < len(SPECIALIST_ADAPTERS):
+    if (
+        len(mixed) < len(SPECIALIST_ADAPTERS)
+        and sequence_contract != "compact_v2_no_truncation"
+    ):
         raise ConfigError("mixed_all must combine all five specialist datasets")
+    if sequence_contract == "compact_v2_no_truncation":
+        expected = adapters["mixed_all"].get("expected_experts")
+        if not isinstance(expected, list) or set(expected) != set(SPECIALIST_ADAPTERS):
+            raise ConfigError(
+                "compact-v2 mixed_all must declare all five expected_experts"
+            )
 
     guardrails = _mapping(config, "guardrails")
     if guardrails.get("reject_deployment_artifacts_for_training") is not True:
@@ -318,21 +446,22 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             raise ConfigError(f"scale_gate.{field} must be a non-empty path")
 
     snapshot = scale_gate.get("dataset_snapshot")
-    formal_v3 = str(config.get("experiment", "")).startswith(
-        "anchor-moe-lora-formal-v3"
-    )
-    if formal_v3 and not isinstance(snapshot, Mapping):
+    experiment = str(config.get("experiment", ""))
+    formal_v3 = experiment.startswith("anchor-moe-lora-formal-v3")
+    formal_partial = experiment.startswith("anchor-moe-lora-formal-partial-v1")
+    if (formal_v3 or formal_partial) and not isinstance(snapshot, Mapping):
+        label = "formal-v3" if formal_v3 else "formal-partial-v1"
         raise ConfigError(
-            "formal-v3 requires scale_gate.dataset_snapshot; growing automation "
+            f"{label} requires scale_gate.dataset_snapshot; growing automation "
             "outputs are not valid training inputs"
         )
     if snapshot is not None:
         if not isinstance(snapshot, Mapping):
             raise ConfigError("scale_gate.dataset_snapshot must be a mapping")
-        if snapshot.get("schema_version") != "anchor.training-snapshot.v2":
+        schema_version = snapshot.get("schema_version")
+        if schema_version not in {FULL_SNAPSHOT_SCHEMA, PARTIAL_SNAPSHOT_SCHEMA}:
             raise ConfigError(
-                "scale_gate.dataset_snapshot.schema_version must be "
-                "'anchor.training-snapshot.v2'"
+                "scale_gate.dataset_snapshot.schema_version is unsupported"
             )
         for field in ("manifest", "sidecar"):
             value = snapshot.get(field)
@@ -346,10 +475,120 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             snapshot.get("minimum_records_per_expert"),
             "scale_gate.dataset_snapshot.minimum_records_per_expert",
         )
-        if minimum < 256:
+        if schema_version == FULL_SNAPSHOT_SCHEMA and minimum < 256:
             raise ConfigError(
-                "formal-v3 immutable snapshots require at least 256 records per expert"
+                "formal-v3 immutable snapshots require at least 256 records per expert "
+                "as a quality floor, not a scale limit"
             )
+        if formal_v3 and schema_version == FULL_SNAPSHOT_SCHEMA:
+            fullscale = scale_gate.get("formal_v3_fullscale")
+            if not isinstance(fullscale, Mapping):
+                raise ConfigError(
+                    "formal-v3 requires scale_gate.formal_v3_fullscale"
+                )
+            if (
+                fullscale.get("maximum_candidate_records_per_expert")
+                != CANDIDATE_TASKS_PER_STAGE
+                or fullscale.get("candidate_work_orders")
+                != CANDIDATE_WORK_ORDERS
+                or fullscale.get("selection") != "all_gold_accepted_then_split"
+            ):
+                raise ConfigError(
+                    "formal-v3 snapshot must bind the full 19008-task/95040-work-order "
+                    "candidate population and freeze all accepted Gold before splitting"
+                )
+            split = fullscale.get("split_contract")
+            if not isinstance(split, Mapping):
+                raise ConfigError(
+                    "formal-v3 snapshot requires a train/calibration/heldout split contract"
+                )
+            expected_split = {
+                "schema_version": SPLIT_SCHEMA,
+                "train_role": "training_only",
+                "calibration_role": "rank_allocation_only",
+                "heldout_role": "evaluation_only_hash_metadata",
+                "require_pairwise_disjoint": True,
+                "require_heldout_content_read_false": True,
+            }
+            for field, expected in expected_split.items():
+                if split.get(field) != expected:
+                    raise ConfigError(
+                        f"formal-v3 split_contract.{field} must be {expected!r}"
+                    )
+        if schema_version == PARTIAL_SNAPSHOT_SCHEMA:
+            if formal_v3:
+                raise ConfigError("formal-v3 cannot use a partial Gold snapshot")
+            if not formal_partial:
+                raise ConfigError(
+                    "partial Gold snapshots require a formal-partial-v1 experiment"
+                )
+            if (
+                snapshot.get("training_mode") != PARTIAL_TRAINING_MODE
+                or snapshot.get("not_for_end_to_end_claim") is not True
+                or snapshot.get("balanced_records_per_expert")
+                != PARTIAL_RECORDS_PER_EXPERT
+                or minimum != PARTIAL_RECORDS_PER_EXPERT
+            ):
+                raise ConfigError(
+                    "partial Gold snapshots require explicit per-expert mode, "
+                    "not_for_end_to_end_claim=true, and balanced 128/expert"
+                )
+        elif formal_partial:
+            raise ConfigError(
+                "formal-partial-v1 requires the partial Gold snapshot schema"
+            )
+
+    if formal_v3:
+        if "lowmem" in experiment:
+            if (
+                sequence_contract != "formal_v3_lowmem_truncated_v1"
+                or max_seq_length != 64
+                or training.get("truncation_policy")
+                != "assistant_preserving_prompt_tail_completion_prefix_v1"
+                or training.get("full_trajectory_training") is not False
+            ):
+                raise ConfigError(
+                    "formal-v3 lowmem is a 64-token truncated control only; it "
+                    "must not claim full-trajectory training"
+                )
+        if (
+            training.get("sample_order")
+            != "deterministic_stage_stratified_epoch_v1"
+        ):
+            raise ConfigError(
+                "formal-v3 requires deterministic stage-stratified scheduling"
+            )
+        try:
+            validate_exposure_control(training.get("exposure_control"))
+        except FormalV3ScheduleError as exc:
+            raise ConfigError(str(exc)) from exc
+        formal_arm = experiment.rsplit("-", 1)[-1]
+        if formal_arm in {"B", "C", "D", "E", "F"} and config.get(
+            "active_adapter"
+        ) is not None:
+            resolved = training.get("resolved_exposure")
+            if not isinstance(resolved, Mapping):
+                raise ConfigError(
+                    "formal-v3 B-F adapter runs require a snapshot-materialized "
+                    "training.resolved_exposure plan"
+                )
+            if (
+                resolved.get("schema_version")
+                != "anchor.formal-v3-exposure-plan.v1"
+                or resolved.get("arm") != formal_arm
+                or resolved.get("control_invariant")
+                != "equal_total_and_per_stage_sample_exposure_B_through_F"
+                or resolved.get("heldout_content_read") is not False
+                or resolved.get("max_steps_per_adapter_job")
+                != training.get("max_steps")
+                or not isinstance(resolved.get("dataset_snapshot_sha256"), str)
+                or not re.fullmatch(
+                    r"[0-9a-f]{64}", resolved["dataset_snapshot_sha256"]
+                )
+            ):
+                raise ConfigError(
+                    "formal-v3 materialized exposure plan is invalid or unbound"
+                )
 
 
 def select_adapter(
@@ -367,7 +606,10 @@ def select_adapter(
 
     run = copy.deepcopy(dict(config))
     run["adapter_name"] = adapter_name
-    run["active_adapter"] = copy.deepcopy(config["adapters"][adapter_name])
+    active_adapter = copy.deepcopy(config["adapters"][adapter_name])
+    training_overrides = active_adapter.pop("training_overrides", {})
+    run["active_adapter"] = active_adapter
+    run["training"] = _deep_merge(run["training"], training_overrides)
     run["lora"]["rank"] = selected_rank
     # Keep a conventional 2*r scaling during the rank ablation.
     run["lora"]["alpha"] = 2 * selected_rank

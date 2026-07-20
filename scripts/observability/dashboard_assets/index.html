@@ -1,26 +1,75 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title data-i18n="page.title"></title>
   <style>
     :root {
-      --bg: #050706;
-      --surface: #0a0e0c;
-      --surface-2: #101612;
-      --line: #203128;
-      --line-bright: #355443;
-      --text: #d6e4dc;
-      --muted: #7e9989;
-      --green: #73f6a5;
-      --green-dim: #224e33;
-      --cyan: #66d9ef;
-      --amber: #ffd166;
-      --red: #ff6b6b;
+      color-scheme: dark;
+      --bg: #090909;
+      --surface: #111111;
+      --surface-2: #181818;
+      --panel: var(--surface);
+      --field: #0d0d0d;
+      --terminal-bg: #050505;
+      --line: #3f3f3f;
+      --line-bright: #777777;
+      --text: #f5f5f5;
+      --muted: #b8b8b8;
+      --accent: #ffffff;
+      --accent-inverse: #080808;
+      --hover: #242424;
+      --subtle: #1d1d1d;
+      --focus: #ffffff;
+      --green: var(--accent);
+      --green-dim: var(--line-bright);
+      --cyan: var(--text);
+      --amber: var(--text);
+      --red: var(--text);
       --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
       --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    html[data-theme="dark"] { color-scheme: dark; }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-2: #ececea;
+      --field: #ffffff;
+      --terminal-bg: #f0f0ee;
+      --line: #c4c4c0;
+      --line-bright: #6b6b68;
+      --text: #111111;
+      --muted: #4d4d4a;
+      --accent: #111111;
+      --accent-inverse: #ffffff;
+      --hover: #e4e4e1;
+      --subtle: #eeeeeb;
+      --focus: #111111;
+    }
+
+    @media (prefers-color-scheme: light) {
+      html[data-theme="system"] {
+        color-scheme: light;
+        --bg: #f5f5f3;
+        --surface: #ffffff;
+        --surface-2: #ececea;
+        --field: #ffffff;
+        --terminal-bg: #f0f0ee;
+        --line: #c4c4c0;
+        --line-bright: #6b6b68;
+        --text: #111111;
+        --muted: #4d4d4a;
+        --accent: #111111;
+        --accent-inverse: #ffffff;
+        --hover: #e4e4e1;
+        --subtle: #eeeeeb;
+        --focus: #111111;
+      }
     }
 
     * { box-sizing: border-box; }
@@ -31,15 +80,33 @@
       margin: 0;
       min-height: 100vh;
       color: var(--text);
-      background:
-        radial-gradient(circle at 85% 0%, rgba(115, 246, 165, .08), transparent 28rem),
-        linear-gradient(rgba(115, 246, 165, .015) 1px, transparent 1px),
-        var(--bg);
-      background-size: auto, 100% 4px, auto;
+      background: var(--bg);
       font-family: var(--sans);
     }
 
     button { font: inherit; }
+
+    button, input, select, summary { font: inherit; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    summary:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     .shell {
       width: min(1560px, calc(100% - 32px));
@@ -85,8 +152,10 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      min-width: max-content;
+      min-width: 0;
       padding-top: 7px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .pulse {
@@ -94,12 +163,12 @@
       height: 9px;
       border-radius: 50%;
       background: var(--amber);
-      box-shadow: 0 0 0 5px rgba(255, 209, 102, .1);
+      box-shadow: 0 0 0 4px var(--subtle);
     }
 
     .pulse.live {
       background: var(--green);
-      box-shadow: 0 0 0 5px rgba(115, 246, 165, .1);
+      box-shadow: 0 0 0 4px var(--subtle);
     }
 
     .connection-copy { text-align: right; }
@@ -117,10 +186,24 @@
     }
 
     .refresh:hover, .refresh:focus-visible {
-      background: rgba(115, 246, 165, .08);
+      background: var(--hover);
       outline: 2px solid var(--green);
       outline-offset: 2px;
     }
+
+    .theme-select {
+      min-height: 38px;
+      padding: 0 30px 0 11px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--line-bright);
+      border-radius: 5px;
+      cursor: pointer;
+      font: 10px var(--mono);
+      letter-spacing: .04em;
+    }
+
+    .theme-select:hover { background: var(--hover); }
 
     .section-label {
       display: flex;
@@ -148,7 +231,7 @@
 
     .control-card {
       padding: 16px;
-      background: rgba(10, 14, 12, .96);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 7px;
     }
@@ -186,15 +269,15 @@
       min-height: 36px;
       padding: 0 11px;
       color: var(--text);
-      background: #111a14;
+      background: var(--surface-2);
       border: 1px solid var(--line-bright);
       border-radius: 4px;
       cursor: pointer;
       font: 10px var(--mono);
     }
 
-    .control-button.primary { color: #041008; background: var(--green); border-color: var(--green); font-weight: 700; }
-    .control-button.danger { color: var(--red); border-color: rgba(255, 107, 107, .38); }
+    .control-button.primary { color: var(--accent-inverse); background: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .control-button.danger { color: var(--text); border-color: var(--line-bright); border-style: dashed; }
     .control-button:disabled { opacity: .35; cursor: not-allowed; }
     .control-button:not(:disabled):focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
@@ -203,7 +286,7 @@
       margin-top: 12px;
       padding: 9px 10px;
       color: var(--muted);
-      background: #060907;
+      background: var(--field);
       border-left: 2px solid var(--line-bright);
       font: 10px/1.5 var(--mono);
       overflow-wrap: anywhere;
@@ -228,7 +311,7 @@
       height: 36px;
       padding: 0 9px;
       color: var(--text);
-      background: #060907;
+      background: var(--field);
       border: 1px solid var(--line);
       border-radius: 4px;
       font: 10px var(--mono);
@@ -254,7 +337,7 @@
       min-height: 116px;
       padding: 16px;
       overflow: hidden;
-      background: linear-gradient(145deg, rgba(16, 22, 18, .95), rgba(8, 12, 10, .98));
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 6px;
     }
@@ -266,8 +349,7 @@
       bottom: -30px;
       width: 72px;
       height: 72px;
-      border: 1px solid rgba(115, 246, 165, .08);
-      transform: rotate(45deg);
+      display: none;
     }
 
     .metric-name { color: var(--muted); font: 11px var(--mono); text-transform: uppercase; }
@@ -278,7 +360,7 @@
     .shard-list { display: grid; gap: 12px; }
 
     .shard {
-      background: rgba(10, 14, 12, .96);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 7px;
       overflow: hidden;
@@ -290,7 +372,7 @@
       justify-content: space-between;
       gap: 20px;
       padding: 14px 16px;
-      background: rgba(16, 22, 18, .7);
+      background: var(--surface-2);
       border-bottom: 1px solid var(--line);
     }
 
@@ -300,7 +382,7 @@
     .state-pill {
       padding: 3px 8px;
       color: var(--muted);
-      background: rgba(126, 153, 137, .08);
+      background: var(--subtle);
       border: 1px solid var(--line);
       border-radius: 999px;
       font: 10px var(--mono);
@@ -308,7 +390,7 @@
     }
 
     .state-pill.running, .state-pill.complete { color: var(--green); border-color: var(--green-dim); }
-    .state-pill.stale { color: var(--amber); border-color: rgba(255, 209, 102, .3); }
+    .state-pill.stale { color: var(--text); border-color: var(--line-bright); border-style: dashed; }
     .updated { color: var(--muted); font: 10px var(--mono); }
 
     .shard-body {
@@ -341,14 +423,14 @@
       height: 3px;
       margin-top: 10px;
       overflow: hidden;
-      background: #19221c;
+      background: var(--line);
       border-radius: 2px;
     }
 
     .bar-fill {
       width: 0;
       height: 100%;
-      background: linear-gradient(90deg, var(--green-dim), var(--green));
+      background: var(--accent);
       transition: width .35s ease;
     }
 
@@ -361,7 +443,7 @@
       margin-top: 14px;
       padding: 11px 12px;
       color: var(--muted);
-      background: rgba(115, 246, 165, .035);
+      background: var(--surface-2);
       border: 1px solid var(--line);
       font: 11px var(--mono);
     }
@@ -392,8 +474,8 @@
     .error-chip {
       padding: 3px 6px;
       color: var(--red);
-      background: rgba(255, 107, 107, .06);
-      border: 1px solid rgba(255, 107, 107, .2);
+      background: var(--surface-2);
+      border: 1px dashed var(--line-bright);
       border-radius: 3px;
       font: 9px var(--mono);
     }
@@ -402,10 +484,10 @@
       min-height: 210px;
       max-height: 340px;
       overflow: auto;
-      background: #030504;
+      background: var(--terminal-bg);
       border: 1px solid var(--line);
       border-radius: 6px;
-      box-shadow: inset 0 1px 22px rgba(0, 0, 0, .65);
+      box-shadow: none;
     }
 
     .terminal-head {
@@ -416,7 +498,7 @@
       align-items: center;
       gap: 6px;
       padding: 9px 12px;
-      background: rgba(10, 14, 12, .98);
+      background: var(--surface);
       border-bottom: 1px solid var(--line);
       color: var(--muted);
       font-size: 10px;
@@ -435,7 +517,7 @@
       line-height: 1.5;
     }
 
-    .log + .log { border-top: 1px solid rgba(32, 49, 40, .34); }
+    .log + .log { border-top: 1px solid var(--line); }
     .log-level { color: var(--cyan); }
     .log-level.warning { color: var(--amber); }
     .log-detail { color: var(--text); overflow-wrap: anywhere; }
@@ -471,9 +553,9 @@
     .diagnostic-cell {
       min-width: 0;
       padding: 9px 10px;
-      border: 1px solid rgba(32, 49, 40, .72);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      background: rgba(6, 12, 9, .52);
+      background: var(--surface-2);
     }
 
     .diagnostic-cell span { display: block; color: var(--muted); font-size: 9px; }
@@ -499,8 +581,10 @@
     @media (max-width: 700px) {
       .shell { width: min(100% - 20px, 1560px); padding-top: 14px; }
       .topbar { flex-direction: column; }
-      .connection { width: 100%; justify-content: space-between; }
+      .connection { width: 100%; justify-content: flex-start; }
+      .connection-copy { flex: 1 1 190px; }
       .connection-copy { text-align: left; }
+      .refresh, .theme-select { min-height: 44px; }
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
       .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .field.wide { grid-column: span 2; }
@@ -510,6 +594,18 @@
       .log { grid-template-columns: 70px 70px minmax(0, 1fr); }
       .log-event { display: none; }
       .diagnostic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .shell { width: min(100% - 16px, 1560px); }
+      .connection-copy { flex-basis: 100%; }
+      .refresh, .theme-select { flex: 1 1 auto; }
+      .summary-grid, .form-grid, .stage-grid, .diagnostic-grid { grid-template-columns: 1fr; }
+      .field.wide, .field.full { grid-column: 1; }
+      .control-actions .control-button { flex: 1 1 45%; min-height: 44px; }
+      .process-grid { grid-template-columns: 1fr; }
+      .log { grid-template-columns: 60px minmax(0, 1fr); }
+      .log-level { display: none; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -531,6 +627,12 @@
           <div id="connection-state" class="connection-state" data-i18n="connection.connecting"></div>
           <div id="connection-time" class="connection-time">--</div>
         </div>
+        <label class="visually-hidden" for="theme-toggle" data-i18n="theme.label"></label>
+        <select id="theme-toggle" class="theme-select" data-i18n-aria-label="theme.switch_title">
+          <option value="system" data-i18n="theme.system"></option>
+          <option value="light" data-i18n="theme.light"></option>
+          <option value="dark" data-i18n="theme.dark"></option>
+        </select>
         <button id="language-toggle" class="refresh" type="button" data-i18n-title="language.switch_title"></button>
         <button id="refresh" class="refresh" type="button" data-i18n="action.refresh"></button>
       </div>
@@ -543,6 +645,13 @@
           <h2 data-i18n="control.process_workload"></h2>
           <span id="ownership" class="state-pill" data-i18n="ownership.local_only"></span>
         </div>
+        <div class="field wide">
+          <label for="control-target" data-i18n="control.target"></label>
+          <select id="control-target">
+            <option value="formal" selected data-i18n="control.target_formal"></option>
+            <option value="legacy" data-i18n="control.target_legacy"></option>
+          </select>
+        </div>
         <div class="process-grid">
           <div class="process-cell"><span data-i18n="control.process_state"></span><strong id="process-state" data-i18n="status.idle"></strong></div>
           <div class="process-cell"><span data-i18n="control.workload_state"></span><strong id="workload-state" data-i18n="common.unknown"></strong></div>
@@ -550,6 +659,20 @@
           <div class="process-cell"><span data-i18n="control.credential"></span><strong id="credential-state" data-i18n="credential.not_loaded"></strong></div>
           <div class="process-cell"><span data-i18n="control.run_id"></span><strong id="run-id" data-i18n="common.none"></strong></div>
           <div class="process-cell"><span data-i18n="control.reconnect"></span><strong id="reconnect-state">0 / 0</strong></div>
+          <div class="process-cell"><span data-i18n="control.provider_profile"></span><strong id="provider-profile-state" data-i18n="common.none"></strong></div>
+          <div class="process-cell"><span data-i18n="control.route_component"></span><strong id="route-component-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.bank_gate"></span><strong id="bank-gate-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.execution_contract"></span><strong id="execution-contract-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.official_evaluation"></span><strong id="official-evaluation-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.live_start_gate"></span><strong id="live-start-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.container_route"></span><strong id="container-route-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.language_routing"></span><strong id="language-routing-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.zh_localization"></span><strong id="zh-localization-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.formal_runtime"></span><strong id="formal-runtime-state" data-i18n="status.not_started"></strong></div>
+          <div class="process-cell"><span data-i18n="control.formal_progress"></span><strong id="formal-progress-state">0 / 19,008</strong></div>
+          <div class="process-cell"><span data-i18n="control.formal_speed"></span><strong id="formal-speed-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.formal_eta"></span><strong id="formal-eta-state" data-i18n="common.unknown"></strong></div>
+          <div class="process-cell"><span data-i18n="control.formal_errors"></span><strong id="formal-error-state" data-i18n="common.none"></strong></div>
         </div>
         <div class="control-actions">
           <button id="start-control" class="control-button primary" type="button" data-i18n="action.start"></button>
@@ -558,6 +681,7 @@
           <button id="clear-key" class="control-button" type="button" data-i18n="action.clear_key"></button>
         </div>
         <div id="control-message" class="control-message" aria-live="polite" data-i18n="control.local_notice"></div>
+        <div class="control-message" data-i18n="control.formal_lifecycle_p1"></div>
       </article>
 
       <article class="control-card">
@@ -583,7 +707,13 @@
             </div>
             <div class="field">
               <label for="concurrency" data-i18n="field.concurrency"></label>
-              <input id="concurrency" type="number" min="1" max="64" step="1" value="8" required>
+              <input id="concurrency" type="number" min="1" step="1" value="1" required>
+              <span class="metric-note" data-i18n="field.concurrency_hint"></span>
+            </div>
+            <div class="field">
+              <label for="formal-max-tasks" data-i18n="field.formal_max_tasks"></label>
+              <input id="formal-max-tasks" type="number" min="1" max="19008" step="1" placeholder="19008">
+              <span class="metric-note" data-i18n="field.formal_max_tasks_hint"></span>
             </div>
             <div class="field wide">
               <label for="provider-preset" data-i18n="field.provider_preset"></label>
@@ -613,6 +743,19 @@
               <label for="model-id" data-i18n="field.model_id"></label>
               <input id="model-id" list="model-options" value="glm-5-2-260617" required spellcheck="false">
               <datalist id="model-options"></datalist>
+            </div>
+            <div class="field">
+              <label for="reasoning-effort" data-i18n="field.reasoning_effort"></label>
+              <select id="reasoning-effort">
+                <option value="max" selected>max</option>
+                <option value="high">high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="reasoning-enabled" data-i18n="field.reasoning"></label>
+              <div class="check-row"><input id="reasoning-enabled" type="checkbox" checked><span data-i18n="field.reasoning_enabled"></span></div>
             </div>
             <div class="field wide">
               <label for="api-key" data-i18n="field.api_key"></label>
@@ -689,9 +832,14 @@
         "page.title": "Anchor · Distillation Telemetry",
         "brand.eyebrow": "anchor / telemetry",
         "header.title": "Distillation Control Surface",
-        "header.subtitle": "read-only · provider usage · content-free · 2 s polling",
+        "header.subtitle": "content-safe observability · local control · provider usage · 2 s polling",
         "language.switch_title": "Switch interface language",
         "language.next": "中文",
+        "theme.label": "Appearance",
+        "theme.switch_title": "Select color theme",
+        "theme.system": "SYSTEM",
+        "theme.light": "LIGHT",
+        "theme.dark": "DARK",
         "connection.connecting": "CONNECTING",
         "connection.live_control": "LIVE / LOCAL CONTROL",
         "connection.live_readonly": "LIVE / READ-ONLY",
@@ -702,6 +850,9 @@
         "connection.snapshot_unavailable": "snapshot unavailable",
         "action.refresh": "REFRESH",
         "action.start": "START NEW SHARD",
+        "action.start_formal": "START FORMAL LIVE",
+        "action.stop_formal": "SAFE PAUSE (GRACEFUL STOP)",
+        "action.continue_formal": "RESUME CHECKPOINT",
         "action.stop": "STOP",
         "action.continue": "CONTINUE EXACT RUN",
         "action.clear_key": "CLEAR KEY",
@@ -726,13 +877,46 @@
         "aria.snapshot": "Global distillation metrics",
         "aria.pipeline": "Shard progress",
         "aria.events": "Metadata event terminal",
-        "control.process_workload": "PROCESS / WORKLOAD",
+        "control.process_workload": "DISTILLATION RUN / WORKLOAD",
+        "control.target": "Control target",
+        "control.target_formal": "Formal SWE-bench + CC Switch + OpenCode (default)",
+        "control.target_legacy": "Legacy synthetic shards",
         "control.process_state": "process state",
         "control.workload_state": "workload state",
         "control.exit_code": "exit code",
         "control.credential": "credential",
         "control.run_id": "run id",
         "control.reconnect": "reconnect",
+        "control.provider_profile": "provider / reasoning / pricing route",
+        "control.route_component": "CC Switch component attestation",
+        "control.bank_gate": "full-bank metadata gate",
+        "control.execution_contract": "generic train execution contract",
+        "control.official_evaluation": "official heldout evaluation (non-blocking)",
+        "control.live_start_gate": "formal LIVE start gate",
+        "control.container_route": "WSL/Podman live-route reachability",
+        "control.route_not_e2e": "component evidence is not E2E readiness; the formal coordinator must probe the container path",
+        "control.language_routing": "language-route assignment",
+        "control.zh_localization": "zh-CN localized text manifest",
+        "control.language_route_only": "assignment only; not translated body text",
+        "control.formal_runtime": "formal coordinator state",
+        "control.formal_progress": "formal tasks",
+        "control.formal_speed": "formal speed / token telemetry",
+        "control.formal_eta": "formal ETA",
+        "control.formal_errors": "formal errors / reconnect reasons",
+        "control.formal_lifecycle_p1": "Formal controls use a fixed audited coordinator command. SAFE PAUSE requests a graceful stop; CONTINUE requires the matching checkpoint and explicit resume mode. Select Legacy only for the older synthetic runner.",
+        "gate.ready": "READY",
+        "gate.not_ready": "NOT READY",
+        "gate.blocked": "BLOCKED",
+        "formal.speed": "{rate} tasks/min · {tokenRate} output tokens/s",
+        "formal.speed_unavailable": "tasks/min unknown · output token/s unavailable",
+        "formal.stage_unavailable": "stage counters unavailable in coordinator status v1",
+        "formal.telemetry_untrusted": "live counters hidden · status identity is not trusted",
+        "route.component_ready": "component ready / attested",
+        "route.component_not_ready": "component not ready",
+        "route.not_probed": "not probed here / E2E unknown",
+        "route.unreachable": "probed unreachable / E2E blocked",
+        "localization.present": "present / validation still required",
+        "localization.missing": "missing / training gate not ready",
         "control.local_notice": "Control endpoints are local-only. Continue always reuses the immutable effective config.",
         "control.error": "CONTROL ERROR · {code}",
         "control.options_unavailable": "CONTROL OPTIONS · unavailable",
@@ -800,6 +984,9 @@
         "field.output_dir": "Unique output dir (workspace data/)",
         "field.seed_offset": "Unique seed offset",
         "field.concurrency": "Concurrency",
+        "field.concurrency_hint": "Default 1; any positive integer is accepted. Raise explicitly only after observing RAM/VRAM/provider limits.",
+        "field.formal_max_tasks": "Formal task cap (optional)",
+        "field.formal_max_tasks_hint": "Leave blank for the full bank. A capped run remains checkpoint-resumable for concurrency ramp tests.",
         "field.provider_preset": "Provider preset (content-safe metadata only)",
         "field.model_preset": "Model preset / exact alias",
         "field.base_url": "Base URL (not endpoint)",
@@ -807,6 +994,9 @@
         "field.selection": "Selection",
         "field.force_model": "force manual model",
         "field.model_id": "Model ID / discovered model",
+        "field.reasoning": "Reasoning",
+        "field.reasoning_enabled": "enable provider reasoning",
+        "field.reasoning_effort": "Reasoning effort (formal profiles require max)",
         "field.api_key": "API key — RAM + selected child environment only",
         "field.timeout": "request timeout s",
         "field.retries": "transport retries",
@@ -825,11 +1015,12 @@
         "protocol.openai": "openai",
         "protocol.anthropic": "anthropic",
         "terminal.uri": "observer://local/events",
-        "network.direct": "direct (recommended)",
-        "network.inherit": "inherit detected proxy",
-        "network.pending": "proxy detection pending",
-        "network.detected": "proxy detected · direct bypass remains selected unless you explicitly inherit",
-        "network.not_detected": "no proxy detected · direct route selected",
+        "network.direct": "bypass proxy environment (does not pin physical NIC)",
+        "network.inherit": "inherit proxy / operating-system route",
+        "network.pending": "proxy and default-route audit pending",
+        "network.detected": "proxy environment detected · bypass removes proxy variables only; it does not override a TUN route",
+        "network.virtual_detected": "virtual/TUN default route detected · physical NIC is NOT pinned; choose inherit or run the audited provider-host route preflight",
+        "network.not_detected": "no proxy/TUN route detected · physical route is still not pinned by this control",
         "privacy.notice": "Only whitelisted counters and provider usage are rendered. Unknown means unknown: no character-based token estimation, no prompt/message/code body, no credential, no absolute shard path.",
         "common.unknown": "unknown",
         "common.none": "none",
@@ -851,6 +1042,14 @@
         "credential.ram_loaded": "RAM loaded",
         "credential.not_loaded": "not loaded",
         "status.idle": "idle",
+        "status.not_started": "not started",
+        "status.backend_disconnected": "backend disconnected",
+        "status.starting": "starting",
+        "status.historical_unbound": "historical snapshot · not bound to this control process",
+        "status.stale_status": "stale status · live counters untrusted",
+        "status.untrusted_status": "status identity mismatch · live counters untrusted",
+        "status.invalid_status": "invalid formal status",
+        "status.stopped_checkpoint_resumable": "safely stopped · checkpoint resumable",
         "status.unknown": "unknown",
         "status.monitor_only": "monitor only",
         "status.running": "running",
@@ -921,12 +1120,18 @@
         "models.result": "MODEL DISCOVERY · {status} · {count} models"
       }),
       "zh-CN": Object.freeze({
+        "control.official_evaluation": "官方 heldout 评测（不阻塞蒸馏）",
         "page.title": "Anchor · 蒸馏遥测",
         "brand.eyebrow": "anchor / telemetry",
         "header.title": "蒸馏控制台",
-        "header.subtitle": "只读 · 服务商用量 · 不展示内容 · 每 2 秒轮询",
+        "header.subtitle": "内容安全监控 · 本地控制 · 服务商用量 · 每 2 秒轮询",
         "language.switch_title": "切换界面语言",
         "language.next": "EN",
+        "theme.label": "外观",
+        "theme.switch_title": "选择颜色主题",
+        "theme.system": "跟随系统",
+        "theme.light": "日间",
+        "theme.dark": "夜间",
         "connection.connecting": "连接中",
         "connection.live_control": "在线 / 本地控制",
         "connection.live_readonly": "在线 / 只读",
@@ -937,6 +1142,9 @@
         "connection.snapshot_unavailable": "快照不可用",
         "action.refresh": "刷新",
         "action.start": "启动新分片",
+        "action.start_formal": "启动正式 LIVE",
+        "action.stop_formal": "安全暂停（优雅停止）",
+        "action.continue_formal": "从检查点继续",
         "action.stop": "停止",
         "action.continue": "继续原运行",
         "action.clear_key": "清除密钥",
@@ -961,13 +1169,45 @@
         "aria.snapshot": "全局蒸馏指标",
         "aria.pipeline": "分片进度",
         "aria.events": "元数据事件终端",
-        "control.process_workload": "进程 / 工作负载",
+        "control.process_workload": "蒸馏运行 / 工作负载",
+        "control.target": "控制目标",
+        "control.target_formal": "正式 SWE-bench + CC Switch + OpenCode（默认）",
+        "control.target_legacy": "旧版 synthetic 分片",
         "control.process_state": "进程状态",
         "control.workload_state": "负载状态",
         "control.exit_code": "退出码",
         "control.credential": "凭据",
         "control.run_id": "运行 ID",
         "control.reconnect": "重连",
+        "control.provider_profile": "服务商 / 推理 / 定价路由",
+        "control.route_component": "CC Switch 组件证明",
+        "control.bank_gate": "完整题库元数据闸门",
+        "control.execution_contract": "多语言执行合约",
+        "control.live_start_gate": "正式 LIVE 启动闸门",
+        "control.container_route": "WSL/Podman 实时路由可达性",
+        "control.route_not_e2e": "组件证明不等于端到端就绪；正式协调器必须探测容器路径",
+        "control.language_routing": "语言路由分配",
+        "control.zh_localization": "zh-CN 中文正文清单",
+        "control.language_route_only": "仅为路由分配，不代表中文正文已完成",
+        "control.formal_runtime": "正式协调器状态",
+        "control.formal_progress": "正式任务进度",
+        "control.formal_speed": "正式速度 / Token 遥测",
+        "control.formal_eta": "正式 ETA",
+        "control.formal_errors": "正式错误 / 重连原因",
+        "control.formal_lifecycle_p1": "正式控制使用固定且受审计的协调器命令。安全暂停会请求优雅停止；继续运行必须匹配同一检查点并显式使用恢复模式。只有选择旧版目标时才会控制 synthetic 运行器。",
+        "gate.ready": "已就绪",
+        "gate.not_ready": "未就绪",
+        "gate.blocked": "已阻塞",
+        "formal.speed": "{rate} 任务/分钟 · {tokenRate} 输出 Token/秒",
+        "formal.speed_unavailable": "任务/分钟未知 · 输出 Token/秒不可用",
+        "formal.stage_unavailable": "协调器 status v1 暂无阶段计数",
+        "formal.telemetry_untrusted": "实时计数已隐藏 · 状态身份尚不可信",
+        "route.component_ready": "组件已就绪 / 已证明",
+        "route.component_not_ready": "组件未就绪",
+        "route.not_probed": "本页面未探测 / 端到端未知",
+        "route.unreachable": "探测不可达 / 端到端阻塞",
+        "localization.present": "清单存在 / 仍需校验",
+        "localization.missing": "清单缺失 / 训练门未就绪",
         "control.local_notice": "控制端点仅允许本机访问；继续运行始终复用不可变的生效配置。",
         "control.error": "控制错误 · {code}",
         "control.options_unavailable": "控制选项 · 不可用",
@@ -1035,6 +1275,9 @@
         "field.output_dir": "唯一输出目录（工作区 data/）",
         "field.seed_offset": "唯一种子偏移",
         "field.concurrency": "并发数",
+        "field.concurrency_hint": "默认 1；接受任意正整数。仅在观察内存、显存和服务商限制后显式提高。",
+        "field.formal_max_tasks": "正式任务上限（可选）",
+        "field.formal_max_tasks_hint": "留空即跑完整题库；限量运行会保留可恢复检查点，用于逐档上探并发。",
         "field.provider_preset": "服务商预设（仅安全元数据）",
         "field.model_preset": "模型预设 / 精确别名",
         "field.base_url": "基础 URL（不是端点）",
@@ -1042,6 +1285,9 @@
         "field.selection": "选择方式",
         "field.force_model": "强制使用手动模型",
         "field.model_id": "模型 ID / 已发现模型",
+        "field.reasoning": "推理",
+        "field.reasoning_enabled": "启用服务商推理",
+        "field.reasoning_effort": "推理强度（正式配置必须为 max）",
         "field.api_key": "API 密钥 — 仅保留在内存和选定子进程环境中",
         "field.timeout": "请求超时（秒）",
         "field.retries": "传输重试次数",
@@ -1060,11 +1306,12 @@
         "protocol.openai": "openai",
         "protocol.anthropic": "anthropic",
         "terminal.uri": "observer://local/events",
-        "network.direct": "直连（推荐）",
-        "network.inherit": "继承检测到的代理",
-        "network.pending": "正在检测代理",
-        "network.detected": "检测到代理 · 除非明确选择继承，否则仍保持直连绕过",
-        "network.not_detected": "未检测到代理 · 已选择直连",
+        "network.direct": "绕过代理环境变量（不会锁定物理网卡）",
+        "network.inherit": "继承代理 / 操作系统路由",
+        "network.pending": "正在审计代理与默认路由",
+        "network.detected": "检测到代理环境 · 绕过只清除代理变量，不会覆盖 TUN 路由",
+        "network.virtual_detected": "检测到虚拟/TUN 默认路由 · 当前未锁定物理网卡；请选择继承，或先运行受审计的 Provider host 路由预检",
+        "network.not_detected": "未检测到代理/TUN 路由 · 本控制面仍不会锁定物理网卡",
         "privacy.notice": "仅呈现白名单计数器和服务商用量。未知就是未知：不按字符估算 Token，不展示提示词、消息或代码正文，不展示凭据，也不展示分片绝对路径。",
         "common.unknown": "未知",
         "common.none": "无",
@@ -1086,6 +1333,14 @@
         "credential.ram_loaded": "已载入内存",
         "credential.not_loaded": "未载入",
         "status.idle": "空闲",
+        "status.not_started": "未开始",
+        "status.backend_disconnected": "与后端断开连接",
+        "status.starting": "正在启动",
+        "status.historical_unbound": "历史快照 · 未绑定当前控制进程",
+        "status.stale_status": "状态已陈旧 · 实时计数不可信",
+        "status.untrusted_status": "状态身份不匹配 · 实时计数不可信",
+        "status.invalid_status": "正式状态无效",
+        "status.stopped_checkpoint_resumable": "已安全停止 · 可从检查点继续",
         "status.unknown": "未知",
         "status.monitor_only": "仅监控",
         "status.running": "运行中",
@@ -1157,6 +1412,22 @@
       })
     });
 
+    const THEME_STORAGE_KEY = "anchor.dashboard.theme";
+    const SUPPORTED_THEMES = Object.freeze(["system", "light", "dark"]);
+
+    function defaultTheme() {
+      try {
+        const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (SUPPORTED_THEMES.includes(saved)) return saved;
+      } catch (_) {
+        // Storage can be disabled; the system preference remains the safe fallback.
+      }
+      return "system";
+    }
+
+    let theme = defaultTheme();
+    document.documentElement.dataset.theme = theme;
+
     const LANGUAGE_STORAGE_KEY = "anchor.dashboard.language";
     const SUPPORTED_LANGUAGES = Object.freeze(["en", "zh-CN"]);
 
@@ -1203,12 +1474,28 @@
     const timeNode = document.getElementById("connection-time");
     const refreshNode = document.getElementById("refresh");
     const languageToggleNode = document.getElementById("language-toggle");
+    const themeToggleNode = document.getElementById("theme-toggle");
     const processStateNode = document.getElementById("process-state");
     const workloadStateNode = document.getElementById("workload-state");
     const exitCodeNode = document.getElementById("exit-code");
     const credentialStateNode = document.getElementById("credential-state");
     const runIdNode = document.getElementById("run-id");
     const reconnectStateNode = document.getElementById("reconnect-state");
+    const providerProfileStateNode = document.getElementById("provider-profile-state");
+    const routeComponentStateNode = document.getElementById("route-component-state");
+    const bankGateStateNode = document.getElementById("bank-gate-state");
+    const executionContractStateNode = document.getElementById("execution-contract-state");
+    const officialEvaluationStateNode = document.getElementById("official-evaluation-state");
+    const liveStartStateNode = document.getElementById("live-start-state");
+    const containerRouteStateNode = document.getElementById("container-route-state");
+    const languageRoutingStateNode = document.getElementById("language-routing-state");
+    const zhLocalizationStateNode = document.getElementById("zh-localization-state");
+    const formalRuntimeStateNode = document.getElementById("formal-runtime-state");
+    const formalProgressStateNode = document.getElementById("formal-progress-state");
+    const formalSpeedStateNode = document.getElementById("formal-speed-state");
+    const formalEtaStateNode = document.getElementById("formal-eta-state");
+    const formalErrorStateNode = document.getElementById("formal-error-state");
+    const controlTargetNode = document.getElementById("control-target");
     const ownershipNode = document.getElementById("ownership");
     const controlMessageNode = document.getElementById("control-message");
     const startNode = document.getElementById("start-control");
@@ -1250,6 +1537,8 @@
     let catalogProviders = [];
     let applyingPreset = false;
     let currentControl = { enabled: false, process_state: "monitor_only" };
+    let currentFormal = { process_state: "not_started", can_start: false, can_stop: false, can_continue: false };
+    let lastFormalStatus = null;
     let lastSnapshot = null;
     let lastOptions = null;
     let lastCatalog = null;
@@ -1266,6 +1555,23 @@
       lastDisconnectSeconds: null
     };
 
+    function applyTheme() {
+      document.documentElement.dataset.theme = theme;
+      themeToggleNode.value = theme;
+      themeToggleNode.setAttribute("aria-label", `${t("theme.label")}: ${t(`theme.${theme}`)}`);
+      themeToggleNode.setAttribute("title", t("theme.switch_title"));
+    }
+
+    function setTheme(nextTheme) {
+      theme = SUPPORTED_THEMES.includes(nextTheme) ? nextTheme : "system";
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (_) {
+        // The interface still switches when storage is unavailable.
+      }
+      applyTheme();
+    }
+
     function applyLanguage() {
       document.documentElement.lang = language;
       document.querySelectorAll("[data-i18n]").forEach(item => {
@@ -1279,7 +1585,9 @@
       });
       languageToggleNode.textContent = t("language.next");
       languageToggleNode.setAttribute("aria-label", t("language.switch_title"));
+      applyTheme();
       if (lastOptions) renderOptions(lastOptions);
+      if (lastFormalStatus) renderFormalStatus(lastFormalStatus);
       if (lastCatalog) renderCatalogOptions(lastCatalog);
       else if (lastCatalogStatus) renderCatalogStatus(lastCatalogStatus);
       if (lastSnapshot) render(lastSnapshot);
@@ -1689,14 +1997,146 @@
       return Number(formValue(id));
     }
 
+    function formalRunPayload() {
+      const payload = {
+        api_key: formValue("api-key"),
+        concurrency: formNumber("concurrency")
+      };
+      const taskCap = formValue("formal-max-tasks").trim();
+      if (taskCap) payload.max_tasks = Number(taskCap);
+      return payload;
+    }
+
     function controlMessage(text, kind = "") {
       controlMessageNode.textContent = text;
       controlMessageNode.className = `control-message${kind ? ` ${kind}` : ""}`;
     }
 
+    function formalTargetSelected() {
+      return controlTargetNode.value !== "legacy";
+    }
+
+    function syncTargetFields() {
+      const locked = formalTargetSelected();
+      for (const id of [
+        "provider-preset", "model-preset", "base-url", "protocol",
+        "force-model", "model-id", "reasoning-effort", "reasoning-enabled",
+        "network-route", "probe-models"
+      ]) {
+        document.getElementById(id).disabled = locked;
+      }
+    }
+
+    function renderFormalGates(gates, executionStatus = {}) {
+      const value = gates || {};
+      const execution = executionStatus && typeof executionStatus === "object"
+        ? executionStatus
+        : {};
+      const reasonCode = execution.reason_code || value.reason_code;
+      routeComponentStateNode.textContent = value.component_ready === true
+        ? t("route.component_ready")
+        : (value.component_ready === false ? t("route.component_not_ready") : t("common.unknown"));
+      bankGateStateNode.textContent = value.bank_ready === true
+        ? t("gate.ready")
+        : (value.bank_ready === false ? t("gate.not_ready") : t("common.unknown"));
+      executionContractStateNode.textContent = value.execution_contract_ready === true
+        ? t("gate.ready")
+        : (value.execution_contract_ready === false ? t("gate.not_ready") : t("common.unknown"));
+      officialEvaluationStateNode.textContent = execution.official_evaluation_contract_ready === true
+        ? t("gate.ready")
+        : (execution.official_evaluation_contract_ready === false
+          ? t("gate.not_ready")
+          : t("common.unknown"));
+      liveStartStateNode.textContent = value.live_start_allowed === true
+        ? t("gate.ready")
+        : (value.live_start_allowed === false
+          ? `${t("gate.blocked")} · ${reasonCode || value.reason_code || "formal_gate_unavailable"}`
+          : t("common.unknown"));
+    }
+
+    function renderFormalStatus(status) {
+      lastFormalStatus = status || {};
+      currentFormal = lastFormalStatus;
+      const gates = currentFormal.gates || (lastOptions || {}).formal_gates || {};
+      renderFormalGates(gates, (lastOptions || {}).formal_execution || {});
+      formalRuntimeStateNode.textContent = displayStatus(currentFormal.state || currentFormal.process_state || "not_started");
+      const telemetryTrusted = currentFormal.telemetry_trusted === true;
+      const failureParts = [];
+      if (telemetryTrusted) {
+        const stageCounts = currentFormal.stage_counts || {};
+        const stageText = currentFormal.stage_progress_available === true
+          ? ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+              .map(name => `${name}=${whole(stageCounts[name] || 0)}`).join(" · ")
+          : t("formal.stage_unavailable");
+        const capText = Number.isInteger(currentFormal.max_tasks)
+          ? ` · cap=${whole(currentFormal.max_tasks)}`
+          : "";
+        formalProgressStateNode.textContent = `${whole(currentFormal.completed_tasks || 0)} / ${whole(currentFormal.expected_tasks || 19008)}${capText} · active=${whole(currentFormal.active_tasks || 0)} · ${stageText}`;
+        const rate = Number(currentFormal.tasks_per_minute);
+        const tokenRate = Number(currentFormal.provider_output_tokens_per_second);
+        formalSpeedStateNode.textContent = Number.isFinite(rate) && rate >= 0 && Number.isFinite(tokenRate) && tokenRate >= 0
+          ? t("formal.speed", { rate: number(rate, 2), tokenRate: number(tokenRate, 2) })
+          : t("formal.speed_unavailable");
+        formalEtaStateNode.textContent = currentFormal.eta_seconds === null || currentFormal.eta_seconds === undefined
+          ? t("common.unknown")
+          : duration(currentFormal.eta_seconds);
+        const failures = currentFormal.failure_counts || {};
+        const requestFailures = currentFormal.request_failure_counts || {};
+        failureParts.push(
+          ...Object.entries(failures),
+          ...Object.entries(requestFailures)
+        );
+      } else {
+        formalProgressStateNode.textContent = t("formal.telemetry_untrusted");
+        formalSpeedStateNode.textContent = t("formal.speed_unavailable");
+        formalEtaStateNode.textContent = t("common.unknown");
+      }
+      const normalizedFailureParts = failureParts
+        .filter(([, count]) => Number(count) > 0)
+        .map(([name, count]) => `${name}=${whole(count)}`);
+      if (currentFormal.last_error_code && telemetryTrusted) normalizedFailureParts.unshift(`last=${currentFormal.last_error_code}`);
+      if (!telemetryTrusted && currentFormal.reason_code) normalizedFailureParts.unshift(currentFormal.reason_code);
+      formalErrorStateNode.textContent = normalizedFailureParts.length
+        ? normalizedFailureParts.join(" · ")
+        : t("common.none");
+      if (!formalTargetSelected()) return;
+      processStateNode.textContent = displayStatus(currentFormal.process_state || "not_started");
+      workloadStateNode.textContent = displayStatus(currentFormal.state || "not_started");
+      exitCodeNode.textContent = currentFormal.exit_code === null || currentFormal.exit_code === undefined
+        ? t("common.unknown")
+        : String(currentFormal.exit_code);
+      credentialStateNode.textContent = currentFormal.credential_loaded
+        ? t("credential.ram_loaded")
+        : t("credential.not_loaded");
+      runIdNode.textContent = currentFormal.run_id || t("common.none");
+      reconnectStateNode.textContent = t("common.unknown");
+      providerProfileStateNode.textContent = "glm-5-2-260617 MAX @ CC:15731 · kimi-k3 MAX @ CC:15732";
+      ownershipNode.textContent = t("ownership.local_only");
+      ownershipNode.className = `state-pill ${currentFormal.can_stop ? "running" : ""}`;
+      startNode.textContent = t("action.start_formal");
+      stopNode.textContent = t("action.stop_formal");
+      continueNode.textContent = t("action.continue_formal");
+      startNode.disabled = currentFormal.can_start !== true;
+      stopNode.disabled = currentFormal.can_stop !== true;
+      continueNode.disabled = currentFormal.can_continue !== true;
+      clearKeyNode.disabled = currentFormal.can_stop === true;
+      probeNode.disabled = currentFormal.can_stop === true;
+      syncTargetFields();
+      if (gates.live_start_allowed !== true) {
+        controlMessage(`${t("gate.blocked")} · ${currentFormal.reason_code || "formal_gate_unavailable"}`, "error");
+      } else if (!telemetryTrusted && currentFormal.state !== "not_started") {
+        controlMessage(`${displayStatus(currentFormal.state)} · ${currentFormal.reason_code || "formal_status_untrusted"}`, "error");
+      }
+    }
+
     function renderControl(controlState) {
       currentControl = controlState || { enabled: false, process_state: "monitor_only" };
+      if (formalTargetSelected()) {
+        renderFormalStatus(currentFormal);
+        return;
+      }
       const enabled = currentControl.enabled === true;
+      syncTargetFields();
       processStateNode.textContent = displayStatus(currentControl.process_state);
       workloadStateNode.textContent = displayStatus(currentControl.workload_state);
       exitCodeNode.textContent = currentControl.exit_code === null || currentControl.exit_code === undefined ? t("common.unknown") : String(currentControl.exit_code);
@@ -1704,6 +2144,10 @@
       runIdNode.textContent = currentControl.run_id || t("common.none");
       const reconnect = currentControl.reconnect || {};
       reconnectStateNode.textContent = `${whole(reconnect.used || 0)} / ${whole(reconnect.maximum || 0)}`;
+      const profile = currentControl.provider_profile;
+      providerProfileStateNode.textContent = profile && typeof profile === "object"
+        ? `${profile.model || "--"} · ${profile.reasoning_enabled ? profile.reasoning_effort : "off"} · ${profile.pricing_route || "manual"}`
+        : t("common.none");
       ownershipNode.textContent = enabled
         ? (currentControl.can_stop ? t("ownership.managed_child") : t("ownership.local_only"))
         : t("ownership.monitor_only");
@@ -1711,11 +2155,14 @@
       startNode.disabled = !enabled || currentControl.can_start !== true;
       stopNode.disabled = !enabled || currentControl.can_stop !== true;
       continueNode.disabled = !enabled || currentControl.can_continue !== true || !currentControl.run_id;
-      clearKeyNode.disabled = !enabled;
+      clearKeyNode.disabled = !enabled || currentControl.can_stop === true;
       probeNode.disabled = !enabled || currentControl.can_stop === true;
       if (currentControl.last_error_code) {
         controlMessage(t("control.error", { code: currentControl.last_error_code }), "error");
       }
+      startNode.textContent = t("action.start");
+      stopNode.textContent = t("action.stop");
+      continueNode.textContent = t("action.continue");
     }
 
     function newRunPayload() {
@@ -1729,6 +2176,9 @@
         api_key: formValue("api-key"),
         model: formValue("model-id"),
         force_model: document.getElementById("force-model").checked,
+        reasoning_enabled: document.getElementById("reasoning-enabled").checked,
+        reasoning_effort: formValue("reasoning-effort"),
+        pricing_route: providerPresetNode.value || "manual",
         task_card_config: taskCardNode.value,
         timeout_seconds: formNumber("timeout-seconds"),
         max_retries: formNumber("max-retries"),
@@ -1783,8 +2233,34 @@
       const baseSelection = baseConfigNode.value;
       const taskSelection = taskCardNode.value;
       const proxyWarning = document.getElementById("proxy-warning");
-      proxyWarning.textContent = options.proxy_detected ? t("network.detected") : t("network.not_detected");
-      proxyWarning.className = options.proxy_detected ? "metric-note unknown" : "metric-note";
+      const routeAudit = options.default_route_audit || {};
+      const formalRoute = options.formal_route || {};
+      const formalDataset = options.formal_dataset || {};
+      const formalExecution = options.formal_execution || {};
+      const formalGates = options.formal_gates || {};
+      renderFormalGates(formalGates, formalExecution);
+      containerRouteStateNode.textContent = formalRoute.live_route_container_reachable === true
+        ? t("route.component_ready")
+        : (formalRoute.live_route_container_reachable === false
+          ? t("route.unreachable")
+          : t("route.not_probed"));
+      if (formalRoute.e2e_ready !== true) {
+        controlMessage(t("control.route_not_e2e"));
+      }
+      const localeCounts = formalDataset.locale_assignment_counts || {};
+      languageRoutingStateNode.textContent = `en-US ${whole(localeCounts["en-US"] || 0)} / zh-CN ${whole(localeCounts["zh-CN"] || 0)} · ${t("control.language_route_only")}`;
+      zhLocalizationStateNode.textContent = formalDataset.zh_cn_localization_manifest_present === true
+        ? t("localization.present")
+        : t("localization.missing");
+      if (formalTargetSelected() && formalGates.live_start_allowed !== true) {
+        startNode.disabled = true;
+        controlMessage(`${t("gate.blocked")} · ${formalExecution.reason_code || "formal_gate_unavailable"}`, "error");
+      }
+      const virtualDetected = routeAudit.virtual_default_route_detected === true;
+      proxyWarning.textContent = virtualDetected
+        ? t("network.virtual_detected")
+        : (options.proxy_detected ? t("network.detected") : t("network.not_detected"));
+      proxyWarning.className = (virtualDetected || options.proxy_detected) ? "metric-note unknown" : "metric-note";
       baseConfigNode.replaceChildren();
       for (const item of options.base_configs || []) {
         const suffix = item.valid ? "" : ` · ${t("common.invalid_yaml")}`;
@@ -1810,6 +2286,36 @@
         renderOptions(await response.json());
       } catch (_) {
         controlMessage(t("control.options_unavailable"), "error");
+      }
+    }
+
+    async function loadFormalStatus() {
+      try {
+        const response = await fetch("/api/control/formal-status", { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        renderFormalStatus(await response.json());
+      } catch (_) {
+        const failed = {
+          ...currentFormal,
+          process_state: "backend_disconnected",
+          state: "backend_disconnected",
+          telemetry_trusted: false,
+          completed_tasks: null,
+          active_tasks: null,
+          stage_counts: {},
+          failure_counts: {},
+          request_failure_counts: {},
+          requests: {},
+          tokens: {},
+          tasks_per_minute: null,
+          provider_output_tokens_per_second: null,
+          eta_seconds: null,
+          can_start: false,
+          can_stop: false,
+          can_continue: false,
+          reason_code: "formal_status_backend_disconnected"
+        };
+        renderFormalStatus(failed);
       }
     }
 
@@ -1922,18 +2428,46 @@
 
     checkCatalogNode.addEventListener("click", () => loadCatalog(true));
 
+    controlTargetNode.addEventListener("change", () => {
+      if (formalTargetSelected()) renderFormalStatus(currentFormal);
+      else renderControl(currentControl);
+    });
+
     startNode.addEventListener("click", async () => {
-      const result = await controlAction(t("action.start"), () => postControl("/api/control/start", newRunPayload()));
+      const formal = formalTargetSelected();
+      const result = await controlAction(
+        formal ? t("action.start_formal") : t("action.start"),
+        () => formal
+          ? postControl("/api/control/formal-start", formalRunPayload())
+          : postControl("/api/control/start", newRunPayload())
+      );
+      if (result && formal) renderFormalStatus(result);
       if (result) document.getElementById("api-key").value = "";
     });
 
-    stopNode.addEventListener("click", () => controlAction(t("action.graceful_stop"), () => postControl("/api/control/stop", { run_id: currentControl.run_id })));
+    stopNode.addEventListener("click", async () => {
+      const formal = formalTargetSelected();
+      const result = await controlAction(
+        formal ? t("action.stop_formal") : t("action.graceful_stop"),
+        () => formal
+          ? postControl("/api/control/formal-stop", { run_id: currentFormal.run_id })
+          : postControl("/api/control/stop", { run_id: currentControl.run_id })
+      );
+      if (result && formal) renderFormalStatus(result);
+    });
 
     continueNode.addEventListener("click", async () => {
-      const result = await controlAction(t("action.continue_immutable"), () => postControl("/api/control/continue", {
-        run_id: currentControl.run_id,
-        api_key: formValue("api-key")
-      }));
+      const formal = formalTargetSelected();
+      const result = await controlAction(
+        formal ? t("action.continue_formal") : t("action.continue_immutable"),
+        () => formal
+          ? postControl("/api/control/formal-continue", formalRunPayload())
+          : postControl("/api/control/continue", {
+              run_id: currentControl.run_id,
+              api_key: formValue("api-key")
+            })
+      );
+      if (result && formal) renderFormalStatus(result);
       if (result) document.getElementById("api-key").value = "";
     });
 
@@ -2039,12 +2573,15 @@
     }
 
     refreshNode.addEventListener("click", poll);
+    themeToggleNode.addEventListener("change", () => setTheme(themeToggleNode.value));
     languageToggleNode.addEventListener("click", () => setLanguage(language === "en" ? "zh-CN" : "en"));
     applyLanguage();
     loadOptions();
+    loadFormalStatus();
     loadCatalog();
     poll();
     window.setInterval(poll, POLL_INTERVAL_MS);
+    window.setInterval(loadFormalStatus, POLL_INTERVAL_MS);
     window.setInterval(() => {
       if (lastSnapshot || connectionHealth.failures > 0) {
         renderConnectionDiagnostics(lastSnapshot);

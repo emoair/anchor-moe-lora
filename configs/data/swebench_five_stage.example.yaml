@@ -1,0 +1,30 @@
+schema_version: anchor.swebench-five-stage-batch-config.v1
+
+# Safe default: validates and compiles five work orders per card, makes no
+# provider request, reads no credential, and writes no output.
+mode: dry-run
+cards_jsonl: artifacts/swebench/cards.train.jsonl
+import_manifest: artifacts/swebench/import-manifest.train.json
+output_dir: artifacts/swebench/five-stage-run
+concurrency: 1
+max_cards: 8
+
+# Required only after a controlled OpenCode sandbox run has exported real
+# tool-call/tool-result trajectories and an operator-trusted audit sidecar.
+# execution_bundles_jsonl: artifacts/swebench/execution-bundles.jsonl
+
+# Offline end-to-end validation can switch mode to replay and supply responses.
+# replay_responses_jsonl: artifacts/swebench/replay-responses.jsonl
+
+# Live mode is opt-in twice: mode: live here and --allow-live on the CLI.  Never
+# put a key value in this file; api_key_env is only an environment-variable name.
+# provider:
+#   provider: custom-openai-responses
+#   base_url: https://example.invalid/v1
+#   api_key_env: TEACHER_API_KEY
+#   model: teacher-model-id
+#   force_model: true
+#   thinking_enabled: true
+#   thinking_effort: max
+#   max_tokens: 16384
+#   max_retries: 1

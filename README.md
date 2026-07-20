@@ -1,5 +1,7 @@
 # Anchor-MoE-LoRA
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Anchor-MoE-LoRA is a runnable research scaffold for **task-routed LoRA experts** on one
 frozen base model. It routes planning, tool-policy advice, frontend generation,
 paired frontend review, and a final defensive security gate through an observable
@@ -9,8 +11,10 @@ The repository and distribution name are `anchor-moe-lora`. The Python import
 package remains `anchor_mvp`, while the prepared Conda environment remains
 `anchor-mvp`. Commands below assume the repository root as the working directory.
 
-中文端到端使用、密钥防泄漏、Provider、自动蒸馏、OpenCode execution gold 与
-常见故障处理见 [简中快速上手](QUICKSTART.zh-CN.md)。当前 OpenCode live 门禁也以该文档为准。
+For end-to-end usage, credential handling, providers, automated distillation,
+OpenCode execution gold, and troubleshooting, see the
+[English quickstart](QUICKSTART.md) or [简中快速上手](QUICKSTART.zh-CN.md).
+The current OpenCode live gate is defined there as well.
 
 This is not a neural Mixture-of-Experts layer. The claim under test is whether
 specialized adapters plus explicit routing beat a mixed adapter **under matched
@@ -166,6 +170,10 @@ scripts/                model, training and WSL serving entry points
 tests/                  offline unit and integration tests
 ```
 
+The [documentation index](docs/README.md) lists the public English/简体中文 pairs.
+New or materially changed public documentation follows the
+[bilingual publication policy](docs/documentation_i18n.md).
+
 ## License
 
 Copyright (C) 2026 emoair.
@@ -177,6 +185,8 @@ license. Bundled third-party Skills retain their original licenses and attributi
 see [THIRD_PARTY_SKILLS.md](THIRD_PARTY_SKILLS.md).
 
 ## Acknowledgements
+
+This project was built with assistance from OpenAI's GPT-5.6 SOL.
 
 This project builds on openly shared Skills, adapter research, model/training stacks,
 and serving tools. Directly vendored assets, research inspiration, and infrastructure

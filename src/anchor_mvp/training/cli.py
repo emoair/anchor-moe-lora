@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Mapping
@@ -74,6 +75,92 @@ def _dataset_reports(config: Mapping[str, Any], *, require_data: bool) -> tuple[
     return reports, present
 
 
+def _verify_compact_v2_coverage(
+    config: Mapping[str, Any], root: Path, datasets: list[Mapping[str, Any]]
+) -> dict[str, Any] | None:
+    """Bind strict compact-v2 training to the processor coverage audit output."""
+
+    training = config["training"]
+    if training.get("sequence_contract") != "compact_v2_no_truncation":
+        return None
+    relative = training["coverage_manifest"]
+    path = (root / relative).resolve()
+    errors: list[str] = []
+    value: Mapping[str, Any] = {}
+    if not path.is_file():
+        errors.append("coverage manifest is missing")
+    else:
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, Mapping):
+                errors.append("coverage manifest must be an object")
+            else:
+                value = loaded
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            errors.append(f"coverage manifest is unreadable: {type(exc).__name__}")
+    if value.get("schema_version") != "anchor.compact-sft-candidate.v2":
+        errors.append("coverage manifest schema mismatch")
+    if value.get("heldout_content_read") is not False:
+        errors.append("coverage manifest must attest heldout_content_read=false")
+    if value.get("benchmark_records_content_read") is not False:
+        errors.append(
+            "coverage manifest must attest benchmark_records_content_read=false"
+        )
+    coverage = value.get("coverage")
+    expected = config["active_adapter"].get("expected_experts", [])
+    if not isinstance(coverage, Mapping):
+        errors.append("coverage results are missing")
+    else:
+        for expert in expected:
+            report = coverage.get(expert)
+            if not isinstance(report, Mapping) or not all(
+                report.get(field) is True
+                for field in (
+                    "all_targets_retained",
+                    "all_eot_retained",
+                    "p95_untruncated",
+                )
+            ):
+                errors.append(f"strict processor coverage failed for {expert}")
+    file_bindings = value.get("files")
+    if not isinstance(file_bindings, Mapping):
+        errors.append("coverage file bindings are missing")
+    else:
+        for report in datasets:
+            if report.get("exists") is not True:
+                continue
+            name = Path(str(report["path"])).name
+            binding = file_bindings.get(name)
+            if (
+                not isinstance(binding, Mapping)
+                or binding.get("sha256") != report.get("sha256")
+                or binding.get("bytes") != report.get("bytes")
+            ):
+                errors.append(f"coverage binding mismatch for {name}")
+    result = {
+        "required": True,
+        "passed": not errors,
+        "path": str(path),
+        "sha256": sha256_file(path) if path.is_file() else None,
+        "experts": {
+            expert: {
+                "rows": coverage[expert].get("rows"),
+                "max_rendered_tokens": coverage[expert]
+                .get("full_tokens", {})
+                .get("max"),
+                "window": coverage[expert].get("window"),
+            }
+            for expert in expected
+            if isinstance(coverage, Mapping)
+            and isinstance(coverage.get(expert), Mapping)
+        },
+        "errors": errors,
+    }
+    if errors:
+        raise ConfigError("compact-v2 coverage gate blocked: " + "; ".join(errors))
+    return result
+
+
 def _manifest_path(
     config: Mapping[str, Any], override: str | None, mode: str, stage: str
 ) -> Path:
@@ -113,14 +200,30 @@ def _assert_one_step_profile(config: Mapping[str, Any]) -> None:
             raise ConfigError(
                 f"smoke-gate requires {key}={value}; use gemma4_12b_qlora_one_step.yaml"
             )
-    if training.get("max_seq_length", 10**9) > 128:
-        raise ConfigError("smoke-gate caps max_seq_length at 128")
+    maximum_smoke_length = (
+        4096
+        if training.get("sequence_contract") == "compact_v2_no_truncation"
+        else 128
+    )
+    if training.get("max_seq_length", 10**9) > maximum_smoke_length:
+        raise ConfigError(
+            f"smoke-gate caps max_seq_length at {maximum_smoke_length}"
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         base_config = load_training_config(args.config)
+        if base_config["training"].get("cuda_allocator_expandable_segments") is True:
+            requested = "expandable_segments:True"
+            existing = os.environ.get("PYTORCH_CUDA_ALLOC_CONF")
+            if existing and requested.casefold() not in existing.casefold():
+                raise ConfigError(
+                    "PYTORCH_CUDA_ALLOC_CONF conflicts with the checked-in "
+                    "expandable-segments profile"
+                )
+            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = existing or requested
         if args.stage == "preflight":
             if args.execute:
                 raise ConfigError("preflight is read-only; use --dry-run or omit the mode flag")
@@ -155,6 +258,11 @@ def main(argv: list[str] | None = None) -> int:
             # execution failure; this keeps blocked-gate evidence inspectable.
             require_data = bool(args.require_data) and not execute
             datasets, dataset_paths = _dataset_reports(config, require_data=require_data)
+        compact_coverage = (
+            _verify_compact_v2_coverage(config, root, datasets)
+            if args.stage != "preflight"
+            else None
+        )
         manifest = build_manifest(
             config,
             dependency_report=dependencies,
@@ -163,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         manifest["stage"] = args.stage
         manifest["preflight"] = preflight
+        if compact_coverage is not None:
+            manifest["compact_v2_coverage"] = compact_coverage
         if args.stage == "smoke-gate":
             manifest["smoke_gate"] = {
                 "executed": False,
@@ -240,6 +350,22 @@ def main(argv: list[str] | None = None) -> int:
                 smoke_heldout_cases=selected_heldout if args.stage == "smoke-gate" else None,
             )
             response["training"] = result
+            manual_observation = result.get("manual_training")
+            if isinstance(manual_observation, Mapping):
+                manifest["runtime_observations"] = {
+                    "sample_order": manual_observation.get("sample_order"),
+                    "stratum_records": manual_observation.get("stratum_records"),
+                    "stratum_exposures": manual_observation.get(
+                        "stratum_exposures"
+                    ),
+                    "sample_schedule_sha256": manual_observation.get(
+                        "sample_schedule_sha256"
+                    ),
+                    "sequence_statistics": manual_observation.get(
+                        "sequence_statistics"
+                    ),
+                }
+                write_json(manifest_path, manifest)
             if args.stage == "smoke-gate":
                 manifest["smoke_gate"] = result["smoke_gate"]
                 write_json(manifest_path, manifest)
