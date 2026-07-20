@@ -1,0 +1,61 @@
+schema_version: anchor.neural-swarm-streaming-config.v1
+claim_scope: execution_scaffold_only
+
+# The external ID is intentionally decoupled from the backend model/adapter ID.
+# Clients address request_model_id; the controller resolves it to exactly one
+# expert and one backend route before any work starts.
+bindings:
+  - request_model_id: anchor-swarm/planner
+    expert_id: planner
+    backend_model_id: planner-r16
+  - request_model_id: anchor-swarm/tool-policy
+    expert_id: tool_policy
+    backend_model_id: tool-policy-r16
+  - request_model_id: anchor-swarm/frontend-gen
+    expert_id: frontend_gen
+    backend_model_id: frontend-gen-r16
+  - request_model_id: anchor-swarm/frontend-review
+    expert_id: frontend_review
+    backend_model_id: frontend-review-r16
+  - request_model_id: anchor-swarm/security-gate
+    expert_id: security_gate
+    backend_model_id: security-gate-r16
+
+dispatch:
+  shared_input_contract: anchor.neural-swarm-shared-input.v1
+  max_concurrency: 5
+  fail_fast: false
+  terminal_barrier: all_settled
+  queue_capacity: 256
+  cancellation: explicit_event
+
+streaming:
+  event_schema: configs/research/neural_swarm_stream_event.schema.json
+  require_per_stream_sequence: true
+  require_global_sequence: true
+  emit_started: true
+  emit_terminal_events: true
+  emit_barrier: true
+  emit_swarm_completed: true
+
+observability:
+  # These are measurement hooks, not evaluation groups or performance claims.
+  record_elapsed_ms: true
+  record_time_to_first_delta_ms: true
+  record_delta_count: true
+  record_output_units: true
+  optional_backend_metrics:
+    - prompt_tokens
+    - completion_tokens
+    - tokens_per_second
+    - peak_vram_bytes
+    - kv_cache_bytes
+    - shared_kv_bytes
+    - private_kv_bytes
+
+non_claims:
+  - cuda_stream_overlap
+  - shared_kv_correctness
+  - shared_kv_speedup
+  - evaluation_arm_definition
+  - production_readiness

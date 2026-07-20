@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/query-specialization-record-v1.json",
+  "title": "Anchor Neural Swarm query-specialization record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "pair_id",
+    "variant",
+    "language",
+    "split",
+    "role",
+    "task_board",
+    "attention_targets",
+    "target"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.query-specialization.v1"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "pair_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "variant": {"enum": ["clean", "noisy"]},
+    "language": {"enum": ["en", "zh-CN"]},
+    "split": {"enum": ["train", "calibration", "eval"]},
+    "role": {
+      "enum": [
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate"
+      ]
+    },
+    "task_board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "generation", "blocks"],
+      "properties": {
+        "task_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+        "generation": {"type": "integer", "minimum": 1},
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "kind", "content", "commit_state", "visible_to"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+              "kind": {
+                "enum": [
+                  "requirement",
+                  "constraint",
+                  "plan",
+                  "repository",
+                  "code",
+                  "tool_call",
+                  "tool_result",
+                  "test_result",
+                  "review",
+                  "history"
+                ]
+              },
+              "content": {"type": "string", "minLength": 1},
+              "commit_state": {
+                "enum": ["candidate", "verified", "committed", "rejected"]
+              },
+              "visible_to": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "all",
+                    "planner",
+                    "tool_policy",
+                    "frontend_gen",
+                    "frontend_review",
+                    "security_gate"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "attention_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relevant_block_ids",
+        "distractor_block_ids",
+        "forbidden_block_ids"
+      ],
+      "properties": {
+        "relevant_block_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
+        },
+        "distractor_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
+        },
+        "forbidden_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected_block_ids", "action", "answer"],
+      "properties": {
+        "selected_block_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
+        },
+        "action": {"type": "string", "minLength": 1},
+        "answer": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

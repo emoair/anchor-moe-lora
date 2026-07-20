@@ -111,6 +111,17 @@ Cache sharing does not itself provide token routing. Token routing also changes
 the cache identity: the cache key must include the gate/version and the complete
 routing history that can affect hidden states.
 
+The training-side M0 for role-specific Query views is specified separately in
+[`neural_swarm_query_specialization.md`](neural_swarm_query_specialization.md).
+It defines the task-board JSON handoff, Q-only/Q+O controls, paired distractor
+curriculum, split-safe CPU signal probe, and later causal gates without changing
+the canonical five-stage Gold records.
+
+The ID-decoupled, shared-input, concurrent event-plane scaffold is specified in
+[`neural_swarm_multistream_pipeline.md`](neural_swarm_multistream_pipeline.md).
+That contract intentionally defines no evaluation groups and makes no CUDA/KV
+parallel-speedup claim.
+
 ## MVP implementation plan
 
 ### M0 — planning model (implemented)

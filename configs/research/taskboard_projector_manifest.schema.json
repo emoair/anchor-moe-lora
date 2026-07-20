@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/taskboard-projector-manifest-v1.json",
+  "title": "Anchor SWE-bench TaskBoard projector manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "input",
+    "producer",
+    "files",
+    "counts",
+    "split_group_key",
+    "task_id_cross_binding_key",
+    "all_five_role_views_same_split",
+    "canonical_gold_written",
+    "provider_requests",
+    "heldout_content_read",
+    "heldout_content_emitted",
+    "split_preserved",
+    "augmentation_applied_after_split",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.swebench-taskboard-projector-manifest.v1"},
+    "input": {"$ref": "#/$defs/input"},
+    "producer": {"$ref": "#/$defs/producer"},
+    "files": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/file",
+          "properties": {
+            "path": {"const": "train/clean.jsonl"},
+            "split": {"const": "train"},
+            "variant": {"const": "clean"}
+          }
+        },
+        {
+          "$ref": "#/$defs/file",
+          "properties": {
+            "path": {"const": "train/noisy.jsonl"},
+            "split": {"const": "train"},
+            "variant": {"const": "noisy"}
+          }
+        },
+        {
+          "$ref": "#/$defs/file",
+          "properties": {
+            "path": {"const": "calibration/clean.jsonl"},
+            "split": {"const": "calibration"},
+            "variant": {"const": "clean"}
+          }
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "counts": {"$ref": "#/$defs/counts"},
+    "split_group_key": {"const": "task_bundle_sha256"},
+    "task_id_cross_binding_key": {
+      "const": "training_record.task_board.task_id"
+    },
+    "all_five_role_views_same_split": {"const": true},
+    "canonical_gold_written": {"const": false},
+    "provider_requests": {"const": 0},
+    "heldout_content_read": {"const": false},
+    "heldout_content_emitted": {"const": false},
+    "split_preserved": {"const": true},
+    "augmentation_applied_after_split": {"const": true},
+    "claim_scope": {"const": "research_proxy_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_schema_version",
+        "snapshot_sha256",
+        "snapshot_manifest_path",
+        "snapshot_manifest_sha256",
+        "snapshot_sha256_sidecar_path",
+        "snapshot_sha256_sidecar_sha256",
+        "splits"
+      ],
+      "properties": {
+        "snapshot_schema_version": {"const": "anchor.training-snapshot.v2"},
+        "snapshot_sha256": {"$ref": "#/$defs/sha256"},
+        "snapshot_manifest_path": {"$ref": "#/$defs/relative_path"},
+        "snapshot_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "snapshot_sha256_sidecar_path": {"$ref": "#/$defs/relative_path"},
+        "snapshot_sha256_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "splits": {
+          "type": "array",
+          "prefixItems": [{"const": "train"}, {"const": "calibration"}],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "projector_version",
+        "config_sha256",
+        "sidecar_schema_sha256",
+        "manifest_schema_sha256",
+        "record_schema_version"
+      ],
+      "properties": {
+        "name": {"const": "anchor.swebench-taskboard-projector"},
+        "projector_version": {"const": "anchor.swebench-taskboard-projector.v1"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_version": {"const": "anchor.query-specialization.v1"}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "records", "split", "variant"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"type": "integer", "minimum": 1},
+        "split": {"enum": ["train", "calibration"]},
+        "variant": {"enum": ["clean", "noisy"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"split": {"const": "calibration"}}, "required": ["split"]},
+          "then": {"properties": {"variant": {"const": "clean"}}}
+        }
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "unique_task_bundles",
+        "task_ids_sha256",
+        "by_split",
+        "by_variant",
+        "by_stage",
+        "by_expert",
+        "by_language"
+      ],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1},
+        "unique_task_bundles": {"type": "integer", "minimum": 1},
+        "task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "by_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "calibration"],
+          "properties": {
+            "train": {"type": "integer", "minimum": 1},
+            "calibration": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_variant": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["clean", "noisy"],
+          "properties": {
+            "clean": {"type": "integer", "minimum": 1},
+            "noisy": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_stage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["planner", "tool_policy", "domain_builder", "domain_review", "security"],
+          "properties": {
+            "planner": {"type": "integer", "minimum": 1},
+            "tool_policy": {"type": "integer", "minimum": 1},
+            "domain_builder": {"type": "integer", "minimum": 1},
+            "domain_review": {"type": "integer", "minimum": 1},
+            "security": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_expert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+          "properties": {
+            "planner": {"type": "integer", "minimum": 1},
+            "tool_policy": {"type": "integer", "minimum": 1},
+            "frontend_gen": {"type": "integer", "minimum": 1},
+            "frontend_review": {"type": "integer", "minimum": 1},
+            "security_gate": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_language": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["en", "zh-CN"],
+          "properties": {
+            "en": {"type": "integer", "minimum": 0},
+            "zh-CN": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    }
+  }
+}

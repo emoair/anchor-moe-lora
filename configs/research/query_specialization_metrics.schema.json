@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/query-specialization-metrics-v1.json",
+  "title": "Anchor Query-specialization split-safe CPU proxy metrics",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "probe_kind",
+    "claim_scope",
+    "metrics_scope",
+    "experiment_config_sha256",
+    "contract_fixture_sha256",
+    "metrics_schema_sha256",
+    "runner_sha256",
+    "query_contract_module_sha256",
+    "runtime_versions",
+    "signal_thresholds",
+    "foundation_model_loaded",
+    "strict_json_optimized",
+    "contract_fixture_used_for_gradient_training",
+    "base_projection_frozen",
+    "frozen_parameters",
+    "trainable_parameters",
+    "epochs",
+    "learning_rate",
+    "attention_temperature",
+    "task_variation",
+    "distractor_copies",
+    "final_loss",
+    "split_audit",
+    "before_eval",
+    "after_eval",
+    "eval_delta",
+    "signal_checks",
+    "proxy_signal_passed",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.query-specialization-proxy-metrics.v1"},
+    "probe_kind": {
+      "const": "split_safe_tiny_frozen_key_role_query_lora"
+    },
+    "claim_scope": {"const": "experimental_proxy_scaffold_only"},
+    "metrics_scope": {"const": "unseen_eval_task_groups_only"},
+    "experiment_config_sha256": {"$ref": "#/$defs/sha256"},
+    "contract_fixture_sha256": {"$ref": "#/$defs/sha256"},
+    "metrics_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "runner_sha256": {"$ref": "#/$defs/sha256"},
+    "query_contract_module_sha256": {"$ref": "#/$defs/sha256"},
+    "runtime_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python", "torch"],
+      "properties": {
+        "python": {"type": "string", "minLength": 1},
+        "torch": {"type": "string", "minLength": 1}
+      }
+    },
+    "signal_thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_top1_relevant_rate",
+        "minimum_relevant_mass_gain",
+        "minimum_mean_min_relevant_block_mass",
+        "maximum_distractor_mass",
+        "minimum_correct_role_mass_gap",
+        "minimum_clean_noisy_query_cosine"
+      ],
+      "properties": {
+        "minimum_top1_relevant_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_relevant_mass_gain": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_mean_min_relevant_block_mass": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximum_distractor_mass": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_correct_role_mass_gap": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_clean_noisy_query_cosine": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "foundation_model_loaded": {"const": false},
+    "strict_json_optimized": {"const": false},
+    "contract_fixture_used_for_gradient_training": {"const": false},
+    "base_projection_frozen": {"const": true},
+    "frozen_parameters": {"type": "integer", "minimum": 1},
+    "trainable_parameters": {"type": "integer", "minimum": 1},
+    "epochs": {"type": "integer", "minimum": 1},
+    "learning_rate": {"type": "number", "exclusiveMinimum": 0},
+    "attention_temperature": {"type": "number", "exclusiveMinimum": 0},
+    "task_variation": {"type": "number", "minimum": 0},
+    "distractor_copies": {"type": "integer", "minimum": 1},
+    "final_loss": {"type": "number", "minimum": 0},
+    "split_audit": {"$ref": "#/$defs/splitAudit"},
+    "before_eval": {"$ref": "#/$defs/evalMetrics"},
+    "after_eval": {"$ref": "#/$defs/evalMetrics"},
+    "eval_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relevant_mass", "distractor_mass"],
+      "properties": {
+        "relevant_mass": {"type": "number", "minimum": -1, "maximum": 1},
+        "distractor_mass": {"type": "number", "minimum": -1, "maximum": 1}
+      }
+    },
+    "signal_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eval_top1_relevant",
+        "eval_relevant_mass_gain",
+        "eval_min_relevant_block_mass",
+        "eval_distractor_mass",
+        "eval_correct_role_mass_gap",
+        "eval_clean_noisy_consistency"
+      ],
+      "properties": {
+        "eval_top1_relevant": {"type": "boolean"},
+        "eval_relevant_mass_gain": {"type": "boolean"},
+        "eval_min_relevant_block_mass": {"type": "boolean"},
+        "eval_distractor_mass": {"type": "boolean"},
+        "eval_correct_role_mass_gap": {"type": "boolean"},
+        "eval_clean_noisy_consistency": {"type": "boolean"}
+      }
+    },
+    "proxy_signal_passed": {"type": "boolean"},
+    "non_claims": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "splitAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_key",
+        "train_tasks",
+        "eval_tasks",
+        "train_examples",
+        "eval_examples",
+        "task_overlap",
+        "train_task_ids_sha256",
+        "eval_task_ids_sha256",
+        "all_five_roles_per_task",
+        "clean_noisy_after_split"
+      ],
+      "properties": {
+        "group_key": {"const": "synthetic_task_id"},
+        "train_tasks": {"type": "integer", "minimum": 1},
+        "eval_tasks": {"type": "integer", "minimum": 1},
+        "train_examples": {"type": "integer", "minimum": 1},
+        "eval_examples": {"type": "integer", "minimum": 1},
+        "task_overlap": {"const": 0},
+        "train_task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "eval_task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "all_five_roles_per_task": {"const": true},
+        "clean_noisy_after_split": {"const": true}
+      }
+    },
+    "evalMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "top1_relevant_rate",
+        "mean_relevant_mass",
+        "mean_min_relevant_block_mass",
+        "mean_distractor_mass",
+        "mean_clean_noisy_query_cosine",
+        "mean_correct_role_mass_gap",
+        "mean_inter_role_query_cosine_diagnostic"
+      ],
+      "properties": {
+        "top1_relevant_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "mean_relevant_mass": {"type": "number", "minimum": 0, "maximum": 1},
+        "mean_min_relevant_block_mass": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "mean_distractor_mass": {"type": "number", "minimum": 0, "maximum": 1},
+        "mean_clean_noisy_query_cosine": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "mean_correct_role_mass_gap": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "mean_inter_role_query_cosine_diagnostic": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1.000001
+        }
+      }
+    }
+  }
+}

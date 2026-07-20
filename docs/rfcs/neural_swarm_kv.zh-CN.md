@@ -98,6 +98,15 @@ batching；Barrier 是实验变量，不是永远固定的架构。
 KV 共享不会自动产生 token 路由。反过来，token 路由历史会改变隐藏状态，因此
 缓存键必须包含 gate 版本以及所有可能影响状态的路由历史。
 
+角色专属 Query 视角的训练侧 M0 单独记录在
+[`neural_swarm_query_specialization.zh-CN.md`](neural_swarm_query_specialization.zh-CN.md)。
+它定义任务板 JSON 交接、Q-only/Q+O 对照、成对干扰课程、CPU 可学习性探针和
+后续因果门槛，同时不改动规范的五阶段 Gold 记录。
+
+模型 ID 解耦、共享输入与并发事件面的执行脚手架单独记录在
+[`neural_swarm_multistream_pipeline.zh-CN.md`](neural_swarm_multistream_pipeline.zh-CN.md)。
+该契约刻意不定义评测组，也不声称已经获得 CUDA/KV 并行加速。
+
 ## 已落地的 M0/M1
 
 - 精确共享层前沿判定；

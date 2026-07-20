@@ -1,0 +1,95 @@
+schema_version: anchor.query-specialization-experiment.v1
+claim_scope: experimental_proxy_scaffold_only
+
+dataset_contract:
+  root: fixtures/research/taskboard_projector
+  manifest: fixtures/research/taskboard_projector/manifest.json
+  files:
+    - train/clean.jsonl
+    - train/noisy.jsonl
+    - calibration/clean.jsonl
+  sidecar_schema: configs/research/taskboard_projector_sidecar.schema.json
+  manifest_schema: configs/research/taskboard_projector_manifest.schema.json
+  projector_config: configs/research/swebench_taskboard_projector_v1.yaml
+  expected_sidecar_schema_sha256: 654e9f7fddbe67885156c4e1fac9aa48c0b415c6fb52d3dcf501d53520b6f146
+  expected_manifest_schema_sha256: 75dc191849a0fba084dbc81064e7c5634c8727b41ad4b62522e3a28ecd727e53
+  expected_projector_config_sha256: 5d1207bf0a16f84c7cfa3448350b2a26f4127384664704b967c7c4280c9e63c9
+  split_group_key: task_bundle_sha256
+  require_clean_noisy_pairs: true
+  require_disjoint_source_tasks: true
+  require_all_role_views: true
+  hard_exclude_forbidden_blocks: true
+  canonical_gold_written: false
+  provider_requests: 0
+  heldout_content_read: false
+  heldout_content_emitted: false
+  split_preserved: true
+  augmentation_applied_after_split: true
+
+materialization:
+  schema_version: anchor.query-specialization-sft-view.v1
+  record_schema: configs/research/query_specialization_sft_view.schema.json
+  output_root: artifacts/research/query_specialization/materialized_sft
+  max_shard_bytes: 48000000
+  require_train_and_calibration_for_q1_smoke: true
+
+# Every field in this section is consumed by the tiny CPU surrogate. It does
+# not load or fine-tune a language model and it does not test JSON generation.
+proxy:
+  profile: q_only
+  hidden_size: 48
+  rank: 4
+  alpha: 8
+  seed: 20260720
+  train_tasks: 24
+  eval_tasks: 12
+  epochs: 300
+  learning_rate: 0.03
+  attention_temperature: 0.2
+  task_variation: 0.08
+  distractor_copies: 3
+  losses:
+    distractor_weight: 0.25
+    clean_noisy_consistency_weight: 0.1
+  metrics_schema: configs/research/query_specialization_metrics.schema.json
+  output: artifacts/research/query_specialization/mvp_probe.json
+  signal_thresholds:
+    minimum_top1_relevant_rate: 0.8
+    minimum_relevant_mass_gain: 0.1
+    minimum_mean_min_relevant_block_mass: 0.15
+    maximum_distractor_mass: 0.12
+    minimum_correct_role_mass_gap: 0.005
+    minimum_clean_noisy_query_cosine: 0.98
+
+# Reserved, disabled plan for a later foundation-model experiment. None of
+# these values are consumed by the CPU proxy above.
+full_model_followup:
+  enabled: false
+  # A real frozen formal-v3 release does not exist yet.  This explicit state is
+  # fail-closed: setting enabled=true also requires status=ready plus a pinned,
+  # authenticated producer release directory and manifest digest.
+  release_lock:
+    status: unavailable
+    root: null
+    schema: configs/research/generic_train_release_lock.schema.json
+    expected_schema_sha256: 889787be1391aec2d59f91b1ba171588c82e455aaddc342b79d3680e0284210d
+    expected_manifest_sha256: null
+    expected_consumer_contract_sha256: null
+    expected_consumer_id: anchor.query-specialization-training-consumer
+    expected_consumer_version: "1"
+  base_config: configs/training/gemma4_12b_qlora_smoke.yaml
+  lora:
+    primary_profile: q_only
+    control_profiles: [q_o]
+    rank: 8
+    alpha: 16
+    dropout: 0.05
+    dtype: bfloat16
+    freeze_base_model: true
+  optimization:
+    learning_rate: 0.00005
+    max_steps: 16
+  attention_implementation: sdpa
+  direct_attention_supervision: false
+  token_to_block_aggregation: unimplemented
+  evidence_selection_target: strict_json

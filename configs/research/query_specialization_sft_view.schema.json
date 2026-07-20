@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/query-specialization-sft-view-v1.json",
+  "title": "Materialized completion-only Query-specialization SFT view",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "source_sidecar_record_id",
+    "source_sidecar_record_sha256",
+    "source_gold_record_id",
+    "source_gold_sha256",
+    "source_gold_file_sha256",
+    "source_snapshot_sha256",
+    "source_snapshot_manifest_sha256",
+    "task_bundle_sha256",
+    "base_task_board_sha256",
+    "projector_version",
+    "projector_config_sha256",
+    "sidecar_schema_sha256",
+    "source_augmentation",
+    "task_id",
+    "pair_id",
+    "variant",
+    "language",
+    "split",
+    "role",
+    "messages"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.query-specialization-sft-view.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "source_sidecar_record_id": {"type": "string", "minLength": 1},
+    "source_sidecar_record_sha256": {"$ref": "#/$defs/sha256"},
+    "source_gold_record_id": {"type": "string", "minLength": 1},
+    "source_gold_sha256": {"$ref": "#/$defs/sha256"},
+    "source_gold_file_sha256": {"$ref": "#/$defs/sha256"},
+    "source_snapshot_sha256": {"$ref": "#/$defs/sha256"},
+    "source_snapshot_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "base_task_board_sha256": {"$ref": "#/$defs/sha256"},
+    "projector_version": {"type": "string", "minLength": 1},
+    "projector_config_sha256": {"$ref": "#/$defs/sha256"},
+    "sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "source_augmentation": {"$ref": "#/$defs/augmentation"},
+    "task_id": {"type": "string", "minLength": 1},
+    "pair_id": {"type": "string", "minLength": 1},
+    "variant": {"enum": ["clean", "noisy"]},
+    "language": {"enum": ["en", "zh-CN"]},
+    "split": {"enum": ["train", "calibration"]},
+    "role": {
+      "enum": [
+        "planner",
+        "tool_policy",
+        "frontend_gen",
+        "frontend_review",
+        "security_gate"
+      ]
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "content"],
+          "properties": {
+            "role": {"const": "user"},
+            "content": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "content"],
+          "properties": {
+            "role": {"const": "assistant"},
+            "content": {"type": "string", "minLength": 1}
+          }
+        }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "augmentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_block_ids",
+        "overlay_block_ids",
+        "same_task_only",
+        "split_before_augmentation"
+      ],
+      "properties": {
+        "kind": {"enum": ["clean", "stale_duplicate_overlay"]},
+        "source_block_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "overlay_block_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "same_task_only": {"const": true},
+        "split_before_augmentation": {"const": true}
+      }
+    }
+  }
+}

@@ -1,2 +1,20 @@
 # Unified-diff context represents a blank line as one leading space; do not flag that syntax as file whitespace.
 patches/opencode/*.patch whitespace=-trailing
+
+# Research contracts below bind SHA-256 to raw file bytes.  Keep their
+# checkout representation stable on Windows even when core.autocrlf=true.
+configs/research/generic_train_release_lock.schema.json text eol=lf
+configs/research/neural_swarm_stream_event.schema.json text eol=lf
+configs/research/neural_swarm_streaming_mvp.yaml text eol=lf
+configs/research/query_specialization_metrics.schema.json text eol=lf
+configs/research/query_specialization_mvp.yaml text eol=lf
+configs/research/query_specialization_record.schema.json text eol=lf
+configs/research/query_specialization_sft_view.schema.json text eol=lf
+configs/research/swebench_taskboard_projector_v1.yaml text eol=lf
+configs/research/taskboard_projector_manifest.schema.json text eol=lf
+configs/research/taskboard_projector_sidecar.schema.json text eol=lf
+fixtures/research/taskboard_projector/** text eol=lf
+src/anchor_mvp/research/query_specialization.py text eol=lf
+src/anchor_mvp/research/training_release_consumer.py text eol=lf
+scripts/research/train_query_specialization_mvp.py text eol=lf
+scripts/research/materialize_query_specialization_sft.py text eol=lf

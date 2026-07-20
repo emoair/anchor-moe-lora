@@ -25,6 +25,20 @@ correctness-aware KV sharing and rank-grouped residual execution. Start with the
 cross-adapter base-cache reuse as approximate after hidden states diverge; it
 does not claim lossless O(1) multi-LoRA inference.
 
+The transport-neutral multi-stream scaffold has its own
+[English RFC](docs/rfcs/neural_swarm_multistream_pipeline.md) and
+[简体中文 RFC](docs/rfcs/neural_swarm_multistream_pipeline.zh-CN.md). Run its
+content-free smoke test without loading model weights or using provider quota:
+
+```powershell
+python scripts/research/demo_neural_swarm_streaming.py --max-concurrency 2
+```
+
+This command validates logical-ID routing and interleaved event delivery only.
+An optional OpenAI-compatible Chat Completions SSE adapter is covered by
+in-memory transport tests, but no real endpoint, model weights, or evaluation
+group is connected in this milestone.
+
 ## What is implemented
 
 - SOP-injected, asynchronous and resumable teacher-data generation.
@@ -186,6 +200,10 @@ license. Bundled third-party Skills retain their original licenses and attributi
 see [THIRD_PARTY_SKILLS.md](THIRD_PARTY_SKILLS.md).
 
 ## Acknowledgements
+
+This project was built with coding, testing, documentation, and architecture
+assistance from OpenAI GPT-5.6-sol. All repository results remain subject to the
+project's own reproducibility checks and declared evidence boundaries.
 
 This project builds on openly shared Skills, adapter research, model/training stacks,
 and serving tools. Directly vendored assets, research inspiration, and infrastructure

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.neural-swarm-stream-event.v1",
+  "title": "Neural Swarm multi-stream event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "task_bundle_sha256",
+    "stream_id",
+    "expert_id",
+    "request_model_id",
+    "backend_model_id",
+    "per_stream_sequence",
+    "global_sequence",
+    "event_type",
+    "elapsed_ms"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.neural-swarm-stream-event.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_bundle_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stream_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expert_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_model_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "backend_model_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "per_stream_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "global_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "event_type": {
+      "enum": [
+        "started",
+        "delta",
+        "completed",
+        "failed",
+        "cancelled",
+        "barrier",
+        "swarm_completed"
+      ]
+    },
+    "elapsed_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "delta": {
+      "type": ["string", "null"]
+    },
+    "error_type": {
+      "type": ["string", "null"]
+    },
+    "error_message": {
+      "type": ["string", "null"]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
