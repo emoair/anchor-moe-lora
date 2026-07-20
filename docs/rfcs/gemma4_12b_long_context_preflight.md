@@ -28,6 +28,17 @@ python scripts/research/preflight_gemma4_12b_long_context.py `
   --pretty
 ```
 
+That default command reads only the preflight config; it does not authenticate
+or parse inventory JSONL. To explicitly authenticate the three frozen producer
+contract files plus the body-free scalar fixture, add:
+
+```powershell
+python scripts/research/preflight_gemma4_12b_long_context_preflight.py `
+  --config configs/research/gemma4_12b_long_context_preflight.yaml `
+  --authenticate-producer-fixture `
+  --pretty
+```
+
 The report covers 8K, 16K, 32K, 64K, 128K, 256K, 512K, and 1Mi tokens. Up to
 256K is only `native_metadata_only`: it is not a runtime, quality, retrieval,
 or training result. The 512K and 1Mi rows are `research_only_blocked` because
@@ -36,15 +47,42 @@ bound. Reported KV numbers are quantized tensor payload planning values, not
 measured runtime allocation; they exclude allocator alignment, graph/workspace,
 weights, outputs, and concurrency overhead.
 
-The report also requests `anchor.long-context-token-inventory.v1`, a scalar-only
-producer handoff. It is explicitly **pending producer freeze**, not a frozen
-producer schema. It asks the distillation side for per-record token counts,
-lineage hashes, reserved output, and bucket IDs after source-task splitting
-while prohibiting prompt, completion, TaskBoard, block, or message bodies. This
-preflight never consumes that inventory; it only publishes expected fields and
-invariants. Counts must include the bound chat template, framing, and special
-tokens. `total_tokens` is the observed prompt-plus-target sequence;
-`required_context_tokens` reserves the larger of target and output allowance.
+## Frozen synthetic token-inventory handoff
+
+The distillation side has now frozen a scalar-only fixture contract:
+
+- producer: `anchor.long-context-token-inventory-producer.v1`;
+- record schema: `anchor.long-context-token-inventory.v1`, SHA-256
+  `aab3e64a41d16c50816da7b03e05a8fb2d1c2b74ac1359f663b70485b34d706f`;
+- manifest schema: `anchor.long-context-token-inventory-manifest.v1`, SHA-256
+  `8b0d199b2b7dfafa88237ad1fdec538090404b0081a8b07f7136b121fc6932e0`;
+- producer config SHA-256
+  `79cd230b161bc91b802854e60df9453677b1c963d38eb9f156347ab56ad00abe`;
+- source projector manifest SHA-256
+  `595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac`;
+- fixture manifest SHA-256
+  `73ef649b890854ecdecfa1da7f814b746796a9ac486f62328d82c815bbaffc0e`.
+
+The fixture contains 3 authenticated partitions, 15 scalar records, 2 task
+bundles, 3 complete five-role groups, 89 segment references, and 25 unique
+segments; it made zero provider requests. The consumer fails closed when the
+version, declared hash, physical `manifest.json.sha256`, partition hash, or
+manifest count drifts. Source-task splitting remains keyed by
+`task_bundle_sha256` and happens before augmentation. Prompt, completion,
+TaskBoard, block, message, and held-out bodies remain outside this handoff.
+The explicit authentication path parses only the closed scalar/hash records to
+recompute token formulae, clean/noisy private-delta rules, role-stage binding,
+bundle split isolation, complete five-role groups, bucket/gate assignment, and
+the canonical tokenizer-binding hash. It reports that scalar JSONL was parsed
+while keeping `content_bodies_materialized=false`.
+
+This fixture uses the explicitly synthetic tokenizer binding
+`anchor.synthetic-fixture-utf8-byte`. It proves only that the producer and
+consumer can authenticate and exchange the scalar inventory contract. It does
+**not** prove agreement with the local Gemma tokenizer, 256K capability, 1Mi
+support or quality, long-context retrieval, runtime memory, KV correctness, or
+training quality. Those claims remain false until a target-model tokenizer and
+real measurements are independently bound.
 
 The staged, non-launch plan is: validate native 64K, 128K, then 256K without
 position scaling; investigate 512K with a 2x YaRN or linear candidate; keep 1Mi

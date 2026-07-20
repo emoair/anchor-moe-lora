@@ -1,0 +1,130 @@
+schema_version: anchor.long-context-token-inventory-config.v1
+producer_version: anchor.long-context-token-inventory-producer.v1
+
+input_contract:
+  projector_manifest_schema_version: anchor.swebench-taskboard-projector-manifest.v2
+  projector_sidecar_schema_version: anchor.swebench-taskboard-sidecar.v2
+  segment_plan_schema_version: anchor.hierarchical-task-kv-segment-plan.v1
+  require_manifest: true
+  require_manifest_sha256_sidecar: true
+  fixed_files:
+    - train/clean.jsonl
+    - train/noisy.jsonl
+    - calibration/clean.jsonl
+
+output_contract:
+  record_schema_version: anchor.long-context-token-inventory.v1
+  manifest_schema_version: anchor.long-context-token-inventory-manifest.v1
+  fixed_files:
+    - train/clean.jsonl
+    - train/noisy.jsonl
+    - calibration/clean.jsonl
+  mandatory_manifest_sha256_sidecar: true
+  approximate_inventory_allowed: false
+  null_inventory_allowed: false
+  inventory_mode_policy:
+    synthetic_fixture:
+      required_backend: explicit_synthetic_tokenizer
+      status: synthetic_fixture_inventory_ready
+      claim_scope: synthetic_fixture_contract_only
+      target_model_tokenizer_match: not_applicable
+      synthetic_fixture_only: true
+    local_exact_tokenizer:
+      required_backend: local_offline_tokenizer
+      status: exact_token_inventory_ready
+      claim_scope: exact_bound_tokenizer_inventory_only
+      target_model_tokenizer_match: consumer_verification_required
+      synthetic_fixture_only: false
+  bucket_basis: bound_tokenizer_total_tokens
+  capability_validated: false
+
+model_contract:
+  source: caller_supplied_metadata_only
+  model_family: gemma4
+  parameter_scale: 12B
+  text_layers: 48
+  sliding_attention_layers: 40
+  global_attention_layers: 8
+  sliding_window: 1024
+  max_position_embeddings: 262144
+  architecture_verified_by_preflight: false
+
+tokenization:
+  allowed_backends:
+    - local_offline_tokenizer
+    - explicit_synthetic_tokenizer
+  required_identity_fields:
+    - tokenizer_id
+    - tokenizer_revision
+    - tokenizer_assets_sha256
+    - tokenizer_runtime_sha256
+    - chat_template_sha256
+    - serialization_policy_sha256
+    - special_token_policy_sha256
+  tokenizer_label_source: caller_supplied_and_hash_bound
+  all_identity_fields_required: true
+  identity_null_allowed: false
+  network_access_allowed: false
+  synthetic_backend_requires_explicit_declaration: true
+  exact_token_counts_required: true
+  reserved_output_tokens: 4096
+  total_tokens_formula: input_tokens_plus_reserved_output_tokens
+  scope_attribution_formula: shared_prefix_input_tokens_plus_private_delta_input_tokens_equals_input_tokens
+  cache_identity_status: identity_unbound
+  reuse_savings_tokens: 0
+
+buckets:
+  le_8k:
+    lower_bound_exclusive: 0
+    upper_bound_inclusive: 8192
+    gate: measurement_candidate
+  le_16k:
+    lower_bound_exclusive: 8192
+    upper_bound_inclusive: 16384
+    gate: measurement_candidate
+  le_32k:
+    lower_bound_exclusive: 16384
+    upper_bound_inclusive: 32768
+    gate: measurement_candidate
+  le_64k:
+    lower_bound_exclusive: 32768
+    upper_bound_inclusive: 65536
+    gate: measurement_candidate
+  le_128k:
+    lower_bound_exclusive: 65536
+    upper_bound_inclusive: 131072
+    gate: measurement_candidate
+  le_256k:
+    lower_bound_exclusive: 131072
+    upper_bound_inclusive: 262144
+    gate: capability_only
+  le_1m:
+    lower_bound_exclusive: 262144
+    upper_bound_inclusive: 1048576
+    gate: research_only_blocked
+  gt_1m:
+    lower_bound_exclusive: 1048576
+    upper_bound_inclusive: unbounded
+    gate: reject
+
+limits:
+  split_group_key: task_bundle_sha256
+  task_id_cross_binding_key: task_id_sha256
+  task_id_cross_binding_transform: sha256_utf8_training_record_task_board_task_id
+  all_five_role_views_same_split: true
+  split_before_augmentation: true
+  forbidden_current_future_excluded_before_serialization: true
+  reject_total_tokens_above: 1048576
+  max_input_records: 1000
+  max_input_file_bytes: 8388608
+  max_output_file_bytes: 8388608
+  max_tokenizer_asset_bytes: 134217728
+
+safety:
+  source_line_bytes_snapshot_required: true
+  provider_requests: 0
+  canonical_gold_written: false
+  evaluation_status: not_evaluated
+  quality_validated: false
+  allocation_validated: false
+  execution_authorized: false
