@@ -1,0 +1,48 @@
+schema_version: anchor.swebench-taskboard-projector-config.v1
+projector_version: anchor.swebench-taskboard-projector.v1
+
+input_contract:
+  snapshot_schema_version: anchor.training-snapshot.v2
+  require_manifest: true
+  require_sha256_sidecar: true
+  required_splits:
+    - train
+    - calibration
+  heldout_content_read: false
+
+output_contract:
+  record_schema_version: anchor.query-specialization.v1
+  sidecar_schema_version: anchor.swebench-taskboard-sidecar.v1
+  manifest_schema_version: anchor.swebench-taskboard-projector-manifest.v1
+  canonical_gold_written: false
+  provider_requests: 0
+  heldout_content_emitted: false
+
+partitions:
+  split_before_augmentation: true
+  split_preserved: true
+  split_group_key: task_bundle_sha256
+  task_id_cross_binding_key: training_record.task_board.task_id
+  all_five_role_views_same_split: true
+  train:
+    variants:
+      - clean
+      - noisy
+  calibration:
+    variants:
+      - clean
+
+causal_visibility:
+  enforce_stage_visibility: true
+  reject_future_stage_blocks: true
+  require_visible_to_expert: true
+  source_of_truth: committed_blocks
+
+noise:
+  strategy: stale_duplicate_overlay
+  enabled_splits:
+    - train
+  same_task_only: true
+  cross_task_content_allowed: false
+  preserve_clean_pair: true
+  stale_marker_location: sidecar.augmentation

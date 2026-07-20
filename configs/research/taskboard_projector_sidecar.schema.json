@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/taskboard-projector-sidecar-v1.json",
+  "title": "Anchor SWE-bench TaskBoard projector research sidecar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "pair_id",
+    "variant",
+    "split",
+    "stage",
+    "expert",
+    "source_gold_record_id",
+    "source_gold_sha256",
+    "source_gold_file_sha256",
+    "source_snapshot_sha256",
+    "source_snapshot_manifest_sha256",
+    "task_bundle_sha256",
+    "base_task_board_sha256",
+    "projector_version",
+    "config_sha256",
+    "sidecar_schema_sha256",
+    "augmentation",
+    "training_record"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.swebench-taskboard-sidecar.v1"},
+    "id": {"$ref": "#/$defs/identifier"},
+    "pair_id": {"$ref": "#/$defs/identifier"},
+    "variant": {"enum": ["clean", "noisy"]},
+    "split": {"enum": ["train", "calibration"]},
+    "stage": {
+      "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+    },
+    "expert": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "source_gold_record_id": {"$ref": "#/$defs/identifier"},
+    "source_gold_sha256": {"$ref": "#/$defs/sha256"},
+    "source_gold_file_sha256": {"$ref": "#/$defs/sha256"},
+    "source_snapshot_sha256": {"$ref": "#/$defs/sha256"},
+    "source_snapshot_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "base_task_board_sha256": {"$ref": "#/$defs/sha256"},
+    "projector_version": {"const": "anchor.swebench-taskboard-projector.v1"},
+    "config_sha256": {"$ref": "#/$defs/sha256"},
+    "sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "augmentation": {"$ref": "#/$defs/augmentation"},
+    "training_record": {"$ref": "#/$defs/training_record"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"variant": {"const": "clean"}}, "required": ["variant"]},
+      "then": {
+        "properties": {
+          "augmentation": {
+            "properties": {
+              "kind": {"const": "clean"},
+              "source_block_ids": {"maxItems": 0},
+              "overlay_block_ids": {"maxItems": 0}
+            }
+          },
+          "training_record": {"properties": {"variant": {"const": "clean"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"variant": {"const": "noisy"}}, "required": ["variant"]},
+      "then": {
+        "properties": {
+          "split": {"const": "train"},
+          "augmentation": {
+            "properties": {
+              "kind": {"const": "stale_duplicate_overlay"},
+              "source_block_ids": {"minItems": 1},
+              "overlay_block_ids": {"minItems": 1}
+            }
+          },
+          "training_record": {
+            "properties": {
+              "variant": {"const": "noisy"},
+              "split": {"const": "train"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"split": {"const": "calibration"}}, "required": ["split"]},
+      "then": {
+        "properties": {
+          "variant": {"const": "clean"},
+          "training_record": {
+            "properties": {
+              "variant": {"const": "clean"},
+              "split": {"const": "calibration"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "augmentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "same_task_only",
+        "split_before_augmentation",
+        "source_block_ids",
+        "overlay_block_ids"
+      ],
+      "properties": {
+        "kind": {"enum": ["clean", "stale_duplicate_overlay"]},
+        "same_task_only": {"const": true},
+        "split_before_augmentation": {"const": true},
+        "source_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "overlay_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    "training_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "pair_id",
+        "variant",
+        "language",
+        "split",
+        "role",
+        "task_board",
+        "attention_targets",
+        "target"
+      ],
+      "properties": {
+        "schema_version": {"const": "anchor.query-specialization.v1"},
+        "id": {"$ref": "#/$defs/identifier"},
+        "pair_id": {"$ref": "#/$defs/identifier"},
+        "variant": {"enum": ["clean", "noisy"]},
+        "language": {"enum": ["en", "zh-CN"]},
+        "split": {"enum": ["train", "calibration", "eval"]},
+        "role": {
+          "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+        },
+        "task_board": {"$ref": "#/$defs/task_board"},
+        "attention_targets": {"$ref": "#/$defs/attention_targets"},
+        "target": {"$ref": "#/$defs/target"}
+      }
+    },
+    "task_board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "generation", "blocks"],
+      "properties": {
+        "task_id": {"$ref": "#/$defs/identifier"},
+        "generation": {"type": "integer", "minimum": 1},
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/task_board_block"}
+        }
+      }
+    },
+    "task_board_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "content", "commit_state", "visible_to"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {
+          "enum": [
+            "requirement",
+            "constraint",
+            "plan",
+            "repository",
+            "code",
+            "tool_call",
+            "tool_result",
+            "test_result",
+            "review",
+            "history"
+          ]
+        },
+        "content": {"type": "string", "minLength": 1},
+        "commit_state": {"enum": ["candidate", "verified", "committed", "rejected"]},
+        "visible_to": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "all",
+              "planner",
+              "tool_policy",
+              "frontend_gen",
+              "frontend_review",
+              "security_gate"
+            ]
+          }
+        }
+      }
+    },
+    "attention_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relevant_block_ids", "distractor_block_ids", "forbidden_block_ids"],
+      "properties": {
+        "relevant_block_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "distractor_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "forbidden_block_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected_block_ids", "action", "answer"],
+      "properties": {
+        "selected_block_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "action": {"type": "string", "minLength": 1},
+        "answer": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
