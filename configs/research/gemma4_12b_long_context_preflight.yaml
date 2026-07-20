@@ -1,0 +1,119 @@
+schema_version: anchor.gemma4-12b-long-context-preflight-config.v1
+
+mode: static_metadata_only
+model:
+  architecture: gemma4
+  scale: 12b
+  model_id: google/gemma-4-12B
+  revision: 56820d7d8cbe8e47975a53325439ed272e91cff2
+  source_config_sha256: 14f38c5492ffc9cbcdf808647ca0c025bb5b9b4eb737526347134d500ace6098
+  native_context_tokens: 262144
+
+architecture:
+  text_layers: 48
+  sliding_layers: 40
+  full_attention_layers: 8
+  sliding_window_tokens: 1024
+  sliding_kv_heads: 8
+  sliding_head_dim: 256
+  global_kv_heads: 1
+  global_head_dim: 512
+
+rope:
+  full_attention:
+    encoding: proportional_rope
+    theta: 1000000
+    partial_rotary_factor: 0.25
+  sliding_attention:
+    encoding: rope
+    theta: 10000
+  extrapolation_scaling_bound: false
+
+llama_cpp_runtime:
+  commit: 33c718db1fbfe834f30eef28cf206f98736fe612
+  gemma4_source_sha256: 05f9780eab0418ed01741596ef1b390f54b98d8fea66609ffdb21ea1af1de3e7
+  parallel_slots: 1
+  ubatch_tokens: 256
+  swa_alignment_tokens: 256
+  swa_full: false
+  flash_attention: true
+  conservative_separate_k_and_v: true
+  cache_k:
+    type: q8_0
+    block_elements: 32
+    block_bytes: 34
+  cache_v:
+    type: q4_0
+    block_elements: 32
+    block_bytes: 18
+
+context_buckets:
+  - {id: 8k, tokens: 8192}
+  - {id: 16k, tokens: 16384}
+  - {id: 32k, tokens: 32768}
+  - {id: 64k, tokens: 65536}
+  - {id: 128k, tokens: 131072}
+  - {id: 256k, tokens: 262144}
+  - {id: 512k, tokens: 524288}
+  - {id: 1mi, tokens: 1048576}
+
+staged_research_plan:
+  - {id: native-64k, tokens: 65536, position_scaling: none, status: static_only}
+  - {id: native-128k, tokens: 131072, position_scaling: none, status: static_only}
+  - {id: native-256k, tokens: 262144, position_scaling: none, status: static_only}
+  - {id: research-512k, tokens: 524288, position_scaling: yarn_or_linear_2x, status: blocked}
+  - {id: research-1mi, tokens: 1048576, position_scaling: yarn_4x_or_longrope_training, status: blocked}
+
+producer_token_inventory_contract:
+  schema_version: anchor.long-context-token-inventory.v1
+  interface_status: requested_pending_producer_freeze
+  frozen_producer_schema_claimed: false
+  materialization: metadata_only_no_content_bodies
+  split_group_key: task_bundle_sha256
+  split_before_augmentation: true
+  required_fields:
+    - record_id
+    - task_bundle_sha256
+    - split
+    - stage
+    - expert
+    - variant
+    - tokenizer_sha256
+    - segment_plan_sha256
+    - ordered_segment_ids_sha256
+    - terminal_prefix_lineage_sha256
+    - shared_prefix_tokens
+    - committed_downstream_tokens
+    - expert_private_input_tokens
+    - target_tokens
+    - materialized_prompt_tokens
+    - training_sequence_tokens
+    - reserved_output_tokens
+    - total_tokens
+    - required_context_tokens
+    - forbidden_tokens_excluded
+    - context_bucket
+  prohibited_body_fields:
+    - messages
+    - prompt
+    - completion
+    - content
+    - task_board
+    - blocks
+  invariants:
+    materialized_prompt_tokens: shared_prefix_tokens + committed_downstream_tokens + expert_private_input_tokens
+    training_sequence_tokens: materialized_prompt_tokens + target_tokens
+    total_tokens: training_sequence_tokens
+    required_context_tokens: materialized_prompt_tokens + max(target_tokens, reserved_output_tokens)
+    forbidden_tokens_excluded: true
+
+claims:
+  runtime_validated: false
+  quality_validated: false
+  training_validated: false
+  one_million_context_supported: false
+  model_loaded: false
+  gpu_used: false
+  network_used: false
+  data_jsonl_read: false
+  heldout_read: false
