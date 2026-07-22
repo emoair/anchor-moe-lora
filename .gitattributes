@@ -42,3 +42,6 @@ configs/research/scaffold_tokenizer_binding_manifest.schema.json text eol=lf
 configs/research/qwen_toy_source_disjoint_attestation.schema.json text eol=lf
 fixtures/research/qwen_train_prerequisite_status/** text eol=lf
 src/anchor_mvp/research/qwen_train_prerequisite_consumer.py text eol=lf
+configs/research/qwen_alora_prefix_kv_diagnostic* text eol=lf
+fixtures/research/qwen_alora_prefix_kv_diagnostic*/** text eol=lf
+src/anchor_mvp/research/qwen_alora_prefix_kv_diagnostic.py text eol=lf

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.qwen-alora-prefix-kv-diagnostic-receipt.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "config_sha256", "model_identity", "runtime", "tokenization", "routes", "metrics", "gates", "audit", "claims"],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen-alora-prefix-kv-diagnostic-receipt.v2"},
+    "status": {"const": "passed"}, "config_sha256": {"$ref": "#/$defs/sha256"},
+    "model_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "source_revision", "config_json_sha256", "model_safetensors_sha256", "tokenizer_json_sha256", "tokenizer_config_sha256"],
+      "properties": {
+        "id": {"const": "Qwen/Qwen2.5-1.5B-Instruct"}, "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "config_json_sha256": {"$ref": "#/$defs/sha256"}, "model_safetensors_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_json_sha256": {"$ref": "#/$defs/sha256"}, "tokenizer_config_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["python", "torch", "transformers", "peft", "cuda", "gpu", "dtype", "attention_implementation", "tf32", "matmul_precision", "cublas_workspace_config", "peak_allocated_mib", "peak_reserved_mib"],
+      "properties": {
+        "python": {"type": "string", "minLength": 1}, "torch": {"type": "string", "minLength": 1},
+        "transformers": {"type": "string", "minLength": 1}, "peft": {"type": "string", "minLength": 1},
+        "cuda": {"type": ["string", "null"]}, "gpu": {"type": "string", "minLength": 1},
+        "dtype": {"const": "float32"}, "attention_implementation": {"const": "eager"}, "tf32": {"const": true},
+        "matmul_precision": {"const": "high"}, "cublas_workspace_config": {"const": ":4096:8"},
+        "peak_allocated_mib": {"type": "number", "minimum": 0}, "peak_reserved_mib": {"type": "number", "minimum": 0}
+      }
+    },
+    "tokenization": {
+      "type": "object", "additionalProperties": false,
+      "required": ["request2_utf8_sha256", "chat_template_sha256", "ordered_token_ids_sha256", "prefix_token_ids_sha256", "trigger_text_sha256", "full_tokens", "prefix_tokens", "continuation_tokens", "invocation_tokens", "post_invocation_tokens", "trigger_text_occurrences", "trigger_span_start", "trigger_span_end", "boundary_overhang_sha256", "complete_request_tokenized_once", "isolated_trigger_encoding_authoritative"],
+      "properties": {
+        "request2_utf8_sha256": {"$ref": "#/$defs/sha256"}, "chat_template_sha256": {"$ref": "#/$defs/sha256"},
+        "ordered_token_ids_sha256": {"$ref": "#/$defs/sha256"}, "prefix_token_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "trigger_text_sha256": {"$ref": "#/$defs/sha256"}, "boundary_overhang_sha256": {"$ref": "#/$defs/sha256"},
+        "full_tokens": {"type": "integer", "minimum": 1}, "prefix_tokens": {"type": "integer", "minimum": 1},
+        "continuation_tokens": {"type": "integer", "minimum": 1}, "invocation_tokens": {"type": "integer", "minimum": 1},
+        "post_invocation_tokens": {"type": "integer", "minimum": 0}, "trigger_text_occurrences": {"const": 1},
+        "trigger_span_start": {"type": "integer", "minimum": 0}, "trigger_span_end": {"type": "integer", "minimum": 1},
+        "complete_request_tokenized_once": {"const": true}, "isolated_trigger_encoding_authoritative": {"const": false}
+      }
+    },
+    "routes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["executed", "adapter_kind", "target_modules", "rank", "alpha", "training_steps", "adapter_saved", "planner_request_executed", "planner_private_kv_reused", "reuse_scope", "cache_layers", "prefix_cache_tokens", "full_cache_tokens", "prefix_kv_bit_equal"],
+      "properties": {
+        "executed": {"const": ["base_full", "base_split", "alora_full", "alora_split", "missing_trigger_active", "missing_trigger_off", "prefix_active", "prefix_off"]},
+        "adapter_kind": {"const": "alora"}, "target_modules": {"const": ["q_proj"]}, "rank": {"const": 4}, "alpha": {"const": 8},
+        "training_steps": {"const": 0}, "adapter_saved": {"const": false}, "planner_request_executed": {"const": false},
+        "planner_private_kv_reused": {"const": false}, "reuse_scope": {"const": "exact_r2_pre_invocation_base_prefix_only"},
+        "cache_layers": {"type": "integer", "minimum": 1}, "prefix_cache_tokens": {"type": "integer", "minimum": 1},
+        "full_cache_tokens": {"type": "integer", "minimum": 2}, "prefix_kv_bit_equal": {"const": true}
+      }
+    },
+    "metrics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_full_split_max_abs", "alora_full_split_max_abs", "paired_differential_max_abs", "paired_to_adapter_effect_ratio", "adapter_effect_max_abs", "missing_trigger_effect_max_abs", "base_argmax_equal", "alora_argmax_equal", "greedy_tokens_equal", "all_finite", "shapes_equal"],
+      "properties": {
+        "base_full_split_max_abs": {"type": "number", "minimum": 0}, "alora_full_split_max_abs": {"type": "number", "minimum": 0},
+        "paired_differential_max_abs": {"type": "number", "minimum": 0},
+        "paired_to_adapter_effect_ratio": {"type": "number", "minimum": 0, "maximum": 0.2},
+        "adapter_effect_max_abs": {"type": "number", "minimum": 0},
+        "missing_trigger_effect_max_abs": {"type": "number", "minimum": 0}, "base_argmax_equal": {"const": true},
+        "alora_argmax_equal": {"const": true}, "greedy_tokens_equal": {"const": true}, "all_finite": {"const": true}, "shapes_equal": {"const": true}
+      }
+    },
+    "gates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["paired_differential", "paired_relative", "adapter_effect", "missing_trigger", "prefix_kv", "finite", "shapes", "argmax", "greedy", "memory", "all_passed"],
+      "properties": {
+        "paired_differential": {"const": true}, "paired_relative": {"const": true},
+        "adapter_effect": {"const": true}, "missing_trigger": {"const": true},
+        "prefix_kv": {"const": true}, "finite": {"const": true}, "shapes": {"const": true},
+        "argmax": {"const": true}, "greedy": {"const": true}, "memory": {"const": true}, "all_passed": {"const": true}
+      }
+    },
+    "audit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "dataset_reads", "model_loads"],
+      "properties": {"provider_requests": {"const": 0}, "network_requests": {"const": 0}, "dataset_reads": {"const": 0}, "model_loads": {"const": 1}}
+    },
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["diagnostic_only", "formal", "training_authorized", "quality_validated", "numeric_equivalence", "proxy_signal_passed", "thresholds_formal", "bf16_q4_bit_exact", "multi_stream", "zero_copy", "full_generation_kv_shared"],
+      "properties": {
+        "diagnostic_only": {"const": true}, "formal": {"const": false}, "training_authorized": {"const": false},
+        "quality_validated": {"const": false}, "numeric_equivalence": {"const": false},
+        "proxy_signal_passed": {"const": true}, "thresholds_formal": {"const": false},
+        "bf16_q4_bit_exact": {"const": false}, "multi_stream": {"const": false},
+        "zero_copy": {"const": false}, "full_generation_kv_shared": {"const": false}
+      }
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

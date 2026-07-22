@@ -1,0 +1,125 @@
+{
+  "schema_version": "anchor.qwen-alora-prefix-kv-diagnostic-config.v2",
+  "profile_id": "tf32_operational_v2",
+  "claim_scope": {
+    "diagnostic_only": true,
+    "formal": false,
+    "training_authorized": false,
+    "evidence_scope": "local_mechanical_prefix_kv_feasibility_tf32_only",
+    "gate_semantics": "post_fp32_diagnostic_calibrated_non_formal_proxy"
+  },
+  "schemas": {
+    "config": {
+      "path": "configs/research/qwen_alora_prefix_kv_diagnostic_tf32_config.schema.json",
+      "version": "anchor.qwen-alora-prefix-kv-diagnostic-config.v2",
+      "sha256": "190a619664eb530dacfcf689fc542147e1aca83884baadb8b558560bbb508b82"
+    },
+    "receipt": {
+      "path": "configs/research/qwen_alora_prefix_kv_diagnostic_tf32_receipt.schema.json",
+      "version": "anchor.qwen-alora-prefix-kv-diagnostic-receipt.v2",
+      "sha256": "78ea34b606b8360abd740657a044debf69344621fe4fcf8023237504c90f6507"
+    }
+  },
+  "model": {
+    "id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "source_repo": "https://www.modelscope.cn/Qwen/Qwen2.5-1.5B-Instruct.git",
+    "revision": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34",
+    "revision_kind": "immutable_git_commit",
+    "local_path": "${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}",
+    "local_files_only": true,
+    "network_allowed": false,
+    "trust_remote_code": false,
+    "assets": [
+      {"path": "config.json", "sha256": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17"},
+      {"path": "model.safetensors", "sha256": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee"},
+      {"path": "tokenizer.json", "sha256": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9"},
+      {"path": "tokenizer_config.json", "sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"}
+    ]
+  },
+  "adapter": {
+    "kind": "peft_alora_probe",
+    "target_modules": ["q_proj"],
+    "rank": 4,
+    "alpha": 8,
+    "dropout": 0.0,
+    "bias": "none",
+    "initialization": "deterministic_nonzero_b_probe_only",
+    "seed": 20260722,
+    "training_steps": 0,
+    "save_adapter": false
+  },
+  "protocol": {
+    "planner_request": {
+      "executed": false,
+      "private_kv_reused": false,
+      "committed_scaffold_reencoded_in_request2": true
+    },
+    "request2": {
+      "system_template": "You are a deterministic builder expert.",
+      "user_template": "Committed planner scaffold:",
+      "planner_scaffold_summary": "Return JSON for adding 2 and 3.",
+      "task_summary": "Return only the result object.",
+      "invocation_text": "<|activate:builder|>",
+      "complete_serialization_count": 1,
+      "span_method": "single_full_request2_tokenization_with_offset_mapping",
+      "isolated_invocation_authoritative": false,
+      "boundary_overhang_scope": "request_local_receipt_only"
+    },
+    "cache_reuse": {
+      "prefix_producer": "frozen_base",
+      "prefix_adapter_state": "off",
+      "planner_private_kv_allowed": false,
+      "exact_ordered_prefix_required": true,
+      "full_generation_kv_shared_claimed": false
+    }
+  },
+  "numerics": {
+    "dtype": "float32",
+    "attention": "eager",
+    "tf32": true,
+    "matmul_precision": "high",
+    "cublas_workspace_config": ":4096:8",
+    "deterministic_algorithms": true,
+    "batch_size": 1,
+    "seed": 20260722,
+    "autocast": false,
+    "greedy_tokens": 4
+  },
+  "gates": {
+    "paired_differential_max_abs": 0.05,
+    "paired_to_adapter_effect_ratio_max": 0.2,
+    "adapter_effect_min_abs": 0.001,
+    "missing_trigger_effect_exact": 0.0,
+    "prefix_kv_bit_equal": true,
+    "finite": true,
+    "shape_equal": true,
+    "argmax_equal": true,
+    "greedy_equal": true,
+    "peak_allocated_mib_max": 7168
+  },
+  "output": {
+    "receipt_path": "artifacts/diagnostics/qwen_alora_prefix_kv_tf32_v2/diagnostic_receipt.json",
+    "persist_logits": false,
+    "persist_kv": false,
+    "persist_token_ids": false,
+    "persist_adapter": false,
+    "atomic_publish": true,
+    "refuse_overwrite": true
+  },
+  "audit": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "dataset_reads": 0,
+    "model_loads_max": 1,
+    "training_executed": false,
+    "prohibited_claims": [
+      "bf16_bit_exact",
+      "q4_bit_exact",
+      "multistream_runtime",
+      "zero_copy_kv",
+      "quality_improvement",
+      "formal_readiness",
+      "fp32_reference_equivalence"
+    ]
+  }
+}
