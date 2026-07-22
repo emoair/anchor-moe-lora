@@ -1,0 +1,189 @@
+schema_version: anchor.natural-language-scaffold-config.v1
+producer_version: anchor.natural-language-scaffold-producer.v1
+
+input_contract:
+  projector_manifest_schema_version: anchor.swebench-taskboard-projector-manifest.v2
+  projector_sidecar_schema_version: anchor.swebench-taskboard-sidecar.v2
+  segment_plan_schema_version: anchor.hierarchical-task-kv-segment-plan.v1
+  require_manifest: true
+  require_manifest_sha256_sidecar: true
+  fixed_projector_files:
+    - train/clean.jsonl
+    - train/noisy.jsonl
+    - calibration/clean.jsonl
+  selected_source_partition_by_split:
+    train: train/noisy.jsonl
+    calibration: calibration/clean.jsonl
+
+output_contract:
+  record_schema_version: anchor.natural-language-scaffold.v1
+  manifest_schema_version: anchor.natural-language-scaffold-manifest.v1
+  smoke_contract_schema_version: anchor.natural-language-scaffold-smoke-contract.v1
+  fixed_files:
+    - train/json_only.jsonl
+    - train/concise_rationale_plus_json.jsonl
+    - calibration/json_only.jsonl
+    - calibration/concise_rationale_plus_json.jsonl
+  mandatory_manifest_sha256_sidecar: true
+  content_bodies_allowed: false
+  token_ids_allowed: false
+  token_boundary_indices_allowed: false
+
+architecture_contract:
+  name: frozen_prefix_q_reader__prefix_branch_producer_consumer
+  execution_mode: decoupled_frozen_prefix_producer_required
+  shared_prefix_producer: frozen_planner_base
+  adapter_state_on_prefix: "off"
+  adapter_state_after_boundary: expert_only
+  private_tail_kv_required: true
+  full_generation_kv_shared_claimed: false
+  cross_attention_q_reader_implemented: false
+  physical_shared_kv_implemented: false
+  hidden_chain_of_thought_exposed: false
+  lossless_reasoning_inheritance_claimed: false
+  expert_generates_no_kv_claimed: false
+  constant_attention_complexity_claimed: false
+  base_compute_disappears_claimed: false
+  naive_in_stack_q_lora_exact_reuse_claimed: false
+
+visibility_contract:
+  split_group_key: task_bundle_sha256
+  task_id_cross_binding_key: task_id_sha256
+  task_id_cross_binding_transform: sha256_utf8_training_record_task_board_task_id
+  all_five_role_views_same_split: true
+  split_before_augmentation: true
+  paired_views_share_source_and_target: true
+  paired_views_share_allowed_and_forbidden_evidence: true
+  current_target_body_serialized: false
+  future_block_body_serialized: false
+  forbidden_block_body_serialized: false
+  whole_taskboard_stringification_allowed: false
+
+scaffold_contract:
+  variants:
+    - json_only
+    - concise_rationale_plus_json
+  structured_interface:
+    - routing_json
+    - tool_calls
+    - tool_results
+    - expert_trigger
+  rationale_interface: concise_rationale_summary
+  rationale_max_utf8_bytes: 512
+  rationale_is_hidden_chain_of_thought: false
+  rationale_is_auditable_decision_basis_summary: true
+  tool_trace_kind: harmless_synthetic_fixture_trace
+  route_required_fields:
+    - role
+    - expert
+    - goal
+    - constraints
+    - allowed_segment_refs
+    - evidence_segment_refs
+    - tool_plan
+    - acceptance_criteria
+
+route_boundary_contract:
+  semantics: explicit_two_request_commit_boundary
+  planner_request_output: rationale_route_and_sentinel_candidate
+  validation_required: true
+  commit_required: true
+  commit_promotes_text_only: true
+  planner_private_tail_kv_transfer_allowed: false
+  committed_scaffold_reencode_required: true
+  committed_scaffold_reencode_producer: frozen_base
+  committed_scaffold_reencode_adapter_state: "off"
+  committed_scaffold_output: downstream_immutable_segment_with_new_lineage
+  expert_activation_request: next_request
+  expert_request_requires_committed_scaffold_as_input: true
+  token_boundary_status: tokenizer_binding_required
+
+cache_contract:
+  shared_prefix_scope: task_shared_prefix
+  private_tail_scope: expert_private_delta
+  exact_reuse_scope: identical_ordered_prefix_lineage_only
+  prefix_lineage_required: true
+  identical_token_order_positions_rope_required: true
+  cache_identity_status: identity_unbound
+  exact_cache_reuse_enabled: false
+  reuse_savings_tokens: 0
+  planner_private_tail_kv_reused_by_expert: false
+  physical_kv_tensor_emitted: false
+  full_generation_kv_shared_claimed: false
+  committed_scaffold_reencode_executed: false
+  downstream_immutable_segment_emitted: false
+
+adapter_control_contract:
+  labels:
+    - q_only
+    - q_plus_o
+    - wide_lora
+  labels_are_experimental_controls_only: true
+  producer_selects_winner: false
+  producer_claims_training_outcome: false
+  prefix_adapter_state: "off"
+  post_boundary_adapter_scope: expert_private_delta_only
+
+alora_capability_contract:
+  optional: true
+  capability_binding_required_before_execution: true
+  activation_semantics: next_request_input_activation_only
+  invocation_scan_scope: new_request_input_tokens_only
+  same_request_activation_allowed: false
+  mid_request_generated_activation_allowed: false
+  mid_request_generated_trigger_switch_claimed: false
+  explicit_commit_required: true
+  invocation_text_allowed: true
+  invocation_token_ids_allowed: false
+  invocation_token_index_allowed: false
+  cross_attention_q_reader_claimed: false
+  physical_shared_kv_claimed: false
+  adapter_available_in_fixture: false
+  adapter_loaded_in_fixture: false
+  activation_executed_in_fixture: false
+
+serialization_contract:
+  encoding: utf-8
+  newline: lf
+  json_object_serialization: canonical_json_sort_keys_compact_utf8
+  route_json_hash_basis: canonical_routing_json_utf8
+  payload_hash_basis: canonical_structured_interface_utf8
+  scaffold_text_hash_basis: exact_utf8_bytes
+  segment_reference_order: causal_order_then_segment_id
+  tokenizer_binding_status: unbound
+  token_fields_emitted: false
+
+fixture_contract:
+  fixture_only: true
+  source_task_bundles: 2
+  roles_per_bundle: 5
+  scaffold_variants_per_role: 2
+  expected_records: 20
+  expected_pairs: 10
+  records_per_output_file: 5
+  source_variant_by_split:
+    train: noisy
+    calibration: clean
+  provider_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  network_requests: 0
+
+limits:
+  max_input_records: 1000
+  max_input_file_bytes: 8388608
+  max_output_file_bytes: 8388608
+  max_allowed_segment_refs_per_record: 256
+  max_tool_calls_per_record: 8
+  max_string_utf8_bytes: 4096
+
+safety:
+  source_line_bytes_snapshot_required: true
+  output_atomic_publish_required: true
+  provider_requests: 0
+  canonical_gold_written: false
+  heldout_written: false
+  model_loaded: false
+  evaluation_status: not_evaluated
+  quality_validated: false
+  execution_authorized: false

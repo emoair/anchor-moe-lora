@@ -1,0 +1,483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/natural-language-scaffold-v1.json",
+  "title": "Authenticated body-free natural-language scaffold record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "pair_id",
+    "task_bundle_sha256",
+    "task_id_sha256",
+    "source_gold_sha256",
+    "split",
+    "source_variant",
+    "stage",
+    "expert",
+    "language",
+    "scaffold_variant",
+    "source_partition_sha256",
+    "source_line_sha256",
+    "target_sha256",
+    "target_binding_sha256",
+    "allowed_evidence_sha256",
+    "forbidden_evidence_sha256",
+    "segment_plan_sha256",
+    "ordered_segment_ids_sha256",
+    "terminal_prefix_lineage_sha256",
+    "architecture_contract_sha256",
+    "adapter_control_policy_sha256",
+    "serialization_policy_sha256",
+    "adapter_control_labels",
+    "training_outcome_claimed",
+    "route_boundary",
+    "cache_metadata",
+    "routing_json",
+    "routing_json_sha256",
+    "tool_calls",
+    "tool_results",
+    "expert_trigger",
+    "alora_invocation",
+    "canonical_json_payload_sha256",
+    "scaffold_text",
+    "scaffold_text_sha256",
+    "evaluation_status",
+    "quality_validated",
+    "execution_authorized",
+    "provider_requests"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.natural-language-scaffold.v1"},
+    "record_id": {
+      "type": "string",
+      "pattern": "^natural-language-scaffold-v1:[0-9a-f]{64}$"
+    },
+    "pair_id": {
+      "type": "string",
+      "pattern": "^natural-language-scaffold-pair-v1:[0-9a-f]{64}$"
+    },
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "task_id_sha256": {"$ref": "#/$defs/sha256"},
+    "source_gold_sha256": {"$ref": "#/$defs/sha256"},
+    "split": {"enum": ["train", "calibration"]},
+    "source_variant": {"enum": ["clean", "noisy"]},
+    "stage": {"$ref": "#/$defs/stage"},
+    "expert": {"$ref": "#/$defs/expert"},
+    "language": {"type": "string", "pattern": "^[a-z]{2,3}(?:-[A-Z]{2})?$"},
+    "scaffold_variant": {
+      "enum": ["json_only", "concise_rationale_plus_json"]
+    },
+    "source_partition_sha256": {"$ref": "#/$defs/sha256"},
+    "source_line_sha256": {"$ref": "#/$defs/sha256"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "target_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "allowed_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "forbidden_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "segment_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "ordered_segment_ids_sha256": {"$ref": "#/$defs/sha256"},
+    "terminal_prefix_lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "architecture_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "adapter_control_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "serialization_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "adapter_control_labels": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "q_only"},
+        {"const": "q_plus_o"},
+        {"const": "wide_lora"}
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "training_outcome_claimed": {"const": false},
+    "route_boundary": {"$ref": "#/$defs/route_boundary"},
+    "cache_metadata": {"$ref": "#/$defs/cache_metadata"},
+    "routing_json": {"$ref": "#/$defs/routing_json"},
+    "routing_json_sha256": {"$ref": "#/$defs/sha256"},
+    "tool_calls": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/tool_call"}
+    },
+    "tool_results": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/tool_result"}
+    },
+    "expert_trigger": {"$ref": "#/$defs/expert_trigger"},
+    "alora_invocation": {"$ref": "#/$defs/alora_invocation"},
+    "canonical_json_payload_sha256": {"$ref": "#/$defs/sha256"},
+    "concise_rationale_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "scaffold_text": {"type": "string", "minLength": 2, "maxLength": 32768},
+    "scaffold_text_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_status": {"const": "not_evaluated"},
+    "quality_validated": {"const": false},
+    "execution_authorized": {"const": false},
+    "provider_requests": {"const": 0}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"scaffold_variant": {"const": "json_only"}},
+        "required": ["scaffold_variant"]
+      },
+      "then": {"not": {"required": ["concise_rationale_summary"]}}
+    },
+    {
+      "if": {
+        "properties": {
+          "scaffold_variant": {"const": "concise_rationale_plus_json"}
+        },
+        "required": ["scaffold_variant"]
+      },
+      "then": {"required": ["concise_rationale_summary"]}
+    },
+    {
+      "if": {
+        "properties": {"split": {"const": "train"}},
+        "required": ["split"]
+      },
+      "then": {"properties": {"source_variant": {"const": "noisy"}}}
+    },
+    {
+      "if": {
+        "properties": {"split": {"const": "calibration"}},
+        "required": ["split"]
+      },
+      "then": {"properties": {"source_variant": {"const": "clean"}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "planner"}}, "required": ["stage"]},
+      "then": {"properties": {"expert": {"const": "planner"}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "tool_policy"}}, "required": ["stage"]},
+      "then": {"properties": {"expert": {"const": "tool_policy"}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "domain_builder"}}, "required": ["stage"]},
+      "then": {"properties": {"expert": {"const": "frontend_gen"}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "domain_review"}}, "required": ["stage"]},
+      "then": {"properties": {"expert": {"const": "frontend_review"}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "security"}}, "required": ["stage"]},
+      "then": {"properties": {"expert": {"const": "security_gate"}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "segment_id": {
+      "type": "string",
+      "pattern": "^task-kv-segment-v1:[0-9a-f]{64}$"
+    },
+    "block_id": {
+      "type": "string",
+      "pattern": "^tb-block-v1:[0-9a-f]{64}$"
+    },
+    "stage": {
+      "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+    },
+    "expert": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "segment_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "source_block_id",
+        "content_sha256",
+        "causal_order",
+        "cache_scope"
+      ],
+      "properties": {
+        "segment_id": {"$ref": "#/$defs/segment_id"},
+        "source_block_id": {"$ref": "#/$defs/block_id"},
+        "content_sha256": {"$ref": "#/$defs/sha256"},
+        "causal_order": {"type": "integer", "minimum": 0},
+        "cache_scope": {
+          "enum": [
+            "task_shared_prefix",
+            "downstream_task_shared_immutable",
+            "expert_private_delta"
+          ]
+        }
+      }
+    },
+    "routing_json": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "expert",
+        "goal",
+        "constraints",
+        "allowed_segment_refs",
+        "evidence_segment_refs",
+        "tool_plan",
+        "acceptance_criteria"
+      ],
+      "properties": {
+        "role": {"$ref": "#/$defs/stage"},
+        "expert": {"$ref": "#/$defs/expert"},
+        "goal": {
+          "const": "complete_bound_stage_using_only_declared_evidence_references"
+        },
+        "constraints": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "use_only_declared_allowed_segment_refs",
+              "exclude_current_target_future_and_forbidden_bodies",
+              "do_not_stringify_taskboard",
+              "require_explicit_validation_and_commit_before_expert_request",
+              "treat_expert_tail_as_private_kv"
+            ]
+          }
+        },
+        "allowed_segment_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {"$ref": "#/$defs/segment_ref"}
+        },
+        "evidence_segment_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {"$ref": "#/$defs/segment_ref"}
+        },
+        "tool_plan": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "route_schema_valid",
+              "source_target_and_evidence_bindings_match",
+              "tool_trace_is_auditable",
+              "scaffold_committed_before_next_request",
+              "expert_private_tail_not_claimed_shared"
+            ]
+          }
+        }
+      }
+    },
+    "tool_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call_id", "tool_name", "arguments"],
+      "properties": {
+        "call_id": {"$ref": "#/$defs/identifier"},
+        "tool_name": {
+          "enum": ["fixture.inspect_segment_refs", "fixture.validate_constraints"]
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["segment_ids", "checks"],
+          "properties": {
+            "segment_ids": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {"$ref": "#/$defs/segment_id"}
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "ordered_lineage",
+                  "visibility_allowlist",
+                  "target_exclusion",
+                  "forbidden_exclusion",
+                  "pair_binding"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "tool_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call_id", "status", "result_code"],
+      "properties": {
+        "call_id": {"$ref": "#/$defs/identifier"},
+        "status": {"const": "synthetic_ok"},
+        "result_code": {
+          "enum": ["segment_refs_verified", "constraints_verified"]
+        }
+      }
+    },
+    "expert_trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "expert",
+        "trigger_text",
+        "trigger_text_sha256",
+        "instruction",
+        "tokenizer_binding_status"
+      ],
+      "properties": {
+        "kind": {"const": "next_request_expert_invocation_candidate"},
+        "expert": {"$ref": "#/$defs/expert"},
+        "trigger_text": {
+          "type": "string",
+          "pattern": "^<\\|anchor_expert:(planner|tool_policy|frontend_gen|frontend_review|security_gate)\\|>$"
+        },
+        "trigger_text_sha256": {"$ref": "#/$defs/sha256"},
+        "instruction": {
+          "const": "execute_bound_stage_using_committed_scaffold_and_allowed_refs_only"
+        },
+        "tokenizer_binding_status": {"const": "unbound"}
+      }
+    },
+    "route_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantics",
+        "prefix_lineage_sha256",
+        "planner_request_phase",
+        "validation_required",
+        "commit_required",
+        "commit_promotes_text_only",
+        "planner_private_tail_kv_transfer_allowed",
+        "committed_scaffold_reencode_required",
+        "committed_scaffold_reencode_producer",
+        "committed_scaffold_reencode_adapter_state",
+        "expert_request_phase",
+        "expert_request_requires_committed_scaffold_as_input",
+        "token_boundary_status"
+      ],
+      "properties": {
+        "semantics": {"const": "explicit_two_request_commit_boundary"},
+        "prefix_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "planner_request_phase": {"const": "rationale_route_and_sentinel_candidate"},
+        "validation_required": {"const": true},
+        "commit_required": {"const": true},
+        "commit_promotes_text_only": {"const": true},
+        "planner_private_tail_kv_transfer_allowed": {"const": false},
+        "committed_scaffold_reencode_required": {"const": true},
+        "committed_scaffold_reencode_producer": {"const": "frozen_base"},
+        "committed_scaffold_reencode_adapter_state": {"const": "off"},
+        "expert_request_phase": {"const": "next_request"},
+        "expert_request_requires_committed_scaffold_as_input": {"const": true},
+        "token_boundary_status": {"const": "tokenizer_binding_required"}
+      }
+    },
+    "cache_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prefix_lineage_sha256",
+        "shared_prefix_scope",
+        "private_tail_scope",
+        "adapter_state_on_prefix",
+        "adapter_state_after_boundary",
+        "private_tail_kv_required",
+        "full_generation_kv_shared_claimed",
+        "exact_reuse_scope",
+        "cache_identity_status",
+        "exact_cache_reuse_enabled",
+        "reuse_savings_tokens",
+        "planner_private_tail_kv_reused_by_expert",
+        "physical_kv_tensor_emitted",
+        "committed_scaffold_reencode_executed",
+        "downstream_immutable_segment_emitted"
+      ],
+      "properties": {
+        "prefix_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "shared_prefix_scope": {"const": "task_shared_prefix"},
+        "private_tail_scope": {"const": "expert_private_delta"},
+        "adapter_state_on_prefix": {"const": "off"},
+        "adapter_state_after_boundary": {"const": "expert_only"},
+        "private_tail_kv_required": {"const": true},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "exact_reuse_scope": {"const": "identical_ordered_prefix_lineage_only"},
+        "cache_identity_status": {"const": "identity_unbound"},
+        "exact_cache_reuse_enabled": {"const": false},
+        "reuse_savings_tokens": {"const": 0},
+        "planner_private_tail_kv_reused_by_expert": {"const": false},
+        "physical_kv_tensor_emitted": {"const": false},
+        "committed_scaffold_reencode_executed": {"const": false},
+        "downstream_immutable_segment_emitted": {"const": false}
+      }
+    },
+    "alora_invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "optional",
+        "trigger_text",
+        "trigger_text_sha256",
+        "capability_binding_status",
+        "activation_semantics",
+        "invocation_scan_scope",
+        "same_request_activation_allowed",
+        "mid_request_generated_activation_allowed",
+        "mid_request_generated_trigger_switch_claimed",
+        "explicit_commit_required",
+        "tokenizer_binding_status",
+        "adapter_available",
+        "adapter_loaded",
+        "activation_executed",
+        "cross_attention_q_reader_claimed",
+        "physical_shared_kv_claimed"
+      ],
+      "properties": {
+        "optional": {"const": true},
+        "trigger_text": {
+          "type": "string",
+          "pattern": "^<\\|anchor_expert:(planner|tool_policy|frontend_gen|frontend_review|security_gate)\\|>$"
+        },
+        "trigger_text_sha256": {"$ref": "#/$defs/sha256"},
+        "capability_binding_status": {"const": "unbound"},
+        "activation_semantics": {"const": "next_request_input_activation_only"},
+        "invocation_scan_scope": {"const": "new_request_input_tokens_only"},
+        "same_request_activation_allowed": {"const": false},
+        "mid_request_generated_activation_allowed": {"const": false},
+        "mid_request_generated_trigger_switch_claimed": {"const": false},
+        "explicit_commit_required": {"const": true},
+        "tokenizer_binding_status": {"const": "unbound"},
+        "adapter_available": {"const": false},
+        "adapter_loaded": {"const": false},
+        "activation_executed": {"const": false},
+        "cross_attention_q_reader_claimed": {"const": false},
+        "physical_shared_kv_claimed": {"const": false}
+      }
+    }
+  }
+}

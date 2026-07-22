@@ -254,6 +254,66 @@ Historical v1 notes follow.
 - This round is pipeline construction and small validation only. Do not launch
   a foundation model, high-memory training, or full-bank projection/training.
 
+## Natural-language scaffold producer freeze (2026-07-22)
+
+- The provider-free producer is implemented in
+  `src/anchor_mvp/swebench/natural_language_scaffold.py`; its core physical
+  SHA-256 is
+  `49065192d4f9e64e1e386820b9f0e04b5b97836a17f53c430434fbe93086cc20`.
+  The build and audit entry points are
+  `scripts/data/build_swebench_natural_language_scaffold.py` and
+  `scripts/data/audit_swebench_natural_language_scaffold_fixture.py`.
+- The immutable producer contracts are config
+  `9c092c1f39e56b5e745515a0124715dd025aed5f78597edc2a1dfc894f0fdd40`,
+  record schema
+  `3892af891f3f3c0cf9462dd28713ece6c74bcaefffea20ad4d614a82898f85dd`,
+  manifest schema
+  `58acca23cf5f76187aadf40b95f6fbeb4cd667299e6c1183656bf296c21ee302`,
+  smoke schema
+  `3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b`,
+  and smoke contract
+  `46bca04c358cc1e80f55c7eacff36fdf3f11a83efda52ad4386035ca5d614719`.
+- The checked-in synthetic fixture manifest is
+  `ca95110a0062da50b1b01d273e478f5b781b7cb4ed820c324f97cffd1c1e5a9a`.
+  It contains 20 records: two source-disjoint task bundles, five roles per
+  bundle, and paired `json_only` / `concise_rationale_plus_json` views. The
+  four partition SHA-256 values are train JSON-only
+  `6aad30ccc1aaaac432a76559e15879acac4f82f382c4020a8e7c1831b2ef2751`,
+  train rationale+JSON
+  `02e85be2477fd8937fe3dc3f6222c771d7725864232e11ae8338fcc061d02617`,
+  calibration JSON-only
+  `2e30596b078a47416aec51c80aaaa5fa946d7f0cbd2231f49974ba4e6f7ef065`,
+  and calibration rationale+JSON
+  `260f1b7d14f1c1563b7a235bc475992f628f70f1e5e67351d05b76aba2299168`.
+- The architecture contract is
+  `frozen_prefix_q_reader__prefix_branch_producer_consumer`. Expert adapters
+  are off during the shared frozen prefix and may be expert-only after an
+  explicit route boundary. aLoRA is optional and strictly
+  `next_request_input_activation_only`: planner output is validated and
+  committed, the frozen base with adapters off re-encodes the short committed
+  scaffold into a new downstream immutable lineage, and only the next expert
+  request may scan its input invocation. Same-request generated-trigger
+  switching and Planner-private KV handoff are rejected.
+- The fixture is body-filtered and split-before-augmentation. Current target,
+  future, forbidden, held-out, and whole-TaskBoard bodies are not serialized.
+  Tokenizer identity is unbound, so no token ID, position, offset, or boundary
+  index is emitted. Q-only, Q+O, and wide-LoRA are labels for future controlled
+  comparisons, not outcome claims.
+- Focused scaffold tests pass 19/19. The combined projector, long-context,
+  release-freeze, and scaffold set collects 103 tests and passes 102 with one
+  Windows symlink-capability skip. Ruff, formatting, `py_compile`, both CLI
+  helps, deterministic rebuild, physical manifest/sidecar audit, UTF-8/LF,
+  body exclusion, and zero-request/resource assertions pass.
+- The local Qwen GGUF smoke contract remains unexecuted and non-authorizing.
+  It is not trainable weights and is not proof of physical Q-reader zero-copy
+  or shared KV. A real tokenizer binding, aLoRA adapter, frozen formal-v3
+  release, provider distillation, model training, physical KV backend, and
+  correctness/performance/quality evaluation remain incomplete and fail
+  closed.
+
+The detailed construction and migration rules are in
+`docs/swebench_natural_language_scaffold.md` and its Chinese counterpart.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before
