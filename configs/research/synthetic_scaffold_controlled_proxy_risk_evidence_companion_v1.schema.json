@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/synthetic-scaffold-controlled-proxy-risk-evidence-companion-v1.json",
+  "title": "Synthetic scaffold controlled-proxy risk evidence companion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "schema_sha256",
+    "implementation",
+    "frozen_v1_dependency",
+    "consumer_git_evidence",
+    "closed_projection",
+    "followup_constraints",
+    "promotion_gates",
+    "audit",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.synthetic-scaffold-controlled-proxy-risk-evidence-companion.v1"
+    },
+    "status": {"const": "frozen_additive_non_authorizing_risk_evidence"},
+    "claim_scope": {
+      "const": "single_seed_short_context_diagnostic_risk_evidence_only"
+    },
+    "schema_sha256": {"$ref": "#/$defs/sha256"},
+    "implementation": {"$ref": "#/$defs/file_binding"},
+    "frozen_v1_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_commit",
+        "producer_parent_commit",
+        "producer_tree",
+        "dependency_semantics",
+        "authentication_scope",
+        "modified",
+        "artifacts"
+      ],
+      "properties": {
+        "producer_commit": {"$ref": "#/$defs/sha1"},
+        "producer_parent_commit": {"$ref": "#/$defs/sha1"},
+        "producer_tree": {"$ref": "#/$defs/sha1"},
+        "dependency_semantics": {"const": "exact_frozen_v1_and_additive_only"},
+        "authentication_scope": {
+          "const": "exact_raw_git_commit_tree_blob_bytes_plus_local_file_equivalence"
+        },
+        "modified": {"const": false},
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema", "contract", "contract_sidecar", "implementation", "source", "source_sidecar"],
+          "properties": {
+            "schema": {"$ref": "#/$defs/git_file_binding"},
+            "contract": {"$ref": "#/$defs/git_file_binding"},
+            "contract_sidecar": {"$ref": "#/$defs/git_file_binding"},
+            "implementation": {"$ref": "#/$defs/git_file_binding"},
+            "source": {"$ref": "#/$defs/git_file_binding"},
+            "source_sidecar": {"$ref": "#/$defs/git_file_binding"}
+          }
+        }
+      }
+    },
+    "consumer_git_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "branch",
+        "freeze_time_remote_tracking_ref",
+        "freeze_time_live_remote_head_verified",
+        "runtime_ref_equality_required",
+        "commit",
+        "parent_commit",
+        "tree",
+        "direct_parent_is_v1_consumer_commit",
+        "authentication_scope",
+        "network_or_fetch_allowed",
+        "git_replace_objects_allowed",
+        "runtime_consumer_worktree_file_reads",
+        "sources"
+      ],
+      "properties": {
+        "repository": {"const": "anchor-moe-lora-neural-swarm"},
+        "branch": {"const": "research/neural-swarm-kv"},
+        "freeze_time_remote_tracking_ref": {
+          "const": "refs/remotes/origin/research/neural-swarm-kv"
+        },
+        "freeze_time_live_remote_head_verified": {"const": true},
+        "runtime_ref_equality_required": {"const": false},
+        "commit": {"$ref": "#/$defs/sha1"},
+        "parent_commit": {"$ref": "#/$defs/sha1"},
+        "tree": {"$ref": "#/$defs/sha1"},
+        "direct_parent_is_v1_consumer_commit": {"const": true},
+        "authentication_scope": {
+          "const": "exact_raw_git_commit_tree_blob_bytes_plus_closed_semantic_projection"
+        },
+        "network_or_fetch_allowed": {"const": false},
+        "git_replace_objects_allowed": {"const": false},
+        "runtime_consumer_worktree_file_reads": {"const": 0},
+        "sources": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {"$ref": "#/$defs/ablation_source"},
+            {"$ref": "#/$defs/spectral_source"},
+            {"$ref": "#/$defs/attention_source"}
+          ],
+          "items": false
+        }
+      }
+    },
+    "closed_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_endpoint",
+        "q_o_branch_ablation",
+        "spectral_risk_signal",
+        "attention_single_probe"
+      ],
+      "properties": {
+        "primary_endpoint": {"const": "step_80"},
+        "q_o_branch_ablation": {"$ref": "#/$defs/q_o_branch_ablation"},
+        "spectral_risk_signal": {"$ref": "#/$defs/spectral_risk_signal"},
+        "attention_single_probe": {"$ref": "#/$defs/attention_single_probe"}
+      }
+    },
+    "followup_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "existing_multiseed_plan_modified",
+        "minimum_master_seeds",
+        "confirmation_requires_independent_task_bundles",
+        "confirmation_blueprint_zero_overlap_ready",
+        "same_template_signal_interpretation",
+        "ood_signal_interpretation",
+        "attention_signal_interpretation",
+        "branch_ablation_interpretation",
+        "primary_endpoint_locked_before_replication"
+      ],
+      "properties": {
+        "existing_multiseed_plan_modified": {"const": false},
+        "minimum_master_seeds": {"const": 5},
+        "confirmation_requires_independent_task_bundles": {"const": true},
+        "confirmation_blueprint_zero_overlap_ready": {"const": false},
+        "same_template_signal_interpretation": {
+          "const": "template_or_answer_shape_writeback_risk_signal_only"
+        },
+        "ood_signal_interpretation": {
+          "const": "small_non_preregistered_proxy_does_not_establish_broad_generalization"
+        },
+        "attention_signal_interpretation": {
+          "const": "single_probe_three_layer_head_mean_observation_consistent_with_downstream_residual_effect_only"
+        },
+        "branch_ablation_interpretation": {
+          "const": "jointly_trained_q_plus_o_checkpoint_o_branch_retention_not_independently_trained_o_only_mechanism"
+        },
+        "primary_endpoint_locked_before_replication": {"const": "step_80"}
+      }
+    },
+    "promotion_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "multiseed_replication_ready",
+        "independent_confirmation_ready",
+        "long_context_ready",
+        "physical_kv_ready"
+      ],
+      "properties": {
+        "formal_v3_ready_count": {"const": 0},
+        "formal_v3_total": {"const": 5},
+        "protected_inventory_ready_count": {"const": 2},
+        "protected_inventory_total": {"const": 6},
+        "multiseed_replication_ready": {"const": false},
+        "independent_confirmation_ready": {"const": false},
+        "long_context_ready": {"const": false},
+        "physical_kv_ready": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_provider_requests",
+        "producer_network_requests",
+        "producer_model_loads",
+        "producer_gpu_requests",
+        "producer_protected_body_reads",
+        "consumer_source_counters"
+      ],
+      "properties": {
+        "producer_provider_requests": {"const": 0},
+        "producer_network_requests": {"const": 0},
+        "producer_model_loads": {"const": 0},
+        "producer_gpu_requests": {"const": 0},
+        "producer_protected_body_reads": {"const": 0},
+        "consumer_source_counters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["q_o_branch_ablation", "spectral_risk", "attention_hook"],
+          "properties": {
+            "q_o_branch_ablation": {"$ref": "#/$defs/source_counters_gpu"},
+            "spectral_risk": {"$ref": "#/$defs/source_counters_cpu"},
+            "attention_hook": {"$ref": "#/$defs/source_counters_attention"}
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "controlled_proxy_only",
+        "formal",
+        "training_authorized",
+        "formal_training_authorized",
+        "eval_proxy_is_heldout",
+        "ood_proxy_is_heldout",
+        "independent_o_only_mechanism_proven",
+        "memorization_proven",
+        "exploit_memorization_tested",
+        "causal_mechanism_proven",
+        "attention_equals_explanation",
+        "statistical_significance_claimed",
+        "multi_seed_validated",
+        "bundle_generalization_validated",
+        "long_context_generalization_claimed",
+        "physical_kv_reuse_claimed",
+        "zero_copy_claimed",
+        "q_reader_implemented",
+        "quality_validated"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "controlled_proxy_only": {"const": true},
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "ood_proxy_is_heldout": {"const": false},
+        "independent_o_only_mechanism_proven": {"const": false},
+        "memorization_proven": {"const": false},
+        "exploit_memorization_tested": {"const": false},
+        "causal_mechanism_proven": {"const": false},
+        "attention_equals_explanation": {"const": false},
+        "statistical_significance_claimed": {"const": false},
+        "multi_seed_validated": {"const": false},
+        "bundle_generalization_validated": {"const": false},
+        "long_context_generalization_claimed": {"const": false},
+        "physical_kv_reuse_claimed": {"const": false},
+        "zero_copy_claimed": {"const": false},
+        "q_reader_implemented": {"const": false},
+        "quality_validated": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "git_file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "git_blob_sha1": {"$ref": "#/$defs/sha1"}
+      }
+    },
+    "git_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role", "path", "sha256", "git_blob_sha1", "sidecar_path",
+        "sidecar_sha256", "sidecar_git_blob_sha1", "schema_version", "status"
+      ],
+      "properties": {
+        "role": {"type": "string"},
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "git_blob_sha1": {"$ref": "#/$defs/sha1"},
+        "sidecar_path": {"$ref": "#/$defs/relative_path"},
+        "sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_git_blob_sha1": {"$ref": "#/$defs/sha1"},
+        "schema_version": {"type": "string"},
+        "status": {"type": "string"}
+      }
+    },
+    "ablation_source": {
+      "allOf": [
+        {"$ref": "#/$defs/git_source"},
+        {
+          "properties": {
+            "role": {"const": "q_o_branch_ablation"},
+            "schema_version": {"const": "anchor.qwen25-1.5b-qo-memory-ablation-audit-receipt.v1"},
+            "status": {"const": "passed_read_only_teacher_forced_proxy_audit"}
+          }
+        }
+      ]
+    },
+    "spectral_source": {
+      "allOf": [
+        {"$ref": "#/$defs/git_source"},
+        {
+          "properties": {
+            "role": {"const": "spectral_risk"},
+            "schema_version": {"const": "anchor.qwen25-qo-spectral-memory-audit-receipt.v1"},
+            "status": {"const": "passed_static_memory_risk_diagnostic_only"}
+          }
+        }
+      ]
+    },
+    "attention_source": {
+      "allOf": [
+        {"$ref": "#/$defs/git_source"},
+        {
+          "properties": {
+            "role": {"const": "attention_hook"},
+            "schema_version": {"const": "anchor.qwen-attention-weight-hook-summary.v1"},
+            "status": {"const": "completed_attention_proxy_only"}
+          }
+        }
+      ]
+    },
+    "loss_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_off", "q_branch_retained", "o_branch_retained", "full"],
+      "properties": {
+        "adapter_off": {"type": "number"},
+        "q_branch_retained": {"type": "number"},
+        "o_branch_retained": {"type": "number"},
+        "full": {"type": "number"}
+      }
+    },
+    "q_o_branch_ablation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modes", "same_template_eval_macro_loss", "ood_proxy_macro_loss",
+        "o_branch_retained_fraction_of_off_to_full_reduction",
+        "full_ood_relative_improvement_vs_off", "same_template_records",
+        "ood_records", "ood_source_bundles", "ood_pre_registered_confirmation",
+        "branch_effects_additive_claimed"
+      ],
+      "properties": {
+        "modes": {
+          "const": ["adapter_off", "q_only_contribution", "o_only_contribution", "full"]
+        },
+        "same_template_eval_macro_loss": {"$ref": "#/$defs/loss_view"},
+        "ood_proxy_macro_loss": {"$ref": "#/$defs/loss_view"},
+        "o_branch_retained_fraction_of_off_to_full_reduction": {"type": "number"},
+        "full_ood_relative_improvement_vs_off": {"type": "number"},
+        "same_template_records": {"const": 20},
+        "ood_records": {"const": 20},
+        "ood_source_bundles": {"const": 4},
+        "ood_pre_registered_confirmation": {"const": false},
+        "branch_effects_additive_claimed": {"const": false}
+      }
+    },
+    "spectral_risk_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "o_top1_energy_fraction_mean", "o_energy_effective_rank_mean",
+        "o_to_q_total_delta_energy_ratio", "target_frequent_to_random_projection_ratio",
+        "prompt_control_to_random_projection_ratio", "nominal_rank",
+        "token_groups_frequency_matched", "correlation_only"
+      ],
+      "properties": {
+        "o_top1_energy_fraction_mean": {"type": "number"},
+        "o_energy_effective_rank_mean": {"type": "number"},
+        "o_to_q_total_delta_energy_ratio": {"type": "number"},
+        "target_frequent_to_random_projection_ratio": {"type": "number"},
+        "prompt_control_to_random_projection_ratio": {"type": "number"},
+        "nominal_rank": {"const": 8},
+        "token_groups_frequency_matched": {"const": false},
+        "correlation_only": {"const": true}
+      }
+    },
+    "attention_difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mean_absolute", "maximum_absolute"],
+      "properties": {
+        "mean_absolute": {"type": "number", "minimum": 0},
+        "maximum_absolute": {"type": "number", "minimum": 0}
+      }
+    },
+    "attention_single_probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attention_implementation", "aggregation", "probe_count", "total_tokens",
+        "modes", "difference_panel", "selected_layers", "full_minus_q_branch_retained",
+        "same_layer_o_branch_attention_change_claimed", "general_causal_result_claimed"
+      ],
+      "properties": {
+        "attention_implementation": {"const": "eager"},
+        "aggregation": {"const": "head_mean_float32_cpu"},
+        "probe_count": {"const": 1},
+        "total_tokens": {"const": 79},
+        "modes": {"const": ["adapter_off", "q_only_component", "o_only_component", "full"]},
+        "difference_panel": {"const": "full_minus_q_only_component"},
+        "selected_layers": {"const": [0, 13, 27]},
+        "full_minus_q_branch_retained": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["layer_0", "layer_13", "layer_27"],
+          "properties": {
+            "layer_0": {"$ref": "#/$defs/attention_difference"},
+            "layer_13": {"$ref": "#/$defs/attention_difference"},
+            "layer_27": {"$ref": "#/$defs/attention_difference"}
+          }
+        },
+        "same_layer_o_branch_attention_change_claimed": {"const": false},
+        "general_causal_result_claimed": {"const": false}
+      }
+    },
+    "source_counters_gpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "model_loads", "gpu_requests", "heldout_reads", "protected_body_reads"],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 1},
+        "gpu_requests": {"const": 1},
+        "heldout_reads": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    },
+    "source_counters_cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "full_model_loads", "gpu_requests", "heldout_reads", "protected_body_reads"],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "full_model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "heldout_reads": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    },
+    "source_counters_attention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests_reported", "network_requests", "model_loads", "gpu_requests", "heldout_reads", "protected_body_reads"],
+      "properties": {
+        "provider_requests_reported": {"const": false},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 1},
+        "gpu_requests": {"const": 1},
+        "heldout_reads": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    }
+  }
+}
