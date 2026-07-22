@@ -43,6 +43,7 @@ anchor-qwen-prerequisites = "anchor_mvp.research.qwen_train_prerequisite_consume
 anchor-qwen-alora-prefix-kv = "anchor_mvp.research.qwen_alora_prefix_kv_diagnostic:main"
 anchor-gemma3-alora-prefix-kv = "anchor_mvp.research.gemma3_alora_prefix_kv_diagnostic:main"
 anchor-qwen-toy-prerequisite = "anchor_mvp.research.qwen_toy_prerequisite_consumer:main"
+anchor-qwen-prerequisites-v2 = "anchor_mvp.research.qwen_train_prerequisite_consumer_v2:main"
 anchor-benchmark = "anchor_mvp.benchmark.cli:main"
 anchor-heldout = "anchor_mvp.benchmark.heldout_cli:main"
 anchor-swebench = "anchor_mvp.swebench.cli:main"

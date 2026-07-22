@@ -1,0 +1,51 @@
+schema_version: anchor.qwen-train-prerequisite-consumer-overlay-config.v2
+claim_scope: content_free_conjunctive_overlay_only_no_training_authority
+
+paths:
+  repository_root: ../..
+  frozen_v1_consumer_config: configs/research/qwen_train_prerequisite_consumer_v1.yaml
+  frozen_v1_consumer_implementation: src/anchor_mvp/research/qwen_train_prerequisite_consumer.py
+  frozen_toy_v1_consumer_config: configs/research/qwen_toy_prerequisite_consumer_v1.yaml
+  frozen_toy_v1_consumer_implementation: src/anchor_mvp/research/qwen_toy_prerequisite_consumer.py
+  companion_config: configs/research/qwen_toy_prerequisite_companion_v2.json
+  companion_schema: configs/research/qwen_toy_prerequisite_companion_v2.schema.json
+  companion_implementation: src/anchor_mvp/swebench/qwen_toy_prerequisite_companion_v2.py
+  companion_artifact_root: fixtures/research/qwen_toy_prerequisite_companion_v2
+  canonical_source_receipt: fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json
+  canonical_source_receipt_sidecar: fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json.sha256
+
+producer_companion_contract:
+  release_commit: 2648129d599a5041100278cb04b12291ffd8a482
+  release_tree: f9bbe821b2a3a683376f7bb565fa31bcda86b119
+  release_parent: 744e23f975b13923903f5fabe04c32e74ea25dc4
+  manifest_schema_version: anchor.qwen-toy-prerequisite-companion-manifest.v2
+  overlay_semantics: non_mutating_conjunctive_overlay_preserve_v1_pending_add_authenticated_ready_trigger
+
+bindings:
+  frozen_v1_consumer_config_sha256: 4fdc8173baaa9f14d93a288b18f38691be62bb1fb8e646c579a06d9c78bc1a8a
+  frozen_v1_consumer_implementation_sha256: 28224d9f065844c8bed04a1dc850e2d67888aa08ca080fbd6a017733864dfc60
+  frozen_toy_v1_consumer_config_sha256: ac2c522015798b379566c8c2aa96e5689398fb303240db916818c3a06e667811
+  frozen_toy_v1_consumer_implementation_sha256: f49f19a74555aa7393d228b6a83649d6bd47208409f4f5cf12adafa5a0f510db
+  companion_config_sha256: 21d483bfbfdab61a48996664b9221443c794902c4dcc547522b29b0c2346e50f
+  companion_schema_sha256: 596898946d773617ec4f0f2dc86ef8c261aa5c3f7bdc382e07114abc98382119
+  companion_implementation_sha256: dc96b2690769f14397393af0f6cfc07450dd58e9073ca5982adc2a9cc84c905e
+  companion_manifest_sha256: 7de94ff167db5cbae678e1c5f9049bc9abe5f8156ad4ab3acb4f65f52cf1d115
+  companion_manifest_sidecar_physical_sha256: f17631d15ec34561c9fcc7c0f29aad1b2fd8d302c2cdc4553e88562701673095
+  source_receipt_sha256: ae15b7a0edad2527348189fa65532865bdbbe6be0f32757714f2b0fe6582089e
+  source_receipt_sidecar_physical_sha256: ca54594ac067286e5a8619f26870537291fb5e1c5556e8b8efbccc4a67a58a8a
+  ordered_source_artifact_inventory_sha256: bf38c88fd993d4804f9a624bbf98330a9d4572a6803a80c2f57a6beb05b5f567
+
+policy:
+  effective_condition: frozen_v1_and_authenticated_companion_v2
+  unknown_or_missing_result: fail_closed
+  require_mandatory_sha256_sidecars: true
+  trigger_materialization_status: ready_diagnostic_only
+  inventory_ready_count: 2
+  inventory_total: 6
+  training_authorized: false
+  formal_training_authorized: false
+  model_loads: 0
+  gpu_requests: 0
+  network_requests: 0
+  provider_requests: 0
+  protected_content_reads: 0
