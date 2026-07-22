@@ -546,6 +546,64 @@ The detailed construction and migration rules are in
   dataset, full training, physical KV/multistream/Q-hijack measurements, and
   formal quality/performance evaluation remain incomplete and fail closed.
 
+## Controlled-proxy follow-up design (2026-07-23; non-authorizing)
+
+- Consumer commit `6ef29f1e0e9e110d59f9f2a09c1a8151f04b2465` reports a
+  three-arm, exact-parameter-budget controlled proxy over the committed
+  100-record synthetic scaffold fixture. Producer independently copied and
+  authenticated only the ignored metadata comparison bytes: comparison
+  SHA-256 `920f0abe3241a8a056114bd509f04a9b1fd0b23cfe0582857ff8719fefcd5e45`
+  and sidecar-file SHA-256
+  `bbdeb5b3ac8f7890a93c736b19bcd920875f642174f99914b199d1d62ce06830`.
+  No sample body, Gold, held-out, or protected scaffold body was copied or
+  read.
+- Under the exact single-seed, seq512, 80-step contract, each arm has
+  1,376,256 trainable parameters. Endpoint eval-proxy loss ranks
+  `q_plus_o` (0.8586097196), `wide_budget_matched` (1.1850866765), then
+  `q_only` (2.0898047030), from a shared 3.1020863533 baseline. This only
+  makes Q+O the priority retest candidate by endpoint loss. The 20 eval rows derive from
+  two independent source bundles; CUDA deterministic algorithms were off.
+  Equal parameter count is not equal compute, and neither mechanism, sample
+  efficiency, significance, long-context, physical-KV, quality, nor formal
+  winner claims are allowed.
+- Producer contract/schema/implementation SHA-256 values are respectively
+  `06ed121b23570546eb00088c891b273806dab1a1f764c9e40fba527cbf6447df`,
+  `fe3878cac9d3be773a676c23025e79cc7f64063da03a53c54eb7f4b59594e0b6`,
+  and `588c396febab5de75b772a4f46d58f21c8456247097fccc345cb1c738b0093a3`.
+  The contract records the historical split
+  key as `source_bundle_id`, while retaining `task_bundle_sha256` as the future
+  formal requirement; it also fixes the Producer `wide_lora` to Consumer
+  `wide_budget_matched` alias without rewriting history.
+- The next controlled-proxy gates require five master seeds with separate
+  adapter-init/record-order/CUDA schedules, deterministic receipts, all six
+  arm-order permutations within every seed, a preregistered bundle-macro
+  primary metric and paired two-level interval, 5/10/20/40/80-step curves,
+  and O-only plus K+V controls. The planned target is 60 source bundles
+  (40 train, 20 eval-proxy), balanced across language and five strata, expanded
+  only after `task_bundle_sha256` splitting to 400 train plus 200 eval-proxy
+  five-role/two-variant records. It is not generated; namespace-neutral
+  discovery/confirmation blueprint disjointness remains unavailable, so
+  independence is not claimed and `eval_proxy` remains non-held-out.
+- Qwen-bound context validation is planned for 8K/16K/32K total-token buckets.
+  The recorded local candidate config has `max_position_embeddings=32768` but
+  is not a formal binding; 64K/128K/256K all require a new model or RoPE
+  identity, 256K remains capability-only, and 1 Mi remains blocked.
+  Shared-prefix runtime validation requires adapter-off frozen-prefix prefill,
+  identical ordered prefix lineage, and expert-private tail KV. No ordinary
+  in-stack LoRA arm is allowed to claim exact full-stack KV reuse.
+- The Producer audit uses one immutable bytes snapshot for hash/parse/reparse, exact
+  mandatory sidecars, closed semantic projection, path and reparse-point
+  rejection, and final identity recheck. Formal-v3 artifacts remain 0/5,
+  protected inventories remain 2/6, and multi-seed/long-context/physical-KV/
+  formal quality gates remain false. Provider/network/model/GPU and protected
+  body counters are zero for this metadata overlay only; the upstream proxy
+  did train on a local GPU. `training_authorized=false` and
+  `formal_training_authorized=false` remain fail-closed.
+
+See `docs/synthetic_scaffold_controlled_proxy_followup.md` and
+`docs/synthetic_scaffold_controlled_proxy_followup.zh-CN.md` for the complete
+contract rationale, negative gates, and metadata-only reproduction commands.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before

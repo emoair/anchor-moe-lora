@@ -1,0 +1,1181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/synthetic-scaffold-controlled-proxy-followup-v1.json",
+  "title": "Synthetic scaffold controlled-proxy follow-up design",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "schema_sha256",
+    "evidence",
+    "controlled_contract",
+    "arms",
+    "interpretation",
+    "producer_followup",
+    "promotion_gates",
+    "audit",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.synthetic-scaffold-controlled-proxy-followup.v1"
+    },
+    "status": {
+      "const": "frozen_non_authorizing_followup_design"
+    },
+    "claim_scope": {
+      "const": "single_seed_short_context_controlled_proxy_evidence_only"
+    },
+    "schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_repository",
+        "consumer_branch",
+        "consumer_commit",
+        "consumer_parent_commit",
+        "consumer_tree",
+        "comparison",
+        "comparison_sidecar",
+        "comparison_schema",
+        "training_config",
+        "runner",
+        "auditor",
+        "producer_auditor",
+        "dataset_manifest_sha256",
+        "comparison_publication_status",
+        "comparison_authentication_scope",
+        "transitive_run_artifacts_reopened",
+        "consumer_git_blobs_reopened_by_producer_auditor"
+      ],
+      "properties": {
+        "consumer_repository": {
+          "const": "anchor-moe-lora-neural-swarm"
+        },
+        "consumer_branch": {
+          "const": "research/neural-swarm-kv"
+        },
+        "consumer_commit": {
+          "$ref": "#/$defs/sha1"
+        },
+        "consumer_parent_commit": {
+          "$ref": "#/$defs/sha1"
+        },
+        "consumer_tree": {
+          "$ref": "#/$defs/sha1"
+        },
+        "comparison": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "comparison_sidecar": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "comparison_schema": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "training_config": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "runner": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "auditor": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "producer_auditor": {
+          "$ref": "#/$defs/fileBinding"
+        },
+        "dataset_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "comparison_publication_status": {
+          "const": "local_ignored_evidence_not_release_artifact"
+        },
+        "comparison_authentication_scope": {
+          "const": "exact_out_of_tree_report_bytes_plus_closed_semantic_projection_only"
+        },
+        "transitive_run_artifacts_reopened": {
+          "const": false
+        },
+        "consumer_git_blobs_reopened_by_producer_auditor": {
+          "const": false
+        }
+      }
+    },
+    "controlled_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "frozen_base_named_parameter_fingerprint_sha256",
+        "base_fingerprint_algorithm",
+        "train_records",
+        "eval_proxy_records",
+        "eval_proxy_source_bundles",
+        "trainable_parameters_per_arm",
+        "optimizer_steps",
+        "learning_rate",
+        "seed",
+        "sequence_length",
+        "compute_dtype",
+        "tf32",
+        "gradient_checkpointing",
+        "ordered_record_ids_sha256",
+        "ordered_tokenized_train_sha256",
+        "ordered_eval_token_views_sha256",
+        "train_order_digest_algorithm",
+        "eval_view_digest_algorithm",
+        "eval_macro_loss_before",
+        "same_base_and_eval_before",
+        "same_train_order_and_token_views",
+        "all_train_records_seen_exactly_once",
+        "observed_split_group_key"
+      ],
+      "properties": {
+        "model_id": {
+          "const": "Qwen/Qwen2.5-1.5B-Instruct"
+        },
+        "frozen_base_named_parameter_fingerprint_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_fingerprint_algorithm": {
+          "const": "sha256_named_parameter_iteration_utf8_name_nul_ascii_raw_cpu_contiguous_tensor_sha256_lf_v1"
+        },
+        "train_records": {
+          "const": 80
+        },
+        "eval_proxy_records": {
+          "const": 20
+        },
+        "eval_proxy_source_bundles": {
+          "const": 2
+        },
+        "trainable_parameters_per_arm": {
+          "const": 1376256
+        },
+        "optimizer_steps": {
+          "const": 80
+        },
+        "learning_rate": {
+          "const": 0.00005
+        },
+        "seed": {
+          "const": 1337
+        },
+        "sequence_length": {
+          "const": 512
+        },
+        "compute_dtype": {
+          "const": "bfloat16"
+        },
+        "tf32": {
+          "const": true
+        },
+        "gradient_checkpointing": {
+          "const": true
+        },
+        "ordered_record_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ordered_tokenized_train_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ordered_eval_token_views_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "train_order_digest_algorithm": {
+          "const": "sha256_seeded_record_id_order_and_signed_int64_token_views_v1"
+        },
+        "eval_view_digest_algorithm": {
+          "const": "record_id_ascending_sha256_signed_int64_token_views_v1"
+        },
+        "eval_macro_loss_before": {
+          "type": "number"
+        },
+        "same_base_and_eval_before": {
+          "const": true
+        },
+        "same_train_order_and_token_views": {
+          "const": true
+        },
+        "all_train_records_seen_exactly_once": {
+          "const": true
+        },
+        "observed_split_group_key": {
+          "const": "source_bundle_id"
+        }
+      }
+    },
+    "arms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {
+          "allOf": [
+            {"$ref": "#/$defs/arm"},
+            {
+              "properties": {
+                "profile": {"const": "q_only"},
+                "ranks": {"const": {"q_proj": 16}},
+                "alphas": {"const": {"q_proj": 32}},
+                "trainable_tensors": {"const": 56}
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/arm"},
+            {
+              "properties": {
+                "profile": {"const": "q_plus_o"},
+                "ranks": {"const": {"q_proj": 8, "o_proj": 8}},
+                "alphas": {"const": {"q_proj": 16, "o_proj": 16}},
+                "trainable_tensors": {"const": 112}
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/arm"},
+            {
+              "properties": {
+                "profile": {"const": "wide_budget_matched"},
+                "ranks": {
+                  "const": {"q_proj": 5, "o_proj": 4, "k_proj": 6, "v_proj": 6}
+                },
+                "alphas": {
+                  "const": {"q_proj": 10, "o_proj": 8, "k_proj": 12, "v_proj": 12}
+                },
+                "trainable_tensors": {"const": 224}
+              }
+            }
+          ]
+        }
+      ],
+      "items": false
+    },
+    "interpretation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_ranking",
+        "proxy_leader",
+        "minimum_supported_observation",
+        "working_hypothesis",
+        "hypothesis_status",
+        "mechanistic_interpretation_claimed",
+        "dependency_freeze_limitations",
+        "forbidden_promotions"
+      ],
+      "properties": {
+        "observed_ranking": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "q_plus_o"},
+            {"const": "wide_budget_matched"},
+            {"const": "q_only"}
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "proxy_leader": {
+          "const": "q_plus_o"
+        },
+        "minimum_supported_observation": {
+          "const": "q_plus_o_had_the_lowest_two_bundle_eval_proxy_loss_under_this_exact_single_seed_short_context_contract"
+        },
+        "working_hypothesis": {
+          "const": "q_plus_o_query_and_attention_output_interventions_are_the_priority_retest_candidate_only_because_they_reached_lower_endpoint_proxy_loss"
+        },
+        "hypothesis_status": {
+          "const": "requires_multiseed_multibundle_length_stratified_replication"
+        },
+        "mechanistic_interpretation_claimed": {
+          "const": false
+        },
+        "dependency_freeze_limitations": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "upstream_comparison_v1_nested_objects_are_not_closed"
+            },
+            {
+              "const": "upstream_json_authentication_must_use_single_immutable_bytes_snapshot_plus_final_recheck_before_dependency_freeze"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "forbidden_promotions": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "formal_winner"},
+            {"const": "statistical_significance"},
+            {"const": "long_context_generalization"},
+            {"const": "physical_kv_reuse"},
+            {"const": "exact_full_stack_kv_sharing"},
+            {"const": "q_reader_implemented"},
+            {"const": "quality_validated"},
+            {"const": "heldout_validated"},
+            {"const": "training_authorized"},
+            {"const": "formal_training_authorized"}
+          ],
+          "items": false,
+          "minItems": 10,
+          "maxItems": 10
+        }
+      }
+    },
+    "producer_followup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_policy",
+        "replication_phase",
+        "stratified_fixture_phase",
+        "length_sweep_phase",
+        "runtime_kv_gate"
+      ],
+      "properties": {
+        "canonical_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "canonical_gold_modified",
+            "heldout_read_or_modified",
+            "frozen_v1_v2_modified",
+            "producer_selects_winner",
+            "producer_to_consumer_profile_alias",
+            "observed_proxy_split_group_key",
+            "future_formal_split_group_key",
+            "historical_split_identity_rewritten",
+            "same_records_for_all_arms",
+            "split_before_expansion_and_augmentation",
+            "paired_variants_same_target_and_evidence",
+            "forbidden_current_future_body_excluded"
+          ],
+          "properties": {
+            "canonical_gold_modified": {"const": false},
+            "heldout_read_or_modified": {"const": false},
+            "frozen_v1_v2_modified": {"const": false},
+            "producer_selects_winner": {"const": false},
+            "producer_to_consumer_profile_alias": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["q_only", "q_plus_o", "wide_lora"],
+              "properties": {
+                "q_only": {"const": "q_only"},
+                "q_plus_o": {"const": "q_plus_o"},
+                "wide_lora": {"const": "wide_budget_matched"}
+              }
+            },
+            "observed_proxy_split_group_key": {"const": "source_bundle_id"},
+            "future_formal_split_group_key": {"const": "task_bundle_sha256"},
+            "historical_split_identity_rewritten": {"const": false},
+            "same_records_for_all_arms": {"const": true},
+            "split_before_expansion_and_augmentation": {"const": true},
+            "paired_variants_same_target_and_evidence": {"const": true},
+            "forbidden_current_future_body_excluded": {"const": true}
+          }
+        },
+        "replication_phase": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimum_seeds",
+            "seed_schedule",
+            "seed_derivation_algorithm",
+            "seed_domain_schedules",
+            "cuda_deterministic_algorithms_required",
+            "identical_budget_and_examples_per_arm",
+            "throughput_repetitions_per_arm_per_seed",
+            "balanced_permutation_arm_execution_order",
+            "throughput_order_schedule",
+            "throughput_schedule_scope",
+            "throughput_warmup_runs_per_arm_per_seed",
+            "cuda_synchronize_before_after_timing",
+            "runtime_environment_binding_required",
+            "gpu_thermal_clock_state_receipt_required",
+            "performance_gate_separate_from_training_run",
+            "per_bundle_metrics_required",
+            "paired_seed_bundle_analysis_required",
+            "primary_metric",
+            "primary_metric_direction",
+            "primary_aggregation",
+            "uncertainty_method",
+            "uncertainty_resamples",
+            "uncertainty_seed",
+            "confidence_level",
+            "required_reporting_strata",
+            "replication_readiness_semantics",
+            "allowed_replication_outcomes",
+            "checkpoint_steps",
+            "learning_curve_required_for_sample_efficiency_claim",
+            "additional_mechanism_controls_required",
+            "formal_claim_allowed"
+          ],
+          "properties": {
+            "minimum_seeds": {"const": 5},
+            "seed_schedule": {
+              "type": "array",
+              "prefixItems": [
+                {"const": 1337},
+                {"const": 7331},
+                {"const": 104729},
+                {"const": 130363},
+                {"const": 20260723}
+              ],
+              "items": false,
+              "minItems": 5,
+              "maxItems": 5
+            },
+            "seed_derivation_algorithm": {
+              "const": "sha256_utf8_anchor_domain_nul_decimal_master_first_u32_mask31_v1"
+            },
+            "seed_domain_schedules": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["adapter_init", "record_order", "cuda"],
+              "properties": {
+                "adapter_init": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["domain", "values", "schedule_digest_algorithm", "sha256"],
+                  "properties": {
+                    "domain": {"const": "adapter_init"},
+                    "values": {
+                      "type": "array",
+                      "prefixItems": [
+                        {"const": 1485749021},
+                        {"const": 1905652195},
+                        {"const": 538954614},
+                        {"const": 1705069177},
+                        {"const": 1764718012}
+                      ],
+                      "items": false,
+                      "minItems": 5,
+                      "maxItems": 5
+                    },
+                    "schedule_digest_algorithm": {
+                      "const": "sha256_utf8_canonical_json_integer_array_v1"
+                    },
+                    "sha256": {
+                      "const": "2a59a5eb7cf55cecacc72ee2455a755e61594e5cb25cbf18479d4c37b2d27976"
+                    }
+                  }
+                },
+                "record_order": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["domain", "values", "schedule_digest_algorithm", "sha256"],
+                  "properties": {
+                    "domain": {"const": "record_order"},
+                    "values": {
+                      "type": "array",
+                      "prefixItems": [
+                        {"const": 638502245},
+                        {"const": 930319862},
+                        {"const": 283374371},
+                        {"const": 2107737362},
+                        {"const": 1730343274}
+                      ],
+                      "items": false,
+                      "minItems": 5,
+                      "maxItems": 5
+                    },
+                    "schedule_digest_algorithm": {
+                      "const": "sha256_utf8_canonical_json_integer_array_v1"
+                    },
+                    "sha256": {
+                      "const": "4b8f10eb599fd631240c71f910258475e8b8fc6c1f582a808585fd786a09a3c5"
+                    }
+                  }
+                },
+                "cuda": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["domain", "values", "schedule_digest_algorithm", "sha256"],
+                  "properties": {
+                    "domain": {"const": "cuda"},
+                    "values": {
+                      "type": "array",
+                      "prefixItems": [
+                        {"const": 794927935},
+                        {"const": 651012111},
+                        {"const": 179390722},
+                        {"const": 673891872},
+                        {"const": 1806964459}
+                      ],
+                      "items": false,
+                      "minItems": 5,
+                      "maxItems": 5
+                    },
+                    "schedule_digest_algorithm": {
+                      "const": "sha256_utf8_canonical_json_integer_array_v1"
+                    },
+                    "sha256": {
+                      "const": "7be2f9143e2ef7b1fab5ebab7c0a7d3f34379365fda2b8414b3d493e2ac01022"
+                    }
+                  }
+                }
+              }
+            },
+            "cuda_deterministic_algorithms_required": {"const": true},
+            "identical_budget_and_examples_per_arm": {"const": true},
+            "throughput_repetitions_per_arm_per_seed": {"const": 6},
+            "balanced_permutation_arm_execution_order": {"const": true},
+            "throughput_order_schedule": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "q_only"},
+                    {"const": "q_plus_o"},
+                    {"const": "wide_budget_matched"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "q_only"},
+                    {"const": "wide_budget_matched"},
+                    {"const": "q_plus_o"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "q_plus_o"},
+                    {"const": "q_only"},
+                    {"const": "wide_budget_matched"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "q_plus_o"},
+                    {"const": "wide_budget_matched"},
+                    {"const": "q_only"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "wide_budget_matched"},
+                    {"const": "q_only"},
+                    {"const": "q_plus_o"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {"const": "wide_budget_matched"},
+                    {"const": "q_plus_o"},
+                    {"const": "q_only"}
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              ],
+              "items": false,
+              "minItems": 6,
+              "maxItems": 6
+            },
+            "throughput_schedule_scope": {
+              "const": "all_six_arm_order_permutations_within_each_seed"
+            },
+            "throughput_warmup_runs_per_arm_per_seed": {"const": 1},
+            "cuda_synchronize_before_after_timing": {"const": true},
+            "runtime_environment_binding_required": {"const": true},
+            "gpu_thermal_clock_state_receipt_required": {"const": true},
+            "performance_gate_separate_from_training_run": {"const": true},
+            "per_bundle_metrics_required": {"const": true},
+            "paired_seed_bundle_analysis_required": {"const": true},
+            "primary_metric": {
+              "const": "bundle_macro_eval_loss_delta_vs_shared_base"
+            },
+            "primary_metric_direction": {"const": "lower_is_better"},
+            "primary_aggregation": {
+              "const": "equal_weight_bundle_macro_within_seed_then_equal_weight_seed_macro"
+            },
+            "uncertainty_method": {
+              "const": "paired_two_level_bootstrap_seed_then_source_bundle_v1"
+            },
+            "uncertainty_resamples": {"const": 10000},
+            "uncertainty_seed": {"const": 20260723},
+            "confidence_level": {"const": 0.95},
+            "required_reporting_strata": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "seed"},
+                {"const": "source_bundle"},
+                {"const": "language"},
+                {"const": "role"},
+                {"const": "scaffold_variant"},
+                {"const": "checkpoint"}
+              ],
+              "items": false,
+              "minItems": 6,
+              "maxItems": 6
+            },
+            "replication_readiness_semantics": {
+              "const": "integrity_and_preregistered_coverage_gate_independent_of_arm_ranking"
+            },
+            "allowed_replication_outcomes": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "q_plus_o_proxy_ranking_replicated"},
+                {"const": "tie_or_inconclusive"},
+                {"const": "ranking_overturned"}
+              ],
+              "items": false,
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "checkpoint_steps": {
+              "type": "array",
+              "prefixItems": [
+                {"const": 5},
+                {"const": 10},
+                {"const": 20},
+                {"const": 40},
+                {"const": 80}
+              ],
+              "items": false,
+              "minItems": 5,
+              "maxItems": 5
+            },
+            "learning_curve_required_for_sample_efficiency_claim": {
+              "const": true
+            },
+            "additional_mechanism_controls_required": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "o_only_budget_matched"},
+                {"const": "k_plus_v_budget_matched"}
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "formal_claim_allowed": {"const": false}
+          }
+        },
+        "stratified_fixture_phase": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "source_bundles_total",
+            "train_bundles",
+            "eval_proxy_bundles",
+            "train_bundles_per_language",
+            "eval_proxy_bundles_per_language",
+            "languages",
+            "roles",
+            "paired_variants",
+            "expected_records",
+            "train_records",
+            "eval_proxy_records",
+            "stratum_assignment_algorithm",
+            "stratum_assignment_domain",
+            "bundles_per_stratum",
+            "train_bundles_per_stratum",
+            "eval_proxy_bundles_per_stratum",
+            "bundles_per_language_per_stratum",
+            "train_bundles_per_language_per_stratum",
+            "eval_proxy_bundles_per_language_per_stratum",
+            "group_key",
+            "task_bundle_derivation_algorithm",
+            "task_bundle_derivation_domain",
+            "confirmation_source_namespace",
+            "task_bundle_excludes_role_variant_noise_and_length",
+            "inner_task_board_task_id_cross_binding_required",
+            "five_roles_two_variants_same_task_bundle_required",
+            "discovery_bundle_inventory_algorithm",
+            "discovery_bundle_inventory_domain",
+            "discovery_source_bundle_ids_sha256",
+            "confirmation_bundle_inventory_algorithm",
+            "confirmation_bundle_inventory_domain",
+            "confirmation_bundle_inventory_status",
+            "source_bundle_id_overlap_status",
+            "source_bundle_id_zero_overlap_proven",
+            "source_bundle_id_zero_overlap_sufficient_for_independence",
+            "namespace_neutral_blueprint_inventory_algorithm",
+            "namespace_neutral_blueprint_inventory_domain",
+            "discovery_blueprint_inventory_status",
+            "confirmation_blueprint_inventory_status",
+            "namespace_neutral_blueprint_zero_overlap_required",
+            "namespace_neutral_blueprint_zero_overlap_status",
+            "independent_confirmation_claimed",
+            "strata_specification_metadata_only",
+            "information_flow_strata",
+            "eval_proxy_is_heldout"
+          ],
+          "properties": {
+            "status": {"const": "design_only_not_generated"},
+            "source_bundles_total": {"const": 60},
+            "train_bundles": {"const": 40},
+            "eval_proxy_bundles": {"const": 20},
+            "train_bundles_per_language": {"const": 20},
+            "eval_proxy_bundles_per_language": {"const": 10},
+            "languages": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "en"},
+                {"const": "zh-CN"}
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "roles": {"const": 5},
+            "paired_variants": {"const": 2},
+            "expected_records": {"const": 600},
+            "train_records": {"const": 400},
+            "eval_proxy_records": {"const": 200},
+            "stratum_assignment_algorithm": {
+              "const": "sha256_utf8_domain_nul_source_task_blueprint_sha256_sort_balanced_round_robin_v1"
+            },
+            "stratum_assignment_domain": {
+              "const": "anchor.synthetic-scaffold-controlled-proxy-stratum-assignment.v1"
+            },
+            "bundles_per_stratum": {"const": 12},
+            "train_bundles_per_stratum": {"const": 8},
+            "eval_proxy_bundles_per_stratum": {"const": 4},
+            "bundles_per_language_per_stratum": {"const": 6},
+            "train_bundles_per_language_per_stratum": {"const": 4},
+            "eval_proxy_bundles_per_language_per_stratum": {"const": 2},
+            "group_key": {"const": "task_bundle_sha256"},
+            "task_bundle_derivation_algorithm": {
+              "const": "sha256_utf8_canonical_json_domain_source_namespace_source_bundle_id_language_source_task_blueprint_sha256_v1"
+            },
+            "task_bundle_derivation_domain": {
+              "const": "anchor.synthetic-scaffold-controlled-proxy-confirmation-task-bundle.v1"
+            },
+            "confirmation_source_namespace": {
+              "const": "anchor.synthetic-scaffold-controlled-proxy-confirmation.v1"
+            },
+            "task_bundle_excludes_role_variant_noise_and_length": {"const": true},
+            "inner_task_board_task_id_cross_binding_required": {"const": true},
+            "five_roles_two_variants_same_task_bundle_required": {"const": true},
+            "discovery_bundle_inventory_algorithm": {
+              "const": "sha256_canonical_json_domain_and_sorted_unique_values_v1"
+            },
+            "discovery_bundle_inventory_domain": {
+              "const": "anchor.synthetic-nl-scaffold-bundle-inventory.v1"
+            },
+            "discovery_source_bundle_ids_sha256": {
+              "const": "3014e1aea293b47a63a26beb72e37c8e45378df970df4433663e9ee2da6f2235"
+            },
+            "confirmation_bundle_inventory_algorithm": {
+              "const": "sha256_canonical_json_domain_and_sorted_unique_values_v1"
+            },
+            "confirmation_bundle_inventory_domain": {
+              "const": "anchor.synthetic-scaffold-controlled-proxy-confirmation-bundle-inventory.v1"
+            },
+            "confirmation_bundle_inventory_status": {
+              "const": "pending_not_generated"
+            },
+            "source_bundle_id_overlap_status": {
+              "const": "unavailable_until_confirmation_inventory_exists"
+            },
+            "source_bundle_id_zero_overlap_proven": {"const": false},
+            "source_bundle_id_zero_overlap_sufficient_for_independence": {
+              "const": false
+            },
+            "namespace_neutral_blueprint_inventory_algorithm": {
+              "const": "sha256_canonical_json_common_domain_and_sorted_unique_source_task_blueprint_sha256_v1"
+            },
+            "namespace_neutral_blueprint_inventory_domain": {
+              "const": "anchor.synthetic-scaffold-task-blueprint-comparison.v1"
+            },
+            "discovery_blueprint_inventory_status": {
+              "const": "unavailable_not_published"
+            },
+            "confirmation_blueprint_inventory_status": {
+              "const": "pending_not_generated"
+            },
+            "namespace_neutral_blueprint_zero_overlap_required": {"const": true},
+            "namespace_neutral_blueprint_zero_overlap_status": {
+              "const": "unavailable_until_both_blueprint_inventories_exist"
+            },
+            "independent_confirmation_claimed": {"const": false},
+            "strata_specification_metadata_only": {"const": true},
+            "information_flow_strata": {
+              "type": "array",
+              "minItems": 5,
+              "maxItems": 5,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "prefix_evidence_selection",
+                  "prefix_evidence_plus_structured_private_writeback",
+                  "conflicting_allowed_evidence_resolution",
+                  "tool_result_commit_then_expert_private_tail",
+                  "ordered_long_prefix_retrieval"
+                ]
+              }
+            },
+            "eval_proxy_is_heldout": {"const": false}
+          }
+        },
+        "length_sweep_phase": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "planned_initial_buckets_tokens",
+            "planned_deferred_capability_buckets_tokens",
+            "capability_gate_only_tokens",
+            "capability_gate_current_identity_status",
+            "research_only_blocked_tokens",
+            "bucket_measurement",
+            "current_model_max_position_embeddings",
+            "largest_initial_bucket_within_model_limit",
+            "model_identity_status",
+            "model_revision",
+            "model_config_sha256",
+            "tokenizer_json_sha256",
+            "tokenizer_config_sha256",
+            "tokenizer_binding_sha256",
+            "chat_template_sha256",
+            "serialization_policy_sha256",
+            "special_token_policy_sha256",
+            "rope_identity_source",
+            "above_32k_buckets_require_new_model_or_rope_identity",
+            "real_tokenizer_inventory_required",
+            "same_ordered_prefix_lineage_required",
+            "provider_requests_allowed",
+            "model_loads_allowed",
+            "gpu_requests_allowed",
+            "quality_claim_allowed"
+          ],
+          "properties": {
+            "status": {"const": "pending_tokenizer_bound_fixture"},
+            "planned_initial_buckets_tokens": {
+              "type": "array",
+              "prefixItems": [
+                {"const": 8192},
+                {"const": 16384},
+                {"const": 32768}
+              ],
+              "items": false,
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "planned_deferred_capability_buckets_tokens": {
+              "type": "array",
+              "prefixItems": [
+                {"const": 65536},
+                {"const": 131072}
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "capability_gate_only_tokens": {"const": 262144},
+            "capability_gate_current_identity_status": {
+              "const": "blocked_requires_new_model_or_rope_identity"
+            },
+            "research_only_blocked_tokens": {"const": 1048576},
+            "bucket_measurement": {
+              "const": "total_tokens_equals_input_tokens_plus_reserved_output_tokens"
+            },
+            "current_model_max_position_embeddings": {"const": 32768},
+            "largest_initial_bucket_within_model_limit": {"const": true},
+            "model_identity_status": {
+              "const": "authenticated_local_candidate_not_formal_binding"
+            },
+            "model_revision": {
+              "const": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34"
+            },
+            "model_config_sha256": {
+              "const": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17"
+            },
+            "tokenizer_json_sha256": {
+              "const": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9"
+            },
+            "tokenizer_config_sha256": {
+              "const": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+            },
+            "tokenizer_binding_sha256": {
+              "const": "a76b0f60e5c1e2d92b8a8d9131f9afe9edfda3fcbf0221c4234359f70e806425"
+            },
+            "chat_template_sha256": {
+              "const": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f"
+            },
+            "serialization_policy_sha256": {
+              "const": "b725011f64a321cd47619a298445155db78832643ee3052468b1fbb377362b73"
+            },
+            "special_token_policy_sha256": {
+              "const": "a7695bc6a3a261d9e5e3f54ae8e695d33933294f4144391602c3296954c14ca7"
+            },
+            "rope_identity_source": {"const": "model_config_sha256"},
+            "above_32k_buckets_require_new_model_or_rope_identity": {
+              "const": true
+            },
+            "real_tokenizer_inventory_required": {"const": true},
+            "same_ordered_prefix_lineage_required": {"const": true},
+            "provider_requests_allowed": {"const": false},
+            "model_loads_allowed": {"const": false},
+            "gpu_requests_allowed": {"const": false},
+            "quality_claim_allowed": {"const": false}
+          }
+        },
+        "runtime_kv_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "execution_mode",
+            "adapter_state_on_prefix",
+            "adapter_state_after_boundary",
+            "private_tail_kv_required",
+            "exact_reuse_scope",
+            "ordinary_in_stack_lora_exact_full_stack_reuse_claimed",
+            "q_plus_o_physical_kv_reuse_claimed",
+            "cross_attention_q_reader_implemented"
+          ],
+          "properties": {
+            "execution_mode": {
+              "const": "decoupled_frozen_prefix_producer_required"
+            },
+            "adapter_state_on_prefix": {"const": "off"},
+            "adapter_state_after_boundary": {"const": "expert_only"},
+            "private_tail_kv_required": {"const": true},
+            "exact_reuse_scope": {
+              "const": "identical_ordered_prefix_lineage_only"
+            },
+            "ordinary_in_stack_lora_exact_full_stack_reuse_claimed": {
+              "const": false
+            },
+            "q_plus_o_physical_kv_reuse_claimed": {"const": false},
+            "cross_attention_q_reader_implemented": {"const": false}
+          }
+        }
+      }
+    },
+    "promotion_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proxy_replication_ready",
+        "long_context_ready",
+        "physical_kv_ready",
+        "formal_v3_artifacts_ready",
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "zero_intersection_proven",
+        "formal_training_authorized",
+        "unmet"
+      ],
+      "properties": {
+        "proxy_replication_ready": {"const": false},
+        "long_context_ready": {"const": false},
+        "physical_kv_ready": {"const": false},
+        "formal_v3_artifacts_ready": {"const": false},
+        "formal_v3_ready_count": {"const": 0},
+        "formal_v3_total": {"const": 5},
+        "protected_inventory_ready_count": {"const": 2},
+        "protected_inventory_total": {"const": 6},
+        "zero_intersection_proven": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "unmet": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "multiseed_replication"},
+            {"const": "twenty_eval_proxy_bundles"},
+            {"const": "confirmation_blueprint_zero_overlap_proof"},
+            {"const": "tokenizer_bound_length_sweep"},
+            {"const": "physical_kv_correctness_and_performance"},
+            {"const": "four_body_free_protected_inventories"},
+            {"const": "six_source_zero_intersection_proof"},
+            {"const": "formal_v3_snapshot_projector_generic_source_disjoint_release_lock"},
+            {"const": "real_teacher_distillation_dataset"},
+            {"const": "formal_quality_and_performance_evaluation"}
+          ],
+          "items": false,
+          "minItems": 10,
+          "maxItems": 10
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "gold_body_reads",
+        "heldout_body_reads",
+        "protected_scaffold_body_reads",
+        "sample_bodies_copied"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "gold_body_reads": {"const": 0},
+        "heldout_body_reads": {"const": 0},
+        "protected_scaffold_body_reads": {"const": 0},
+        "sample_bodies_copied": {"const": 0}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "controlled_proxy_only",
+        "q_plus_o_proxy_leader_under_exact_contract",
+        "producer_selected_training_winner",
+        "q_only_rejected",
+        "wide_lora_rejected",
+        "mechanistic_interpretation_claimed",
+        "sample_efficiency_claimed",
+        "compute_matched_claimed",
+        "statistical_significance_claimed",
+        "multi_seed_validated",
+        "bundle_generalization_validated",
+        "long_context_generalization_claimed",
+        "physical_kv_reuse_claimed",
+        "zero_copy_claimed",
+        "full_generation_kv_shared_claimed",
+        "throughput_superiority_claimed",
+        "quality_validated",
+        "eval_proxy_is_heldout",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "controlled_proxy_only": {"const": true},
+        "q_plus_o_proxy_leader_under_exact_contract": {"const": true},
+        "producer_selected_training_winner": {"const": false},
+        "q_only_rejected": {"const": false},
+        "wide_lora_rejected": {"const": false},
+        "mechanistic_interpretation_claimed": {"const": false},
+        "sample_efficiency_claimed": {"const": false},
+        "compute_matched_claimed": {"const": false},
+        "statistical_significance_claimed": {"const": false},
+        "multi_seed_validated": {"const": false},
+        "bundle_generalization_validated": {"const": false},
+        "long_context_generalization_claimed": {"const": false},
+        "physical_kv_reuse_claimed": {"const": false},
+        "zero_copy_claimed": {"const": false},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "throughput_superiority_claimed": {"const": false},
+        "quality_validated": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "formal": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"
+    },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "ranks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q_proj"],
+      "properties": {
+        "q_proj": {"type": "integer", "minimum": 1},
+        "o_proj": {"type": "integer", "minimum": 1},
+        "k_proj": {"type": "integer", "minimum": 1},
+        "v_proj": {"type": "integer", "minimum": 1}
+      }
+    },
+    "arm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "ranks",
+        "alphas",
+        "trainable_parameters",
+        "trainable_tensors",
+        "preflight_sha256",
+        "receipt_sha256",
+        "eval_macro_loss_after",
+        "eval_macro_loss_delta_percent",
+        "train_tokens_per_second",
+        "eval_bundles_improved",
+        "all_gradients_finite_nonzero",
+        "base_unchanged",
+        "reload_logit_delta"
+      ],
+      "properties": {
+        "profile": {
+          "enum": ["q_only", "q_plus_o", "wide_budget_matched"]
+        },
+        "ranks": {"$ref": "#/$defs/ranks"},
+        "alphas": {"$ref": "#/$defs/ranks"},
+        "trainable_parameters": {"const": 1376256},
+        "trainable_tensors": {"type": "integer", "minimum": 1},
+        "preflight_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "eval_macro_loss_after": {"type": "number"},
+        "eval_macro_loss_delta_percent": {"type": "number"},
+        "train_tokens_per_second": {"type": "number", "exclusiveMinimum": 0},
+        "eval_bundles_improved": {"const": 2},
+        "all_gradients_finite_nonzero": {"const": true},
+        "base_unchanged": {"const": true},
+        "reload_logit_delta": {"const": 0}
+      }
+    }
+  }
+}
