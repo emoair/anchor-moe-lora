@@ -1,0 +1,207 @@
+{
+  "arms": [
+    {
+      "adapter_artifact_sha256": {
+        "adapter_config.json": "fd4d6c3e1c5a0e9fb73e646dd9b51257094d4d899a0de82b8267410571760d61",
+        "adapter_model.safetensors": "542535eb86995759baeee5e2d65264a516a0c0cd7f36bd952e7a5f4a1587610c"
+      },
+      "bundle_improved_count": 2,
+      "eval_macro_loss_after": 2.0898047029972076,
+      "eval_macro_loss_delta_percent": -32.63228469533982,
+      "eval_micro_nll_after": 2.092246722495347,
+      "eval_ppl_after": 8.103100145731647,
+      "integrity": {
+        "all_lora_tensors_observed_nonzero_gradient": true,
+        "base_unchanged": true,
+        "save_reload_logit_delta": 0.0
+      },
+      "peak_allocated_vram_bytes": 3894284288,
+      "preflight": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_preflight/q_only-v1/preflight.json",
+        "sha256": "da0aa73bde0471172a0e7ea2433bb2d6105195081cb6aa482a08dc1e674934c4"
+      },
+      "profile": "q_only",
+      "receipt": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_only_step80/diagnostic_receipt.json",
+        "sha256": "6ca4d55c2780aac413a2a04ea2c8e4b338f233c3db7b952ac6452a4965bd9f81"
+      },
+      "saved_tensor_audit": {
+        "all_shapes_valid": true,
+        "alphas": {
+          "q_proj": 32
+        },
+        "parameters": 1376256,
+        "ranks": {
+          "q_proj": 16
+        },
+        "tensor_count": 56,
+        "unexpected_tensors": 0
+      },
+      "train_tokens_per_second": 902.8706359715925,
+      "train_wall_seconds": 27.950848100008443
+    },
+    {
+      "adapter_artifact_sha256": {
+        "adapter_config.json": "17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222",
+        "adapter_model.safetensors": "fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba"
+      },
+      "bundle_improved_count": 2,
+      "eval_macro_loss_after": 0.8586097195744514,
+      "eval_macro_loss_delta_percent": -72.32154035104445,
+      "eval_micro_nll_after": 0.869472089163654,
+      "eval_ppl_after": 2.3856511099647038,
+      "integrity": {
+        "all_lora_tensors_observed_nonzero_gradient": true,
+        "base_unchanged": true,
+        "save_reload_logit_delta": 0.0
+      },
+      "peak_allocated_vram_bytes": 3894284288,
+      "preflight": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_preflight/q_plus_o-v3/preflight.json",
+        "sha256": "d90a6bf0ec9f3df09bf78c860602107e0436a7799de3ed8bc27bbc3d6d52879b"
+      },
+      "profile": "q_plus_o",
+      "receipt": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80/diagnostic_receipt.json",
+        "sha256": "dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e"
+      },
+      "saved_tensor_audit": {
+        "all_shapes_valid": true,
+        "alphas": {
+          "o_proj": 16,
+          "q_proj": 16
+        },
+        "parameters": 1376256,
+        "ranks": {
+          "o_proj": 8,
+          "q_proj": 8
+        },
+        "tensor_count": 112,
+        "unexpected_tensors": 0
+      },
+      "train_tokens_per_second": 814.506993111908,
+      "train_wall_seconds": 30.98315939999884
+    },
+    {
+      "adapter_artifact_sha256": {
+        "adapter_config.json": "14bfc0da6fdee19a3794d27ed9f2fd6e0c7c78f11de71eeb4e7221139762f299",
+        "adapter_model.safetensors": "f6e7e911e9c245d0c31bbba5fee13d4d7846ece65d93d0873f7895d7a216513f"
+      },
+      "bundle_improved_count": 2,
+      "eval_macro_loss_after": 1.1850866764783858,
+      "eval_macro_loss_delta_percent": -61.79710873564414,
+      "eval_micro_nll_after": 1.1901606213279634,
+      "eval_ppl_after": 3.2876092251360927,
+      "integrity": {
+        "all_lora_tensors_observed_nonzero_gradient": true,
+        "base_unchanged": true,
+        "save_reload_logit_delta": 0.0
+      },
+      "peak_allocated_vram_bytes": 3894284288,
+      "preflight": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_preflight/wide_budget_matched-v3/preflight.json",
+        "sha256": "5970a57396215af98f2fe3a645d413841b0566d9b8d8b63370ca8a418d7640da"
+      },
+      "profile": "wide_budget_matched",
+      "receipt": {
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_wide_budget_matched_step80/diagnostic_receipt.json",
+        "sha256": "06bfe9c62b81f2e6f1e7ed93989251b478090636e8a6aea8963d8eb52cd73338"
+      },
+      "saved_tensor_audit": {
+        "all_shapes_valid": true,
+        "alphas": {
+          "k_proj": 12,
+          "o_proj": 8,
+          "q_proj": 10,
+          "v_proj": 12
+        },
+        "parameters": 1376256,
+        "ranks": {
+          "k_proj": 6,
+          "o_proj": 4,
+          "q_proj": 5,
+          "v_proj": 6
+        },
+        "tensor_count": 224,
+        "unexpected_tensors": 0
+      },
+      "train_tokens_per_second": 621.8879511786972,
+      "train_wall_seconds": 40.57965739996871
+    }
+  ],
+  "audit": {
+    "final_directories_reopened": true,
+    "gpu_requests": 0,
+    "heldout_reads": 0,
+    "model_loads": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0,
+    "saved_tensors_fully_validated": true,
+    "tokenizer_loads": 1
+  },
+  "auditor": {
+    "path": "src/anchor_mvp/training/qwen_budget_matched_ablation_audit.py",
+    "sha256": "c7328cdc3083d52ee8d40de94ee0f18169d920cc448b75f2860868911c522b71"
+  },
+  "claims": {
+    "controlled_proxy_only": true,
+    "deterministic_algorithms_enabled": false,
+    "diagnostic_only": true,
+    "eval_proxy_is_heldout": false,
+    "formal": false,
+    "multi_seed_validated": false,
+    "statistical_significance_claimed": false,
+    "training_authorized": false
+  },
+  "common": {
+    "base_hash": "2e05af50628344c5c19cbd981bf98de0026ea567a61f403afad4665d28156e15",
+    "config_sha256": "8a7aa62fefe24512155898c677b1a1473b2c0bc11c85005e6e2f960d2c66245a",
+    "dataset_manifest_sha256": "64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd",
+    "eval_macro_loss_before": 3.1020863533020018,
+    "eval_micro_nll_before": 3.0963934247779568,
+    "eval_target_tokens": 2736,
+    "ordered_record_ids_sha256": "13ff5875530fc8b61e6f8526ffa67d18c8574bd0d87bf289db1cf5f38776daab",
+    "ordered_tokenized_examples_sha256": "34ecf23c1fa4dcf70336126caf7845abb3d60bc48fd65f831a1722b98d0f7cda",
+    "partition_sha256": {
+      "eval_proxy/concise_rationale_plus_json.jsonl": "ed0d60a609edbac6ba9db7cf8d818f85354da4f17e7409b0981d8d4abaf7cfaa",
+      "eval_proxy/json_only.jsonl": "06fe504e33ef61b05df7f3aff5969025b299343d613441bbb04dea1599fbc680",
+      "train/concise_rationale_plus_json.jsonl": "ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852",
+      "train/json_only.jsonl": "3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df"
+    },
+    "train_full_tokens": 25236
+  },
+  "config": {
+    "path": "configs/training/qwen2_5_1_5b_synthetic_scaffold_budget_matched_v1.yaml",
+    "sha256": "490b0e18fce004a44b97b4c4ab2a3d0f9d0809e1d1f20a2fdc8f93938490e9c2"
+  },
+  "dataset": {
+    "eval_ordered_token_views": {
+      "algorithm": "record_id_ascending_sha256_signed_int64_token_views_v1",
+      "ordered_views_sha256": "5a2722900afea0898e284808f0ed28a6c5d164ecf3e877128a0ee1266884fc10",
+      "raw_record_ids_emitted": false,
+      "raw_token_ids_emitted": false,
+      "records": 20
+    },
+    "eval_proxy_records": 20,
+    "manifest_sha256": "64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd",
+    "partition_sha256": {
+      "eval_proxy/concise_rationale_plus_json.jsonl": "ed0d60a609edbac6ba9db7cf8d818f85354da4f17e7409b0981d8d4abaf7cfaa",
+      "eval_proxy/json_only.jsonl": "06fe504e33ef61b05df7f3aff5969025b299343d613441bbb04dea1599fbc680",
+      "train/concise_rationale_plus_json.jsonl": "ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852",
+      "train/json_only.jsonl": "3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df"
+    },
+    "train_records": 80
+  },
+  "ranking": [
+    "q_plus_o",
+    "wide_budget_matched",
+    "q_only"
+  ],
+  "runner": {
+    "path": "src/anchor_mvp/training/qwen_budget_matched_ablation.py",
+    "sha256": "ea2b822f0aefc3f7deea9654849a2a5ea87b2e1c35356ad7615941bcb1cefd9b"
+  },
+  "schema_version": "anchor.qwen25-1.5b-budget-matched-ablation-comparison.v1",
+  "status": "passed_controlled_proxy_comparison_only"
+}
