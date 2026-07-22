@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-toy-diagnostic-record-v1.json",
+  "title": "Deterministic diagnostic-only toy record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_id",
+    "source_id_token_sha256",
+    "partition",
+    "operation",
+    "input",
+    "target",
+    "formal_training_authorized"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen-toy-diagnostic-record.v1"},
+    "source_id": {
+      "type": "string",
+      "pattern": "^anchor\\.qwen-toy-diagnostic\\.v1:[0-9]{4}:[0-9a-f]{16}$"
+    },
+    "source_id_token_sha256": {"$ref": "#/$defs/sha256"},
+    "partition": {"const": "diagnostic_only"},
+    "operation": {"type": "string", "pattern": "^[a-z][a-z0-9._:-]{2,255}$"},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["left", "right"],
+      "properties": {
+        "left": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{1,31}$"},
+        "right": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{1,31}$"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": {"type": "string", "pattern": "^[a-z0-9_-]+[|:/][a-z0-9_-]+$"}
+      }
+    },
+    "formal_training_authorized": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

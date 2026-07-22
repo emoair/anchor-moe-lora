@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-toy-prerequisite-manifest-v1.json",
+  "title": "Qwen diagnostic toy prerequisite manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "producer",
+    "toy",
+    "protected_inventories",
+    "generation_read_set",
+    "request_local_trigger_binding",
+    "audit",
+    "proof",
+    "execution",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen-toy-prerequisite-manifest.v1"},
+    "status": {"const": "toy_generation_verified_protected_inventory_incomplete"},
+    "claim_scope": {
+      "const": "diagnostic_only_toy_generation_and_metadata_prerequisite_status"
+    },
+    "producer": {"$ref": "#/$defs/producer"},
+    "toy": {"$ref": "#/$defs/toy"},
+    "protected_inventories": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        {"$ref": "#/$defs/swebench_inventory"},
+        {"$ref": "#/$defs/gold_inventory"},
+        {"$ref": "#/$defs/partial_inventory"},
+        {"$ref": "#/$defs/heldout_inventory"},
+        {"$ref": "#/$defs/legacy_inventory"},
+        {"$ref": "#/$defs/scaffold_inventory"}
+      ],
+      "items": false
+    },
+    "generation_read_set": {"$ref": "#/$defs/read_set"},
+    "request_local_trigger_binding": {"$ref": "#/$defs/pending_trigger_binding"},
+    "audit": {"$ref": "#/$defs/audit"},
+    "proof": {"$ref": "#/$defs/proof"},
+    "execution": {"$ref": "#/$defs/execution"},
+    "safety": {"$ref": "#/$defs/safety"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    },
+    "path_sha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "records"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"type": "integer", "minimum": 1}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "config",
+        "closed_grammar",
+        "inventory_schema",
+        "record_schema",
+        "manifest_schema",
+        "trigger_receipt_schema",
+        "generator_implementation",
+        "attester_implementation",
+        "builder_implementation",
+        "canonical_json_policy",
+        "manifest_sidecar_required",
+        "single_bytes_snapshot",
+        "same_bytes_reparse",
+        "final_source_recheck"
+      ],
+      "properties": {
+        "producer_id": {"const": "anchor.qwen-toy-prerequisite-producer.v1"},
+        "config": {"$ref": "#/$defs/path_sha"},
+        "closed_grammar": {"$ref": "#/$defs/path_sha"},
+        "inventory_schema": {"$ref": "#/$defs/path_sha"},
+        "record_schema": {"$ref": "#/$defs/path_sha"},
+        "manifest_schema": {"$ref": "#/$defs/path_sha"},
+        "trigger_receipt_schema": {"$ref": "#/$defs/path_sha"},
+        "generator_implementation": {"$ref": "#/$defs/path_sha"},
+        "attester_implementation": {"$ref": "#/$defs/path_sha"},
+        "builder_implementation": {"$ref": "#/$defs/path_sha"},
+        "canonical_json_policy": {"const": "utf8_sort_keys_compact_no_normalization_v1"},
+        "manifest_sidecar_required": {"const": true},
+        "single_bytes_snapshot": {"const": true},
+        "same_bytes_reparse": {"const": true},
+        "final_source_recheck": {"const": true}
+      }
+    },
+    "toy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "partition",
+        "record_count",
+        "records",
+        "source_id_inventory",
+        "source_id_inventory_sha256",
+        "deterministic_rebuild_matches",
+        "tokenizer_bound"
+      ],
+      "properties": {
+        "namespace": {"const": "anchor.qwen-toy-diagnostic.v1"},
+        "partition": {"const": "diagnostic_only"},
+        "record_count": {"type": "integer", "minimum": 1, "maximum": 128},
+        "records": {"$ref": "#/$defs/file"},
+        "source_id_inventory": {"$ref": "#/$defs/file"},
+        "source_id_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "deterministic_rebuild_matches": {"const": true},
+        "tokenizer_bound": {"const": false}
+      }
+    },
+    "inventory_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "status", "manifest", "sidecar", "sidecar_declared_sha256"],
+      "properties": {
+        "source_class": {
+          "enum": [
+            "swebench_source",
+            "gold_partition",
+            "partial_gold_export",
+            "heldout",
+            "legacy_heldout_cases",
+            "synthetic_scaffold"
+          ]
+        },
+        "status": {"enum": ["ready", "unavailable"]},
+        "manifest": {"$ref": "#/$defs/path_sha"},
+        "sidecar": {"$ref": "#/$defs/path_sha"},
+        "sidecar_declared_sha256": {"$ref": "#/$defs/sha256"},
+        "source_id_count": {"type": "integer", "minimum": 1},
+        "source_id_inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "ready_inventory": {
+      "allOf": [
+        {"$ref": "#/$defs/inventory_ref"},
+        {"properties": {"status": {"const": "ready"}}, "required": ["source_id_count", "source_id_inventory_sha256"]}
+      ]
+    },
+    "unavailable_inventory": {
+      "allOf": [
+        {"$ref": "#/$defs/inventory_ref"},
+        {
+          "properties": {"status": {"const": "unavailable"}},
+          "not": {"anyOf": [{"required": ["source_id_count"]}, {"required": ["source_id_inventory_sha256"]}]}
+        }
+      ]
+    },
+    "swebench_inventory": {
+      "allOf": [{"$ref": "#/$defs/ready_inventory"}, {"properties": {"source_class": {"const": "swebench_source"}}}]
+    },
+    "gold_inventory": {
+      "allOf": [{"$ref": "#/$defs/unavailable_inventory"}, {"properties": {"source_class": {"const": "gold_partition"}}}]
+    },
+    "partial_inventory": {
+      "allOf": [{"$ref": "#/$defs/unavailable_inventory"}, {"properties": {"source_class": {"const": "partial_gold_export"}}}]
+    },
+    "heldout_inventory": {
+      "allOf": [{"$ref": "#/$defs/ready_inventory"}, {"properties": {"source_class": {"const": "heldout"}}}]
+    },
+    "legacy_inventory": {
+      "allOf": [{"$ref": "#/$defs/unavailable_inventory"}, {"properties": {"source_class": {"const": "legacy_heldout_cases"}}}]
+    },
+    "scaffold_inventory": {
+      "allOf": [{"$ref": "#/$defs/unavailable_inventory"}, {"properties": {"source_class": {"const": "synthetic_scaffold"}}}]
+    },
+    "read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes"],
+      "properties": {
+        "role": {"enum": ["generator_implementation", "generator_config", "closed_grammar"]},
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "read_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "inputs", "inventory_sha256", "unexpected_reads", "protected_content_reads"],
+      "properties": {
+        "scope": {"const": "declared_semantic_generation_inputs_only"},
+        "inputs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/read"}},
+        "inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "unexpected_reads": {"const": 0},
+        "protected_content_reads": {"const": 0}
+      }
+    },
+    "pending_trigger_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "activation_semantics",
+        "serialization_scope",
+        "tokenizer_binding_sha256",
+        "chat_template_sha256",
+        "exact_r2_serialization_sha256",
+        "ordered_input_token_ids_sha256",
+        "trigger_span_zero_based_exclusive",
+        "boundary_overhang",
+        "isolated_trigger_encoding_authoritative",
+        "full_r2_single_tokenization_required",
+        "global_token_index_emitted",
+        "token_ids_emitted",
+        "planner_request1_private_kv_reused",
+        "formal_training_authorized"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.qwen-request-local-trigger-materialization.v1"
+        },
+        "status": {"const": "pending_request_local_materialization"},
+        "activation_semantics": {"const": "next_request_input_activation_only"},
+        "serialization_scope": {
+          "const": "exact_full_chat_templated_request2_bytes_single_tokenization"
+        },
+        "tokenizer_binding_sha256": {"type": "null"},
+        "chat_template_sha256": {"type": "null"},
+        "exact_r2_serialization_sha256": {"type": "null"},
+        "ordered_input_token_ids_sha256": {"type": "null"},
+        "trigger_span_zero_based_exclusive": {"type": "null"},
+        "boundary_overhang": {"type": "null"},
+        "isolated_trigger_encoding_authoritative": {"const": false},
+        "full_r2_single_tokenization_required": {"const": true},
+        "global_token_index_emitted": {"const": false},
+        "token_ids_emitted": {"const": false},
+        "planner_request1_private_kv_reused": {"const": false},
+        "formal_training_authorized": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "sidecar_path", "sidecar_sha256", "independent_rebuild_passed", "same_snapshot_reparse_passed", "final_recheck_passed"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_path": {"$ref": "#/$defs/path"},
+        "sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "independent_rebuild_passed": {"const": true},
+        "same_snapshot_reparse_passed": {"const": true},
+        "final_recheck_passed": {"const": true}
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "coverage_ready_count",
+        "coverage_total",
+        "missing_source_classes",
+        "protected_inventory_set_sha256",
+        "v1_attestation_emitted",
+        "zero_intersection_claimed",
+        "formal_training_authorized"
+      ],
+      "properties": {
+        "status": {"const": "toy_generation_verified_protected_inventory_incomplete"},
+        "coverage_ready_count": {"const": 2},
+        "coverage_total": {"const": 6},
+        "missing_source_classes": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "gold_partition"},
+            {"const": "partial_gold_export"},
+            {"const": "legacy_heldout_cases"},
+            {"const": "synthetic_scaffold"}
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "protected_inventory_set_sha256": {"$ref": "#/$defs/sha256"},
+        "v1_attestation_emitted": {"const": false},
+        "zero_intersection_claimed": {"const": false},
+        "formal_training_authorized": {"const": false}
+      },
+      "not": {
+        "anyOf": [
+          {"required": ["intersection_count"]},
+          {"required": ["intersection_proof_sha256"]},
+          {"required": ["proof_input_inventory_sha256"]}
+        ]
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "model_loads", "gpu_requests", "protected_content_reads"],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_content_reads": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostic_only", "formal_training_authorized", "consumable_by_formal_release", "canonical_gold_written", "heldout_written", "sample_content_emitted"],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "formal_training_authorized": {"const": false},
+        "consumable_by_formal_release": {"const": false},
+        "canonical_gold_written": {"const": false},
+        "heldout_written": {"const": false},
+        "sample_content_emitted": {"const": false}
+      }
+    }
+  }
+}

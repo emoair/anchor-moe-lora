@@ -1,0 +1,147 @@
+{
+  "schema_version": "anchor.qwen-toy-prerequisite-config.v1",
+  "producer_id": "anchor.qwen-toy-prerequisite-producer.v1",
+  "generator": {
+    "schema_version": "anchor.qwen-toy-generator-config.v1",
+    "generator_version": "anchor.qwen-toy-diagnostic-generator.v1",
+    "toy_namespace": "anchor.qwen-toy-diagnostic.v1",
+    "partition": "diagnostic_only",
+    "deterministic_seed": "anchor-qwen-toy-diagnostic-public-seed-2026-07-v1",
+    "record_count": 8,
+    "output_file": "toy/diagnostic.jsonl",
+    "source_id_token_algorithm": "sha256_utf8_namespace_nul_native_identifier_v1",
+    "source_id_inventory_algorithm": "sha256_sorted_unique_hex_lines_no_trailing_lf_v1"
+  },
+  "closed_grammar_path": "configs/research/qwen_toy_closed_grammar_v1.json",
+  "schemas": {
+    "inventory": "configs/research/protected_source_id_inventory.schema.json",
+    "record": "configs/research/qwen_toy_diagnostic_record.schema.json",
+    "manifest": "configs/research/qwen_toy_prerequisite_manifest.schema.json",
+    "trigger_receipt": "configs/research/qwen_request_local_trigger_materialization.schema.json"
+  },
+  "implementations": {
+    "generator": "src/anchor_mvp/swebench/toy_diagnostic_generator.py",
+    "attester": "src/anchor_mvp/swebench/toy_diagnostic_auditor.py",
+    "builder": "src/anchor_mvp/swebench/qwen_toy_prerequisite.py"
+  },
+  "protected_sources": [
+    {
+      "source_class": "swebench_source",
+      "canonical_path": "datasets/public/swebench-full-bank-v1/manifest.json",
+      "expected_sha256": "55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28",
+      "expected_bytes": 14082,
+      "mode": "json_instance_id_allowlists",
+      "domain": "swebench.instance-id.v1",
+      "namespace": "anchor.protected.swebench-instance-id.v1",
+      "input_representation": "native_identifier_utf8",
+      "metadata_inputs": [
+        {
+          "role": "identifier_allowlist",
+          "path": "datasets/public/swebench-full-bank-v1/allowlists/train.json",
+          "sha256": "d59090a919c0235b7d385c3a856ea1ce3da67fcc94566041c7eb4660da589051",
+          "bytes": 525940
+        },
+        {
+          "role": "identifier_allowlist",
+          "path": "datasets/public/swebench-full-bank-v1/allowlists/validation-from-train.json",
+          "sha256": "d8adf45178316fefd34bee81669ecac42966d392e9246ea1584e64faee3d7a15",
+          "bytes": 58720
+        }
+      ]
+    },
+    {
+      "source_class": "gold_partition",
+      "canonical_path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/manifest.json",
+      "expected_sha256": "4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7",
+      "expected_bytes": 46925,
+      "mode": "unavailable_body_only_identifiers",
+      "domain": "anchor.gold-record-id.v1",
+      "namespace": "anchor.protected.gold-record-id.v1",
+      "input_representation": "native_identifier_utf8",
+      "metadata_inputs": [],
+      "reason_codes": [
+        "identifiers_only_available_inside_protected_body_files",
+        "no_body_free_per_identifier_inventory"
+      ]
+    },
+    {
+      "source_class": "partial_gold_export",
+      "canonical_path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/training_exports/per_expert_partial_gold/4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7/manifest.json",
+      "expected_sha256": "1b8e5b87957d7ec1e867813c95b8f7ab3bef55861e778b6ba9f197e6edf3f2ec",
+      "expected_bytes": 2367,
+      "mode": "unavailable_body_only_identifiers",
+      "domain": "anchor.partial-gold-record-id.v1",
+      "namespace": "anchor.protected.partial-gold-record-id.v1",
+      "input_representation": "native_identifier_utf8",
+      "metadata_inputs": [],
+      "reason_codes": [
+        "identifiers_only_available_inside_protected_body_files",
+        "no_body_free_per_identifier_inventory"
+      ]
+    },
+    {
+      "source_class": "heldout",
+      "canonical_path": "artifacts/benchmark/heldout_v1/manifest.json",
+      "expected_sha256": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c",
+      "expected_bytes": 1858,
+      "mode": "json_prehashed_case_id_metadata",
+      "domain": "anchor.heldout-case-id-sha256.v1",
+      "namespace": "anchor.protected.heldout-case-id.v1",
+      "input_representation": "prehashed_identifier_hex_ascii",
+      "metadata_inputs": []
+    },
+    {
+      "source_class": "legacy_heldout_cases",
+      "canonical_path": "configs/training/heldout_cases.jsonl",
+      "expected_sha256": "c57c1ec144989fef47abeeda13e5fee90d81207418b9840043ec54a0f74ba70c",
+      "expected_bytes": 1083,
+      "mode": "unavailable_unmatched_metadata_witness",
+      "domain": "anchor.legacy-heldout-case-id.v1",
+      "namespace": "anchor.protected.legacy-heldout-case-id.v1",
+      "input_representation": "native_identifier_utf8",
+      "metadata_inputs": [
+        {
+          "role": "identifier_digest_manifest",
+          "path": "artifacts/benchmark/heldout_v1/manifest.json",
+          "sha256": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c",
+          "bytes": 1858
+        }
+      ],
+      "reason_codes": [
+        "metadata_witness_does_not_authenticate_canonical_source",
+        "no_body_free_per_identifier_inventory"
+      ]
+    },
+    {
+      "source_class": "synthetic_scaffold",
+      "canonical_path": "fixtures/research/swebench_natural_language_scaffold/manifest.json",
+      "expected_sha256": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc",
+      "expected_bytes": 9735,
+      "mode": "unavailable_aggregate_digest_only",
+      "domain": "anchor.scaffold-task-id.v1",
+      "namespace": "anchor.protected.scaffold-task-id.v1",
+      "input_representation": "native_identifier_utf8",
+      "metadata_inputs": [],
+      "reason_codes": [
+        "aggregate_digest_not_recomputable_as_identifier_set",
+        "no_body_free_per_identifier_inventory"
+      ]
+    }
+  ],
+  "limits": {
+    "max_input_file_bytes": 1000000,
+    "max_records": 32,
+    "max_output_file_bytes": 2000000,
+    "max_total_output_bytes": 5000000
+  },
+  "safety": {
+    "diagnostic_only": true,
+    "formal_training_authorized": false,
+    "consumable_by_formal_release": false,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "protected_content_reads": 0
+  }
+}

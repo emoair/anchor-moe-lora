@@ -1,0 +1,31 @@
+{
+  "schema_version": "anchor.qwen-toy-closed-grammar.v1",
+  "grammar_id": "anchor.qwen-toy-closed-grammar.2026-07.v1",
+  "atoms": [
+    "amber",
+    "birch",
+    "cedar",
+    "delta",
+    "ember",
+    "frost",
+    "grove",
+    "harbor",
+    "indigo",
+    "juniper",
+    "kestrel",
+    "lumen"
+  ],
+  "operations": [
+    {"id": "toy.join.pipe.v1", "kind": "join", "separator": "|"},
+    {"id": "toy.reverse.colon.v1", "kind": "reverse_join", "separator": ":"},
+    {"id": "toy.sorted.slash.v1", "kind": "sorted_join", "separator": "/"}
+  ],
+  "safety": {
+    "protected_sources_used": 0,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "formal_training_authorized": false
+  }
+}
