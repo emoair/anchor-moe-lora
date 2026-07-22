@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/qwen-budget-matched-ablation-comparison-v1.json",
+  "title": "Qwen budget-matched ablation comparison",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "config",
+    "runner",
+    "auditor",
+    "dataset",
+    "common",
+    "arms",
+    "ranking",
+    "claims",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen25-1.5b-budget-matched-ablation-comparison.v1"},
+    "status": {"const": "passed_controlled_proxy_comparison_only"},
+    "config": {"$ref": "#/$defs/fileBinding"},
+    "runner": {"$ref": "#/$defs/fileBinding"},
+    "auditor": {"$ref": "#/$defs/fileBinding"},
+    "dataset": {"type": "object"},
+    "common": {"type": "object"},
+    "arms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "object"}
+    },
+    "ranking": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"enum": ["q_only", "q_plus_o", "wide_budget_matched"]},
+      "uniqueItems": true
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "controlled_proxy_only",
+        "formal",
+        "training_authorized",
+        "eval_proxy_is_heldout",
+        "statistical_significance_claimed",
+        "deterministic_algorithms_enabled",
+        "multi_seed_validated"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "controlled_proxy_only": {"const": true},
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "statistical_significance_claimed": {"const": false},
+        "deterministic_algorithms_enabled": {"const": false},
+        "multi_seed_validated": {"const": false}
+      }
+    },
+    "audit": {"type": "object"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
