@@ -105,3 +105,7 @@ configs/research/qwen_controlled_proxy_risk_evidence_consumer_v1.yaml text eol=l
 src/anchor_mvp/research/qwen_controlled_proxy_risk_evidence_consumer.py text eol=lf
 tests/test_qwen_controlled_proxy_risk_evidence_consumer.py text eol=lf
 docs/research/qwen_controlled_proxy_risk_evidence_consumer*.md text eol=lf
+configs/research/qwen_multiseed_independent_bundle_plan_v1.yaml text eol=lf
+src/anchor_mvp/research/qwen_multiseed_independent_bundle_plan.py text eol=lf
+tests/test_qwen_multiseed_independent_bundle_plan.py text eol=lf
+docs/research/qwen_multiseed_independent_bundle_plan_v1*.md text eol=lf

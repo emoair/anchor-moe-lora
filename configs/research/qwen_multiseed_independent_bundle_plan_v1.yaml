@@ -1,0 +1,300 @@
+schema_version: anchor.qwen-multiseed-independent-bundle-plan-config.v1
+claim_scope: zero_request_non_authorizing_diagnostic_plan_only
+
+paths:
+  repository_root: ../..
+  risk_consumer_config: configs/research/qwen_controlled_proxy_risk_evidence_consumer_v1.yaml
+  risk_consumer_implementation: src/anchor_mvp/research/qwen_controlled_proxy_risk_evidence_consumer.py
+  producer_followup_contract: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json
+  producer_followup_sidecar: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json.sha256
+  producer_risk_contract: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json
+  producer_risk_sidecar: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json.sha256
+
+source_bindings:
+  risk_consumer_config_sha256: 30bf5cb93b1ee31facfb4139a1ff387d24ce9c335bb8f0ddaee6d84258e1e844
+  risk_consumer_implementation_sha256: 57d90c61f625e80917f839d63974f65f726386f2f33b4f02d77ddaec208505c1
+  producer_followup_contract_sha256: 06ed121b23570546eb00088c891b273806dab1a1f764c9e40fba527cbf6447df
+  producer_followup_sidecar_sha256: bf346eb634d8f00f36eb069707069f2983d9083c9f8c1f416dc93795cb4f7209
+  producer_risk_contract_sha256: 352870bbea976c0b97df722fd3b188d731a8d463ec33f27bcd15bdb2e292ac28
+  producer_risk_sidecar_sha256: c75a91a78123fc1f583e9d053525c290fa39c3e6a811b22ecb48b11581c5503b
+
+study_boundaries:
+  producer_independent_confirmation:
+    status: blocked_missing_confirmation_inventory_and_zero_overlap_proof
+    required_for_bundle_generalization: true
+    satisfied_by_secondary_controlled_factorial_probe: false
+    independent_confirmation_validated: false
+    bundle_generalization_validated: false
+  secondary_controlled_factorial_probe:
+    status: blocked_metadata_blueprint_only
+    scope: factor_isolation_eval_proxy_only
+    may_satisfy_independent_confirmation: false
+    may_satisfy_bundle_generalization: false
+    controlled_factorial_confirmation_validated: false
+
+execution_fairness:
+  optimizer_steps: 80
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  sequence_length: 512
+  optimizer:
+    name: torch.optim.AdamW
+    learning_rate: 0.00005
+    betas: [0.9, 0.999]
+    eps: 0.00000001
+    weight_decay: 0.01
+    amsgrad: false
+    maximize: false
+    foreach: false
+    capturable: false
+    differentiable: false
+    fused: false
+    zero_grad_set_to_none: true
+  precision:
+    compute_dtype: bfloat16
+    tf32: true
+    float32_matmul_precision: high
+  gradient_checkpointing:
+    enabled: true
+    use_reentrant: false
+    use_cache: false
+  determinism:
+    torch_use_deterministic_algorithms: true
+    warn_only: false
+    cudnn_deterministic: true
+    cudnn_benchmark: false
+    cublas_workspace_config: ":4096:8"
+  lora:
+    alpha_over_rank: 2.0
+    dropout: 0.0
+    bias: none
+    use_rslora: false
+    use_dora: false
+  reset_policy:
+    fresh_frozen_base_per_arm: true
+    fresh_zero_delta_adapter_per_arm: true
+    fresh_optimizer_per_arm: true
+    resume_allowed: false
+  identity:
+    run_key_format: track_id__master_seed__arm_id
+    artifact_key_format: track_id/master_seed/arm_id/checkpoint_step
+    track_qualified_keys_required: true
+
+performance_contract:
+  arm_order_scope: throughput_only_not_training_repetition
+  warmup_runs_per_arm_per_seed: 1
+  timed_repetitions_per_arm_per_seed: 6
+  timing_separate_from_training: true
+  cuda_synchronize_before_after_timing: true
+  runtime_environment_receipt_required: true
+  gpu_thermal_clock_state_receipt_required: true
+  single_gpu_serial_execution: true
+  max_concurrent_gpu_jobs: 1
+  peak_vram_cap_bytes: 5368709120
+
+replication:
+  master_seeds: [1337, 7331, 104729, 130363, 20260723]
+  seed_derivation_algorithm: sha256_utf8_anchor_domain_nul_decimal_master_first_u32_mask31_v1
+  seed_domains: [adapter_init, record_order, cuda]
+  checkpoint_steps: [5, 10, 20, 40, 80]
+  primary_endpoint: 80
+  primary_metric: bundle_macro_eval_loss_delta_vs_shared_base
+  primary_aggregation: equal_weight_bundle_macro_within_seed_then_equal_weight_seed_macro
+  uncertainty_method: paired_two_level_bootstrap_seed_then_source_bundle_v1
+  uncertainty_resamples: 10000
+  uncertainty_seed: 20260723
+  confidence_level: 0.95
+  torch_deterministic_algorithms_required: true
+  cuda_synchronize_before_after_timing: true
+  budget_math:
+    decoder_layers: 28
+    hidden_size: 1536
+    kv_size: 256
+    q_or_o_parameters_per_all_layer_rank: 86016
+    k_or_v_parameters_per_all_layer_rank: 50176
+  shared_reference:
+    id: adapter_off
+    kind: shared_frozen_base_eval_reference
+    independently_trained: false
+    expected_trainable_parameters: 0
+  tracks:
+    discovery_replication:
+      purpose: replicate_the_original_three_arm_proxy_ranking
+      common_budget_trainable_parameters: 1376256
+      orders_per_seed: 6
+      arm_order_algorithm: all_six_permutations_lexicographic_v1
+      arms:
+        - id: q_only
+          independently_trained: true
+          rank_policy: {q_proj: 16}
+          expected_trainable_parameters: 1376256
+          expected_trainable_tensors: 56
+        - id: q_plus_o
+          independently_trained: true
+          rank_policy: {q_proj: 8, o_proj: 8}
+          expected_trainable_parameters: 1376256
+          expected_trainable_tensors: 112
+        - id: wide_budget_matched
+          independently_trained: true
+          rank_policy: {q_proj: 5, o_proj: 4, k_proj: 6, v_proj: 6}
+          expected_trainable_parameters: 1376256
+          expected_trainable_tensors: 224
+    mechanism_controls:
+      purpose: compare_independently_trained_projection_controls
+      common_budget_trainable_parameters: 1204224
+      orders_per_seed: 6
+      arm_order_algorithm: five_seeded_cyclic_orders_plus_cross_seed_balanced_extra_v1
+      arm_order_balance: exact_global_position_balance_across_all_five_master_seeds
+      arms:
+        - id: q_only
+          independently_trained: true
+          rank_policy: {q_proj: 14}
+          expected_trainable_parameters: 1204224
+          expected_trainable_tensors: 56
+        - id: q_plus_o
+          independently_trained: true
+          rank_policy: {q_proj: 7, o_proj: 7}
+          expected_trainable_parameters: 1204224
+          expected_trainable_tensors: 112
+        - id: wide_budget_matched
+          independently_trained: true
+          rank_policy: {q_proj: 4, o_proj: 3, k_proj: 6, v_proj: 6}
+          expected_trainable_parameters: 1204224
+          expected_trainable_tensors: 224
+        - id: o_only
+          independently_trained: true
+          rank_policy: {o_proj: 14}
+          expected_trainable_parameters: 1204224
+          expected_trainable_tensors: 56
+        - id: k_plus_v
+          independently_trained: true
+          rank_policy: {k_proj: 12, v_proj: 12}
+          expected_trainable_parameters: 1204224
+          expected_trainable_tensors: 112
+  cross_track_comparison_allowed: false
+  retained_o_branch_may_be_relabelled_o_only: false
+
+confirmation_dataset:
+  status: unavailable_not_generated
+  scope: secondary_controlled_factorial_probe_only
+  source_bundles_total: 60
+  train_bundles: 40
+  eval_proxy_bundles: 20
+  roles: 5
+  paired_variants: 2
+  expected_records: 600
+  split_group_key: task_bundle_sha256
+  split_before_role_variant_augmentation: true
+  all_role_variant_views_same_split: true
+  languages: [en, zh-CN]
+  information_flow_strata:
+    - prefix_evidence_selection
+    - prefix_evidence_plus_structured_private_writeback
+    - conflicting_allowed_evidence_resolution
+    - tool_result_commit_then_expert_private_tail
+    - ordered_long_prefix_retrieval
+  language_stratum_cells: 10
+  bundles_per_language_stratum_cell: 6
+  train_bundles_per_language_stratum_cell: 4
+  eval_bundles_per_language_stratum_cell: 2
+  task_inventory_status: unavailable
+  template_inventory_status: unavailable
+  task_template_pair_inventory_status: unavailable
+  eval_proxy_is_heldout: false
+
+evaluation_matrix:
+  status: metadata_blueprint_only
+  design: controlled_factorial_confirmation
+  bundles_per_factor_cell: 20
+  factor_views_total: 60
+  allocation_order: freeze_task_and_template_identities_then_pair_hash_then_language_stratum_factor_quota_split_then_role_variant_noise_length
+  quota_algorithm: language_stratum_rotation_omits_one_eval_factor_then_bundle_hash_orders_each_remaining_pair_v1
+  quota_domain: anchor.controlled-factorial-eval-quota.v1
+  quota_rotation_derivation: uint32_be_sha256_domain_mod_3
+  quota_rotation: 0
+  within_factor_pair_assignment_algorithm: sha256_utf8_domain_nul_task_bundle_sha256_low_eval_high_train_v1
+  bundles_per_factor: 20
+  train_factor_quotas: [13, 14, 13]
+  eval_factor_quotas: [7, 6, 7]
+  six_eval_factor: new_task_old_template
+  common_domain_inventories:
+    task_hash: anchor.controlled-factorial-task-identity.v1
+    template_hash: anchor.controlled-factorial-template-identity.v1
+    task_template_pair_hash: anchor.controlled-factorial-task-template-pair.v1
+  cells:
+    - id: old_task_new_template
+      task_identity: discovery_task
+      template_identity: confirmation_template
+      old_task_membership_required: true
+      new_task_nonoverlap_required: false
+      old_template_membership_required: false
+      new_template_nonoverlap_required: true
+      task_template_pair_nonoverlap_required: true
+    - id: new_task_old_template
+      task_identity: confirmation_task
+      template_identity: discovery_template
+      old_task_membership_required: false
+      new_task_nonoverlap_required: true
+      old_template_membership_required: true
+      new_template_nonoverlap_required: false
+      task_template_pair_nonoverlap_required: true
+    - id: new_task_new_template
+      task_identity: confirmation_task
+      template_identity: confirmation_template
+      old_task_membership_required: false
+      new_task_nonoverlap_required: true
+      old_template_membership_required: false
+      new_template_nonoverlap_required: true
+      task_template_pair_nonoverlap_required: true
+  require_task_inventory_binding: true
+  require_template_inventory_binding: true
+  require_task_template_pair_inventory_binding: true
+  global_task_nonoverlap_required: false
+  global_template_nonoverlap_required: false
+  global_task_template_pair_nonoverlap_required: true
+
+gates:
+  missing_confirmation_dataset: true
+  missing_factor_inventories_and_membership_proofs: true
+  formal_v3_ready_count: 0
+  formal_v3_total: 5
+  protected_inventory_ready_count: 2
+  protected_inventory_total: 6
+  execution_ready: false
+  materialization_ready: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  multi_seed_validated: false
+  producer_independent_confirmation_validated: false
+  controlled_factorial_confirmation_validated: false
+  bundle_generalization_validated: false
+  statistical_significance_claimed: false
+  independently_trained_o_only_result_available: false
+  independently_trained_k_plus_v_result_available: false
+
+claims:
+  execution_ready: false
+  materialization_ready: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  multi_seed_validated: false
+  producer_independent_confirmation_validated: false
+  controlled_factorial_confirmation_validated: false
+  bundle_generalization_validated: false
+  statistical_significance_claimed: false
+  sample_efficiency_claimed: false
+  compute_matched_across_tracks_claimed: false
+  quality_validated: false
+  performance_validated: false
+  throughput_superiority_claimed: false
+
+audit:
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_content_reads: 0
+  dataset_body_reads: 0
+  training_runs: 0
