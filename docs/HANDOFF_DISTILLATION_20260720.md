@@ -332,6 +332,110 @@ fail-closed; no compatibility exception is permitted.
 The detailed construction and migration rules are in
 `docs/swebench_natural_language_scaffold.md` and its Chinese counterpart.
 
+## Qwen diagnostic training prerequisite status (2026-07-22)
+
+- The content-free, fail-closed status contract is
+  `anchor.qwen-train-prerequisite-status.v1`, schema SHA-256
+  `e8d09abc26effcedc642125b4d84185f0e5072a23f5611f068274bd963c4f577`.
+  The published status manifest SHA-256 is
+  `70c8f0a866c5fb41c4c3726638b55a66efab77f8b2ee31c27ad31ab55def67da`;
+  its mandatory sidecar binds the same raw bytes. The manifest binds baseline
+  producer commit `03ea0214567289e4f46378d4731b0177c18a1402`; this is deliberately a
+  baseline commit, not a circular claim that a file contains the hash of the
+  commit which first publishes that file.
+- No usable formal-v3 frozen snapshot, final projector, frozen generic
+  execution contract, source-disjoint manifest, or release lock exists at the
+  schema-locked canonical paths. The repository schema-version scan also found
+  zero matching frozen formal artifacts. Their contract schema SHA-256 values
+  remain respectively the snapshot implementation
+  `eba4263854301df75074609e9504d37cf6a7cf6d4204b05b6e3ebf26ee7476ba`,
+  projector manifest
+  `2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347`,
+  generic execution
+  `63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a`,
+  source-disjoint
+  `2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b`,
+  and release lock
+  `119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa`.
+  The 15-record sibling TaskBoard fixture is explicitly `research_proxy_only`
+  and is not a substitute.
+- The current physical, unfrozen Gold observation binds partition manifest
+  `4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7`,
+  automation status
+  `f51d4e813ec009ba865b88ff7d45be98a768ae5b2040be8d01b82f10f4b1d605`,
+  and partial-export manifest
+  `1b8e5b87957d7ec1e867813c95b8f7ab3bef55861e778b6ba9f197e6edf3f2ec`.
+  The canonical counts digest is
+  `b931dbeff6646fc2d1c210cfb98de1660cad1b18f9a0fbea064839ba9d9e3814`:
+  Planner 384, Tool Policy 384, Frontend Gen 346, Frontend Review 203, and
+  Security Gate 148, for 1465 records. The formal floor is 256 per expert;
+  Review is short by 53, Security by 108, and only 85 of 256 strict complete
+  chains exist. These are raw metadata observations, not frozen train,
+  calibration, or held-out partition counts or hashes; all three formal
+  partitions remain unavailable and calibration is not held-out.
+- Producer owns the offline authenticated tokenizer/chat-template/trigger-text
+  binding; Consumer owns exact artifact and release-lock verification; Runtime
+  alone may materialize request-2 token coordinates after exact serialization.
+  The binding schema is
+  `anchor.scaffold-tokenizer-binding-manifest.v1`, SHA-256
+  `5b2e7c2e8e6efc1c9b7251fde853631e65806aca0364d9bb092ee9a07d135b25`.
+  Global artifacts never contain request-specific token IDs or indices.
+  Before any `bound` artifact can be consumed, a real loader must recompute and
+  enforce the cross-field equalities that JSON Schema alone cannot express:
+  requested and nested tokenizer revisions, chat-template source SHA versus the
+  authenticated asset entry, scaffold manifest SHA versus trigger source,
+  partition inventory, and the nested tokenizer-binding digest. Each equality
+  requires a negative drift test; the current candidate status is not that
+  loader and cannot be promoted on schema validation alone.
+- A real local ModelScope clone is recorded only as a candidate source:
+  `Qwen/Qwen2.5-1.5B-Instruct` revision
+  `3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34`. Producer rehashed the four
+  tokenizer-only assets (combined inventory SHA-256
+  `872b55391b4daff195a1caf9a05bb3305d7c84b759394ad5cd0d7ebc0b8192a8`)
+  and the exact chat-template UTF-8 value (SHA-256
+  `cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f`).
+  The model weight identity
+  `dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee`
+  is authenticated as the Git LFS pointer OID and size 3,087,467,144 at that
+  revision; Producer intentionally did not reread and rehash the 3 GB physical
+  file. Model weights are excluded from tokenizer inventory. A bound manifest
+  still requires the source-scaffold partition inventory, tokenizer runtime
+  descriptor, serialization and special-token policies, five-role trigger
+  binding, and request-coordinate policy.
+- The diagnostic-only toy attestation schema is
+  `anchor.qwen-toy-source-disjoint-attestation.v1`, SHA-256
+  `7cdc714308b238db86303c61103d0b3e544cd0123bcdca625d6a9717ef5029ea`.
+  A `ready` attestation must authenticate its generator, grammar, attester
+  implementation/config, declared semantic generation-input set, protected
+  source-ID inventories,
+  namespace policy, and deterministic intersection proof. It proves only
+  provenance and identifier disjointness, never semantic uniqueness. No toy
+  attestation artifact exists yet, so the current status is
+  `unverified_pending_authenticated_attestation`; toy data is diagnostic-only
+  and cannot enter a formal release.
+- Consumer must freeze the status schema/manifest, tokenizer binding
+  schema/manifest, toy attestation schema/artifact, and external release-lock
+  schema/artifact identities. A future release v3 (or separate compatibility
+  lock) must also bind the formal scaffold and token inventory, trainable base
+  snapshot, tokenizer/base compatibility attestation, formal snapshot,
+  projector, source-disjoint, and generic execution identities. Do not mutate
+  release-lock v2 silently, include diagnostic toy data in a formal lock, or
+  place a release lock's own SHA inside its body.
+- Validation is metadata-only and low-memory. It performs no provider or
+  network request, model load, GPU request, full-bank projection, Gold write,
+  held-out read/write, training, tag, or release. Reproduce the focused checks
+  with:
+
+  ```powershell
+  python -m pytest -q tests/test_qwen_train_prerequisite_status.py
+  python -m ruff check tests/test_qwen_train_prerequisite_status.py
+  ```
+
+  The tokenizer binding artifact, authenticated toy attestation, formal-v3
+  five-artifact chain, complete Gold coverage, trainable base snapshot, true
+  training, and correctness/quality/performance evaluation remain incomplete
+  and fail closed.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before

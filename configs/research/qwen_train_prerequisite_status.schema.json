@@ -1,0 +1,1145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-train-prerequisite-status-v1.json",
+  "title": "Qwen training prerequisite status",
+  "description": "Content-free, fail-closed status for the Qwen2.5-1.5B-Instruct diagnostic training prerequisites. This status never authorizes formal training and never carries Gold, held-out, scaffold, prompt, answer, or token bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "producer",
+    "policy_bindings",
+    "formal_artifacts",
+    "raw_gold_observation",
+    "tokenizer_binding",
+    "toy_attestation",
+    "consumer_freeze_requirements",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.qwen-train-prerequisite-status.v1"
+    },
+    "status": {"const": "blocked"},
+    "claim_scope": {
+      "const": "content_free_prerequisite_status_only_no_training_authority"
+    },
+    "producer": {"$ref": "#/$defs/producer"},
+    "policy_bindings": {"$ref": "#/$defs/policy_bindings"},
+    "formal_artifacts": {"$ref": "#/$defs/formal_artifacts"},
+    "raw_gold_observation": {"$ref": "#/$defs/raw_gold_observation"},
+    "tokenizer_binding": {"$ref": "#/$defs/tokenizer_binding"},
+    "toy_attestation": {"$ref": "#/$defs/toy_attestation"},
+    "consumer_freeze_requirements": {
+      "$ref": "#/$defs/consumer_freeze_requirements"
+    },
+    "safety": {"$ref": "#/$defs/safety"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]{0,127}$"
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    },
+    "path_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "path_sha256_bytes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "repository",
+        "branch",
+        "baseline_commit_sha",
+        "schema",
+        "canonical_json_policy",
+        "manifest_sha256_sidecar_required",
+        "single_bytes_snapshot_required",
+        "final_source_recheck_required"
+      ],
+      "properties": {
+        "producer_id": {
+          "const": "anchor.qwen-train-prerequisite-status-producer.v1"
+        },
+        "repository": {"const": "anchor-moe-lora"},
+        "branch": {"$ref": "#/$defs/relative_path"},
+        "baseline_commit_sha": {"$ref": "#/$defs/git_commit"},
+        "schema": {"$ref": "#/$defs/path_sha256"},
+        "canonical_json_policy": {
+          "const": "utf8_sort_keys_compact_no_normalization_v1"
+        },
+        "manifest_sha256_sidecar_required": {"const": true},
+        "single_bytes_snapshot_required": {"const": true},
+        "final_source_recheck_required": {"const": true}
+      }
+    },
+    "policy_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_roles",
+        "split_group_key",
+        "task_id_cross_binding_key",
+        "raw_gold_threshold_per_expert",
+        "strict_complete_chain_threshold",
+        "calibration_is_heldout",
+        "canonical_gold_immutable",
+        "heldout_immutable",
+        "formal_snapshot_config",
+        "projector_config",
+        "natural_language_scaffold_manifest"
+      ],
+      "properties": {
+        "required_roles": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "planner"},
+            {"const": "tool_policy"},
+            {"const": "frontend_gen"},
+            {"const": "frontend_review"},
+            {"const": "security_gate"}
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "split_group_key": {"const": "task_bundle_sha256"},
+        "task_id_cross_binding_key": {
+          "const": "training_record.task_board.task_id"
+        },
+        "raw_gold_threshold_per_expert": {"const": 256},
+        "strict_complete_chain_threshold": {"const": 256},
+        "calibration_is_heldout": {"const": false},
+        "canonical_gold_immutable": {"const": true},
+        "heldout_immutable": {"const": true},
+        "formal_snapshot_config": {"$ref": "#/$defs/path_sha256"},
+        "projector_config": {"$ref": "#/$defs/path_sha256"},
+        "natural_language_scaffold_manifest": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha256"},
+            {
+              "properties": {
+                "path": {
+                  "const": "fixtures/research/swebench_natural_language_scaffold/manifest.json"
+                },
+                "sha256": {
+                  "const": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "artifact_unavailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason",
+        "required_schema_version",
+        "required_schema_path",
+        "required_schema_sha256",
+        "required_artifact_path",
+        "required_sidecar_path",
+        "artifact_exists",
+        "sidecar_exists",
+        "training_eligible"
+      ],
+      "properties": {
+        "status": {"const": "unavailable"},
+        "reason": {
+          "enum": [
+            "frozen_formal_v3_snapshot_missing",
+            "final_formal_projector_missing",
+            "frozen_generic_execution_contract_missing",
+            "frozen_source_disjoint_manifest_missing",
+            "frozen_release_lock_missing"
+          ]
+        },
+        "required_schema_version": {"$ref": "#/$defs/identifier"},
+        "required_schema_path": {"$ref": "#/$defs/relative_path"},
+        "required_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "required_artifact_path": {"$ref": "#/$defs/relative_path"},
+        "required_sidecar_path": {"$ref": "#/$defs/relative_path"},
+        "artifact_exists": {"const": false},
+        "sidecar_exists": {"const": false},
+        "training_eligible": {"const": false}
+      }
+    },
+    "snapshot_unavailable": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact_unavailable"},
+        {
+          "properties": {
+            "reason": {"const": "frozen_formal_v3_snapshot_missing"},
+            "required_schema_version": {
+              "const": "anchor.training-snapshot.v2"
+            },
+            "required_schema_path": {
+              "const": "src/anchor_mvp/data/snapshot.py"
+            },
+            "required_schema_sha256": {
+              "const": "eba4263854301df75074609e9504d37cf6a7cf6d4204b05b6e3ebf26ee7476ba"
+            },
+            "required_artifact_path": {
+              "const": "artifacts/formal_v3/dataset/manifest.json"
+            },
+            "required_sidecar_path": {
+              "const": "artifacts/formal_v3/dataset/manifest.json.sha256"
+            }
+          }
+        }
+      ]
+    },
+    "projector_unavailable": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact_unavailable"},
+        {
+          "properties": {
+            "reason": {"const": "final_formal_projector_missing"},
+            "required_schema_version": {
+              "const": "anchor.swebench-taskboard-projector-manifest.v2"
+            },
+            "required_schema_path": {
+              "const": "configs/research/taskboard_projector_manifest.schema.json"
+            },
+            "required_schema_sha256": {
+              "const": "2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347"
+            },
+            "required_artifact_path": {
+              "const": "artifacts/formal_v3/taskboard_projector/manifest.json"
+            },
+            "required_sidecar_path": {
+              "const": "artifacts/formal_v3/taskboard_projector/manifest.json.sha256"
+            }
+          }
+        }
+      ]
+    },
+    "generic_unavailable": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact_unavailable"},
+        {
+          "properties": {
+            "reason": {
+              "const": "frozen_generic_execution_contract_missing"
+            },
+            "required_schema_version": {
+              "const": "anchor.generic-train-execution-contract.v1"
+            },
+            "required_schema_path": {
+              "const": "configs/research/generic_train_execution_contract.schema.json"
+            },
+            "required_schema_sha256": {
+              "const": "63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a"
+            },
+            "required_artifact_path": {
+              "const": "artifacts/formal_v3/training_release/generic/manifest.json"
+            },
+            "required_sidecar_path": {
+              "const": "artifacts/formal_v3/training_release/generic/manifest.json.sha256"
+            }
+          }
+        }
+      ]
+    },
+    "source_disjoint_unavailable": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact_unavailable"},
+        {
+          "properties": {
+            "reason": {
+              "const": "frozen_source_disjoint_manifest_missing"
+            },
+            "required_schema_version": {
+              "const": "anchor.swebench-source-disjoint-manifest.v2"
+            },
+            "required_schema_path": {
+              "const": "configs/research/swebench_source_disjoint_manifest.schema.json"
+            },
+            "required_schema_sha256": {
+              "const": "2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b"
+            },
+            "required_artifact_path": {
+              "const": "artifacts/formal_v3/training_release/source_disjoint/manifest.json"
+            },
+            "required_sidecar_path": {
+              "const": "artifacts/formal_v3/training_release/source_disjoint/manifest.json.sha256"
+            }
+          }
+        }
+      ]
+    },
+    "release_lock_unavailable": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact_unavailable"},
+        {
+          "properties": {
+            "reason": {"const": "frozen_release_lock_missing"},
+            "required_schema_version": {
+              "const": "anchor.generic-train-release-lock.v2"
+            },
+            "required_schema_path": {
+              "const": "configs/research/generic_train_release_lock.schema.json"
+            },
+            "required_schema_sha256": {
+              "const": "119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa"
+            },
+            "required_artifact_path": {
+              "const": "artifacts/formal_v3/training_release/release_lock/manifest.json"
+            },
+            "required_sidecar_path": {
+              "const": "artifacts/formal_v3/training_release/release_lock/manifest.json.sha256"
+            }
+          }
+        }
+      ]
+    },
+    "synthetic_projector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "claim_scope",
+        "repository",
+        "source_commit_sha",
+        "schema_version",
+        "manifest",
+        "manifest_sidecar",
+        "record_count",
+        "task_bundle_count",
+        "provider_requests",
+        "canonical_gold_written",
+        "formal_release_eligible"
+      ],
+      "properties": {
+        "status": {"const": "fixture_only"},
+        "claim_scope": {"const": "research_proxy_only"},
+        "repository": {"const": "anchor-moe-lora-neural-swarm"},
+        "source_commit_sha": {
+          "const": "c4ec7e2020c18561e176892b077680e0c93608f7"
+        },
+        "schema_version": {
+          "const": "anchor.swebench-taskboard-projector-manifest.v2"
+        },
+        "manifest": {"$ref": "#/$defs/path_sha256_bytes"},
+        "manifest_sidecar": {"$ref": "#/$defs/path_sha256_bytes"},
+        "record_count": {"type": "integer", "minimum": 1},
+        "task_bundle_count": {"type": "integer", "minimum": 1},
+        "provider_requests": {"const": 0},
+        "canonical_gold_written": {"const": false},
+        "formal_release_eligible": {"const": false}
+      }
+    },
+    "formal_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability_claim_scope",
+        "canonical_paths_locked_by_schema",
+        "repository_schema_version_scan_performed",
+        "matching_frozen_artifact_count",
+        "snapshot",
+        "final_projector",
+        "generic_execution",
+        "source_disjoint",
+        "release_lock",
+        "synthetic_projector"
+      ],
+      "properties": {
+        "availability_claim_scope": {
+          "const": "declared_canonical_paths_and_repository_schema_version_scan"
+        },
+        "canonical_paths_locked_by_schema": {"const": true},
+        "repository_schema_version_scan_performed": {"const": true},
+        "matching_frozen_artifact_count": {"const": 0},
+        "snapshot": {"$ref": "#/$defs/snapshot_unavailable"},
+        "final_projector": {"$ref": "#/$defs/projector_unavailable"},
+        "generic_execution": {"$ref": "#/$defs/generic_unavailable"},
+        "source_disjoint": {
+          "$ref": "#/$defs/source_disjoint_unavailable"
+        },
+        "release_lock": {"$ref": "#/$defs/release_lock_unavailable"},
+        "synthetic_projector": {"$ref": "#/$defs/synthetic_projector"}
+      }
+    },
+    "gold_expert_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "count", "sha256", "bytes", "raw_floor_met"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "count": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "raw_floor_met": {"type": "boolean"}
+      }
+    },
+    "planner_gold_observation": {
+      "allOf": [
+        {"$ref": "#/$defs/gold_expert_observation"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_plan.jsonl"
+            },
+            "count": {"const": 384},
+            "sha256": {
+              "const": "c82d7806c161ee96942054c98e45c7068af2ebfa5437492c073c3f6526015932"
+            },
+            "bytes": {"const": 6502043},
+            "raw_floor_met": {"const": true}
+          }
+        }
+      ]
+    },
+    "tool_policy_gold_observation": {
+      "allOf": [
+        {"$ref": "#/$defs/gold_expert_observation"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_tool_policy.jsonl"
+            },
+            "count": {"const": 384},
+            "sha256": {
+              "const": "599ebbd76b9937391bf17ddc2fe4f8086a79f9b832dc296a74605819528c54f3"
+            },
+            "bytes": {"const": 6557791},
+            "raw_floor_met": {"const": true}
+          }
+        }
+      ]
+    },
+    "frontend_gen_gold_observation": {
+      "allOf": [
+        {"$ref": "#/$defs/gold_expert_observation"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_frontend.jsonl"
+            },
+            "count": {"const": 346},
+            "sha256": {
+              "const": "c6f7c79756c064b7256ecb2e38bed495e6cd68f863e7073cf66afe8679fbeed2"
+            },
+            "bytes": {"const": 12602666},
+            "raw_floor_met": {"const": true}
+          }
+        }
+      ]
+    },
+    "frontend_review_gold_observation": {
+      "allOf": [
+        {"$ref": "#/$defs/gold_expert_observation"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_review.jsonl"
+            },
+            "count": {"const": 203},
+            "sha256": {
+              "const": "d2c381957bad2661efd8965fa60d5b49164cb00228721cfcec178a1216292c87"
+            },
+            "bytes": {"const": 9509163},
+            "raw_floor_met": {"const": false}
+          }
+        }
+      ]
+    },
+    "security_gate_gold_observation": {
+      "allOf": [
+        {"$ref": "#/$defs/gold_expert_observation"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_security.jsonl"
+            },
+            "count": {"const": 148},
+            "sha256": {
+              "const": "dbef35c02e16cc4d1506653ec7b4c926c4161a4d8e269b06155196b0768a1cac"
+            },
+            "bytes": {"const": 4328526},
+            "raw_floor_met": {"const": false}
+          }
+        }
+      ]
+    },
+    "raw_gold_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "partition_manifest_schema_version",
+        "partition_manifest",
+        "automation_status",
+        "partial_export_schema_version",
+        "partial_export_manifest",
+        "partial_export_not_for_end_to_end_claim",
+        "experts",
+        "total_count",
+        "total_bytes",
+        "counts_sha256",
+        "counts_sha256_semantics",
+        "threshold_per_expert",
+        "shortfalls",
+        "strict_complete_chains",
+        "coverage_complete",
+        "lineage_complete",
+        "training_ready",
+        "formal_partitions"
+      ],
+      "properties": {
+        "status": {"const": "physical_unfrozen_manifest_observation"},
+        "partition_manifest_schema_version": {
+          "const": "anchor.automation-partition-manifest.v2"
+        },
+        "partition_manifest": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha256_bytes"},
+            {
+              "properties": {
+                "path": {
+                  "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/manifest.json"
+                },
+                "sha256": {
+                  "const": "4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7"
+                },
+                "bytes": {"const": 46925}
+              }
+            }
+          ]
+        },
+        "automation_status": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha256_bytes"},
+            {
+              "properties": {
+                "path": {
+                  "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/automation/status.json"
+                },
+                "sha256": {
+                  "const": "f51d4e813ec009ba865b88ff7d45be98a768ae5b2040be8d01b82f10f4b1d605"
+                },
+                "bytes": {"const": 658311}
+              }
+            }
+          ]
+        },
+        "partial_export_schema_version": {
+          "const": "anchor.per-expert-partial-gold-export.v1"
+        },
+        "partial_export_manifest": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha256_bytes"},
+            {
+              "properties": {
+                "path": {
+                  "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/training_exports/per_expert_partial_gold/4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7/manifest.json"
+                },
+                "sha256": {
+                  "const": "1b8e5b87957d7ec1e867813c95b8f7ab3bef55861e778b6ba9f197e6edf3f2ec"
+                },
+                "bytes": {"const": 2367}
+              }
+            }
+          ]
+        },
+        "partial_export_not_for_end_to_end_claim": {"const": true},
+        "experts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "planner",
+            "tool_policy",
+            "frontend_gen",
+            "frontend_review",
+            "security_gate"
+          ],
+          "properties": {
+            "planner": {"$ref": "#/$defs/planner_gold_observation"},
+            "tool_policy": {
+              "$ref": "#/$defs/tool_policy_gold_observation"
+            },
+            "frontend_gen": {
+              "$ref": "#/$defs/frontend_gen_gold_observation"
+            },
+            "frontend_review": {
+              "$ref": "#/$defs/frontend_review_gold_observation"
+            },
+            "security_gate": {
+              "$ref": "#/$defs/security_gate_gold_observation"
+            }
+          }
+        },
+        "total_count": {"const": 1465},
+        "total_bytes": {"const": 39500189},
+        "counts_sha256": {
+          "const": "b931dbeff6646fc2d1c210cfb98de1660cad1b18f9a0fbea064839ba9d9e3814"
+        },
+        "counts_sha256_semantics": {
+          "const": "sha256_utf8_canonical_json_v1_of_experts_counts_strict_complete_chains_and_total_count"
+        },
+        "threshold_per_expert": {"const": 256},
+        "shortfalls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["frontend_review", "security_gate"],
+          "properties": {
+            "frontend_review": {"const": 53},
+            "security_gate": {"const": 108}
+          }
+        },
+        "strict_complete_chains": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "threshold", "threshold_met"],
+          "properties": {
+            "count": {"const": 85},
+            "threshold": {"const": 256},
+            "threshold_met": {"const": false}
+          }
+        },
+        "coverage_complete": {"const": false},
+        "lineage_complete": {"const": false},
+        "training_ready": {"const": false},
+        "formal_partitions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "train",
+            "calibration",
+            "heldout",
+            "calibration_is_heldout"
+          ],
+          "properties": {
+            "status": {"const": "unavailable"},
+            "train": {"const": "count_and_sha256_unavailable"},
+            "calibration": {"const": "count_and_sha256_unavailable"},
+            "heldout": {"const": "count_and_sha256_unavailable"},
+            "calibration_is_heldout": {"const": false}
+          }
+        }
+      }
+    },
+    "source_scaffold_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "record_schema_sha256",
+        "manifest_schema_sha256",
+        "manifest_sha256",
+        "producer_implementation_sha256"
+      ],
+      "properties": {
+        "config_sha256": {
+          "const": "e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38"
+        },
+        "record_schema_sha256": {
+          "const": "84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14"
+        },
+        "manifest_schema_sha256": {
+          "const": "8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16"
+        },
+        "manifest_sha256": {
+          "const": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc"
+        },
+        "producer_implementation_sha256": {
+          "const": "09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330"
+        }
+      }
+    },
+    "candidate_tokenizer_asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {
+          "enum": [
+            "merges.txt",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "vocab.json"
+          ]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 134217728}
+      }
+    },
+    "candidate_base_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "identity_sha256",
+        "identity_source",
+        "physical_sha256_status",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "enum": [
+            "config.json",
+            "generation_config.json",
+            "model.safetensors"
+          ]
+        },
+        "identity_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_source": {
+          "enum": ["producer_physical_sha256", "git_lfs_pointer_oid_sha256"]
+        },
+        "physical_sha256_status": {
+          "enum": ["rehashed_by_producer", "not_recomputed_by_producer"]
+        },
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "candidate_source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "registry",
+        "model_id",
+        "revision",
+        "revision_kind",
+        "workspace_relative_root",
+        "workspace_root_kind",
+        "consumer_path_resolution_required",
+        "clone_head_sha",
+        "worktree_clean",
+        "tokenizer_assets",
+        "tokenizer_assets_sha256",
+        "chat_template",
+        "base_compatibility_candidate",
+        "small_assets_rehashed_by_producer",
+        "model_weight_identity_source",
+        "model_weight_physical_sha256_status",
+        "model_weights_in_tokenizer_inventory",
+        "training_eligible"
+      ],
+      "properties": {
+        "status": {"const": "locally_present_candidate_not_bound"},
+        "registry": {"const": "modelscope_repository_clone"},
+        "model_id": {"const": "Qwen/Qwen2.5-1.5B-Instruct"},
+        "revision": {
+          "const": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34"
+        },
+        "revision_kind": {"const": "immutable_git_commit"},
+        "workspace_relative_root": {
+          "const": "models/qwen2.5-1.5b-instruct-hf"
+        },
+        "workspace_root_kind": {
+          "const": "shared_llm_workspace_root_not_producer_repository_root"
+        },
+        "consumer_path_resolution_required": {"const": true},
+        "clone_head_sha": {
+          "const": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34"
+        },
+        "worktree_clean": {"const": true},
+        "tokenizer_assets": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_tokenizer_asset"},
+                {
+                  "properties": {
+                    "path": {"const": "merges.txt"},
+                    "bytes": {"const": 1823226},
+                    "sha256": {
+                      "const": "0de0bc38a29ea38eef099b677fa1ff52edd181e573529af26c4cd2136e233777"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_tokenizer_asset"},
+                {
+                  "properties": {
+                    "path": {"const": "tokenizer.json"},
+                    "bytes": {"const": 7334926},
+                    "sha256": {
+                      "const": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_tokenizer_asset"},
+                {
+                  "properties": {
+                    "path": {"const": "tokenizer_config.json"},
+                    "bytes": {"const": 7511},
+                    "sha256": {
+                      "const": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_tokenizer_asset"},
+                {
+                  "properties": {
+                    "path": {"const": "vocab.json"},
+                    "bytes": {"const": 2776833},
+                    "sha256": {
+                      "const": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tokenizer_assets_sha256": {
+          "const": "872b55391b4daff195a1caf9a05bb3305d7c84b759394ad5cd0d7ebc0b8192a8"
+        },
+        "chat_template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_asset_path",
+            "source_asset_sha256",
+            "source_locator",
+            "exact_utf8_bytes",
+            "exact_utf8_sha256"
+          ],
+          "properties": {
+            "source_asset_path": {"const": "tokenizer_config.json"},
+            "source_asset_sha256": {
+              "const": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+            },
+            "source_locator": {"const": "/chat_template"},
+            "exact_utf8_bytes": {"const": 2507},
+            "exact_utf8_sha256": {
+              "const": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f"
+            }
+          }
+        },
+        "base_compatibility_candidate": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_base_file"},
+                {
+                  "properties": {
+                    "path": {"const": "config.json"},
+                    "bytes": {"const": 687},
+                    "identity_sha256": {
+                      "const": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17"
+                    },
+                    "identity_source": {"const": "producer_physical_sha256"},
+                    "physical_sha256_status": {"const": "rehashed_by_producer"}
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_base_file"},
+                {
+                  "properties": {
+                    "path": {"const": "generation_config.json"},
+                    "bytes": {"const": 256},
+                    "identity_sha256": {
+                      "const": "d9292be634413d89bf1e11c0fa2195a6c1bf4287cef565808db53be500e3a0d4"
+                    },
+                    "identity_source": {"const": "producer_physical_sha256"},
+                    "physical_sha256_status": {"const": "rehashed_by_producer"}
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/candidate_base_file"},
+                {
+                  "properties": {
+                    "path": {"const": "model.safetensors"},
+                    "bytes": {"const": 3087467144},
+                    "identity_sha256": {
+                      "const": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee"
+                    },
+                    "identity_source": {"const": "git_lfs_pointer_oid_sha256"},
+                    "physical_sha256_status": {
+                      "const": "not_recomputed_by_producer"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "small_assets_rehashed_by_producer": {"const": true},
+        "model_weight_identity_source": {
+          "const": "authenticated_git_lfs_pointer_at_bound_revision"
+        },
+        "model_weight_physical_sha256_status": {
+          "const": "not_recomputed_by_producer"
+        },
+        "model_weights_in_tokenizer_inventory": {"const": false},
+        "training_eligible": {"const": false}
+      }
+    },
+    "tokenizer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "tokenizer_id",
+        "binding_schema_version",
+        "binding_schema_path",
+        "binding_schema_sha256",
+        "ownership",
+        "source_scaffold",
+        "candidate_source_identity",
+        "missing_fields",
+        "token_indices_emitted",
+        "training_eligible"
+      ],
+      "properties": {
+        "status": {
+          "const": "tokenizer_source_candidate_authenticated_binding_pending"
+        },
+        "tokenizer_id": {"const": "Qwen/Qwen2.5-1.5B-Instruct"},
+        "binding_schema_version": {
+          "const": "anchor.scaffold-tokenizer-binding-manifest.v1"
+        },
+        "binding_schema_path": {
+          "const": "configs/research/scaffold_tokenizer_binding_manifest.schema.json"
+        },
+        "binding_schema_sha256": {
+          "const": "5b2e7c2e8e6efc1c9b7251fde853631e65806aca0364d9bb092ee9a07d135b25"
+        },
+        "ownership": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["producer", "consumer", "runtime"],
+          "properties": {
+            "producer": {"const": "offline_asset_and_trigger_binding"},
+            "consumer": {
+              "const": "authenticated_binding_and_release_lock_verification"
+            },
+            "runtime": {
+              "const": "request2_token_coordinate_materialization"
+            }
+          }
+        },
+        "source_scaffold": {"$ref": "#/$defs/source_scaffold_binding"},
+        "candidate_source_identity": {
+          "$ref": "#/$defs/candidate_source_identity"
+        },
+        "missing_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "source_scaffold.partition_inventory_sha256"},
+            {"const": "source_scaffold.partitions"},
+            {"const": "tokenizer_binding.tokenizer_runtime_descriptor_sha256"},
+            {"const": "tokenizer_binding.serialization_policy_sha256"},
+            {"const": "tokenizer_binding.special_token_policy_sha256"},
+            {"const": "trigger_binding"},
+            {"const": "token_coordinate_policy"}
+          ],
+          "items": false,
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "token_indices_emitted": {"const": false},
+        "training_eligible": {"const": false}
+      }
+    },
+    "toy_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "schema_version",
+        "schema_path",
+        "schema_sha256",
+        "source_scope",
+        "attestation_artifact_status",
+        "source_disjoint_claim_status",
+        "consumer_attestation_required",
+        "formal_training_data",
+        "formal_training_authorized"
+      ],
+      "properties": {
+        "status": {
+          "const": "contract_ready_consumer_attestation_pending"
+        },
+        "schema_version": {
+          "const": "anchor.qwen-toy-source-disjoint-attestation.v1"
+        },
+        "schema_path": {
+          "const": "configs/research/qwen_toy_source_disjoint_attestation.schema.json"
+        },
+        "schema_sha256": {
+          "const": "7cdc714308b238db86303c61103d0b3e544cd0123bcdca625d6a9717ef5029ea"
+        },
+        "source_scope": {"const": "toy_plumbing_only"},
+        "attestation_artifact_status": {"const": "unavailable"},
+        "source_disjoint_claim_status": {
+          "const": "unverified_pending_authenticated_attestation"
+        },
+        "consumer_attestation_required": {"const": true},
+        "formal_training_data": {"const": false},
+        "formal_training_authorized": {"const": false}
+      }
+    },
+    "consumer_freeze_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "ordered_config_fields",
+        "ordered_cli_fields",
+        "ordered_release_fields",
+        "release_lock_schema_action",
+        "unknown_or_missing_result"
+      ],
+      "properties": {
+        "status": {"const": "consumer_freeze_required"},
+        "ordered_config_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "prerequisite_status_schema_sha256"},
+            {"const": "prerequisite_status_manifest_sha256"},
+            {"const": "tokenizer_binding_schema_sha256"},
+            {"const": "tokenizer_binding_manifest_sha256"},
+            {"const": "toy_attestation_schema_sha256"},
+            {"const": "toy_attestation_sha256"},
+            {"const": "formal_release_lock_schema_sha256"},
+            {"const": "formal_release_lock_sha256"}
+          ],
+          "items": false,
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "ordered_cli_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "--prerequisite-status"},
+            {"const": "--prerequisite-status-sha256"},
+            {"const": "--tokenizer-binding"},
+            {"const": "--tokenizer-binding-sha256"},
+            {"const": "--toy-attestation"},
+            {"const": "--toy-attestation-sha256"},
+            {"const": "--formal-release-lock-schema-sha256"},
+            {"const": "--formal-release-lock"},
+            {"const": "--formal-release-lock-sha256"}
+          ],
+          "items": false,
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "ordered_release_fields": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "prerequisite_status_schema_sha256"},
+            {"const": "prerequisite_status_manifest_sha256"},
+            {"const": "natural_language_scaffold_manifest_sha256"},
+            {"const": "long_context_token_inventory_manifest_sha256"},
+            {"const": "tokenizer_binding_schema_sha256"},
+            {"const": "tokenizer_binding_manifest_sha256"},
+            {"const": "trainable_base_snapshot_manifest_sha256"},
+            {"const": "tokenizer_base_compatibility_attestation_sha256"},
+            {"const": "formal_snapshot_manifest_sha256"},
+            {"const": "final_projector_manifest_sha256"},
+            {"const": "source_disjoint_manifest_sha256"},
+            {"const": "generic_execution_contract_sha256"}
+          ],
+          "items": false,
+          "minItems": 12,
+          "maxItems": 12
+        },
+        "release_lock_schema_action": {
+          "const": "new_v3_or_separate_compatibility_lock_required_no_v2_mutation"
+        },
+        "unknown_or_missing_result": {"const": "fail_closed"}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "full_bank_projection_runs",
+        "canonical_gold_written",
+        "canonical_gold_unchanged",
+        "heldout_written",
+        "heldout_unchanged",
+        "heldout_content_read",
+        "heldout_content_emitted",
+        "training_authorized"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "full_bank_projection_runs": {"const": 0},
+        "canonical_gold_written": {"const": false},
+        "canonical_gold_unchanged": {"const": true},
+        "heldout_written": {"const": false},
+        "heldout_unchanged": {"const": true},
+        "heldout_content_read": {"const": false},
+        "heldout_content_emitted": {"const": false},
+        "training_authorized": {"const": false}
+      }
+    }
+  }
+}
