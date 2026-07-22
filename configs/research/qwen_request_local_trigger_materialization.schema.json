@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-request-local-trigger-materialization-v1.json",
+  "title": "Request-local Qwen trigger materialization receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "activation_semantics",
+    "serialization_scope",
+    "tokenizer_binding_sha256",
+    "chat_template_sha256",
+    "exact_r2_serialization_sha256",
+    "ordered_input_token_ids_sha256",
+    "trigger_span_zero_based_exclusive",
+    "boundary_overhang",
+    "isolated_trigger_encoding_authoritative",
+    "full_r2_single_tokenization_required",
+    "global_token_index_emitted",
+    "token_ids_emitted",
+    "planner_request1_private_kv_reused",
+    "formal_training_authorized"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.qwen-request-local-trigger-materialization.v1"
+    },
+    "status": {
+      "enum": ["pending_request_local_materialization", "ready_diagnostic_only"]
+    },
+    "activation_semantics": {"const": "next_request_input_activation_only"},
+    "serialization_scope": {
+      "const": "exact_full_chat_templated_request2_bytes_single_tokenization"
+    },
+    "tokenizer_binding_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "chat_template_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "exact_r2_serialization_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "ordered_input_token_ids_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "trigger_span_zero_based_exclusive": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/span"}]
+    },
+    "boundary_overhang": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/overhang"}]
+    },
+    "isolated_trigger_encoding_authoritative": {"const": false},
+    "full_r2_single_tokenization_required": {"const": true},
+    "global_token_index_emitted": {"const": false},
+    "token_ids_emitted": {"const": false},
+    "planner_request1_private_kv_reused": {"const": false},
+    "formal_training_authorized": {"const": false}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": {"const": "pending_request_local_materialization"},
+        "tokenizer_binding_sha256": {"type": "null"},
+        "chat_template_sha256": {"type": "null"},
+        "exact_r2_serialization_sha256": {"type": "null"},
+        "ordered_input_token_ids_sha256": {"type": "null"},
+        "trigger_span_zero_based_exclusive": {"type": "null"},
+        "boundary_overhang": {"type": "null"}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "ready_diagnostic_only"},
+        "tokenizer_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "chat_template_sha256": {"$ref": "#/$defs/sha256"},
+        "exact_r2_serialization_sha256": {"$ref": "#/$defs/sha256"},
+        "ordered_input_token_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "trigger_span_zero_based_exclusive": {"$ref": "#/$defs/span"},
+        "boundary_overhang": {"$ref": "#/$defs/overhang"}
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 1}
+      }
+    },
+    "overhang": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leading_utf8_bytes",
+        "trailing_utf8_bytes",
+        "leading_codepoints",
+        "trailing_codepoints"
+      ],
+      "properties": {
+        "leading_utf8_bytes": {"type": "integer", "minimum": 0},
+        "trailing_utf8_bytes": {"type": "integer", "minimum": 0},
+        "leading_codepoints": {"type": "integer", "minimum": 0},
+        "trailing_codepoints": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

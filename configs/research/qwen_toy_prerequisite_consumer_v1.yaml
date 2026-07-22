@@ -1,0 +1,101 @@
+schema_version: anchor.qwen-toy-prerequisite-consumer-config.v1
+claim_scope: metadata_only_diagnostic_prerequisite_consumer_no_training_authority
+
+producer:
+  commit: 744e23f975b13923903f5fabe04c32e74ea25dc4
+  producer_id: anchor.qwen-toy-prerequisite-producer.v1
+  main_manifest_version: anchor.qwen-toy-prerequisite-manifest.v1
+  inventory_version: anchor.protected-source-id-inventory.v1
+  trigger_receipt_version: anchor.qwen-request-local-trigger-materialization.v1
+
+bindings:
+  protected_inventory_schema_sha256: 1f536b788bd4255b633f7f162f3d731ab0bd2d0c7e67fcf0c31892c2e6155d49
+  toy_record_schema_sha256: 1d63f1ce8134060b60a73ae0aac3b3574d817776d678723f8aa5717cb69d834e
+  main_manifest_schema_sha256: b55a0200a3945189687dc0363915e5911bbef41eb6aedcf0cb0f0ceb5bb18e20
+  trigger_receipt_schema_sha256: 8a8d97c1ef1513999e215fa63883d476ad7d062e7bcff8274971b2388e9c62e9
+  producer_config_sha256: 68bbaa13068ea591ab6f26bc31f4077967c05b6a86249811538049f19c798bd8
+  closed_grammar_sha256: 514ddeb93b6f2afbcd99dbfd81d5fedaed93627957a138b6f07a27cb3c1deab9
+  generator_implementation_sha256: b6c3c510e552c265c833d47950b9201da4a97998ca6165e99b972ba6d9978c55
+  attester_implementation_sha256: 01009bf18b164282c9006e4c2a42432a51d4566da414ead7454f783832c60ec3
+  builder_implementation_sha256: c76e72114d2cea8f5a6e1941275002565ae24b01c9e3e9976dd8a6829e27a6e7
+  main_manifest_sha256: 99b94d71639e252c2d768b84a444efa09e844d287c691d8ddfa8312481f2f311
+  main_sidecar_physical_sha256: b8a3f7f7bec390da842ef35f8c9942a985051400c8e65857d6ba1a906b23c951
+  audit_sha256: 1c8e3dc84d99c3bb92019ca1a743f3429fa078a9ba150b39564027d43e07d18c
+  audit_sidecar_physical_sha256: 055fa0251f2cde420846203c0a5d078e4ff1a3c001f06173d9fa3841c032925b
+  toy_records_declared_sha256: 7253826d721e8c91c35926aacac751266589d04056c49f252bde0b613b2b4507
+  toy_source_ids_file_sha256: 2135cea977ac9b0e9685e779e0dc3ad78f51445452db55e0875dc485e0f5b568
+  toy_source_id_inventory_sha256: 38774bdd155ca070e3af41c34eb297ff0d185ee009d21cccbe52b928f4880e57
+  protected_inventory_set_sha256: d0bd5702a9c6bbbb1db547b826a94d960a518e1f6ef3e60bfdd25dcd93a3fe22
+  generation_read_set_sha256: 1cc3080e8a7f84770042b173b9efb8166372ec346768ae067b2f2dc2dbf1ce26
+
+paths:
+  protected_inventory_schema: configs/research/protected_source_id_inventory.schema.json
+  toy_record_schema: configs/research/qwen_toy_diagnostic_record.schema.json
+  main_manifest_schema: configs/research/qwen_toy_prerequisite_manifest.schema.json
+  trigger_receipt_schema: configs/research/qwen_request_local_trigger_materialization.schema.json
+  producer_config: configs/research/qwen_toy_prerequisite_v1.json
+  closed_grammar: configs/research/qwen_toy_closed_grammar_v1.json
+  artifact_root: fixtures/research/qwen_toy_prerequisite_v1
+  main_manifest: fixtures/research/qwen_toy_prerequisite_v1/manifest.json
+  audit: fixtures/research/qwen_toy_prerequisite_v1/audit.json
+
+inventory_contract:
+  ordered_source_classes:
+    - swebench_source
+    - gold_partition
+    - partial_gold_export
+    - heldout
+    - legacy_heldout_cases
+    - synthetic_scaffold
+  ready_source_classes:
+    - swebench_source
+    - heldout
+  unavailable_source_classes:
+    - gold_partition
+    - partial_gold_export
+    - legacy_heldout_cases
+    - synthetic_scaffold
+  ready_count: 2
+  total_count: 6
+
+read_whitelist:
+  - configs/research/qwen_toy_prerequisite_consumer_v1.yaml
+  - configs/research/protected_source_id_inventory.schema.json
+  - configs/research/qwen_toy_diagnostic_record.schema.json
+  - configs/research/qwen_toy_prerequisite_manifest.schema.json
+  - configs/research/qwen_request_local_trigger_materialization.schema.json
+  - configs/research/qwen_toy_prerequisite_v1.json
+  - configs/research/qwen_toy_closed_grammar_v1.json
+  - fixtures/research/qwen_toy_prerequisite_v1/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/audit.json
+  - fixtures/research/qwen_toy_prerequisite_v1/audit.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/toy/source_ids.sha256.jsonl
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/source_ids.sha256.jsonl
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/gold_partition/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/gold_partition/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/partial_gold_export/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/partial_gold_export/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/heldout/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/heldout/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/heldout/source_ids.sha256.jsonl
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/legacy_heldout_cases/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/legacy_heldout_cases/manifest.json.sha256
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/synthetic_scaffold/manifest.json
+  - fixtures/research/qwen_toy_prerequisite_v1/inventories/synthetic_scaffold/manifest.json.sha256
+
+policy:
+  metadata_only: true
+  fail_closed: true
+  toy_record_body_read: false
+  protected_content_reads: 0
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  training_authorized: false
+  formal_training_authorized: false
+  zero_intersection_claimed: false
+  v1_attestation_emitted: false
