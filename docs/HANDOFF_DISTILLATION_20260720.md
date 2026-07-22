@@ -604,6 +604,29 @@ See `docs/synthetic_scaffold_controlled_proxy_followup.md` and
 `docs/synthetic_scaffold_controlled_proxy_followup.zh-CN.md` for the complete
 contract rationale, negative gates, and metadata-only reproduction commands.
 
+## 2026-07-23 additive Q+O risk-evidence companion
+
+Consumer commit `58e9cd0c021ac0f01250746d44f199c1f616261d` adds a
+read-only Q/O branch ablation, static spectral risk audit, and one-probe eager
+attention hook. Producer records these only through the additive
+`anchor.synthetic-scaffold-controlled-proxy-risk-evidence-companion.v1`; the
+frozen follow-up at Producer commit `23194f7b3c707e3531ac92a64863c2b2f523f81d`
+is unchanged.
+
+The companion authenticates three exact receipt/sidecar Git blob pairs and a
+closed numeric projection. The same-template result is a template or answer-
+shape writeback risk signal. The retained O branch is not an independently
+trained O-only arm; the four-bundle OOD proxy does not establish broad
+generalization; static spectra do not prove memorization; and the single-probe
+attention result is not an explanation or general causal proof. Step 80 is
+the sole primary replication endpoint. Five seeds, equal-budget independent
+controls, and independent task-bundle confirmation remain pending.
+
+Formal-v3 remains 0/5, protected inventories remain 2/6, and both training
+authorization flags remain false. See
+`docs/synthetic_scaffold_controlled_proxy_risk_evidence_companion.md` and its
+`zh-CN` counterpart for identities, fail-closed behavior, and reproduction.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before
