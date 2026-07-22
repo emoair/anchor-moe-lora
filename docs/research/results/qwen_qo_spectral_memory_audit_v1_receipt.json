@@ -1,0 +1,2206 @@
+{
+  "adapters": {
+    "q_plus_o": {
+      "cross_projection": {
+        "o_to_q_median_frobenius_ratio": 1.389003180235,
+        "o_to_q_total_delta_energy_ratio": 1.767153939794,
+        "per_layer_frobenius_pearson": 0.916123895234,
+        "per_layer_frobenius_spearman": 0.844553913519
+      },
+      "delta_spectrum": {
+        "o_proj": {
+          "layer_energy_distribution": {
+            "effective_layers": 25.714532128966,
+            "gini": 0.234120423417,
+            "largest_layer_fraction": 0.061787459132,
+            "last_9_layers_fraction": 0.498337970885,
+            "ordered_layer_energy_fraction_sha256": "7c1bc1fca339e01978d2b512a316552e1afb4eccc92f8e8c7059f5b5bdf3cdb6",
+            "top_4_layer_fraction": 0.243434828294
+          },
+          "layers": 28,
+          "nominal_rank": 8,
+          "per_layer": [
+            {
+              "delta_energy": 0.046647017658,
+              "energy_effective_rank": 3.635351164694,
+              "frobenius_norm": 0.21597920654,
+              "layer": 0,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.169505656717,
+              "stable_rank": 1.623511953966,
+              "top_k_energy_fraction": {
+                "top_1": 0.615948652277,
+                "top_2": 0.757640651034,
+                "top_4": 0.917266257287
+              }
+            },
+            {
+              "delta_energy": 0.048610058376,
+              "energy_effective_rank": 2.574203631638,
+              "frobenius_norm": 0.22047688853,
+              "layer": 1,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.189115489124,
+              "stable_rank": 1.359164247462,
+              "top_k_energy_fraction": {
+                "top_1": 0.735746251321,
+                "top_2": 0.87238970953,
+                "top_4": 0.958788720909
+              }
+            },
+            {
+              "delta_energy": 0.051454810967,
+              "energy_effective_rank": 3.118394952382,
+              "frobenius_norm": 0.226836529172,
+              "layer": 2,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.184238906071,
+              "stable_rank": 1.515874664335,
+              "top_k_energy_fraction": {
+                "top_1": 0.659685146488,
+                "top_2": 0.838646538679,
+                "top_4": 0.931910975621
+              }
+            },
+            {
+              "delta_energy": 0.047223203969,
+              "energy_effective_rank": 2.56043596622,
+              "frobenius_norm": 0.217309005724,
+              "layer": 3,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.190686278144,
+              "stable_rank": 1.298723099541,
+              "top_k_energy_fraction": {
+                "top_1": 0.769987074499,
+                "top_2": 0.838601337999,
+                "top_4": 0.929435409937
+              }
+            },
+            {
+              "delta_energy": 0.055521513537,
+              "energy_effective_rank": 3.566065558726,
+              "frobenius_norm": 0.235630035303,
+              "layer": 4,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.185246386699,
+              "stable_rank": 1.617937739439,
+              "top_k_energy_fraction": {
+                "top_1": 0.618070754902,
+                "top_2": 0.782207524881,
+                "top_4": 0.917748466277
+              }
+            },
+            {
+              "delta_energy": 0.056644381049,
+              "energy_effective_rank": 2.670058455853,
+              "frobenius_norm": 0.238000800521,
+              "layer": 5,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.204176503269,
+              "stable_rank": 1.358768005202,
+              "top_k_energy_fraction": {
+                "top_1": 0.735960808741,
+                "top_2": 0.864381086869,
+                "top_4": 0.939611573939
+              }
+            },
+            {
+              "delta_energy": 0.069146454888,
+              "energy_effective_rank": 1.92064647727,
+              "frobenius_norm": 0.262957135078,
+              "layer": 6,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.243614102674,
+              "stable_rank": 1.165105003807,
+              "top_k_energy_fraction": {
+                "top_1": 0.858291739142,
+                "top_2": 0.904656095909,
+                "top_4": 0.959646075677
+              }
+            },
+            {
+              "delta_energy": 0.064520433157,
+              "energy_effective_rank": 2.397435407665,
+              "frobenius_norm": 0.254008726536,
+              "layer": 7,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.223064020402,
+              "stable_rank": 1.296696156128,
+              "top_k_energy_fraction": {
+                "top_1": 0.771190687405,
+                "top_2": 0.891971180611,
+                "top_4": 0.951809494372
+              }
+            },
+            {
+              "delta_energy": 0.061518558779,
+              "energy_effective_rank": 2.850228902232,
+              "frobenius_norm": 0.248029350641,
+              "layer": 8,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.210620316138,
+              "stable_rank": 1.386773812377,
+              "top_k_energy_fraction": {
+                "top_1": 0.721098127953,
+                "top_2": 0.823882857456,
+                "top_4": 0.933109744632
+              }
+            },
+            {
+              "delta_energy": 0.070308011915,
+              "energy_effective_rank": 2.092430247355,
+              "frobenius_norm": 0.265156579995,
+              "layer": 9,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.242257331323,
+              "stable_rank": 1.197983840953,
+              "top_k_energy_fraction": {
+                "top_1": 0.834735800113,
+                "top_2": 0.88192382597,
+                "top_4": 0.952709843826
+              }
+            },
+            {
+              "delta_energy": 0.081689749664,
+              "energy_effective_rank": 1.485937853825,
+              "frobenius_norm": 0.285814187304,
+              "layer": 10,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.274608356003,
+              "stable_rank": 1.083278363145,
+              "top_k_energy_fraction": {
+                "top_1": 0.923123763957,
+                "top_2": 0.95512944353,
+                "top_4": 0.981904340415
+              }
+            },
+            {
+              "delta_energy": 0.090030073779,
+              "energy_effective_rank": 1.389668663893,
+              "frobenius_norm": 0.300050118779,
+              "layer": 11,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.290367744024,
+              "stable_rank": 1.06780233266,
+              "top_k_energy_fraction": {
+                "top_1": 0.936502917641,
+                "top_2": 0.969504454575,
+                "top_4": 0.987327521425
+              }
+            },
+            {
+              "delta_energy": 0.083181675934,
+              "energy_effective_rank": 1.651986923616,
+              "frobenius_norm": 0.288412336654,
+              "layer": 12,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.273404787342,
+              "stable_rank": 1.112795694234,
+              "top_k_energy_fraction": {
+                "top_1": 0.89863755331,
+                "top_2": 0.931913501135,
+                "top_4": 0.971162575069
+              }
+            },
+            {
+              "delta_energy": 0.085426495502,
+              "energy_effective_rank": 1.862916763002,
+              "frobenius_norm": 0.292278113279,
+              "layer": 13,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.270519967479,
+              "stable_rank": 1.167330780684,
+              "top_k_energy_fraction": {
+                "top_1": 0.856655214226,
+                "top_2": 0.931361230894,
+                "top_4": 0.969048646311
+              }
+            },
+            {
+              "delta_energy": 0.080953664759,
+              "energy_effective_rank": 2.285405148075,
+              "frobenius_norm": 0.284523575049,
+              "layer": 14,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.252753262734,
+              "stable_rank": 1.267193606194,
+              "top_k_energy_fraction": {
+                "top_1": 0.789145395867,
+                "top_2": 0.894334426379,
+                "top_4": 0.958641633305
+              }
+            },
+            {
+              "delta_energy": 0.092196758038,
+              "energy_effective_rank": 1.521282061774,
+              "frobenius_norm": 0.30363919055,
+              "layer": 15,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.290845152958,
+              "stable_rank": 1.089913392211,
+              "top_k_energy_fraction": {
+                "top_1": 0.917504094496,
+                "top_2": 0.948461275035,
+                "top_4": 0.979642369435
+              }
+            },
+            {
+              "delta_energy": 0.090746093489,
+              "energy_effective_rank": 1.486198618065,
+              "frobenius_norm": 0.301240922666,
+              "layer": 16,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.289306092802,
+              "stable_rank": 1.084208426307,
+              "top_k_energy_fraction": {
+                "top_1": 0.922331883553,
+                "top_2": 0.95146076482,
+                "top_4": 0.983846833563
+              }
+            },
+            {
+              "delta_energy": 0.10120261292,
+              "energy_effective_rank": 1.741162749297,
+              "frobenius_norm": 0.318123581207,
+              "layer": 17,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.298499891326,
+              "stable_rank": 1.13580393996,
+              "top_k_energy_fraction": {
+                "top_1": 0.880433642478,
+                "top_2": 0.935651198274,
+                "top_4": 0.970847766675
+              }
+            },
+            {
+              "delta_energy": 0.102647434693,
+              "energy_effective_rank": 2.31979987774,
+              "frobenius_norm": 0.320386383439,
+              "layer": 18,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.28545258952,
+              "stable_rank": 1.259737698072,
+              "top_k_energy_fraction": {
+                "top_1": 0.793816047206,
+                "top_2": 0.884254056001,
+                "top_4": 0.948570006936
+              }
+            },
+            {
+              "delta_energy": 0.128263342981,
+              "energy_effective_rank": 1.893188837273,
+              "frobenius_norm": 0.358138720303,
+              "layer": 19,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.332033233718,
+              "stable_rank": 1.163427820752,
+              "top_k_energy_fraction": {
+                "top_1": 0.859529041822,
+                "top_2": 0.909493003518,
+                "top_4": 0.967549682816
+              }
+            },
+            {
+              "delta_energy": 0.141726649556,
+              "energy_effective_rank": 1.560037958962,
+              "frobenius_norm": 0.376466000531,
+              "layer": 20,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.359457331509,
+              "stable_rank": 1.096874218162,
+              "top_k_energy_fraction": {
+                "top_1": 0.911681561516,
+                "top_2": 0.948087814105,
+                "top_4": 0.976915725538
+              }
+            },
+            {
+              "delta_energy": 0.163168844708,
+              "energy_effective_rank": 1.21441022189,
+              "frobenius_norm": 0.403941635274,
+              "layer": 21,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.397405293397,
+              "stable_rank": 1.033165613937,
+              "top_k_energy_fraction": {
+                "top_1": 0.967899034299,
+                "top_2": 0.979348348693,
+                "top_4": 0.992731744883
+              }
+            },
+            {
+              "delta_energy": 0.148706447368,
+              "energy_effective_rank": 2.480724201653,
+              "frobenius_norm": 0.385624749424,
+              "layer": 22,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.337745391696,
+              "stable_rank": 1.30361975818,
+              "top_k_energy_fraction": {
+                "top_1": 0.767094847807,
+                "top_2": 0.876598279503,
+                "top_4": 0.942754127842
+              }
+            },
+            {
+              "delta_energy": 0.139018833687,
+              "energy_effective_rank": 1.838728906326,
+              "frobenius_norm": 0.372852294732,
+              "layer": 23,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.345461826233,
+              "stable_rank": 1.164859407905,
+              "top_k_energy_fraction": {
+                "top_1": 0.85847269912,
+                "top_2": 0.928109306683,
+                "top_4": 0.977996518243
+              }
+            },
+            {
+              "delta_energy": 0.169927634934,
+              "energy_effective_rank": 1.402080254987,
+              "frobenius_norm": 0.412222797688,
+              "layer": 24,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.399263826319,
+              "stable_rank": 1.065967794868,
+              "top_k_energy_fraction": {
+                "top_1": 0.938114645503,
+                "top_2": 0.961598040305,
+                "top_4": 0.981578848102
+              }
+            },
+            {
+              "delta_energy": 0.143318378962,
+              "energy_effective_rank": 2.663702388041,
+              "frobenius_norm": 0.37857413932,
+              "layer": 25,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.311492222519,
+              "stable_rank": 1.477091749695,
+              "top_k_energy_fraction": {
+                "top_1": 0.677006015507,
+                "top_2": 0.901065476841,
+                "top_4": 0.965094862678
+              }
+            },
+            {
+              "delta_energy": 0.16848954317,
+              "energy_effective_rank": 1.309278792521,
+              "frobenius_norm": 0.410474777751,
+              "layer": 26,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.400201036517,
+              "stable_rank": 1.05200192506,
+              "top_k_energy_fraction": {
+                "top_1": 0.950568602755,
+                "top_2": 0.97440979038,
+                "top_4": 0.991088693229
+              }
+            },
+            {
+              "delta_energy": 0.167907515415,
+              "energy_effective_rank": 1.757798793949,
+              "frobenius_norm": 0.409765195466,
+              "layer": 27,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.384386802198,
+              "stable_rank": 1.13640516647,
+              "top_k_energy_fraction": {
+                "top_1": 0.879967840261,
+                "top_2": 0.920221076304,
+                "top_4": 0.971839905489
+              }
+            }
+          ],
+          "summary": {
+            "energy_effective_rank": {
+              "max": 3.635351164694,
+              "mean": 2.11605570639,
+              "median": 1.906917657271,
+              "min": 1.21441022189
+            },
+            "frobenius_norm": {
+              "max": 0.412222797688,
+              "mean": 0.306675463481,
+              "median": 0.296164116029,
+              "min": 0.21597920654
+            },
+            "spectral_norm_svdvals_max": {
+              "max": 0.400201036517,
+              "mean": 0.279847492816,
+              "median": 0.280030472762,
+              "min": 0.169505656717
+            },
+            "stable_rank": {
+              "max": 1.623511953966,
+              "mean": 1.235072007561,
+              "median": 1.166217892246,
+              "min": 1.033165613937
+            },
+            "top_1_energy_fraction": {
+              "max": 0.967899034299,
+              "mean": 0.82318570872,
+              "median": 0.857473476684,
+              "min": 0.615948652277
+            },
+            "top_2_energy_fraction": {
+              "max": 0.979348348693,
+              "mean": 0.902046510568,
+              "median": 0.907074549713,
+              "min": 0.757640651034
+            },
+            "top_4_energy_fraction": {
+              "max": 0.992731744883,
+              "mean": 0.961092084444,
+              "median": 0.966322272747,
+              "min": 0.917266257287
+            }
+          },
+          "total_delta_energy": 2.750196193854
+        },
+        "q_proj": {
+          "layer_energy_distribution": {
+            "effective_layers": 25.937071360859,
+            "gini": 0.22037391444,
+            "largest_layer_fraction": 0.061510162078,
+            "last_9_layers_fraction": 0.487799923868,
+            "ordered_layer_energy_fraction_sha256": "1023ed7dec97d4ef0dfed6389c5fda89914cf18e805f03223297aa10e673a0db",
+            "top_4_layer_fraction": 0.237285169592
+          },
+          "layers": 28,
+          "nominal_rank": 8,
+          "per_layer": [
+            {
+              "delta_energy": 0.039413908811,
+              "energy_effective_rank": 3.921231262553,
+              "frobenius_norm": 0.198529365111,
+              "layer": 0,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.151422362792,
+              "stable_rank": 1.718974642448,
+              "top_k_energy_fraction": {
+                "top_1": 0.581742147502,
+                "top_2": 0.756275578892,
+                "top_4": 0.88829392497
+              }
+            },
+            {
+              "delta_energy": 0.041480755132,
+              "energy_effective_rank": 4.850891052061,
+              "frobenius_norm": 0.203668247728,
+              "layer": 1,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.142878827711,
+              "stable_rank": 2.031940082127,
+              "top_k_energy_fraction": {
+                "top_1": 0.492140496069,
+                "top_2": 0.655552546522,
+                "top_4": 0.846148440593
+              }
+            },
+            {
+              "delta_energy": 0.038707967745,
+              "energy_effective_rank": 4.751706759421,
+              "frobenius_norm": 0.19674340585,
+              "layer": 2,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.139882385888,
+              "stable_rank": 1.978218723643,
+              "top_k_energy_fraction": {
+                "top_1": 0.505505275048,
+                "top_2": 0.668434336901,
+                "top_4": 0.84408864641
+              }
+            },
+            {
+              "delta_energy": 0.034112665151,
+              "energy_effective_rank": 4.53329956349,
+              "frobenius_norm": 0.184696142762,
+              "layer": 3,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.129067143283,
+              "stable_rank": 2.04778452112,
+              "top_k_energy_fraction": {
+                "top_1": 0.488332629574,
+                "top_2": 0.694504066603,
+                "top_4": 0.891856267735
+              }
+            },
+            {
+              "delta_energy": 0.036783898169,
+              "energy_effective_rank": 5.350661502921,
+              "frobenius_norm": 0.191791288043,
+              "layer": 4,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.127922796264,
+              "stable_rank": 2.247821720675,
+              "top_k_energy_fraction": {
+                "top_1": 0.444875138808,
+                "top_2": 0.618196245764,
+                "top_4": 0.813729720133
+              }
+            },
+            {
+              "delta_energy": 0.031003896319,
+              "energy_effective_rank": 4.834513947752,
+              "frobenius_norm": 0.176079233073,
+              "layer": 5,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.120342599301,
+              "stable_rank": 2.140806923226,
+              "top_k_energy_fraction": {
+                "top_1": 0.467113586541,
+                "top_2": 0.678681004623,
+                "top_4": 0.856224716275
+              }
+            },
+            {
+              "delta_energy": 0.032966114396,
+              "energy_effective_rank": 5.259225453995,
+              "frobenius_norm": 0.181565730235,
+              "layer": 6,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.121328423714,
+              "stable_rank": 2.239456601656,
+              "top_k_energy_fraction": {
+                "top_1": 0.446536896165,
+                "top_2": 0.626157233456,
+                "top_4": 0.825363822461
+              }
+            },
+            {
+              "delta_energy": 0.028159097881,
+              "energy_effective_rank": 4.604025407341,
+              "frobenius_norm": 0.167806727758,
+              "layer": 7,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.111857795954,
+              "stable_rank": 2.250537334631,
+              "top_k_energy_fraction": {
+                "top_1": 0.444338329612,
+                "top_2": 0.714389076965,
+                "top_4": 0.884130768897
+              }
+            },
+            {
+              "delta_energy": 0.043201264982,
+              "energy_effective_rank": 2.987326520271,
+              "frobenius_norm": 0.20784913996,
+              "layer": 8,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.174065419426,
+              "stable_rank": 1.425842192271,
+              "top_k_energy_fraction": {
+                "top_1": 0.701339885592,
+                "top_2": 0.830494699697,
+                "top_4": 0.922365298078
+              }
+            },
+            {
+              "delta_energy": 0.036830387182,
+              "energy_effective_rank": 2.769690000297,
+              "frobenius_norm": 0.191912446657,
+              "layer": 9,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.163060931267,
+              "stable_rank": 1.385180750976,
+              "top_k_energy_fraction": {
+                "top_1": 0.7219274447,
+                "top_2": 0.858830079201,
+                "top_4": 0.933151732142
+              }
+            },
+            {
+              "delta_energy": 0.034414913427,
+              "energy_effective_rank": 4.514256767945,
+              "frobenius_norm": 0.185512569457,
+              "layer": 10,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.124369051616,
+              "stable_rank": 2.224959121308,
+              "top_k_energy_fraction": {
+                "top_1": 0.449446459678,
+                "top_2": 0.710562915196,
+                "top_4": 0.899454937966
+              }
+            },
+            {
+              "delta_energy": 0.038634248834,
+              "energy_effective_rank": 3.321689939972,
+              "frobenius_norm": 0.196555968705,
+              "layer": 11,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.155555671706,
+              "stable_rank": 1.596617082786,
+              "top_k_energy_fraction": {
+                "top_1": 0.626324251933,
+                "top_2": 0.821788355316,
+                "top_4": 0.928118810047
+              }
+            },
+            {
+              "delta_energy": 0.037917901684,
+              "energy_effective_rank": 4.815799574493,
+              "frobenius_norm": 0.194725195298,
+              "layer": 12,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.13178038692,
+              "stable_rank": 2.183447427142,
+              "top_k_energy_fraction": {
+                "top_1": 0.457991334057,
+                "top_2": 0.655128391775,
+                "top_4": 0.884043260628
+              }
+            },
+            {
+              "delta_energy": 0.058413676419,
+              "energy_effective_rank": 2.132767715349,
+              "frobenius_norm": 0.241689214528,
+              "layer": 13,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.220421326748,
+              "stable_rank": 1.202284688576,
+              "top_k_energy_fraction": {
+                "top_1": 0.831749759023,
+                "top_2": 0.878858238908,
+                "top_4": 0.939434866321
+              }
+            },
+            {
+              "delta_energy": 0.043692181112,
+              "energy_effective_rank": 2.981048631224,
+              "frobenius_norm": 0.209026747361,
+              "layer": 14,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.176157209264,
+              "stable_rank": 1.408000737552,
+              "top_k_energy_fraction": {
+                "top_1": 0.710226900689,
+                "top_2": 0.817855383205,
+                "top_4": 0.917468990965
+              }
+            },
+            {
+              "delta_energy": 0.047269059579,
+              "energy_effective_rank": 3.004185610031,
+              "frobenius_norm": 0.21741448797,
+              "layer": 15,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.182455945041,
+              "stable_rank": 1.419910349172,
+              "top_k_energy_fraction": {
+                "top_1": 0.704269815755,
+                "top_2": 0.812035788182,
+                "top_4": 0.92480509587
+              }
+            },
+            {
+              "delta_energy": 0.053800428042,
+              "energy_effective_rank": 2.632598868641,
+              "frobenius_norm": 0.231949192803,
+              "layer": 16,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.197625603696,
+              "stable_rank": 1.377524436622,
+              "top_k_energy_fraction": {
+                "top_1": 0.725939935013,
+                "top_2": 0.868977434771,
+                "top_4": 0.957838326703
+              }
+            },
+            {
+              "delta_energy": 0.05088527085,
+              "energy_effective_rank": 2.780946173123,
+              "frobenius_norm": 0.225577638186,
+              "layer": 17,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.191532931489,
+              "stable_rank": 1.387091718937,
+              "top_k_energy_fraction": {
+                "top_1": 0.720932859989,
+                "top_2": 0.851048057197,
+                "top_4": 0.937558241639
+              }
+            },
+            {
+              "delta_energy": 0.06944195676,
+              "energy_effective_rank": 2.227315819432,
+              "frobenius_norm": 0.263518418257,
+              "layer": 18,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.235570100741,
+              "stable_rank": 1.251358116103,
+              "top_k_energy_fraction": {
+                "top_1": 0.799131749042,
+                "top_2": 0.898659173393,
+                "top_4": 0.958403825599
+              }
+            },
+            {
+              "delta_energy": 0.072596814165,
+              "energy_effective_rank": 4.244692395862,
+              "frobenius_norm": 0.26943795977,
+              "layer": 19,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.196976472483,
+              "stable_rank": 1.871064897432,
+              "top_k_energy_fraction": {
+                "top_1": 0.534455005475,
+                "top_2": 0.732520437468,
+                "top_4": 0.885615000017
+              }
+            },
+            {
+              "delta_energy": 0.089350944393,
+              "energy_effective_rank": 3.630842951151,
+              "frobenius_norm": 0.298916283252,
+              "layer": 20,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.217606342273,
+              "stable_rank": 1.886931128924,
+              "top_k_energy_fraction": {
+                "top_1": 0.529961048748,
+                "top_2": 0.822207249371,
+                "top_4": 0.925802856841
+              }
+            },
+            {
+              "delta_energy": 0.095727378255,
+              "energy_effective_rank": 1.830522064989,
+              "frobenius_norm": 0.309398413466,
+              "layer": 21,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.288425245971,
+              "stable_rank": 1.150719894174,
+              "top_k_energy_fraction": {
+                "top_1": 0.869021214513,
+                "top_2": 0.920713172442,
+                "top_4": 0.967770709426
+              }
+            },
+            {
+              "delta_energy": 0.08460123836,
+              "energy_effective_rank": 3.591270847485,
+              "frobenius_norm": 0.290862920222,
+              "layer": 22,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.23136540999,
+              "stable_rank": 1.580446716538,
+              "top_k_energy_fraction": {
+                "top_1": 0.632732498689,
+                "top_2": 0.749781555588,
+                "top_4": 0.899964798639
+              }
+            },
+            {
+              "delta_energy": 0.062491556291,
+              "energy_effective_rank": 4.194519512975,
+              "frobenius_norm": 0.249983112013,
+              "layer": 23,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.183920778526,
+              "stable_rank": 1.847394929396,
+              "top_k_energy_fraction": {
+                "top_1": 0.541302774024,
+                "top_2": 0.703944583556,
+                "top_4": 0.89276331491
+              }
+            },
+            {
+              "delta_energy": 0.090970354478,
+              "energy_effective_rank": 3.979534139957,
+              "frobenius_norm": 0.301612921603,
+              "layer": 24,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.21948643002,
+              "stable_rank": 1.888358891905,
+              "top_k_energy_fraction": {
+                "top_1": 0.529560352265,
+                "top_2": 0.760134304898,
+                "top_4": 0.909169912569
+              }
+            },
+            {
+              "delta_energy": 0.086126872455,
+              "energy_effective_rank": 4.212409473058,
+              "frobenius_norm": 0.293473801991,
+              "layer": 25,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.21756921407,
+              "stable_rank": 1.819465357256,
+              "top_k_energy_fraction": {
+                "top_1": 0.549612003335,
+                "top_2": 0.704260406345,
+                "top_4": 0.896321175204
+              }
+            },
+            {
+              "delta_energy": 0.084056018346,
+              "energy_effective_rank": 5.040940885843,
+              "frobenius_norm": 0.289924159645,
+              "layer": 26,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.176524750456,
+              "stable_rank": 2.697476075894,
+              "top_k_energy_fraction": {
+                "top_1": 0.370716911611,
+                "top_2": 0.679077008267,
+                "top_4": 0.851345170003
+              }
+            },
+            {
+              "delta_energy": 0.093234810619,
+              "energy_effective_rank": 3.054688542022,
+              "frobenius_norm": 0.305343758114,
+              "layer": 27,
+              "numerical_rank": 8,
+              "spectral_norm_svdvals_max": 0.254658860906,
+              "stable_rank": 1.437674298064,
+              "top_k_energy_fraction": {
+                "top_1": 0.695567835738,
+                "top_2": 0.816598858572,
+                "top_4": 0.922459125419
+              }
+            }
+          ],
+          "summary": {
+            "energy_effective_rank": {
+              "max": 5.350661502921,
+              "mean": 3.787592906559,
+              "median": 3.950382701255,
+              "min": 1.830522064989
+            },
+            "frobenius_norm": {
+              "max": 0.309398413466,
+              "mean": 0.231270160351,
+              "median": 0.213220617665,
+              "min": 0.167806727758
+            },
+            "spectral_norm_svdvals_max": {
+              "max": 0.288425245971,
+              "mean": 0.177993943483,
+              "median": 0.17634097986,
+              "min": 0.111857795954
+            },
+            "stable_rank": {
+              "max": 2.697476075894,
+              "mean": 1.774903191448,
+              "median": 1.833430143326,
+              "min": 1.150719894174
+            },
+            "top_1_energy_fraction": {
+              "max": 0.869021214513,
+              "mean": 0.591885519257,
+              "median": 0.545457388679,
+              "min": 0.370716911611
+            },
+            "top_2_energy_fraction": {
+              "max": 0.920713172442,
+              "mean": 0.760916649395,
+              "median": 0.75302856724,
+              "min": 0.618196245764
+            },
+            "top_4_energy_fraction": {
+              "max": 0.967770709426,
+              "mean": 0.900131848445,
+              "median": 0.899709868302,
+              "min": 0.813729720133
+            }
+          },
+          "total_delta_energy": 1.556285579837
+        }
+      },
+      "identity": {
+        "alphas": {
+          "o_proj": 16,
+          "q_proj": 16
+        },
+        "files": {
+          "adapter_config.json": {
+            "bytes": 1070,
+            "sha256": "17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222"
+          },
+          "adapter_model.safetensors": {
+            "bytes": 5519760,
+            "sha256": "fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba"
+          },
+          "diagnostic_receipt.json": {
+            "bytes": 16200,
+            "sha256": "dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e"
+          },
+          "diagnostic_receipt.json.sha256": {
+            "bytes": 90,
+            "sha256": "25ce959c8fe0fb5337682ee0b57d2948d3a29d98f3267a88d320cdc807a10113"
+          }
+        },
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80",
+        "profile": "q_plus_o",
+        "ranks": {
+          "o_proj": 8,
+          "q_proj": 8
+        },
+        "target_modules": [
+          "o_proj",
+          "q_proj"
+        ]
+      },
+      "o_output_subspace_alignment": {
+        "groups": {
+          "deterministic_random_vocab": {
+            "mean_projection_energy": 0.005389350932,
+            "median_projection_energy": 0.004870974459,
+            "ordered_per_layer_mean_sha256": "87bf5e810fb19ead9f32d80daec0250b2a66e2ea98dcf9b36cdda17479995b5d",
+            "per_layer_mean_summary": {
+              "max": 0.008589387871,
+              "mean": 0.0053893505,
+              "median": 0.005159722874,
+              "min": 0.004562157672
+            },
+            "ratio_to_deterministic_random": 1.0,
+            "ratio_to_isotropic_rank_over_hidden": 1.034755378944
+          },
+          "prompt_control": {
+            "mean_projection_energy": 0.005426443182,
+            "median_projection_energy": 0.004898042884,
+            "ordered_per_layer_mean_sha256": "e3d4a4a8505249dfe2f286588564450fc734f44d154ff489f9431e83c16d9a1d",
+            "per_layer_mean_summary": {
+              "max": 0.006463413592,
+              "mean": 0.005426442799,
+              "median": 0.005395451793,
+              "min": 0.004687218927
+            },
+            "ratio_to_deterministic_random": 1.006882507832,
+            "ratio_to_isotropic_rank_over_hidden": 1.041877090944
+          },
+          "target_frequent": {
+            "mean_projection_energy": 0.010558319278,
+            "median_projection_energy": 0.005724298302,
+            "ordered_per_layer_mean_sha256": "f4025f7241ad411d1c1e7c67c11ce660c91e46b0e24b28b1824299de10d8bae9",
+            "per_layer_mean_summary": {
+              "max": 0.041104741395,
+              "mean": 0.010558318696,
+              "median": 0.005618465599,
+              "min": 0.004512540065
+            },
+            "ratio_to_deterministic_random": 1.95910776849,
+            "ratio_to_isotropic_rank_over_hidden": 2.027197301376
+          },
+          "target_low_frequency": {
+            "mean_projection_energy": 0.00606698636,
+            "median_projection_energy": 0.005105101503,
+            "ordered_per_layer_mean_sha256": "af215b8c7d9e51501f5734db4871a84bd597874769079ae2c489c1ce8c4ca89c",
+            "per_layer_mean_summary": {
+              "max": 0.010896002874,
+              "mean": 0.006066986509,
+              "median": 0.005492483964,
+              "min": 0.004784394521
+            },
+            "ratio_to_deterministic_random": 1.125735999854,
+            "ratio_to_isotropic_rank_over_hidden": 1.16486138112
+          }
+        },
+        "hidden_size": 1536,
+        "isotropic_rank_over_hidden": 0.005208333333,
+        "nominal_subspace_rank": 8
+      }
+    },
+    "wide_budget_matched": {
+      "cross_projection": {
+        "o_to_q_median_frobenius_ratio": 1.218393898322,
+        "o_to_q_total_delta_energy_ratio": 1.37174206821,
+        "per_layer_frobenius_pearson": 0.903562806637,
+        "per_layer_frobenius_spearman": 0.883962780515
+      },
+      "delta_spectrum": {
+        "o_proj": {
+          "layer_energy_distribution": {
+            "effective_layers": 26.114136732129,
+            "gini": 0.213297934764,
+            "largest_layer_fraction": 0.062738381926,
+            "last_9_layers_fraction": 0.472678142388,
+            "ordered_layer_energy_fraction_sha256": "c691bab27d733764eed7b94bdcebdb44a68e21a02ca955bff94c3927e9d104c7",
+            "top_4_layer_fraction": 0.236938969932
+          },
+          "layers": 28,
+          "nominal_rank": 4,
+          "per_layer": [
+            {
+              "delta_energy": 0.027445822216,
+              "energy_effective_rank": 1.687354239671,
+              "frobenius_norm": 0.165667806819,
+              "layer": 0,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.154558543153,
+              "stable_rank": 1.148921125071,
+              "top_k_energy_fraction": {
+                "top_1": 0.870381767885,
+                "top_2": 0.927195601399,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.026204824134,
+              "energy_effective_rank": 1.592868587274,
+              "frobenius_norm": 0.161879041677,
+              "layer": 1,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.152494041179,
+              "stable_rank": 1.126874372319,
+              "top_k_energy_fraction": {
+                "top_1": 0.887410366732,
+                "top_2": 0.945238620324,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.026849801319,
+              "energy_effective_rank": 2.312393418032,
+              "frobenius_norm": 0.163859089826,
+              "layer": 2,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.138881353241,
+              "stable_rank": 1.392044751679,
+              "top_k_energy_fraction": {
+                "top_1": 0.718367709654,
+                "top_2": 0.905484461868,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.026475001918,
+              "energy_effective_rank": 1.905530855581,
+              "frobenius_norm": 0.162711406847,
+              "layer": 3,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.146907763541,
+              "stable_rank": 1.226722993455,
+              "top_k_energy_fraction": {
+                "top_1": 0.8151799594,
+                "top_2": 0.922115614787,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.032315424351,
+              "energy_effective_rank": 1.900196297216,
+              "frobenius_norm": 0.179764914127,
+              "layer": 4,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.163058505788,
+              "stable_rank": 1.215410395797,
+              "top_k_energy_fraction": {
+                "top_1": 0.822767357806,
+                "top_2": 0.921955896855,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.031352538344,
+              "energy_effective_rank": 1.925632855673,
+              "frobenius_norm": 0.177066480012,
+              "layer": 5,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.160232465249,
+              "stable_rank": 1.221157492747,
+              "top_k_energy_fraction": {
+                "top_1": 0.818895192422,
+                "top_2": 0.906825311603,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.035147030176,
+              "energy_effective_rank": 1.546457602064,
+              "frobenius_norm": 0.18747541219,
+              "layer": 6,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.176634963997,
+              "stable_rank": 1.126510608707,
+              "top_k_energy_fraction": {
+                "top_1": 0.887696922044,
+                "top_2": 0.96969196836,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.036268100566,
+              "energy_effective_rank": 1.946963287017,
+              "frobenius_norm": 0.19044185613,
+              "layer": 7,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.171059355658,
+              "stable_rank": 1.239456095651,
+              "top_k_energy_fraction": {
+                "top_1": 0.806805504051,
+                "top_2": 0.925077084073,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.035890825974,
+              "energy_effective_rank": 1.786487684075,
+              "frobenius_norm": 0.18944874234,
+              "layer": 8,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.174539517146,
+              "stable_rank": 1.178137318166,
+              "top_k_energy_fraction": {
+                "top_1": 0.848797491244,
+                "top_2": 0.920044229625,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.038564491574,
+              "energy_effective_rank": 1.634772418965,
+              "frobenius_norm": 0.196378439687,
+              "layer": 9,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.183589382918,
+              "stable_rank": 1.14417508335,
+              "top_k_energy_fraction": {
+                "top_1": 0.873992114102,
+                "top_2": 0.953949719729,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.045922855768,
+              "energy_effective_rank": 1.318939740648,
+              "frobenius_norm": 0.214296187013,
+              "layer": 10,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.208011839947,
+              "stable_rank": 1.061335708618,
+              "top_k_energy_fraction": {
+                "top_1": 0.942208946595,
+                "top_2": 0.975352174053,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.049486646645,
+              "energy_effective_rank": 1.391370395314,
+              "frobenius_norm": 0.222455943156,
+              "layer": 11,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.21438732223,
+              "stable_rank": 1.076687884465,
+              "top_k_energy_fraction": {
+                "top_1": 0.928774266367,
+                "top_2": 0.959824753692,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.048300086816,
+              "energy_effective_rank": 1.474143139173,
+              "frobenius_norm": 0.219772807271,
+              "layer": 12,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.209140303362,
+              "stable_rank": 1.104262805166,
+              "top_k_energy_fraction": {
+                "top_1": 0.905581529435,
+                "top_2": 0.971359992101,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.045293581368,
+              "energy_effective_rank": 1.565063472262,
+              "frobenius_norm": 0.212822887321,
+              "layer": 13,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.201059496602,
+              "stable_rank": 1.120437098024,
+              "top_k_energy_fraction": {
+                "top_1": 0.892508826925,
+                "top_2": 0.944619415659,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.042389054057,
+              "energy_effective_rank": 1.794623572379,
+              "frobenius_norm": 0.205886022005,
+              "layer": 14,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.189496030434,
+              "stable_rank": 1.180466023184,
+              "top_k_energy_fraction": {
+                "top_1": 0.847123068653,
+                "top_2": 0.915288102347,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.044908362857,
+              "energy_effective_rank": 1.787568781618,
+              "frobenius_norm": 0.211915933468,
+              "layer": 15,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.1906408588,
+              "stable_rank": 1.235649368512,
+              "top_k_energy_fraction": {
+                "top_1": 0.809291070334,
+                "top_2": 0.974105620701,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.051227272258,
+              "energy_effective_rank": 1.247144708129,
+              "frobenius_norm": 0.226334425703,
+              "layer": 16,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.221222132567,
+              "stable_rank": 1.046752681448,
+              "top_k_energy_fraction": {
+                "top_1": 0.955335503528,
+                "top_2": 0.98312476289,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.052750613666,
+              "energy_effective_rank": 1.383369262206,
+              "frobenius_norm": 0.229675017506,
+              "layer": 17,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.221043326453,
+              "stable_rank": 1.079624424493,
+              "top_k_energy_fraction": {
+                "top_1": 0.926248033403,
+                "top_2": 0.976627099072,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.059514542541,
+              "energy_effective_rank": 1.357294950859,
+              "frobenius_norm": 0.243956025835,
+              "layer": 18,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.235915635288,
+              "stable_rank": 1.069324827621,
+              "top_k_energy_fraction": {
+                "top_1": 0.935169533307,
+                "top_2": 0.964257753202,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.057437084322,
+              "energy_effective_rank": 2.129596735907,
+              "frobenius_norm": 0.239660352002,
+              "layer": 19,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.210147273973,
+              "stable_rank": 1.300603337947,
+              "top_k_energy_fraction": {
+                "top_1": 0.76887393014,
+                "top_2": 0.907851340543,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.067377967634,
+              "energy_effective_rank": 1.410753058042,
+              "frobenius_norm": 0.259572663495,
+              "layer": 20,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.24969003458,
+              "stable_rank": 1.080725721607,
+              "top_k_energy_fraction": {
+                "top_1": 0.925304154428,
+                "top_2": 0.958544358071,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.083690678173,
+              "energy_effective_rank": 1.214797678991,
+              "frobenius_norm": 0.289293411907,
+              "layer": 21,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.283717625757,
+              "stable_rank": 1.039691404121,
+              "top_k_energy_fraction": {
+                "top_1": 0.961823860461,
+                "top_2": 0.985739314767,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.073662425248,
+              "energy_effective_rank": 1.78304035759,
+              "frobenius_norm": 0.271408226197,
+              "layer": 22,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.247958034701,
+              "stable_rank": 1.198090549216,
+              "top_k_energy_fraction": {
+                "top_1": 0.83466145414,
+                "top_2": 0.953700385008,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.064288376013,
+              "energy_effective_rank": 2.183577380494,
+              "frobenius_norm": 0.253551525361,
+              "layer": 23,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.221218912418,
+              "stable_rank": 1.313675043417,
+              "top_k_energy_fraction": {
+                "top_1": 0.761223260662,
+                "top_2": 0.894483687767,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.075341044167,
+              "energy_effective_rank": 1.660640400886,
+              "frobenius_norm": 0.274483231121,
+              "layer": 24,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.25544166402,
+              "stable_rank": 1.154644165995,
+              "top_k_energy_fraction": {
+                "top_1": 0.866067685137,
+                "top_2": 0.95537224747,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.089981989157,
+              "energy_effective_rank": 1.65612298633,
+              "frobenius_norm": 0.299969980426,
+              "layer": 25,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.27746692221,
+              "stable_rank": 1.168781034822,
+              "top_k_energy_fraction": {
+                "top_1": 0.855592253986,
+                "top_2": 0.971355285069,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.087369992687,
+              "energy_effective_rank": 1.304840595293,
+              "frobenius_norm": 0.295584155,
+              "layer": 26,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.287343275082,
+              "stable_rank": 1.058181645897,
+              "top_k_energy_fraction": {
+                "top_1": 0.945017335991,
+                "top_2": 0.976591343119,
+                "top_4": 1.0
+              }
+            },
+            {
+              "delta_energy": 0.078785036664,
+              "energy_effective_rank": 1.740017268205,
+              "frobenius_norm": 0.280686723349,
+              "layer": 27,
+              "numerical_rank": 4,
+              "spectral_norm_svdvals_max": 0.259234356916,
+              "stable_rank": 1.172353605378,
+              "top_k_energy_fraction": {
+                "top_1": 0.852984965809,
+                "top_2": 0.935551422208,
+                "top_4": 1.0
+              }
+            }
+          ],
+          "summary": {
+            "energy_effective_rank": {
+              "max": 2.312393418032,
+              "mean": 1.665770061782,
+              "median": 1.658381693608,
+              "min": 1.214797678991
+            },
+            "frobenius_norm": {
+              "max": 0.299969980426,
+              "mean": 0.222357810993,
+              "median": 0.217034497142,
+              "min": 0.161879041677
+            },
+            "spectral_norm_svdvals_max": {
+              "max": 0.287343275082,
+              "mean": 0.207324676329,
+              "median": 0.208576071655,
+              "min": 0.138881353241
+            },
+            "stable_rank": {
+              "max": 1.392044751679,
+              "mean": 1.160024913103,
+              "median": 1.151782645533,
+              "min": 1.039691404121
+            },
+            "top_1_energy_fraction": {
+              "max": 0.961823860461,
+              "mean": 0.86657443088,
+              "median": 0.868224726511,
+              "min": 0.718367709654
+            },
+            "top_2_energy_fraction": {
+              "max": 0.985739314767,
+              "mean": 0.946475984513,
+              "median": 0.953825052369,
+              "min": 0.894483687767
+            },
+            "top_4_energy_fraction": {
+              "max": 1.0,
+              "mean": 1.0,
+              "median": 1.0,
+              "min": 1.0
+            }
+          },
+          "total_delta_energy": 1.434241470613
+        },
+        "q_proj": {
+          "layer_energy_distribution": {
+            "effective_layers": 26.06924462797,
+            "gini": 0.214359028753,
+            "largest_layer_fraction": 0.067736790531,
+            "last_9_layers_fraction": 0.480062876265,
+            "ordered_layer_energy_fraction_sha256": "5ec3c34f383288df609a9aa8fcf91aee827f80d428521261c732edbdf2078f54",
+            "top_4_layer_fraction": 0.24189514255
+          },
+          "layers": 28,
+          "nominal_rank": 5,
+          "per_layer": [
+            {
+              "delta_energy": 0.023533043593,
+              "energy_effective_rank": 3.758371022099,
+              "frobenius_norm": 0.153404835624,
+              "layer": 0,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.108231815348,
+              "stable_rank": 2.008945770859,
+              "top_k_energy_fraction": {
+                "top_1": 0.497773516093,
+                "top_2": 0.736001018063,
+                "top_4": 0.92989381102
+              }
+            },
+            {
+              "delta_energy": 0.0272970991,
+              "energy_effective_rank": 3.999954698351,
+              "frobenius_norm": 0.165218337661,
+              "layer": 1,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.108087550597,
+              "stable_rank": 2.336496559483,
+              "top_k_energy_fraction": {
+                "top_1": 0.427991214428,
+                "top_2": 0.698453326205,
+                "top_4": 0.948105013909
+              }
+            },
+            {
+              "delta_energy": 0.026300379754,
+              "energy_effective_rank": 3.697631140927,
+              "frobenius_norm": 0.16217391823,
+              "layer": 2,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.116804522092,
+              "stable_rank": 1.927714462798,
+              "top_k_energy_fraction": {
+                "top_1": 0.518749026009,
+                "top_2": 0.724642654627,
+                "top_4": 0.948007257388
+              }
+            },
+            {
+              "delta_energy": 0.022860314215,
+              "energy_effective_rank": 3.895223432644,
+              "frobenius_norm": 0.151196277121,
+              "layer": 3,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.106524312463,
+              "stable_rank": 2.014580917099,
+              "top_k_energy_fraction": {
+                "top_1": 0.496381153774,
+                "top_2": 0.691602934206,
+                "top_4": 0.929153585913
+              }
+            },
+            {
+              "delta_energy": 0.024711854339,
+              "energy_effective_rank": 3.966124920375,
+              "frobenius_norm": 0.157200045607,
+              "layer": 4,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.097613464777,
+              "stable_rank": 2.593497769702,
+              "top_k_energy_fraction": {
+                "top_1": 0.38557966453,
+                "top_2": 0.708199344353,
+                "top_4": 0.94613543733
+              }
+            },
+            {
+              "delta_energy": 0.019338256124,
+              "energy_effective_rank": 2.698236800504,
+              "frobenius_norm": 0.139062058535,
+              "layer": 5,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.115208485863,
+              "stable_rank": 1.456962487445,
+              "top_k_energy_fraction": {
+                "top_1": 0.686359469524,
+                "top_2": 0.840356383684,
+                "top_4": 0.976355561406
+              }
+            },
+            {
+              "delta_energy": 0.023594907213,
+              "energy_effective_rank": 3.790913434243,
+              "frobenius_norm": 0.153606338452,
+              "layer": 6,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.108227359859,
+              "stable_rank": 2.014392729889,
+              "top_k_energy_fraction": {
+                "top_1": 0.496427526352,
+                "top_2": 0.705504595817,
+                "top_4": 0.948499872482
+              }
+            },
+            {
+              "delta_energy": 0.020923454219,
+              "energy_effective_rank": 3.607437179029,
+              "frobenius_norm": 0.144649418315,
+              "layer": 7,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.096597546642,
+              "stable_rank": 2.24233858526,
+              "top_k_energy_fraction": {
+                "top_1": 0.445962981047,
+                "top_2": 0.733147521752,
+                "top_4": 0.974258734648
+              }
+            },
+            {
+              "delta_energy": 0.028964130121,
+              "energy_effective_rank": 3.019255425205,
+              "frobenius_norm": 0.17018851348,
+              "layer": 8,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.135582419822,
+              "stable_rank": 1.575628139433,
+              "top_k_energy_fraction": {
+                "top_1": 0.634667517654,
+                "top_2": 0.805200893048,
+                "top_4": 0.964280634595
+              }
+            },
+            {
+              "delta_energy": 0.023930158379,
+              "energy_effective_rank": 4.020494265449,
+              "frobenius_norm": 0.154693756754,
+              "layer": 9,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.101360632203,
+              "stable_rank": 2.329200912867,
+              "top_k_energy_fraction": {
+                "top_1": 0.429331791206,
+                "top_2": 0.691412795723,
+                "top_4": 0.940380260733
+              }
+            },
+            {
+              "delta_energy": 0.025281004693,
+              "energy_effective_rank": 2.949389608359,
+              "frobenius_norm": 0.159000014759,
+              "layer": 10,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.1289152876,
+              "stable_rank": 1.521197088836,
+              "top_k_energy_fraction": {
+                "top_1": 0.657377014023,
+                "top_2": 0.800999949948,
+                "top_4": 0.959701938027
+              }
+            },
+            {
+              "delta_energy": 0.027392852495,
+              "energy_effective_rank": 3.076161257786,
+              "frobenius_norm": 0.165507862337,
+              "layer": 11,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.12708903048,
+              "stable_rank": 1.695981558859,
+              "top_k_energy_fraction": {
+                "top_1": 0.589629052732,
+                "top_2": 0.814738978478,
+                "top_4": 0.976163118438
+              }
+            },
+            {
+              "delta_energy": 0.028897126311,
+              "energy_effective_rank": 2.355897601808,
+              "frobenius_norm": 0.169991547763,
+              "layer": 12,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.146187264008,
+              "stable_rank": 1.352183338033,
+              "top_k_energy_fraction": {
+                "top_1": 0.739544684417,
+                "top_2": 0.878532161502,
+                "top_4": 0.985442152244
+              }
+            },
+            {
+              "delta_energy": 0.041823162298,
+              "energy_effective_rank": 2.048268406369,
+              "frobenius_norm": 0.20450712041,
+              "layer": 13,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.181887280822,
+              "stable_rank": 1.264189580278,
+              "top_k_energy_fraction": {
+                "top_1": 0.791020599758,
+                "top_2": 0.922061028874,
+                "top_4": 0.989748173223
+              }
+            },
+            {
+              "delta_energy": 0.03028459517,
+              "energy_effective_rank": 2.26453490719,
+              "frobenius_norm": 0.174024697013,
+              "layer": 14,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.149538731789,
+              "stable_rank": 1.35429846522,
+              "top_k_energy_fraction": {
+                "top_1": 0.738389672352,
+                "top_2": 0.918916000379,
+                "top_4": 0.984636786861
+              }
+            },
+            {
+              "delta_energy": 0.03321089746,
+              "energy_effective_rank": 2.363902835603,
+              "frobenius_norm": 0.182238572921,
+              "layer": 15,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.155899201228,
+              "stable_rank": 1.366447126428,
+              "top_k_energy_fraction": {
+                "top_1": 0.731824876835,
+                "top_2": 0.889019266403,
+                "top_4": 0.987584056525
+              }
+            },
+            {
+              "delta_energy": 0.036030341988,
+              "energy_effective_rank": 2.049397611147,
+              "frobenius_norm": 0.18981660093,
+              "layer": 16,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.168546063136,
+              "stable_rank": 1.268326769092,
+              "top_k_energy_fraction": {
+                "top_1": 0.788440348631,
+                "top_2": 0.925907819265,
+                "top_4": 0.992533590386
+              }
+            },
+            {
+              "delta_energy": 0.039890105074,
+              "energy_effective_rank": 2.418867515401,
+              "frobenius_norm": 0.199725073724,
+              "layer": 17,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.173140477654,
+              "stable_rank": 1.330662621573,
+              "top_k_energy_fraction": {
+                "top_1": 0.751505290513,
+                "top_2": 0.848231931326,
+                "top_4": 0.966678771931
+              }
+            },
+            {
+              "delta_energy": 0.039362850644,
+              "energy_effective_rank": 2.775354759395,
+              "frobenius_norm": 0.198400732468,
+              "layer": 18,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.158056838624,
+              "stable_rank": 1.575650748365,
+              "top_k_energy_fraction": {
+                "top_1": 0.634658410842,
+                "top_2": 0.843249387905,
+                "top_4": 0.989090425054
+              }
+            },
+            {
+              "delta_energy": 0.047609744592,
+              "energy_effective_rank": 2.55332673019,
+              "frobenius_norm": 0.218196573281,
+              "layer": 19,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.183116619014,
+              "stable_rank": 1.419843015576,
+              "top_k_energy_fraction": {
+                "top_1": 0.704303214531,
+                "top_2": 0.870363384374,
+                "top_4": 0.978546623995
+              }
+            },
+            {
+              "delta_energy": 0.055081893811,
+              "energy_effective_rank": 3.453052788141,
+              "frobenius_norm": 0.234695321237,
+              "layer": 20,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.167133896173,
+              "stable_rank": 1.971876851783,
+              "top_k_energy_fraction": {
+                "top_1": 0.507131060997,
+                "top_2": 0.749217929218,
+                "top_4": 0.967741144418
+              }
+            },
+            {
+              "delta_energy": 0.051348141594,
+              "energy_effective_rank": 2.710449387485,
+              "frobenius_norm": 0.226601283301,
+              "layer": 21,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.182559031705,
+              "stable_rank": 1.540700001376,
+              "top_k_energy_fraction": {
+                "top_1": 0.649055623487,
+                "top_2": 0.851794780398,
+                "top_4": 0.992686145187
+              }
+            },
+            {
+              "delta_energy": 0.048410030561,
+              "energy_effective_rank": 3.670263247457,
+              "frobenius_norm": 0.220022795548,
+              "layer": 22,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.159905986749,
+              "stable_rank": 1.893241036942,
+              "top_k_energy_fraction": {
+                "top_1": 0.528194762572,
+                "top_2": 0.736555536782,
+                "top_4": 0.928247526961
+              }
+            },
+            {
+              "delta_energy": 0.047262682698,
+              "energy_effective_rank": 3.309237900411,
+              "frobenius_norm": 0.217399822212,
+              "layer": 23,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.163051994118,
+              "stable_rank": 1.777731386144,
+              "top_k_energy_fraction": {
+                "top_1": 0.562514678986,
+                "top_2": 0.774026358347,
+                "top_4": 0.97528979643
+              }
+            },
+            {
+              "delta_energy": 0.07082301864,
+              "energy_effective_rank": 2.134881499384,
+              "frobenius_norm": 0.266125945072,
+              "layer": 24,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.238613561637,
+              "stable_rank": 1.243896331489,
+              "top_k_energy_fraction": {
+                "top_1": 0.803925515885,
+                "top_2": 0.870057190697,
+                "top_4": 0.972258288183
+              }
+            },
+            {
+              "delta_energy": 0.05438854823,
+              "energy_effective_rank": 3.502555139001,
+              "frobenius_norm": 0.233213524973,
+              "layer": 25,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.173501092743,
+              "stable_rank": 1.806770694343,
+              "top_k_energy_fraction": {
+                "top_1": 0.5534736661,
+                "top_2": 0.755958192696,
+                "top_4": 0.944905590434
+              }
+            },
+            {
+              "delta_energy": 0.06284716373,
+              "energy_effective_rank": 2.549947353104,
+              "frobenius_norm": 0.250693365947,
+              "layer": 26,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.21102185199,
+              "stable_rank": 1.411337309418,
+              "top_k_energy_fraction": {
+                "top_1": 0.708547838512,
+                "top_2": 0.871258745315,
+                "top_4": 0.976194694339
+              }
+            },
+            {
+              "delta_energy": 0.064164308776,
+              "energy_effective_rank": 2.09468227522,
+              "frobenius_norm": 0.253306748382,
+              "layer": 27,
+              "numerical_rank": 5,
+              "spectral_norm_svdvals_max": 0.227026826059,
+              "stable_rank": 1.244913466988,
+              "top_k_energy_fraction": {
+                "top_1": 0.803268682135,
+                "top_2": 0.896479972525,
+                "top_4": 0.975532158573
+              }
+            }
+          ],
+          "summary": {
+            "energy_effective_rank": {
+              "max": 4.020494265449,
+              "mean": 3.026207612224,
+              "median": 2.984322516782,
+              "min": 2.048268406369
+            },
+            "frobenius_norm": {
+              "max": 0.266125945072,
+              "mean": 0.189816467931,
+              "median": 0.178131634967,
+              "min": 0.139062058535
+            },
+            "spectral_norm_svdvals_max": {
+              "max": 0.238613561637,
+              "mean": 0.149622469471,
+              "median": 0.152718966509,
+              "min": 0.096597546642
+            },
+            "stable_rank": {
+              "max": 2.593497769702,
+              "mean": 1.697821633056,
+              "median": 1.575639443899,
+              "min": 1.243896331489
+            },
+            "top_1_energy_fraction": {
+              "max": 0.803925515885,
+              "mean": 0.616501030497,
+              "median": 0.634662964248,
+              "min": 0.38557966453
+            },
+            "top_2_energy_fraction": {
+              "max": 0.925907819265,
+              "mean": 0.805424645782,
+              "median": 0.809969935763,
+              "min": 0.691412795723
+            },
+            "top_4_energy_fraction": {
+              "max": 0.992686145187,
+              "mean": 0.966001826808,
+              "median": 0.973258511415,
+              "min": 0.928247526961
+            }
+          },
+          "total_delta_energy": 1.045562065822
+        }
+      },
+      "identity": {
+        "alphas": {
+          "k_proj": 12,
+          "o_proj": 8,
+          "q_proj": 10,
+          "v_proj": 12
+        },
+        "files": {
+          "adapter_config.json": {
+            "bytes": 1252,
+            "sha256": "14bfc0da6fdee19a3794d27ed9f2fd6e0c7c78f11de71eeb4e7221139762f299"
+          },
+          "adapter_model.safetensors": {
+            "bytes": 5534408,
+            "sha256": "f6e7e911e9c245d0c31bbba5fee13d4d7846ece65d93d0873f7895d7a216513f"
+          },
+          "diagnostic_receipt.json": {
+            "bytes": 25354,
+            "sha256": "06bfe9c62b81f2e6f1e7ed93989251b478090636e8a6aea8963d8eb52cd73338"
+          },
+          "diagnostic_receipt.json.sha256": {
+            "bytes": 90,
+            "sha256": "27144a76962519f16b9196de6e01ac94c03acd5652dc0aada59dddffaa387a33"
+          }
+        },
+        "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_wide_budget_matched_step80",
+        "profile": "wide_budget_matched",
+        "ranks": {
+          "k_proj": 6,
+          "o_proj": 4,
+          "q_proj": 5,
+          "v_proj": 6
+        },
+        "target_modules": [
+          "k_proj",
+          "o_proj",
+          "q_proj",
+          "v_proj"
+        ]
+      },
+      "o_output_subspace_alignment": {
+        "groups": {
+          "deterministic_random_vocab": {
+            "mean_projection_energy": 0.00277566025,
+            "median_projection_energy": 0.00227701501,
+            "ordered_per_layer_mean_sha256": "2bf94aa9f98c6474a38057eb9e4240b1bb483bb5db7441e9b84ed9ba438aefed",
+            "per_layer_mean_summary": {
+              "max": 0.005475918297,
+              "mean": 0.002775660367,
+              "median": 0.002545254189,
+              "min": 0.002002807567
+            },
+            "ratio_to_deterministic_random": 1.0,
+            "ratio_to_isotropic_rank_over_hidden": 1.065853536
+          },
+          "prompt_control": {
+            "mean_projection_energy": 0.002785496181,
+            "median_projection_energy": 0.00232595671,
+            "ordered_per_layer_mean_sha256": "dfc357ea19c248040f7906f7d21e23485edeac716da2fd413b1c23412234a8e0",
+            "per_layer_mean_summary": {
+              "max": 0.003955598921,
+              "mean": 0.002785496015,
+              "median": 0.002750178799,
+              "min": 0.002213489264
+            },
+            "ratio_to_deterministic_random": 1.00354363651,
+            "ratio_to_isotropic_rank_over_hidden": 1.069630533504
+          },
+          "target_frequent": {
+            "mean_projection_energy": 0.005671826657,
+            "median_projection_energy": 0.002678128425,
+            "ordered_per_layer_mean_sha256": "d365102272ac036be7a0b37b64aa0d9ef31dcf4425fdaa31312f5e78a7b0962e",
+            "per_layer_mean_summary": {
+              "max": 0.023498978466,
+              "mean": 0.005671827089,
+              "median": 0.0028576646,
+              "min": 0.002211191459
+            },
+            "ratio_to_deterministic_random": 2.043415312447,
+            "ratio_to_isotropic_rank_over_hidden": 2.177981436288
+          },
+          "target_low_frequency": {
+            "mean_projection_energy": 0.003026892897,
+            "median_projection_energy": 0.002326449845,
+            "ordered_per_layer_mean_sha256": "6faaf5fc39362650ea0785129c73ec3d3cab8b46b0e7ad63a47a5c3bcfe43311",
+            "per_layer_mean_summary": {
+              "max": 0.004926244263,
+              "mean": 0.003026892606,
+              "median": 0.002727007377,
+              "min": 0.00241462281
+            },
+            "ratio_to_deterministic_random": 1.090512751696,
+            "ratio_to_isotropic_rank_over_hidden": 1.162326872448
+          }
+        },
+        "hidden_size": 1536,
+        "isotropic_rank_over_hidden": 0.002604166667,
+        "nominal_subspace_rank": 4
+      }
+    }
+  },
+  "audit": {
+    "atomic_publish": true,
+    "base_embedding_slice_loads": 1,
+    "cpu_only": true,
+    "eval_proxy_reads": 0,
+    "full_model_loads": 0,
+    "gpu_requests": 0,
+    "heldout_reads": 0,
+    "matrix_norm_ord2_used": false,
+    "model_forward_passes": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0,
+    "raw_sample_text_emitted": false,
+    "raw_token_ids_emitted": false,
+    "spectral_algorithm": "thin_qr_core_then_torch_linalg_svdvals_max_v1",
+    "tokenizer_loads": 1,
+    "train_partition_reads": 2
+  },
+  "claims": {
+    "causal_attribution_proven": false,
+    "controlled_proxy_only": true,
+    "diagnostic_only": true,
+    "eval_proxy_is_heldout": false,
+    "exploit_code_memorization_tested": false,
+    "formal": false,
+    "memorization_proven": false,
+    "static_alignment_is_correlation_only": true,
+    "training_authorized": false
+  },
+  "dataset": {
+    "manifest": {
+      "bytes": 8034,
+      "path": "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json",
+      "sha256": "64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd"
+    },
+    "manifest_sidecar": {
+      "bytes": 80,
+      "path": "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256",
+      "sha256": "8b810cb21f9b28fab61299818300b375cb5a5a32788e4f1638379778443b3085"
+    },
+    "raw_record_ids_emitted": false,
+    "raw_sample_text_emitted": false,
+    "train_partitions": [
+      {
+        "bytes": 287440,
+        "path": "train/json_only.jsonl",
+        "records": 40,
+        "sha256": "3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df"
+      },
+      {
+        "bytes": 294024,
+        "path": "train/concise_rationale_plus_json.jsonl",
+        "records": 40,
+        "sha256": "ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852"
+      }
+    ],
+    "train_records": 80,
+    "training_record_id_inventory_sha256": "014f0f36574c30bd98f93cb9a74234e6a7305b98f8a03f30361d14c8c4e2746d"
+  },
+  "findings": {
+    "interpretation": "static_template_writeback_overfit_risk_signal_not_memorization_proof",
+    "low_rank_writeback_signal_observed": true,
+    "q_plus_o_o_energy_effective_rank_mean": 2.11605570639,
+    "q_plus_o_o_to_q_total_delta_energy_ratio": 1.767153939794,
+    "q_plus_o_o_top_1_energy_fraction_mean": 0.82318570872,
+    "q_plus_o_target_frequent_to_random_projection_ratio": 1.95910776849,
+    "target_frequency_alignment_signal_observed": true,
+    "wide_target_frequent_to_random_projection_ratio": 2.043415312447
+  },
+  "identity": {
+    "comparison": {
+      "bytes": 8405,
+      "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_comparison_v1/comparison.json",
+      "sha256": "920f0abe3241a8a056114bd509f04a9b1fd0b23cfe0582857ff8719fefcd5e45"
+    },
+    "config": {
+      "bytes": 4002,
+      "path": "configs/research/qwen_qo_spectral_memory_audit_v1.yaml",
+      "sha256": "2a1c32859d76ee4879e2381cfa6edcb8968f9aa0fe9d62830144c2c36c40c78e"
+    },
+    "config_schema": {
+      "bytes": 1516,
+      "path": "configs/research/qwen_qo_spectral_memory_audit_config.schema.json",
+      "sha256": "b2fd39b5ee6f1388c793484e0686311a94c8bb13dc78106521148923cde3a0c5"
+    },
+    "implementation": {
+      "bytes": 53673,
+      "path": "src/anchor_mvp/research/qwen_qo_spectral_memory_audit.py",
+      "sha256": "5c1275b1d20e5aafa0d19345f3dcf90f3b74db2db7a2cf74f947f6e3122545ba"
+    },
+    "model": {
+      "assets": {
+        "config.json": {
+          "asset": "config.json",
+          "bytes": 687,
+          "sha256": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17"
+        },
+        "model.safetensors": {
+          "asset": "model.safetensors",
+          "bytes": 3087467144,
+          "sha256": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee"
+        },
+        "tokenizer.json": {
+          "asset": "tokenizer.json",
+          "bytes": 7334926,
+          "sha256": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9"
+        },
+        "tokenizer_config.json": {
+          "asset": "tokenizer_config.json",
+          "bytes": 7511,
+          "sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+        }
+      },
+      "embedding": {
+        "raw_token_ids_emitted": false,
+        "selected_row_inventory_sha256": "84c5297ebefa150e819f5f186ae12dfc39bf89677fbdbb4fc3e58c4de230cdfc",
+        "selected_unique_rows": 512,
+        "shape": [
+          151936,
+          1536
+        ],
+        "tensor": "model.embed_tokens.weight"
+      },
+      "id": "Qwen/Qwen2.5-1.5B-Instruct",
+      "model_weight_final_rehash_matches": true,
+      "source_revision": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34"
+    },
+    "receipt_schema": {
+      "bytes": 4379,
+      "path": "configs/research/qwen_qo_spectral_memory_audit_receipt.schema.json",
+      "sha256": "17beae64bb0c0abc9d405d5f0714fc5dfcf0b1411148185049e602c2e9f9da33"
+    },
+    "source_training_config": {
+      "bytes": 3229,
+      "path": "configs/training/qwen2_5_1_5b_synthetic_scaffold_budget_matched_v1.yaml",
+      "sha256": "490b0e18fce004a44b97b4c4ab2a3d0f9d0809e1d1f20a2fdc8f93938490e9c2"
+    },
+    "wrapper": {
+      "bytes": 214,
+      "path": "scripts/research/audit_qwen_qo_spectral_memory.py",
+      "sha256": "7a01c26e412ed5b84dae24a9640a3be9f13bf8bec6d7a5e93f7040cfc9b37847"
+    }
+  },
+  "schema_version": "anchor.qwen25-qo-spectral-memory-audit-receipt.v1",
+  "status": "passed_static_memory_risk_diagnostic_only",
+  "token_groups": {
+    "deterministic_random_vocab": {
+      "count": 128,
+      "frequency_max": 0,
+      "frequency_min": 0,
+      "frequency_total": 0,
+      "ordered_token_id_inventory_sha256": "9d268b52c5bbacc1087892a9097aa1d82b3c2e328485124fdc505ca887579e39"
+    },
+    "ordered_token_id_digest_algorithm": "sha256_signed_int64_big_endian_ordered_v1",
+    "policy": "target_frequency_prompt_only_low_frequency_random_unseen_v1",
+    "prompt_control": {
+      "count": 128,
+      "frequency_max": 640,
+      "frequency_min": 10,
+      "frequency_total": 5190,
+      "ordered_token_id_inventory_sha256": "77e0b7e19108891b0b8e29a26f7e54ffde168fdfdcc208981ed32825fd8deb03"
+    },
+    "prompt_token_occurrences": 11852,
+    "prompt_unique_tokens": 395,
+    "random_vocab_seed_sha256": "9f067408cf9781b91cec523af373358683569422adf13ef736117d5830c488d9",
+    "raw_token_ids_emitted": false,
+    "special_token_count": 14,
+    "target_frequent": {
+      "count": 128,
+      "frequency_max": 632,
+      "frequency_min": 20,
+      "frequency_total": 9130,
+      "ordered_token_id_inventory_sha256": "bddf9983c7d4178fcf8a26f658d774198fb4f8e97f7ca6497547110e5d868cb0"
+    },
+    "target_low_frequency": {
+      "count": 128,
+      "frequency_max": 10,
+      "frequency_min": 4,
+      "frequency_total": 960,
+      "ordered_token_id_inventory_sha256": "266b194a0a43c05916774f2ae1670c6d0133ac3a0c636ae0d3f4187c0c9c4c64"
+    },
+    "target_token_occurrences": 10904,
+    "target_unique_tokens": 326,
+    "tokenizer_vocab_size": 151665
+  }
+}

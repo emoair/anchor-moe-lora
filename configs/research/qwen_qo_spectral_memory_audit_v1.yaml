@@ -1,0 +1,82 @@
+schema_version: anchor.qwen25-qo-spectral-memory-audit-config.v1
+claim_scope: synthetic_proxy_static_memory_risk_diagnostic_only
+paths:
+  project_root: ../..
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  local_path: ${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+  expected_source_revision: 3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34
+  hidden_size: 1536
+  layers: 28
+  embedding_tensor: model.embed_tokens.weight
+  assets:
+    config.json: c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17
+    model.safetensors: dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee
+    tokenizer.json: 47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9
+    tokenizer_config.json: fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8
+dataset:
+  root: fixtures/research/synthetic_nl_scaffold_diagnostic_v1
+  manifest: fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json
+  manifest_sidecar: fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256
+  expected_manifest_sha256: 64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd
+  expected_manifest_sidecar_sha256: 8b810cb21f9b28fab61299818300b375cb5a5a32788e4f1638379778443b3085
+  train_partitions:
+    - path: train/json_only.jsonl
+      records: 40
+      sha256: 3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df
+    - path: train/concise_rationale_plus_json.jsonl
+      records: 40
+      sha256: ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852
+  expected_train_records: 80
+  prompt_field: input.materialized_prompt
+  target_field: target.serialized_assistant_output
+  eval_proxy_reads_allowed: false
+  heldout_reads_allowed: false
+  protected_body_reads_allowed: false
+comparison:
+  path: artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_comparison_v1/comparison.json
+  sha256: 920f0abe3241a8a056114bd509f04a9b1fd0b23cfe0582857ff8719fefcd5e45
+  source_training_config: configs/training/qwen2_5_1_5b_synthetic_scaffold_budget_matched_v1.yaml
+  source_training_config_sha256: 490b0e18fce004a44b97b4c4ab2a3d0f9d0809e1d1f20a2fdc8f93938490e9c2
+adapters:
+  q_plus_o:
+    path: artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80
+    target_modules: [q_proj, o_proj]
+    ranks: {q_proj: 8, o_proj: 8}
+    alphas: {q_proj: 16, o_proj: 16}
+    files:
+      adapter_config.json: 17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222
+      adapter_model.safetensors: fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba
+      diagnostic_receipt.json: dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e
+  wide_budget_matched:
+    path: artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_wide_budget_matched_step80
+    target_modules: [q_proj, o_proj, k_proj, v_proj]
+    ranks: {q_proj: 5, o_proj: 4, k_proj: 6, v_proj: 6}
+    alphas: {q_proj: 10, o_proj: 8, k_proj: 12, v_proj: 12}
+    files:
+      adapter_config.json: 14bfc0da6fdee19a3794d27ed9f2fd6e0c7c78f11de71eeb4e7221139762f299
+      adapter_model.safetensors: f6e7e911e9c245d0c31bbba5fee13d4d7846ece65d93d0873f7895d7a216513f
+      diagnostic_receipt.json: 06bfe9c62b81f2e6f1e7ed93989251b478090636e8a6aea8963d8eb52cd73338
+metrics:
+  top_k_energy: [1, 2, 4]
+  token_group_size: 128
+  random_vocab_seed: anchor.qwen-qo-spectral-memory-audit.v1
+  token_group_policy: target_frequency_prompt_only_low_frequency_random_unseen_v1
+  ordered_token_id_digest: sha256_signed_int64_big_endian_ordered_v1
+  exclude_special_tokens: true
+  final_model_rehash: true
+output:
+  path: artifacts/diagnostics/qwen_qo_spectral_memory_audit_v1
+  receipt_name: receipt.json
+claims:
+  diagnostic_only: true
+  controlled_proxy_only: true
+  formal: false
+  training_authorized: false
+  eval_proxy_is_heldout: false
+  memorization_proven: false
+  exploit_code_memorization_tested: false
+  causal_attribution_proven: false

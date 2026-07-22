@@ -1,0 +1,190 @@
+{
+  "adapter": {
+    "file_sha256": {
+      "adapter_config.json": "17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222",
+      "adapter_model.safetensors": "fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba",
+      "diagnostic_receipt.json": "dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e",
+      "diagnostic_receipt.json.sha256": "25ce959c8fe0fb5337682ee0b57d2948d3a29d98f3267a88d320cdc807a10113"
+    },
+    "path": "artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80",
+    "source_profile": "q_plus_o"
+  },
+  "audit": {
+    "gpu_requests": 1,
+    "heldout_reads": 0,
+    "model_loads": 1,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0
+  },
+  "claims": {
+    "diagnostic_only": true,
+    "eval_proxy_is_heldout": false,
+    "formal": false,
+    "formal_training_authorized": false,
+    "ood_proxy_is_heldout": false,
+    "statistical_significance_claimed": false,
+    "training_authorized": false
+  },
+  "config": {
+    "logical_sha256": "aeffe5c0f45e147758b17e4a6e9408d19ec531306d6fa6d2878b2e3785941f87",
+    "path": "configs/research/qwen_qo_memory_ablation_audit_v1.yaml",
+    "physical_sha256": "af66e3befe2a1fdfc21b279e136a9bd39f73f3807a54a3297ec615f4ef57b3e5"
+  },
+  "dataset": {
+    "eval_proxy_records": 20,
+    "manifest_sha256": "64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd",
+    "partition_sha256": {
+      "eval_proxy/concise_rationale_plus_json.jsonl": "ed0d60a609edbac6ba9db7cf8d818f85354da4f17e7409b0981d8d4abaf7cfaa",
+      "eval_proxy/json_only.jsonl": "06fe504e33ef61b05df7f3aff5969025b299343d613441bbb04dea1599fbc680",
+      "train/concise_rationale_plus_json.jsonl": "ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852",
+      "train/json_only.jsonl": "3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df"
+    },
+    "train_records": 80
+  },
+  "immutability": {
+    "adapter_state_sha256_after": "486de9d80492298de21444551d677cfda4a823de058fbee53dcd11a5e229b7fd",
+    "adapter_state_sha256_before": "486de9d80492298de21444551d677cfda4a823de058fbee53dcd11a5e229b7fd",
+    "base_hash_after": "2e05af50628344c5c19cbd981bf98de0026ea567a61f403afad4665d28156e15",
+    "base_hash_before": "2e05af50628344c5c19cbd981bf98de0026ea567a61f403afad4665d28156e15"
+  },
+  "implementation": {
+    "path": "src/anchor_mvp/research/qwen_qo_memory_ablation_audit.py",
+    "sha256": "43f62ac9adc449587c2a59632059e1d45b2146bd4295dedb6691e836e4b3bdb3"
+  },
+  "model_snapshot": {
+    "artifact_sha256": {
+      "config.json": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17",
+      "model.safetensors": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee",
+      "tokenizer.json": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9",
+      "tokenizer_config.json": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+    },
+    "tracked_file_count": 11,
+    "tracked_files_manifest_sha256": "a128805cc5a8b1fca20500a6f7d71bcd3cdd52f2f987707d46dd0a8a0260531e"
+  },
+  "modes": [
+    "full",
+    "q_only_contribution",
+    "o_only_contribution",
+    "adapter_off"
+  ],
+  "ood_proxy": {
+    "algorithm": "sha256_utf8_exact_body_and_compact_sorted_rows_v1",
+    "exact_body_overlap_count": 0,
+    "raw_bodies_emitted": false,
+    "records": 20,
+    "rows_sha256": "134435b0ee5a94863da68f336682902117f6e3b9fc712ae657400c9a486678c9",
+    "source_bundle_overlap_count": 0,
+    "source_bundles": 4
+  },
+  "output_dir": "artifacts/diagnostics/qwen2_5_1_5b_qo_memory_ablation_audit_v1",
+  "performance": {
+    "peak_allocated_vram_bytes": 3702850560,
+    "wall_seconds": 70.20664819999365
+  },
+  "ready": true,
+  "results": {
+    "adapter_off": {
+      "eval_proxy": {
+        "macro_loss": 3.1020863533020018,
+        "micro_target_token_nll": 3.0963934247779568,
+        "micro_target_token_ppl": 22.118036895614846,
+        "records": 20,
+        "target_tokens": 2736
+      },
+      "generalization_gap_macro": 0.05677577257156363,
+      "generalization_gap_micro": 0.0580206085711219,
+      "ood_proxy": {
+        "macro_loss": 3.035316228866577,
+        "micro_target_token_nll": 3.0418059681755265,
+        "micro_target_token_ppl": 20.943031551054375,
+        "records": 20,
+        "target_tokens": 612
+      },
+      "train": {
+        "macro_loss": 3.045310580730438,
+        "micro_target_token_nll": 3.038372816206835,
+        "micro_target_token_ppl": 20.871254222792885,
+        "records": 80,
+        "target_tokens": 11064
+      }
+    },
+    "full": {
+      "eval_proxy": {
+        "macro_loss": 0.8586097195744514,
+        "micro_target_token_nll": 0.869472089163654,
+        "micro_target_token_ppl": 2.3856511099647038,
+        "records": 20,
+        "target_tokens": 2736
+      },
+      "generalization_gap_macro": 0.009865413233637765,
+      "generalization_gap_micro": 0.013153903743926332,
+      "ood_proxy": {
+        "macro_loss": 2.896842730045319,
+        "micro_target_token_nll": 2.902535932126388,
+        "micro_target_token_ppl": 18.220292256511105,
+        "records": 20,
+        "target_tokens": 612
+      },
+      "train": {
+        "macro_loss": 0.8487443063408137,
+        "micro_target_token_nll": 0.8563181854197277,
+        "micro_target_token_ppl": 2.3544759717867403,
+        "records": 80,
+        "target_tokens": 11064
+      }
+    },
+    "o_only_contribution": {
+      "eval_proxy": {
+        "macro_loss": 1.0298870503902435,
+        "micro_target_token_nll": 1.037172494358138,
+        "micro_target_token_ppl": 2.821228686125075,
+        "records": 20,
+        "target_tokens": 2736
+      },
+      "generalization_gap_macro": 0.006806515902280763,
+      "generalization_gap_micro": 0.00965497307157559,
+      "ood_proxy": {
+        "macro_loss": 2.8666090965270996,
+        "micro_target_token_nll": 2.872386887961743,
+        "micro_target_token_ppl": 17.67916606736784,
+        "records": 20,
+        "target_tokens": 612
+      },
+      "train": {
+        "macro_loss": 1.0230805344879628,
+        "micro_target_token_nll": 1.0275175212865624,
+        "micro_target_token_ppl": 2.7941208723167845,
+        "records": 80,
+        "target_tokens": 11064
+      }
+    },
+    "q_only_contribution": {
+      "eval_proxy": {
+        "macro_loss": 2.6766975283622743,
+        "micro_target_token_nll": 2.674606084475043,
+        "micro_target_token_ppl": 14.506634325474273,
+        "records": 20,
+        "target_tokens": 2736
+      },
+      "generalization_gap_macro": 0.0762819170951845,
+      "generalization_gap_micro": 0.07807927538982629,
+      "ood_proxy": {
+        "macro_loss": 2.983178400993347,
+        "micro_target_token_nll": 2.9896720211490306,
+        "micro_target_token_ppl": 19.879161477706173,
+        "records": 20,
+        "target_tokens": 612
+      },
+      "train": {
+        "macro_loss": 2.6004156112670898,
+        "micro_target_token_nll": 2.596526809085217,
+        "micro_target_token_ppl": 13.417057015352473,
+        "records": 80,
+        "target_tokens": 11064
+      }
+    }
+  },
+  "schema_version": "anchor.qwen25-1.5b-qo-memory-ablation-audit-receipt.v1",
+  "status": "passed_read_only_teacher_forced_proxy_audit"
+}

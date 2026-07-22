@@ -1,0 +1,57 @@
+schema_version: anchor.qwen25-1.5b-qo-memory-ablation-audit-config.v1
+claim_scope: synthetic_teacher_forced_diagnostic_only
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  local_path: ${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+  expected_source_revision: 3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34
+  expected_source_repo: https://www.modelscope.cn/Qwen/Qwen2.5-1.5B-Instruct.git
+  expected_config_json_sha256: c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17
+  expected_model_safetensors_sha256: dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee
+  expected_tokenizer_json_sha256: 47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9
+  expected_tokenizer_config_sha256: fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8
+dataset:
+  kind: synthetic_nl_scaffold_diagnostic_v1
+  root: fixtures/research/synthetic_nl_scaffold_diagnostic_v1
+  manifest: fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json
+  manifest_sidecar: fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256
+  record_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1.schema.json
+  manifest_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1_manifest.schema.json
+  expected_manifest_sha256: 64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd
+  expected_record_schema_sha256: 0137d73392f5ea471c166219eaca66b097e66178132ac8688569ae88b1d720fa
+  expected_manifest_schema_sha256: 0ece3e5ddf80b756b0a9613076f45f1df06bb2a487e6fc7537516a0f5285db12
+  train_records: 80
+  eval_proxy_records: 20
+  formal_inputs_allowed: false
+  heldout_allowed: false
+  protected_source_paths_allowed: false
+adapter:
+  path: artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80
+  source_profile: q_plus_o
+  expected_receipt_sha256: dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e
+  expected_adapter_config_sha256: 17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222
+  expected_adapter_model_sha256: fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba
+  expected_trainable_parameters: 1376256
+  expected_q_rank: 8
+  expected_o_rank: 8
+audit:
+  modes: [full, q_only_contribution, o_only_contribution, adapter_off]
+  sequence_length: 512
+  batch_size: 1
+  compute_dtype: bfloat16
+  tf32: true
+  ood_generator_seed: 20260723
+  ood_bundles: 4
+  ood_roles_per_bundle: 5
+  expected_ood_records: 20
+  output_dir: artifacts/diagnostics/qwen2_5_1_5b_qo_memory_ablation_audit_v1
+claims:
+  diagnostic_only: true
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  eval_proxy_is_heldout: false
+  ood_proxy_is_heldout: false
+  statistical_significance_claimed: false

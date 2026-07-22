@@ -1,0 +1,67 @@
+schema_version: anchor.qwen-attention-weight-hook-config.v1
+claim_scope: diagnostic_attention_proxy_only_no_quality_or_formal_authority
+
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  local_path: ${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+  expected_source_revision: 3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34
+  expected_source_repo: https://www.modelscope.cn/Qwen/Qwen2.5-1.5B-Instruct.git
+  expected_config_json_sha256: c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17
+  expected_model_safetensors_sha256: dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee
+  expected_tokenizer_json_sha256: 47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9
+  expected_tokenizer_config_sha256: fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8
+
+adapter:
+  path: artifacts/diagnostics/qwen2_5_1_5b_synthetic_scaffold_budget_matched_q_plus_o_step80
+  profile: q_plus_o
+  expected_adapter_config_sha256: 17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222
+  expected_adapter_model_sha256: fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba
+  expected_diagnostic_receipt_sha256: dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e
+
+probe:
+  source: inline_synthetic_no_dataset
+  prompt: "Plan a deterministic local calculator interface and route the implementation to the frontend expert."
+  target: '{"role":"planner","expert":"frontend_gen","goal":"Implement the bounded local calculator interface.","constraints":["local only","deterministic state","keyboard accessible"]}'
+  max_sequence_length: 512
+  expected_batch_size: 1
+
+capture:
+  attention_implementation: eager
+  selected_layers: [0, 13, 27]
+  expected_decoder_layers: 28
+  aggregation: head_mean_float32_cpu
+  modes: [adapter_off, q_only_component, o_only_component, full]
+  difference_panel: full_minus_q_only_component
+  component_semantics:
+    q_only_component: o_proj_scaling_zero
+    o_only_component: q_proj_scaling_zero
+  use_cache: false
+  output_attentions: true
+
+output:
+  directory: artifacts/diagnostics/qwen_attention_weight_hook_qpluso_v1
+  summary_filename: summary.json
+  summary_sidecar_filename: summary.json.sha256
+  heatmap_template: layer_{layer:02d}_attention.png
+  image_dpi: 150
+
+claims:
+  diagnostic_only: true
+  training_authorized: false
+  formal: false
+  quality_validated: false
+  causal_effect_proven: false
+  attention_equals_explanation: false
+
+audit:
+  network_requests: 0
+  heldout_reads: 0
+  protected_body_reads: 0
+  dataset_reads: 0
+  single_probe: true
+  prompt_or_target_text_in_output: false
+  raw_token_ids_in_output: false
+  atomic_no_replace: true

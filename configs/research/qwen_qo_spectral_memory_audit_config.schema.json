@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.qwen25-qo-spectral-memory-audit-config.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "claim_scope", "paths", "model", "dataset", "comparison", "adapters", "metrics", "output", "claims"],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen25-qo-spectral-memory-audit-config.v1"},
+    "claim_scope": {"const": "synthetic_proxy_static_memory_risk_diagnostic_only"},
+    "paths": {"type": "object"},
+    "model": {"type": "object"},
+    "dataset": {"type": "object"},
+    "comparison": {"type": "object"},
+    "adapters": {"type": "object", "required": ["q_plus_o", "wide_budget_matched"]},
+    "metrics": {"type": "object"},
+    "output": {"type": "object"},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostic_only", "controlled_proxy_only", "formal", "training_authorized", "eval_proxy_is_heldout", "memorization_proven", "exploit_code_memorization_tested", "causal_attribution_proven"],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "controlled_proxy_only": {"const": true},
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "memorization_proven": {"const": false},
+        "exploit_code_memorization_tested": {"const": false},
+        "causal_attribution_proven": {"const": false}
+      }
+    }
+  }
+}

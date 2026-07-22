@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.qwen25-qo-spectral-memory-audit-receipt.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "identity", "dataset", "token_groups", "adapters", "findings", "claims", "audit"],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen25-qo-spectral-memory-audit-receipt.v1"},
+    "status": {"const": "passed_static_memory_risk_diagnostic_only"},
+    "identity": {"type": "object"},
+    "dataset": {"type": "object"},
+    "token_groups": {"type": "object"},
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q_plus_o", "wide_budget_matched"],
+      "properties": {
+        "q_plus_o": {"$ref": "#/$defs/adapterAudit"},
+        "wide_budget_matched": {"$ref": "#/$defs/adapterAudit"}
+      }
+    },
+    "findings": {"type": "object"},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostic_only", "controlled_proxy_only", "formal", "training_authorized", "eval_proxy_is_heldout", "memorization_proven", "exploit_code_memorization_tested", "causal_attribution_proven", "static_alignment_is_correlation_only"],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "controlled_proxy_only": {"const": true},
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "memorization_proven": {"const": false},
+        "exploit_code_memorization_tested": {"const": false},
+        "causal_attribution_proven": {"const": false},
+        "static_alignment_is_correlation_only": {"const": true}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_only", "gpu_requests", "network_requests", "provider_requests", "model_forward_passes", "full_model_loads", "base_embedding_slice_loads", "tokenizer_loads", "train_partition_reads", "eval_proxy_reads", "heldout_reads", "protected_body_reads", "raw_sample_text_emitted", "raw_token_ids_emitted", "matrix_norm_ord2_used", "spectral_algorithm", "atomic_publish"],
+      "properties": {
+        "cpu_only": {"const": true},
+        "gpu_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "provider_requests": {"const": 0},
+        "model_forward_passes": {"const": 0},
+        "full_model_loads": {"const": 0},
+        "base_embedding_slice_loads": {"const": 1},
+        "tokenizer_loads": {"const": 1},
+        "train_partition_reads": {"const": 2},
+        "eval_proxy_reads": {"const": 0},
+        "heldout_reads": {"const": 0},
+        "protected_body_reads": {"const": 0},
+        "raw_sample_text_emitted": {"const": false},
+        "raw_token_ids_emitted": {"const": false},
+        "matrix_norm_ord2_used": {"const": false},
+        "spectral_algorithm": {"const": "thin_qr_core_then_torch_linalg_svdvals_max_v1"},
+        "atomic_publish": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "nonnegative": {"type": "number", "minimum": 0},
+    "adapterAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "delta_spectrum", "cross_projection", "o_output_subspace_alignment"],
+      "properties": {
+        "identity": {"type": "object"},
+        "delta_spectrum": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["q_proj", "o_proj"],
+          "properties": {
+            "q_proj": {"$ref": "#/$defs/moduleSpectrum"},
+            "o_proj": {"$ref": "#/$defs/moduleSpectrum"}
+          }
+        },
+        "cross_projection": {"type": "object"},
+        "o_output_subspace_alignment": {"type": "object"}
+      }
+    },
+    "moduleSpectrum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layers", "nominal_rank", "total_delta_energy", "summary", "layer_energy_distribution", "per_layer"],
+      "properties": {
+        "layers": {"const": 28},
+        "nominal_rank": {"type": "integer", "minimum": 1},
+        "total_delta_energy": {"$ref": "#/$defs/nonnegative"},
+        "summary": {"type": "object"},
+        "layer_energy_distribution": {"type": "object"},
+        "per_layer": {"type": "array", "minItems": 28, "maxItems": 28, "items": {"type": "object"}}
+      }
+    }
+  }
+}

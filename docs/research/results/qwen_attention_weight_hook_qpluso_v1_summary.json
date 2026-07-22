@@ -1,0 +1,290 @@
+{
+  "audit": {
+    "adapter_loads": 1,
+    "atomic_no_replace": true,
+    "dataset_reads": 0,
+    "gpu_requests": 1,
+    "heldout_reads": 0,
+    "model_loads": 1,
+    "network_requests": 0,
+    "prompt_or_target_text_in_output": false,
+    "protected_body_reads": 0,
+    "raw_token_ids_in_output": false,
+    "single_probe": true,
+    "tokenizer_loads": 1
+  },
+  "capture": {
+    "aggregation": "head_mean_float32_cpu",
+    "attention_implementation": "eager",
+    "difference_panel": "full_minus_q_only_component",
+    "layers": {
+      "0": {
+        "full_minus_q_only_component": {
+          "difference_sha256": "fcc75ec9e155b2dcb9d2e81cf572c8d190a88d304f76888f3af77d15f68f606a",
+          "maximum_absolute": 0.0,
+          "mean_absolute": 0.0,
+          "root_mean_square": 0.0
+        },
+        "mode_differences_from_full": {
+          "adapter_off": {
+            "difference_sha256": "c6771aacd30d3a3e19a964127e5a6d5479d0fbd3e753c992e8020f80ab1c800e",
+            "maximum_absolute": 0.0679321363568306,
+            "mean_absolute": 0.0010380909079685807,
+            "root_mean_square": 0.0038261786103248596
+          },
+          "o_only_component": {
+            "difference_sha256": "c6771aacd30d3a3e19a964127e5a6d5479d0fbd3e753c992e8020f80ab1c800e",
+            "maximum_absolute": 0.0679321363568306,
+            "mean_absolute": 0.0010380909079685807,
+            "root_mean_square": 0.0038261786103248596
+          },
+          "q_only_component": {
+            "difference_sha256": "fcc75ec9e155b2dcb9d2e81cf572c8d190a88d304f76888f3af77d15f68f606a",
+            "maximum_absolute": 0.0,
+            "mean_absolute": 0.0,
+            "root_mean_square": 0.0
+          }
+        },
+        "modes": {
+          "adapter_off": {
+            "attention_sha256": "ec5f8bdac28a9b7eda3d6dd93b0ba992d9165a5aab5438c74528985ec1b83cc5",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.3740244286805305,
+            "target_query_normalized_entropy_mean": 0.5768870295583836,
+            "target_query_prompt_mass_mean": 0.19499227760586926
+          },
+          "full": {
+            "attention_sha256": "a3d9d94123d86c63b5c07840b6d82e53c746d743eb78b8e67f136716d6a49fd4",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.3810364095752075,
+            "target_query_normalized_entropy_mean": 0.5786401172069661,
+            "target_query_prompt_mass_mean": 0.19790951634181927
+          },
+          "o_only_component": {
+            "attention_sha256": "ec5f8bdac28a9b7eda3d6dd93b0ba992d9165a5aab5438c74528985ec1b83cc5",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.3740244286805305,
+            "target_query_normalized_entropy_mean": 0.5768870295583836,
+            "target_query_prompt_mass_mean": 0.19499227760586926
+          },
+          "q_only_component": {
+            "attention_sha256": "a3d9d94123d86c63b5c07840b6d82e53c746d743eb78b8e67f136716d6a49fd4",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.3810364095752075,
+            "target_query_normalized_entropy_mean": 0.5786401172069661,
+            "target_query_prompt_mass_mean": 0.19790951634181927
+          }
+        }
+      },
+      "13": {
+        "full_minus_q_only_component": {
+          "difference_sha256": "6e62db49da797997629275e389ff59e2bbbfa4d8a17d443fbe11c69a55eaedff",
+          "maximum_absolute": 0.061482757329940796,
+          "mean_absolute": 0.0008257970912382007,
+          "root_mean_square": 0.002989352447912097
+        },
+        "mode_differences_from_full": {
+          "adapter_off": {
+            "difference_sha256": "c002987835baf60015878945734753248f7679c60d0b0998e8cdb4c255cc0f76",
+            "maximum_absolute": 0.06868487596511841,
+            "mean_absolute": 0.001087869517505169,
+            "root_mean_square": 0.0039215791039168835
+          },
+          "o_only_component": {
+            "difference_sha256": "1abb711f7af6bd9c6bfc88f8501cb7b392f4faa4454be77587c5a105fb0eb6d7",
+            "maximum_absolute": 0.041748046875,
+            "mean_absolute": 0.0005304289516061544,
+            "root_mean_square": 0.0019419973250478506
+          },
+          "q_only_component": {
+            "difference_sha256": "6e62db49da797997629275e389ff59e2bbbfa4d8a17d443fbe11c69a55eaedff",
+            "maximum_absolute": 0.061482757329940796,
+            "mean_absolute": 0.0008257970912382007,
+            "root_mean_square": 0.002989352447912097
+          }
+        },
+        "modes": {
+          "adapter_off": {
+            "attention_sha256": "02e35dbfc514751ec9f4f79dd8d002358a98564ba388ac69b2bf7b4e90d90ce3",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.535590574012601,
+            "target_query_normalized_entropy_mean": 0.6158583605063832,
+            "target_query_prompt_mass_mean": 0.42275338385683003
+          },
+          "full": {
+            "attention_sha256": "3faa0064a2d75422b879adb5cdd984dc83759c2a9c4a4eaa0a92387b8069bb6d",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.632945805878853,
+            "target_query_normalized_entropy_mean": 0.6396743315044953,
+            "target_query_prompt_mass_mean": 0.41702296612362744
+          },
+          "o_only_component": {
+            "attention_sha256": "e351bd049d36e754b9373f591309339e23b879297fa893688cde1c932f67ca0d",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.6045992591966822,
+            "target_query_normalized_entropy_mean": 0.6325901472073636,
+            "target_query_prompt_mass_mean": 0.41306098096699545
+          },
+          "q_only_component": {
+            "attention_sha256": "0dbd8814acb60b3e0100c8f8472165447ddfeddebfd9db5ec1103569e0837ad3",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 2.5727056933295094,
+            "target_query_normalized_entropy_mean": 0.6250637634587031,
+            "target_query_prompt_mass_mean": 0.42643968497981327
+          }
+        }
+      },
+      "27": {
+        "full_minus_q_only_component": {
+          "difference_sha256": "b07a8a0fbad01566cbe19516c521c7b4436bcb4b528b27c40273597c895e3231",
+          "maximum_absolute": 0.1309814453125,
+          "mean_absolute": 0.0019083430524915457,
+          "root_mean_square": 0.006292019039392471
+        },
+        "mode_differences_from_full": {
+          "adapter_off": {
+            "difference_sha256": "91ab1475319be9046ec2bc63b493387710a1555de614234006da82defc2a64f6",
+            "maximum_absolute": 0.0843912810087204,
+            "mean_absolute": 0.0022412326652556658,
+            "root_mean_square": 0.006840107962489128
+          },
+          "o_only_component": {
+            "difference_sha256": "4cee57df21b81c3a049cc5d456269f10ee3d1a0745e28cc11bea966e4db2e924",
+            "maximum_absolute": 0.0902099609375,
+            "mean_absolute": 0.0011749259429052472,
+            "root_mean_square": 0.0043097613379359245
+          },
+          "q_only_component": {
+            "difference_sha256": "b07a8a0fbad01566cbe19516c521c7b4436bcb4b528b27c40273597c895e3231",
+            "maximum_absolute": 0.1309814453125,
+            "mean_absolute": 0.0019083430524915457,
+            "root_mean_square": 0.006292019039392471
+          }
+        },
+        "modes": {
+          "adapter_off": {
+            "attention_sha256": "f9d24b72822f4792f4c6f60bae3040f996fa50904030161172487eca6a293d01",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 3.2050780695697476,
+            "target_query_normalized_entropy_mean": 0.7807744487506969,
+            "target_query_prompt_mass_mean": 0.7442641051128854
+          },
+          "full": {
+            "attention_sha256": "db4cc251d806211956107e1c05c8c898ea12988238454bd4a5241ed6fb99abcb",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 3.292450674080148,
+            "target_query_normalized_entropy_mean": 0.8018786759119099,
+            "target_query_prompt_mass_mean": 0.7253352702930149
+          },
+          "o_only_component": {
+            "attention_sha256": "f5e016a5b3e3574871ae6ed3f09f4c133c9d59deee866b88a1b1ffe253fa8297",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 3.246770222436426,
+            "target_query_normalized_entropy_mean": 0.7907039029681898,
+            "target_query_prompt_mass_mean": 0.7197922858407374
+          },
+          "q_only_component": {
+            "attention_sha256": "caaf8e5beb7b8cf4a257a83d8d5ff21d2f43b59d03564331b38504eef5d888cf",
+            "shape": [
+              79,
+              79
+            ],
+            "target_query_entropy_mean": 3.266808899523716,
+            "target_query_normalized_entropy_mean": 0.795961245383718,
+            "target_query_prompt_mass_mean": 0.7467448588044184
+          }
+        }
+      }
+    },
+    "modes": [
+      "adapter_off",
+      "q_only_component",
+      "o_only_component",
+      "full"
+    ],
+    "selected_layers": [
+      0,
+      13,
+      27
+    ]
+  },
+  "claims": {
+    "attention_equals_explanation": false,
+    "causal_effect_proven": false,
+    "diagnostic_only": true,
+    "formal": false,
+    "quality_validated": false,
+    "training_authorized": false
+  },
+  "heatmaps": {
+    "layer_00_attention.png": "d43b0bf2eccdbc2ac9f8e46739d83e9c100d4d73b191aa1dcf09582e0e51fadf",
+    "layer_13_attention.png": "770c618267bd49e99cde784db4ccb43247749de28d8e0eba70c1dea2862814e6",
+    "layer_27_attention.png": "738fc2748bf4b5c3d4afdf49a1d22d36720f55b6fbd9ec6edc814724ee23f7b3"
+  },
+  "identity": {
+    "adapter_artifact_sha256": {
+      "adapter_config.json": "17af30108f7163bc30773d5d53e7847fd51f6e3faaf779f4f79f84e368883222",
+      "adapter_model.safetensors": "fab58c506a103f09b45e22b1aa10c0d7073e6c5c032dc49f2e89d7219427d6ba",
+      "diagnostic_receipt.json": "dc94204df696db795f3e657c679d67918e3aa2723b2d0bdf7dee899ef4490f6e"
+    },
+    "config_path": "configs/research/qwen_attention_weight_hook_v1.yaml",
+    "config_sha256": "85f293ec902885b7b2df41bc3b400947ae643ad86cff381838e2b5a291aa16cc",
+    "implementation_path": "src/anchor_mvp/research/qwen_attention_weight_hook.py",
+    "implementation_sha256": "571b42b697e5613ade4aa8aea4e7d79d3f84211a394aadcac9b30842544acea0"
+  },
+  "probe": {
+    "full_token_ids_digest_algorithm": "sha256_signed_int64_big_endian_concat_v1",
+    "full_token_ids_sha256": "636c80c04dca58c2d5f6b42649489a339b763343a92b2551c89d3e3ba3d293ec",
+    "prompt_or_target_text_emitted": false,
+    "prompt_sha256": "750ab47ac7946727a7b6214cf459d306154283d241ca9210bf63006d0cfce730",
+    "prompt_tokens": 44,
+    "raw_token_ids_emitted": false,
+    "source": "inline_synthetic_no_dataset",
+    "target_boundary_zero_based": 44,
+    "target_sha256": "f1aa9f1830c0f067d6ee88e0c50ef93b660dc3fe27423a97ed102d1bf5c2a5a0",
+    "target_tokens": 35,
+    "total_tokens": 79
+  },
+  "runtime": {
+    "device": "NVIDIA GeForce RTX 3080 Ti",
+    "dtype": "bfloat16",
+    "model_snapshot_identity_sha256": "236159a5bc2d83436b32baa24378ea7a0e9e805ca5f430eb916089a13a630b16",
+    "source_model_path_sha256": "c0a587cdeb3f977a72110bd8e5fb28e8d77344d995a7aad08b4a533a1fc06da9",
+    "tf32": true
+  },
+  "schema_version": "anchor.qwen-attention-weight-hook-summary.v1",
+  "status": "completed_attention_proxy_only"
+}

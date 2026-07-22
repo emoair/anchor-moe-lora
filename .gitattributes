@@ -1,4 +1,5 @@
 # Unified-diff context represents a blank line as one leading space; do not flag that syntax as file whitespace.
+.gitattributes text eol=lf
 patches/opencode/*.patch whitespace=-trailing
 
 # Research contracts below bind SHA-256 to raw file bytes.  Keep their
@@ -72,3 +73,20 @@ configs/research/qwen_train_prerequisite_consumer_v2.yaml text eol=lf
 src/anchor_mvp/research/qwen_train_prerequisite_consumer_v2.py text eol=lf
 tests/test_qwen_train_prerequisite_consumer_v2.py text eol=lf
 docs/research/qwen_train_prerequisite_consumer_v2*.md text eol=lf
+configs/research/qwen_attention_weight_hook_v1.yaml text eol=lf
+configs/research/qwen_qo_memory_ablation_audit_v1.yaml text eol=lf
+configs/research/qwen_qo_spectral_memory_audit* text eol=lf
+src/anchor_mvp/research/qwen_attention_weight_hook.py text eol=lf
+src/anchor_mvp/research/qwen_qo_memory_ablation_audit.py text eol=lf
+src/anchor_mvp/research/qwen_qo_spectral_memory_audit.py text eol=lf
+scripts/research/run_qwen_attention_weight_hook.py text eol=lf
+scripts/research/audit_qwen_qo_spectral_memory.py text eol=lf
+tests/test_qwen_attention_weight_hook.py text eol=lf
+tests/test_qwen_qo_memory_ablation_audit.py text eol=lf
+tests/test_qwen_qo_spectral_memory_audit.py text eol=lf
+docs/research/qwen_attention_weight_hook_v1*.md text eol=lf
+docs/research/qwen_qo_memory_ablation_audit*.md text eol=lf
+docs/research/qwen_qo_spectral_memory_audit*.md text eol=lf
+docs/research/results/qwen_attention_weight_hook_qpluso_v1_summary.json* text eol=lf
+docs/research/results/qwen_qo_memory_ablation_audit_v1_receipt.json* text eol=lf
+docs/research/results/qwen_qo_spectral_memory_audit_v1_receipt.json* text eol=lf
