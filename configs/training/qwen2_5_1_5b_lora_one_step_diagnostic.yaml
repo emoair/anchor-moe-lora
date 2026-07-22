@@ -1,0 +1,42 @@
+{
+  "schema_version": "anchor.qwen25-1.5b-lora-one-step-diagnostic.v1",
+  "paths": {
+    "project_root": "../.."
+  },
+  "model": {
+    "id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "local_path": "${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}",
+    "local_files_only": true,
+    "allow_network": false,
+    "trust_remote_code": false,
+    "expected_source_revision": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34",
+    "expected_source_repo": "https://www.modelscope.cn/Qwen/Qwen2.5-1.5B-Instruct.git",
+    "expected_config_json_sha256": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17",
+    "expected_model_safetensors_sha256": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee",
+    "expected_tokenizer_json_sha256": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9",
+    "expected_tokenizer_config_sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+  },
+  "lora": {
+    "rank": 4,
+    "alpha": 8,
+    "dropout": 0.0,
+    "bias": "none",
+    "target_modules": ["q_proj"]
+  },
+  "training": {
+    "max_steps": 1,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "sequence_length": 128,
+    "learning_rate": 0.0001,
+    "seed": 1337
+  },
+  "dataset": {
+    "kind": "inline_toy_plumbing_v1",
+    "formal_inputs_allowed": false,
+    "heldout_allowed": false
+  },
+  "output": {
+    "adapter_dir": "artifacts/diagnostics/qwen2_5_1_5b_qproj_r{rank}_step1"
+  }
+}
