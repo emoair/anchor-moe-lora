@@ -436,6 +436,116 @@ The detailed construction and migration rules are in
   training, and correctness/quality/performance evaluation remain incomplete
   and fail closed.
 
+## Consumer synthetic scaffold diagnostic checkpoint (2026-07-23; non-authorizing)
+
+- The sibling Consumer/training repository published commit
+  `9539fb56c236f08ffe9d7a8f56dfc28f14e1907c` on branch
+  `research/neural-swarm-kv`. At handoff, local, upstream, and remote HEAD were
+  equal; the commit contains exactly 22 files, its worktree was clean, and no
+  tag or release points at HEAD. Its parent is
+  `c2b9174930270352c7d25490afd57d02db790e0d`; its precise Producer cherry-pick
+  `77b48d429608ec0c1ff3e478567598fa202beb12` has the same stable patch and 12
+  artifact blobs as Producer release
+  `2648129d599a5041100278cb04b12291ffd8a482`. This section is a downstream
+  checkpoint record. It does not alter any frozen Producer v1/v2 artifact
+  identity.
+- The committed fixture is a closed-grammar synthetic diagnostic proxy with
+  10 source bundles, five roles, and two paired scaffold variants, for 100
+  records total. Splitting precedes role/variant expansion: eight bundles and
+  80 records are `train`; two bundles and 20 records are `eval_proxy`. English
+  and Simplified Chinese each contribute five bundles. `eval_proxy` is
+  explicitly not held-out. The fixture manifest SHA-256 is
+  `64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd`;
+  record-schema SHA-256 is
+  `0137d73392f5ea471c166219eaca66b097e66178132ac8688569ae88b1d720fa`;
+  manifest-schema SHA-256 is
+  `0ece3e5ddf80b756b0a9613076f45f1df06bb2a487e6fc7537516a0f5285db12`.
+  The four authenticated partitions are:
+
+  | Split / variant | Records | SHA-256 |
+  |---|---:|---|
+  | `train/json_only` | 40 | `3ea3cf57e9990b2b07e98cd2bf27a620ed3d2eb2bfd495b0f89ae3d22cce60df` |
+  | `train/concise_rationale_plus_json` | 40 | `ff656ff6d2b5303880e5a5ec8db05ffa33e7eca7ca3b1bbd78787a1bd28f1852` |
+  | `eval_proxy/json_only` | 10 | `06fe504e33ef61b05df7f3aff5969025b299343d613441bbb04dea1599fbc680` |
+  | `eval_proxy/concise_rationale_plus_json` | 10 | `ed0d60a609edbac6ba9db7cf8d818f85354da4f17e7409b0981d8d4abaf7cfaa` |
+
+- The synthetic Producer config, config schema, closed grammar, grammar schema,
+  and implementation SHA-256 values are respectively
+  `b34d54fea39340ab2e1567f380241fc410276ab17035d69a2285c7c7c83cebaf`,
+  `938313a1265187e1d030fdc9d808a8d669c64ad8e51fda26e93ad725e5451d58`,
+  `e895defeb8f3a077b30fc7c9188274c208c54996c8bfc16c6b4594f92797cd90`,
+  `5f2322945d8c7e0ca5fadd12086ac192dede4e27234ecaa2617057fc49fc2082`,
+  and `4c2b7b70dffc215b3aa3b370db2e183d616084d530073a269a5964baa3b81525`.
+  Its namespace is `anchor.synthetic-nl-scaffold-diagnostic.v1`. Generation
+  reports zero provider/network/model/GPU/protected-body reads, but it consumes
+  no authenticated protected-source inventory. Therefore formal source
+  disjointness and zero intersection remain unproven. This new namespace does
+  not close or replace the missing body-free `synthetic_scaffold` protected
+  inventory from the six-source prerequisite contract.
+- The separate training runner implementation SHA-256 is
+  `8b5cf325eb6876493eb1ff2e617a716cb9e2f5d8644749826c275e2e216d8569`;
+  its config SHA-256 is
+  `40d97f2ac733924560ff333cf91066cde9d0a16c58f4961f9492bbf05398c33e`.
+  The only exercised arm is `q_only`: rank 4, 344,064 trainable parameters in
+  56 tensors, BF16 compute with TF32 enabled, sequence length 512, and
+  non-reentrant gradient checkpointing. `q_plus_o` and `wide_lora` remain
+  control labels, not measured results.
+- Tokenizer-only preflights bind all 100 ordered record-local prompt, full-input,
+  and masked-label digests without publishing raw token IDs. They bind
+  Transformers 5.13.0, Tokenizers 0.22.2, maximum full length 394 of 512, and
+  zero truncation. The step-2 and step-20 preflight SHA-256 values are
+  `08d283a5521b79ff036d54cf82fa5590b36a280a50db742deb88f442be95c76f`
+  and `b7679f6f75756c25ff0154b89fd41021411035f2b095f567ffae58a95b16e00d`.
+  These preflights and the final adapters/receipts live under ignored local
+  diagnostic paths; their hashes are local evidence, not published formal
+  release artifacts.
+- Two explicitly requested local Qwen2.5-1.5B-Instruct diagnostic executions
+  passed mechanical integrity gates. The 2-step receipt SHA-256 is
+  `b8a8dd026e4543f5c0e2c7d9e99815c699734970b20110d7ec234bd38553d0f1`:
+  eval-proxy loss moved from 3.1020863533 to 3.1025008678, delta
+  +0.0004145145; maximum adapter effect was 0.47265625. The 20-step receipt
+  SHA-256 is
+  `d0a31ef6d471a60213f6c306cf7fb3de0c359b3b889572c5620e0090fa1dee54`:
+  eval-proxy loss moved from 3.1020863533 to 3.0703784108, delta
+  -0.0317079425, approximately a 1.02% proxy decrease; maximum adapter effect
+  was 0.6875. Both receipts report 56/56 finite nonzero LoRA gradients, zero
+  reload-logit delta, and unchanged base hashes. Each real run intentionally
+  records one GPU request and two model loads, while provider/network requests
+  and protected-body/held-out reads remain zero. Neither loss trace is a
+  formal quality, held-out, numerical-equivalence, shared-KV, or architecture
+  result.
+- Consumer reported 146 focused tests collected: 140 passed and six Windows
+  symlink-capability skips, with zero failures. Dataset Producer tests passed
+  28 with one capability skip; runner tests passed 26. Ruff, formatting,
+  `py_compile`, audit, deterministic rebuild, mandatory-sidecar/TOCTOU,
+  secret, size, and scoped-Git checks passed. Code plus the synthetic fixture
+  are committed; adapters, preflights, and receipts remain local and ignored.
+  The Producer-side independent rerun of the two new focused files collected
+  55 tests and passed 54 with the one Windows capability skip; its metadata
+  audit also passed with zero provider/network/model/GPU/protected-body counts.
+- Reproduce the committed metadata-only audit and focused tests from the exact
+  Consumer commit without starting a model or provider request:
+
+  ```powershell
+  $env:PYTHONPATH = "src"
+  python scripts/research/build_synthetic_nl_scaffold_diagnostic_v1.py audit `
+    --repo-root . `
+    --config configs/research/synthetic_nl_scaffold_diagnostic_v1.yaml `
+    --artifact fixtures/research/synthetic_nl_scaffold_diagnostic_v1
+  python -m pytest -q `
+    tests/test_synthetic_nl_scaffold_diagnostic_v1.py `
+    tests/test_qwen_synthetic_scaffold_diagnostic.py
+  ```
+
+  The Producer-side handoff audit copied no sample body and did not read Gold,
+  held-out, or the earlier protected scaffold bodies. The 100-record fixture
+  remains proxy-only; both `training_authorized` and
+  `formal_training_authorized` remain false. Formal-v3 snapshot/projector/
+  generic/source-disjoint/release-lock artifacts, four missing body-free
+  inventories, six-source zero-intersection/v1 attestation, a large teacher
+  dataset, full training, physical KV/multistream/Q-hijack measurements, and
+  formal quality/performance evaluation remain incomplete and fail closed.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before
