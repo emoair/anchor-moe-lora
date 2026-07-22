@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/synthetic-nl-scaffold-closed-grammar-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_namespace",
+    "languages",
+    "roles",
+    "variants",
+    "ablation_labels",
+    "route_fields",
+    "tool_action_prefix",
+    "tool_trace_mode",
+    "templates",
+    "claim_boundary"
+  ],
+  "properties": {
+    "schema_version": { "const": "anchor.synthetic-nl-scaffold-closed-grammar.v1" },
+    "source_namespace": { "const": "anchor.synthetic-nl-scaffold-diagnostic.v1" },
+    "languages": { "const": ["en", "zh-CN"] },
+    "roles": { "const": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"] },
+    "variants": { "const": ["json_only", "concise_rationale_plus_json"] },
+    "ablation_labels": { "const": ["q_only", "q_plus_o", "wide_lora"] },
+    "route_fields": { "const": ["role", "expert", "goal", "constraints", "allowed_segment_refs", "evidence_segment_refs", "tool_plan", "acceptance_criteria"] },
+    "tool_action_prefix": { "const": "inspect_synthetic_" },
+    "tool_trace_mode": { "const": "harmless_synthetic_fixture_trace" },
+    "templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "zh-CN"],
+      "properties": {
+        "en": { "$ref": "#/$defs/language_templates" },
+        "zh-CN": { "$ref": "#/$defs/language_templates" }
+      }
+    },
+    "claim_boundary": {
+      "const": {
+        "diagnostic_only": true,
+        "formal": false,
+        "training_authorized": false,
+        "hidden_chain_of_thought": false
+      }
+    }
+  },
+  "$defs": {
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instruction", "summary", "goal_prefix"],
+      "properties": {
+        "instruction": { "type": "string", "minLength": 8, "maxLength": 256 },
+        "summary": { "type": "string", "minLength": 8, "maxLength": 512 },
+        "goal_prefix": { "type": "string", "minLength": 2, "maxLength": 128 }
+      }
+    },
+    "language_templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate", "acceptance_criteria"],
+      "properties": {
+        "planner": { "$ref": "#/$defs/template" },
+        "tool_policy": { "$ref": "#/$defs/template" },
+        "frontend_gen": { "$ref": "#/$defs/template" },
+        "frontend_review": { "$ref": "#/$defs/template" },
+        "security_gate": { "$ref": "#/$defs/template" },
+        "acceptance_criteria": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 4, "maxLength": 256 }
+        }
+      }
+    }
+  }
+}

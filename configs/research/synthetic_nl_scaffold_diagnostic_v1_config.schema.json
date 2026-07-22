@@ -1,0 +1,253 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anchor-moe-lora.local/schemas/synthetic-nl-scaffold-diagnostic-config-v1.json",
+    "title": "Synthetic natural-language scaffold diagnostic config v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "claim_scope",
+        "paths",
+        "dataset_contract",
+        "generation_contract",
+        "protected_inventory_contract",
+        "split_contract",
+        "pair_contract",
+        "role_contract",
+        "ablation_contract",
+        "route_contract",
+        "audit_contract",
+        "bundles"
+    ],
+    "properties": {
+        "schema_version": {
+            "const": "anchor.synthetic-nl-scaffold-diagnostic-config.v1"
+        },
+        "claim_scope": {
+            "const": "synthetic_diagnostic_only_no_formal_or_training_authority"
+        },
+        "paths": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "config_schema",
+                "closed_grammar",
+                "closed_grammar_schema",
+                "record_schema",
+                "manifest_schema",
+                "implementation"
+            ],
+            "properties": {
+                "config_schema": {
+                    "const": "configs/research/synthetic_nl_scaffold_diagnostic_v1_config.schema.json"
+                },
+                "closed_grammar": {
+                    "const": "configs/research/synthetic_nl_scaffold_diagnostic_v1_closed_grammar.json"
+                },
+                "closed_grammar_schema": {
+                    "const": "configs/research/synthetic_nl_scaffold_diagnostic_v1_closed_grammar.schema.json"
+                },
+                "record_schema": {
+                    "const": "configs/research/synthetic_nl_scaffold_diagnostic_v1.schema.json"
+                },
+                "manifest_schema": {
+                    "const": "configs/research/synthetic_nl_scaffold_diagnostic_v1_manifest.schema.json"
+                },
+                "implementation": {
+                    "const": "src/anchor_mvp/research/synthetic_nl_scaffold_diagnostic_v1.py"
+                }
+            }
+        },
+        "dataset_contract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "producer_version",
+                "record_schema_version",
+                "manifest_schema_version",
+                "bundle_count",
+                "roles_per_bundle",
+                "variants_per_role",
+                "record_count",
+                "pair_count",
+                "provider_requests",
+                "network_requests",
+                "model_loads",
+                "gpu_requests",
+                "protected_body_reads"
+            ],
+            "properties": {
+                "producer_version": {
+                    "const": "anchor.synthetic-nl-scaffold-diagnostic-producer.v1"
+                },
+                "record_schema_version": {
+                    "const": "anchor.synthetic-nl-scaffold-diagnostic-record.v1"
+                },
+                "manifest_schema_version": {
+                    "const": "anchor.synthetic-nl-scaffold-diagnostic-manifest.v1"
+                },
+                "bundle_count": {"const": 10},
+                "roles_per_bundle": {"const": 5},
+                "variants_per_role": {"const": 2},
+                "record_count": {"const": 100},
+                "pair_count": {"const": 50},
+                "provider_requests": {"const": 0},
+                "network_requests": {"const": 0},
+                "model_loads": {"const": 0},
+                "gpu_requests": {"const": 0},
+                "protected_body_reads": {"const": 0}
+            }
+        },
+        "generation_contract": {
+            "const": {
+                "seed_id": "anchor.synthetic-nl-scaffold-diagnostic.seed.v1",
+                "seed_text": "anchor-synthetic-nl-scaffold-diagnostic-generation-seed-v1",
+                "source_namespace": "anchor.synthetic-nl-scaffold-diagnostic.v1",
+                "augmentation": "none",
+                "split_before_augmentation": true,
+                "declared_semantic_read_set_only": true
+            }
+        },
+        "protected_inventory_contract": {
+            "const": {
+                "consumes_protected_inventories": false,
+                "statuses": {
+                    "swebench_source": "unavailable_not_read",
+                    "gold_partition": "unavailable_not_read",
+                    "partial_gold_export": "unavailable_not_read",
+                    "heldout": "unavailable_not_read",
+                    "legacy_heldout_cases": "unavailable_not_read",
+                    "synthetic_scaffold": "unavailable_not_read"
+                },
+                "zero_intersection_claimed": false,
+                "source_disjoint_attestation_emitted": false,
+                "formal_source_disjoint_proven": false
+            }
+        },
+        "split_contract": {
+            "const": {
+                "group_key": "source_bundle_id",
+                "split_before_role_and_variant_expansion": true,
+                "algorithm": "sha256_utf8_salt_nul_language_nul_bundle_key_sort_ascending_eval_one_per_language_v1",
+                "salt": "anchor-synthetic-nl-scaffold-diagnostic-split-v1",
+                "train_bundle_count": 8,
+                "eval_proxy_bundle_count": 2,
+                "eval_proxy_is_heldout": false,
+                "all_role_variant_views_same_split": true,
+                "language_stratified": {
+                    "en": {"train_bundles": 4, "eval_proxy_bundles": 1},
+                    "zh-CN": {"train_bundles": 4, "eval_proxy_bundles": 1}
+                }
+            }
+        },
+        "pair_contract": {
+            "const": {
+                "variants": ["json_only", "concise_rationale_plus_json"],
+                "same_input_sha256": true,
+                "same_canonical_json_sha256": true,
+                "same_allowed_and_forbidden_segments": true,
+                "concise_rationale_max_utf8_bytes": 512,
+                "concise_rationale_is_hidden_chain_of_thought": false,
+                "concise_rationale_is_auditable_decision_summary": true
+            }
+        },
+        "role_contract": {
+            "const": {
+                "ordered_roles": [
+                    "planner",
+                    "tool_policy",
+                    "frontend_gen",
+                    "frontend_review",
+                    "security_gate"
+                ],
+                "role_stage_index": {
+                    "planner": 0,
+                    "tool_policy": 1,
+                    "frontend_gen": 2,
+                    "frontend_review": 3,
+                    "security_gate": 4
+                },
+                "current_target_content_in_prompt": false,
+                "future_target_content_in_prompt": false,
+                "whole_task_board_stringification_allowed": false,
+                "previous_committed_segments_allowed": true
+            }
+        },
+        "ablation_contract": {
+            "const": {
+                "labels": ["q_only", "q_plus_o", "wide_lora"],
+                "all_records_eligible_for_all_labels": true,
+                "arm_assignment_location": "diagnostic_run_manifest_only",
+                "identical_record_inventory_required": true,
+                "producer_selects_winner": false,
+                "producer_claims_training_outcome": false
+            }
+        },
+        "route_contract": {
+            "const": {
+                "required_fields": [
+                    "role",
+                    "expert",
+                    "goal",
+                    "constraints",
+                    "allowed_segment_refs",
+                    "evidence_segment_refs",
+                    "tool_plan",
+                    "acceptance_criteria"
+                ],
+                "canonical_json_policy": "utf8_sort_keys_compact_no_normalization_v1",
+                "tool_trace_kind": "harmless_synthetic_fixture_trace",
+                "real_tool_execution": false,
+                "explicit_two_request_commit": true,
+                "activation_semantics": "next_request_input_activation_only",
+                "planner_request1_private_kv_reused": false
+            }
+        },
+        "audit_contract": {
+            "const": {
+                "mandatory_manifest_sha256_sidecar": true,
+                "sidecar_format": "sha256sum_manifest_json_lf",
+                "single_bytes_snapshot_for_hash_parse_count": true,
+                "final_toctou_recheck": true,
+                "atomic_directory_publish": true,
+                "maximum_artifact_file_bytes": 50000000,
+                "utf8_required": true,
+                "lf_required": true,
+                "duplicate_json_keys_rejected": true,
+                "protected_source_paths_allowed": false,
+                "raw_token_ids_allowed": false,
+                "global_token_indices_allowed": false,
+                "formal_claim_allowed": false,
+                "training_authorized_claim_allowed": false
+            }
+        },
+        "bundles": {
+            "type": "array",
+            "minItems": 10,
+            "maxItems": 10,
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "bundle_key",
+                    "language",
+                    "archetype",
+                    "task_text",
+                    "constraints"
+                ],
+                "properties": {
+                    "bundle_key": {"type": "string", "pattern": "^(en|zh)_[a-z0-9_]+$"},
+                    "language": {"enum": ["en", "zh-CN"]},
+                    "archetype": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+                    "task_text": {"type": "string", "minLength": 16, "maxLength": 1024},
+                    "constraints": {
+                        "type": "array",
+                        "minItems": 3,
+                        "maxItems": 3,
+                        "items": {"type": "string", "minLength": 4, "maxLength": 256}
+                    }
+                }
+            }
+        }
+    }
+}

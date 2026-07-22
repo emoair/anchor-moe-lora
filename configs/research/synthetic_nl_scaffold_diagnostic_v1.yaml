@@ -1,0 +1,218 @@
+schema_version: anchor.synthetic-nl-scaffold-diagnostic-config.v1
+claim_scope: synthetic_diagnostic_only_no_formal_or_training_authority
+
+paths:
+  config_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1_config.schema.json
+  closed_grammar: configs/research/synthetic_nl_scaffold_diagnostic_v1_closed_grammar.json
+  closed_grammar_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1_closed_grammar.schema.json
+  record_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1.schema.json
+  manifest_schema: configs/research/synthetic_nl_scaffold_diagnostic_v1_manifest.schema.json
+  implementation: src/anchor_mvp/research/synthetic_nl_scaffold_diagnostic_v1.py
+
+dataset_contract:
+  producer_version: anchor.synthetic-nl-scaffold-diagnostic-producer.v1
+  record_schema_version: anchor.synthetic-nl-scaffold-diagnostic-record.v1
+  manifest_schema_version: anchor.synthetic-nl-scaffold-diagnostic-manifest.v1
+  bundle_count: 10
+  roles_per_bundle: 5
+  variants_per_role: 2
+  record_count: 100
+  pair_count: 50
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_body_reads: 0
+
+generation_contract:
+  seed_id: anchor.synthetic-nl-scaffold-diagnostic.seed.v1
+  seed_text: anchor-synthetic-nl-scaffold-diagnostic-generation-seed-v1
+  source_namespace: anchor.synthetic-nl-scaffold-diagnostic.v1
+  augmentation: none
+  split_before_augmentation: true
+  declared_semantic_read_set_only: true
+
+protected_inventory_contract:
+  consumes_protected_inventories: false
+  statuses:
+    swebench_source: unavailable_not_read
+    gold_partition: unavailable_not_read
+    partial_gold_export: unavailable_not_read
+    heldout: unavailable_not_read
+    legacy_heldout_cases: unavailable_not_read
+    synthetic_scaffold: unavailable_not_read
+  zero_intersection_claimed: false
+  source_disjoint_attestation_emitted: false
+  formal_source_disjoint_proven: false
+
+split_contract:
+  group_key: source_bundle_id
+  split_before_role_and_variant_expansion: true
+  algorithm: sha256_utf8_salt_nul_language_nul_bundle_key_sort_ascending_eval_one_per_language_v1
+  salt: anchor-synthetic-nl-scaffold-diagnostic-split-v1
+  train_bundle_count: 8
+  eval_proxy_bundle_count: 2
+  eval_proxy_is_heldout: false
+  all_role_variant_views_same_split: true
+  language_stratified:
+    en:
+      train_bundles: 4
+      eval_proxy_bundles: 1
+    zh-CN:
+      train_bundles: 4
+      eval_proxy_bundles: 1
+
+pair_contract:
+  variants:
+    - json_only
+    - concise_rationale_plus_json
+  same_input_sha256: true
+  same_canonical_json_sha256: true
+  same_allowed_and_forbidden_segments: true
+  concise_rationale_max_utf8_bytes: 512
+  concise_rationale_is_hidden_chain_of_thought: false
+  concise_rationale_is_auditable_decision_summary: true
+
+role_contract:
+  ordered_roles:
+    - planner
+    - tool_policy
+    - frontend_gen
+    - frontend_review
+    - security_gate
+  role_stage_index:
+    planner: 0
+    tool_policy: 1
+    frontend_gen: 2
+    frontend_review: 3
+    security_gate: 4
+  current_target_content_in_prompt: false
+  future_target_content_in_prompt: false
+  whole_task_board_stringification_allowed: false
+  previous_committed_segments_allowed: true
+
+ablation_contract:
+  labels:
+    - q_only
+    - q_plus_o
+    - wide_lora
+  all_records_eligible_for_all_labels: true
+  arm_assignment_location: diagnostic_run_manifest_only
+  identical_record_inventory_required: true
+  producer_selects_winner: false
+  producer_claims_training_outcome: false
+
+route_contract:
+  required_fields:
+    - role
+    - expert
+    - goal
+    - constraints
+    - allowed_segment_refs
+    - evidence_segment_refs
+    - tool_plan
+    - acceptance_criteria
+  canonical_json_policy: utf8_sort_keys_compact_no_normalization_v1
+  tool_trace_kind: harmless_synthetic_fixture_trace
+  real_tool_execution: false
+  explicit_two_request_commit: true
+  activation_semantics: next_request_input_activation_only
+  planner_request1_private_kv_reused: false
+
+audit_contract:
+  mandatory_manifest_sha256_sidecar: true
+  sidecar_format: sha256sum_manifest_json_lf
+  single_bytes_snapshot_for_hash_parse_count: true
+  final_toctou_recheck: true
+  atomic_directory_publish: true
+  maximum_artifact_file_bytes: 50000000
+  utf8_required: true
+  lf_required: true
+  duplicate_json_keys_rejected: true
+  protected_source_paths_allowed: false
+  raw_token_ids_allowed: false
+  global_token_indices_allowed: false
+  formal_claim_allowed: false
+  training_authorized_claim_allowed: false
+
+bundles:
+  - bundle_key: en_calculator
+    language: en
+    archetype: calculator_page
+    task_text: Build a keyboard-accessible calculator page with a visible expression history and deterministic error messages.
+    constraints:
+      - Use a single local page without network access.
+      - Keep arithmetic parsing separate from presentation state.
+      - Include keyboard and screen-reader acceptance criteria.
+  - bundle_key: en_task_board
+    language: en
+    archetype: task_board
+    task_text: Build a compact task board with three columns, local drag-and-drop state, and an undo action.
+    constraints:
+      - Persist only synthetic local fixture data.
+      - Keep state transitions deterministic and reversible.
+      - Provide empty, loading, and failure views.
+  - bundle_key: en_markdown_editor
+    language: en
+    archetype: markdown_editor
+    task_text: Build a split-pane Markdown editor with a safe preview, autosave indicator, and export action.
+    constraints:
+      - Treat rendered markup as untrusted input.
+      - Do not execute embedded scripts or remote resources.
+      - Preserve draft text across harmless view changes.
+  - bundle_key: en_metrics_dashboard
+    language: en
+    archetype: metrics_dashboard
+    task_text: Build a responsive metrics dashboard with date filters, accessible charts, and a compact anomaly list.
+    constraints:
+      - Use deterministic synthetic metrics only.
+      - Provide a table alternative for every chart.
+      - Keep filter state serializable.
+  - bundle_key: en_profile_form
+    language: en
+    archetype: profile_form
+    task_text: Build a profile form with inline validation, unsaved-change warnings, and a review-before-save step.
+    constraints:
+      - Never include real personal data.
+      - Separate field validation from submission state.
+      - Make all errors keyboard discoverable.
+  - bundle_key: zh_calculator
+    language: zh-CN
+    archetype: calculator_page
+    task_text: 构建一个支持键盘操作的计算器页面，包含清晰的表达式历史和确定性的错误提示。
+    constraints:
+      - 仅使用本地单页，不访问网络。
+      - 将算式解析与界面状态分离。
+      - 为键盘与读屏操作提供验收条件。
+  - bundle_key: zh_task_board
+    language: zh-CN
+    archetype: task_board
+    task_text: 构建一个三列任务看板，支持本地拖放状态和一次撤销操作。
+    constraints:
+      - 只保存合成的本地夹具数据。
+      - 状态转换必须确定且可逆。
+      - 提供空状态、加载状态和失败状态。
+  - bundle_key: zh_markdown_editor
+    language: zh-CN
+    archetype: markdown_editor
+    task_text: 构建一个分栏 Markdown 编辑器，包含安全预览、自动保存提示和导出操作。
+    constraints:
+      - 将渲染标记视为不可信输入。
+      - 不执行嵌入脚本或远程资源。
+      - 无害的视图切换不能丢失草稿。
+  - bundle_key: zh_metrics_dashboard
+    language: zh-CN
+    archetype: metrics_dashboard
+    task_text: 构建一个响应式指标面板，包含日期筛选、无障碍图表和紧凑的异常列表。
+    constraints:
+      - 只使用确定性的合成指标。
+      - 每张图表都提供表格替代视图。
+      - 筛选状态必须可序列化。
+  - bundle_key: zh_profile_form
+    language: zh-CN
+    archetype: profile_form
+    task_text: 构建一个资料表单，包含行内校验、未保存修改提醒和保存前复核步骤。
+    constraints:
+      - 不得包含真实个人数据。
+      - 将字段校验与提交状态分离。
+      - 所有错误都能通过键盘发现。
