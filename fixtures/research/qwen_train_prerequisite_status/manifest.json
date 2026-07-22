@@ -1,0 +1,383 @@
+{
+  "claim_scope": "content_free_prerequisite_status_only_no_training_authority",
+  "consumer_freeze_requirements": {
+    "ordered_cli_fields": [
+      "--prerequisite-status",
+      "--prerequisite-status-sha256",
+      "--tokenizer-binding",
+      "--tokenizer-binding-sha256",
+      "--toy-attestation",
+      "--toy-attestation-sha256",
+      "--formal-release-lock-schema-sha256",
+      "--formal-release-lock",
+      "--formal-release-lock-sha256"
+    ],
+    "ordered_config_fields": [
+      "prerequisite_status_schema_sha256",
+      "prerequisite_status_manifest_sha256",
+      "tokenizer_binding_schema_sha256",
+      "tokenizer_binding_manifest_sha256",
+      "toy_attestation_schema_sha256",
+      "toy_attestation_sha256",
+      "formal_release_lock_schema_sha256",
+      "formal_release_lock_sha256"
+    ],
+    "ordered_release_fields": [
+      "prerequisite_status_schema_sha256",
+      "prerequisite_status_manifest_sha256",
+      "natural_language_scaffold_manifest_sha256",
+      "long_context_token_inventory_manifest_sha256",
+      "tokenizer_binding_schema_sha256",
+      "tokenizer_binding_manifest_sha256",
+      "trainable_base_snapshot_manifest_sha256",
+      "tokenizer_base_compatibility_attestation_sha256",
+      "formal_snapshot_manifest_sha256",
+      "final_projector_manifest_sha256",
+      "source_disjoint_manifest_sha256",
+      "generic_execution_contract_sha256"
+    ],
+    "release_lock_schema_action": "new_v3_or_separate_compatibility_lock_required_no_v2_mutation",
+    "status": "consumer_freeze_required",
+    "unknown_or_missing_result": "fail_closed"
+  },
+  "formal_artifacts": {
+    "availability_claim_scope": "declared_canonical_paths_and_repository_schema_version_scan",
+    "canonical_paths_locked_by_schema": true,
+    "final_projector": {
+      "artifact_exists": false,
+      "reason": "final_formal_projector_missing",
+      "required_artifact_path": "artifacts/formal_v3/taskboard_projector/manifest.json",
+      "required_schema_path": "configs/research/taskboard_projector_manifest.schema.json",
+      "required_schema_sha256": "2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347",
+      "required_schema_version": "anchor.swebench-taskboard-projector-manifest.v2",
+      "required_sidecar_path": "artifacts/formal_v3/taskboard_projector/manifest.json.sha256",
+      "sidecar_exists": false,
+      "status": "unavailable",
+      "training_eligible": false
+    },
+    "generic_execution": {
+      "artifact_exists": false,
+      "reason": "frozen_generic_execution_contract_missing",
+      "required_artifact_path": "artifacts/formal_v3/training_release/generic/manifest.json",
+      "required_schema_path": "configs/research/generic_train_execution_contract.schema.json",
+      "required_schema_sha256": "63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a",
+      "required_schema_version": "anchor.generic-train-execution-contract.v1",
+      "required_sidecar_path": "artifacts/formal_v3/training_release/generic/manifest.json.sha256",
+      "sidecar_exists": false,
+      "status": "unavailable",
+      "training_eligible": false
+    },
+    "release_lock": {
+      "artifact_exists": false,
+      "reason": "frozen_release_lock_missing",
+      "required_artifact_path": "artifacts/formal_v3/training_release/release_lock/manifest.json",
+      "required_schema_path": "configs/research/generic_train_release_lock.schema.json",
+      "required_schema_sha256": "119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa",
+      "required_schema_version": "anchor.generic-train-release-lock.v2",
+      "required_sidecar_path": "artifacts/formal_v3/training_release/release_lock/manifest.json.sha256",
+      "sidecar_exists": false,
+      "status": "unavailable",
+      "training_eligible": false
+    },
+    "matching_frozen_artifact_count": 0,
+    "repository_schema_version_scan_performed": true,
+    "snapshot": {
+      "artifact_exists": false,
+      "reason": "frozen_formal_v3_snapshot_missing",
+      "required_artifact_path": "artifacts/formal_v3/dataset/manifest.json",
+      "required_schema_path": "src/anchor_mvp/data/snapshot.py",
+      "required_schema_sha256": "eba4263854301df75074609e9504d37cf6a7cf6d4204b05b6e3ebf26ee7476ba",
+      "required_schema_version": "anchor.training-snapshot.v2",
+      "required_sidecar_path": "artifacts/formal_v3/dataset/manifest.json.sha256",
+      "sidecar_exists": false,
+      "status": "unavailable",
+      "training_eligible": false
+    },
+    "source_disjoint": {
+      "artifact_exists": false,
+      "reason": "frozen_source_disjoint_manifest_missing",
+      "required_artifact_path": "artifacts/formal_v3/training_release/source_disjoint/manifest.json",
+      "required_schema_path": "configs/research/swebench_source_disjoint_manifest.schema.json",
+      "required_schema_sha256": "2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b",
+      "required_schema_version": "anchor.swebench-source-disjoint-manifest.v2",
+      "required_sidecar_path": "artifacts/formal_v3/training_release/source_disjoint/manifest.json.sha256",
+      "sidecar_exists": false,
+      "status": "unavailable",
+      "training_eligible": false
+    },
+    "synthetic_projector": {
+      "canonical_gold_written": false,
+      "claim_scope": "research_proxy_only",
+      "formal_release_eligible": false,
+      "manifest": {
+        "bytes": 4560,
+        "path": "fixtures/research/taskboard_projector/manifest.json",
+        "sha256": "595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac"
+      },
+      "manifest_sidecar": {
+        "bytes": 80,
+        "path": "fixtures/research/taskboard_projector/manifest.json.sha256",
+        "sha256": "ccb41b0515d38350231ccb6961ce9ed09f5f9076fe74cd8334cc026f534a4c5e"
+      },
+      "provider_requests": 0,
+      "record_count": 15,
+      "repository": "anchor-moe-lora-neural-swarm",
+      "schema_version": "anchor.swebench-taskboard-projector-manifest.v2",
+      "source_commit_sha": "c4ec7e2020c18561e176892b077680e0c93608f7",
+      "status": "fixture_only",
+      "task_bundle_count": 2
+    }
+  },
+  "policy_bindings": {
+    "calibration_is_heldout": false,
+    "canonical_gold_immutable": true,
+    "formal_snapshot_config": {
+      "path": "configs/orchestration/full_v3_snapshot.yaml",
+      "sha256": "07478b28790cb387901b0f6752260ee3ed9ee07c7e4ee41deccdc4e057137e5b"
+    },
+    "heldout_immutable": true,
+    "natural_language_scaffold_manifest": {
+      "path": "fixtures/research/swebench_natural_language_scaffold/manifest.json",
+      "sha256": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc"
+    },
+    "projector_config": {
+      "path": "configs/research/swebench_taskboard_projector_v2.yaml",
+      "sha256": "b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943"
+    },
+    "raw_gold_threshold_per_expert": 256,
+    "required_roles": [
+      "planner",
+      "tool_policy",
+      "frontend_gen",
+      "frontend_review",
+      "security_gate"
+    ],
+    "split_group_key": "task_bundle_sha256",
+    "strict_complete_chain_threshold": 256,
+    "task_id_cross_binding_key": "training_record.task_board.task_id"
+  },
+  "producer": {
+    "baseline_commit_sha": "03ea0214567289e4f46378d4731b0177c18a1402",
+    "branch": "agent/restore-dual-router-ux",
+    "canonical_json_policy": "utf8_sort_keys_compact_no_normalization_v1",
+    "final_source_recheck_required": true,
+    "manifest_sha256_sidecar_required": true,
+    "producer_id": "anchor.qwen-train-prerequisite-status-producer.v1",
+    "repository": "anchor-moe-lora",
+    "schema": {
+      "path": "configs/research/qwen_train_prerequisite_status.schema.json",
+      "sha256": "e8d09abc26effcedc642125b4d84185f0e5072a23f5611f068274bd963c4f577"
+    },
+    "single_bytes_snapshot_required": true
+  },
+  "raw_gold_observation": {
+    "automation_status": {
+      "bytes": 658311,
+      "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/automation/status.json",
+      "sha256": "f51d4e813ec009ba865b88ff7d45be98a768ae5b2040be8d01b82f10f4b1d605"
+    },
+    "counts_sha256": "b931dbeff6646fc2d1c210cfb98de1660cad1b18f9a0fbea064839ba9d9e3814",
+    "counts_sha256_semantics": "sha256_utf8_canonical_json_v1_of_experts_counts_strict_complete_chains_and_total_count",
+    "coverage_complete": false,
+    "experts": {
+      "frontend_gen": {
+        "bytes": 12602666,
+        "count": 346,
+        "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_frontend.jsonl",
+        "raw_floor_met": true,
+        "sha256": "c6f7c79756c064b7256ecb2e38bed495e6cd68f863e7073cf66afe8679fbeed2"
+      },
+      "frontend_review": {
+        "bytes": 9509163,
+        "count": 203,
+        "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_review.jsonl",
+        "raw_floor_met": false,
+        "sha256": "d2c381957bad2661efd8965fa60d5b49164cb00228721cfcec178a1216292c87"
+      },
+      "planner": {
+        "bytes": 6502043,
+        "count": 384,
+        "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_plan.jsonl",
+        "raw_floor_met": true,
+        "sha256": "c82d7806c161ee96942054c98e45c7068af2ebfa5437492c073c3f6526015932"
+      },
+      "security_gate": {
+        "bytes": 4328526,
+        "count": 148,
+        "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_security.jsonl",
+        "raw_floor_met": false,
+        "sha256": "dbef35c02e16cc4d1506653ec7b4c926c4161a4d8e269b06155196b0768a1cac"
+      },
+      "tool_policy": {
+        "bytes": 6557791,
+        "count": 384,
+        "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/gold/data_tool_policy.jsonl",
+        "raw_floor_met": true,
+        "sha256": "599ebbd76b9937391bf17ddc2fe4f8086a79f9b832dc296a74605819528c54f3"
+      }
+    },
+    "formal_partitions": {
+      "calibration": "count_and_sha256_unavailable",
+      "calibration_is_heldout": false,
+      "heldout": "count_and_sha256_unavailable",
+      "status": "unavailable",
+      "train": "count_and_sha256_unavailable"
+    },
+    "lineage_complete": false,
+    "partial_export_manifest": {
+      "bytes": 2367,
+      "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/training_exports/per_expert_partial_gold/4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7/manifest.json",
+      "sha256": "1b8e5b87957d7ec1e867813c95b8f7ab3bef55861e778b6ba9f197e6edf3f2ec"
+    },
+    "partial_export_not_for_end_to_end_claim": true,
+    "partial_export_schema_version": "anchor.per-expert-partial-gold-export.v1",
+    "partition_manifest": {
+      "bytes": 46925,
+      "path": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/manifest.json",
+      "sha256": "4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7"
+    },
+    "partition_manifest_schema_version": "anchor.automation-partition-manifest.v2",
+    "shortfalls": {
+      "frontend_review": 53,
+      "security_gate": 108
+    },
+    "status": "physical_unfrozen_manifest_observation",
+    "strict_complete_chains": {
+      "count": 85,
+      "threshold": 256,
+      "threshold_met": false
+    },
+    "threshold_per_expert": 256,
+    "total_bytes": 39500189,
+    "total_count": 1465,
+    "training_ready": false
+  },
+  "safety": {
+    "canonical_gold_unchanged": true,
+    "canonical_gold_written": false,
+    "full_bank_projection_runs": 0,
+    "gpu_requests": 0,
+    "heldout_content_emitted": false,
+    "heldout_content_read": false,
+    "heldout_unchanged": true,
+    "heldout_written": false,
+    "model_loads": 0,
+    "network_requests": 0,
+    "provider_requests": 0,
+    "training_authorized": false
+  },
+  "schema_version": "anchor.qwen-train-prerequisite-status.v1",
+  "status": "blocked",
+  "tokenizer_binding": {
+    "binding_schema_path": "configs/research/scaffold_tokenizer_binding_manifest.schema.json",
+    "binding_schema_sha256": "5b2e7c2e8e6efc1c9b7251fde853631e65806aca0364d9bb092ee9a07d135b25",
+    "binding_schema_version": "anchor.scaffold-tokenizer-binding-manifest.v1",
+    "candidate_source_identity": {
+      "base_compatibility_candidate": [
+        {
+          "bytes": 687,
+          "identity_sha256": "c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17",
+          "identity_source": "producer_physical_sha256",
+          "path": "config.json",
+          "physical_sha256_status": "rehashed_by_producer"
+        },
+        {
+          "bytes": 256,
+          "identity_sha256": "d9292be634413d89bf1e11c0fa2195a6c1bf4287cef565808db53be500e3a0d4",
+          "identity_source": "producer_physical_sha256",
+          "path": "generation_config.json",
+          "physical_sha256_status": "rehashed_by_producer"
+        },
+        {
+          "bytes": 3087467144,
+          "identity_sha256": "dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee",
+          "identity_source": "git_lfs_pointer_oid_sha256",
+          "path": "model.safetensors",
+          "physical_sha256_status": "not_recomputed_by_producer"
+        }
+      ],
+      "chat_template": {
+        "exact_utf8_bytes": 2507,
+        "exact_utf8_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+        "source_asset_path": "tokenizer_config.json",
+        "source_asset_sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8",
+        "source_locator": "/chat_template"
+      },
+      "clone_head_sha": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34",
+      "consumer_path_resolution_required": true,
+      "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+      "model_weight_identity_source": "authenticated_git_lfs_pointer_at_bound_revision",
+      "model_weight_physical_sha256_status": "not_recomputed_by_producer",
+      "model_weights_in_tokenizer_inventory": false,
+      "registry": "modelscope_repository_clone",
+      "revision": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34",
+      "revision_kind": "immutable_git_commit",
+      "small_assets_rehashed_by_producer": true,
+      "status": "locally_present_candidate_not_bound",
+      "tokenizer_assets": [
+        {
+          "bytes": 1823226,
+          "path": "merges.txt",
+          "sha256": "0de0bc38a29ea38eef099b677fa1ff52edd181e573529af26c4cd2136e233777"
+        },
+        {
+          "bytes": 7334926,
+          "path": "tokenizer.json",
+          "sha256": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9"
+        },
+        {
+          "bytes": 7511,
+          "path": "tokenizer_config.json",
+          "sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8"
+        },
+        {
+          "bytes": 2776833,
+          "path": "vocab.json",
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ],
+      "tokenizer_assets_sha256": "872b55391b4daff195a1caf9a05bb3305d7c84b759394ad5cd0d7ebc0b8192a8",
+      "training_eligible": false,
+      "workspace_relative_root": "models/qwen2.5-1.5b-instruct-hf",
+      "workspace_root_kind": "shared_llm_workspace_root_not_producer_repository_root",
+      "worktree_clean": true
+    },
+    "missing_fields": [
+      "source_scaffold.partition_inventory_sha256",
+      "source_scaffold.partitions",
+      "tokenizer_binding.tokenizer_runtime_descriptor_sha256",
+      "tokenizer_binding.serialization_policy_sha256",
+      "tokenizer_binding.special_token_policy_sha256",
+      "trigger_binding",
+      "token_coordinate_policy"
+    ],
+    "ownership": {
+      "consumer": "authenticated_binding_and_release_lock_verification",
+      "producer": "offline_asset_and_trigger_binding",
+      "runtime": "request2_token_coordinate_materialization"
+    },
+    "source_scaffold": {
+      "config_sha256": "e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38",
+      "manifest_schema_sha256": "8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16",
+      "manifest_sha256": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc",
+      "producer_implementation_sha256": "09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330",
+      "record_schema_sha256": "84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14"
+    },
+    "status": "tokenizer_source_candidate_authenticated_binding_pending",
+    "token_indices_emitted": false,
+    "tokenizer_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "training_eligible": false
+  },
+  "toy_attestation": {
+    "attestation_artifact_status": "unavailable",
+    "consumer_attestation_required": true,
+    "formal_training_authorized": false,
+    "formal_training_data": false,
+    "schema_path": "configs/research/qwen_toy_source_disjoint_attestation.schema.json",
+    "schema_sha256": "7cdc714308b238db86303c61103d0b3e544cd0123bcdca625d6a9717ef5029ea",
+    "schema_version": "anchor.qwen-toy-source-disjoint-attestation.v1",
+    "source_disjoint_claim_status": "unverified_pending_authenticated_attestation",
+    "source_scope": "toy_plumbing_only",
+    "status": "contract_ready_consumer_attestation_pending"
+  }
+}

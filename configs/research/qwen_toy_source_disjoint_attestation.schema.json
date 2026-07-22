@@ -1,0 +1,714 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-toy-source-disjoint-attestation-v1.json",
+  "title": "Qwen toy diagnostic source-disjoint attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "partition",
+    "data_scope",
+    "formal_training_authorized",
+    "consumable_by_formal_release",
+    "attester",
+    "toy_manifest",
+    "toy_identity",
+    "protected_manifest_bindings",
+    "generation_read_set",
+    "execution",
+    "filesystem_safety",
+    "disjointness",
+    "verification",
+    "output_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.qwen-toy-source-disjoint-attestation.v1"
+    },
+    "status": {
+      "const": "ready"
+    },
+    "partition": {
+      "const": "diagnostic_only"
+    },
+    "data_scope": {
+      "const": "toy_plumbing_only"
+    },
+    "formal_training_authorized": {
+      "const": false
+    },
+    "consumable_by_formal_release": {
+      "const": false
+    },
+    "attester": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementation_path",
+        "implementation_sha256",
+        "config_path",
+        "config_sha256",
+        "algorithm_id",
+        "canonical_json_policy",
+        "attestation_inputs_single_snapshot",
+        "final_source_recheck_required"
+      ],
+      "properties": {
+        "implementation_path": {"$ref": "#/$defs/safe_relative_path"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "config_path": {"$ref": "#/$defs/safe_relative_path"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "algorithm_id": {
+          "const": "anchor.qwen-toy-source-disjoint-audit.v1"
+        },
+        "canonical_json_policy": {
+          "const": "utf8_sort_keys_compact_no_normalization_v1"
+        },
+        "attestation_inputs_single_snapshot": {"const": true},
+        "final_source_recheck_required": {"const": true}
+      }
+    },
+    "toy_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "sidecar_path",
+        "sidecar_sha256",
+        "sidecar_declared_manifest_sha256",
+        "mandatory_sidecar",
+        "sidecar_format"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_declared_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mandatory_sidecar": {
+          "const": true
+        },
+        "sidecar_format": {
+          "const": "sha256sum_manifest_json_lf"
+        }
+      }
+    },
+    "toy_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator_path",
+        "generator_sha256",
+        "generator_config_path",
+        "generator_config_sha256",
+        "deterministic_seed_sha256",
+        "closed_grammar_id",
+        "closed_grammar_path",
+        "closed_grammar_sha256",
+        "toy_source_namespace",
+        "toy_source_ids_sha256",
+        "record_pair_ids_sha256",
+        "file_inventory_sha256",
+        "file_count",
+        "record_count",
+        "files"
+      ],
+      "properties": {
+        "generator_path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "generator_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generator_config_path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "generator_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "deterministic_seed_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "closed_grammar_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.-]{2,127}$"
+        },
+        "closed_grammar_path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "closed_grammar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "toy_source_namespace": {
+          "const": "anchor.qwen-toy-diagnostic.v1"
+        },
+        "toy_source_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "record_pair_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "record_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/record_file"
+          }
+        }
+      }
+    },
+    "protected_manifest_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "swebench_source",
+        "gold_partition",
+        "partial_gold_export",
+        "heldout",
+        "legacy_heldout_cases",
+        "synthetic_scaffold"
+      ],
+      "properties": {
+        "swebench_source": {
+          "$ref": "#/$defs/protected_swebench_source_binding"
+        },
+        "gold_partition": {
+          "$ref": "#/$defs/protected_gold_partition_binding"
+        },
+        "partial_gold_export": {
+          "$ref": "#/$defs/protected_partial_gold_export_binding"
+        },
+        "heldout": {
+          "$ref": "#/$defs/protected_heldout_binding"
+        },
+        "legacy_heldout_cases": {
+          "$ref": "#/$defs/protected_legacy_heldout_binding"
+        },
+        "synthetic_scaffold": {
+          "$ref": "#/$defs/protected_synthetic_scaffold_binding"
+        }
+      }
+    },
+    "generation_read_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "exact_allowlist_enforced",
+        "observed_read_count",
+        "unexpected_read_count",
+        "inventory_sha256",
+        "inputs",
+        "external_corpus_files_read",
+        "protected_dataset_files_read",
+        "gold_content_files_read",
+        "heldout_content_files_read",
+        "scaffold_record_files_read"
+      ],
+      "properties": {
+        "scope": {"const": "declared_semantic_generation_inputs_only"},
+        "exact_allowlist_enforced": {
+          "const": true
+        },
+        "observed_read_count": {
+          "const": 3
+        },
+        "unexpected_read_count": {
+          "const": 0
+        },
+        "inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "inputs": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/generator_read"
+            },
+            {
+              "$ref": "#/$defs/config_read"
+            },
+            {
+              "$ref": "#/$defs/grammar_read"
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "external_corpus_files_read": {
+          "const": 0
+        },
+        "protected_dataset_files_read": {
+          "const": 0
+        },
+        "gold_content_files_read": {
+          "const": 0
+        },
+        "heldout_content_files_read": {
+          "const": 0
+        },
+        "scaffold_record_files_read": {
+          "const": 0
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline",
+        "provider_requests",
+        "network_requests",
+        "credentials_read",
+        "canonical_gold_written"
+      ],
+      "properties": {
+        "offline": {
+          "const": true
+        },
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "credentials_read": {
+          "const": false
+        },
+        "canonical_gold_written": {
+          "const": false
+        }
+      }
+    },
+    "filesystem_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_paths_only",
+        "path_root_binding_sha256",
+        "symlink_policy",
+        "single_bytes_snapshot",
+        "toctou_semantics",
+        "files_changed_during_read"
+      ],
+      "properties": {
+        "relative_paths_only": {
+          "const": true
+        },
+        "path_root_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "symlink_policy": {
+          "const": "reject_any_symlink_or_junction_in_resolved_path"
+        },
+        "single_bytes_snapshot": {
+          "const": true
+        },
+        "toctou_semantics": {
+          "const": "authenticate_once_then_parse_and_count_same_bytes"
+        },
+        "files_changed_during_read": {
+          "const": 0
+        }
+      }
+    },
+    "disjointness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_scope",
+        "proof_algorithm_id",
+        "proof_input_inventory_sha256",
+        "protected_source_id_inventory_sha256",
+        "intersection_proof_sha256",
+        "source_namespace_disjoint",
+        "source_id_intersection_count",
+        "generated_from_closed_grammar_only",
+        "derived_from_protected_sources",
+        "semantic_uniqueness_claimed",
+        "content_uniqueness_claimed",
+        "audit_path",
+        "audit_sha256"
+      ],
+      "properties": {
+        "claim_scope": {
+          "const": "authenticated_provenance_and_identifier_disjoint_only"
+        },
+        "proof_algorithm_id": {
+          "const": "sha256_sorted_utf8_namespaced_source_ids_intersection_v1"
+        },
+        "proof_input_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protected_source_id_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "intersection_proof_sha256": {"$ref": "#/$defs/sha256"},
+        "source_namespace_disjoint": {
+          "const": true
+        },
+        "source_id_intersection_count": {
+          "const": 0
+        },
+        "generated_from_closed_grammar_only": {
+          "const": true
+        },
+        "derived_from_protected_sources": {
+          "const": false
+        },
+        "semantic_uniqueness_claimed": {
+          "const": false
+        },
+        "content_uniqueness_claimed": {
+          "const": false
+        },
+        "audit_path": {"$ref": "#/$defs/safe_relative_path"},
+        "audit_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_sidecar_digest_matches",
+        "file_inventory_matches",
+        "record_counts_match",
+        "protected_binding_expected_sha_matches",
+        "protected_id_inventories_authenticated",
+        "protected_id_inventories_recomputed",
+        "intersection_recomputed"
+      ],
+      "properties": {
+        "manifest_sidecar_digest_matches": {"const": true},
+        "file_inventory_matches": {"const": true},
+        "record_counts_match": {"const": true},
+        "protected_binding_expected_sha_matches": {"const": true},
+        "protected_id_inventories_authenticated": {"const": true},
+        "protected_id_inventories_recomputed": {"const": true},
+        "intersection_recomputed": {"const": true}
+      }
+    },
+    "output_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "metadata_only",
+        "sample_content_emitted",
+        "token_sequences_emitted"
+      ],
+      "properties": {
+        "scope": {"const": "attestation_document_only"},
+        "metadata_only": {
+          "const": true
+        },
+        "sample_content_emitted": {
+          "const": false
+        },
+        "token_sequences_emitted": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
+    },
+    "record_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "records",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "protected_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "source_id_inventory_sha256",
+        "source_id_count",
+        "identifier_domain_policy_sha256",
+        "namespace_inventory_sha256",
+        "metadata_only",
+        "content_files_read"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_id_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "source_id_count": {"type": "integer", "minimum": 1},
+        "identifier_domain_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "namespace_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "metadata_only": {
+          "const": true
+        },
+        "content_files_read": {
+          "const": 0
+        }
+      }
+    },
+    "protected_swebench_source_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "datasets/public/swebench-full-bank-v1/manifest.json"
+            },
+            "sha256": {
+              "const": "55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28"
+            }
+          }
+        }
+      ]
+    },
+    "protected_gold_partition_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/partitions/manifest.json"
+            },
+            "sha256": {
+              "const": "4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7"
+            }
+          }
+        }
+      ]
+    },
+    "protected_partial_gold_export_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "data/automated_v3_shards/ark_max_retry2_offset300000_c10/training_exports/per_expert_partial_gold/4fc4621d2702238aff5b3e88fc348058926e6f2488dc23e2d6c3dbd7344f5af7/manifest.json"
+            },
+            "sha256": {
+              "const": "1b8e5b87957d7ec1e867813c95b8f7ab3bef55861e778b6ba9f197e6edf3f2ec"
+            }
+          }
+        }
+      ]
+    },
+    "protected_heldout_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {"const": "artifacts/benchmark/heldout_v1/manifest.json"},
+            "sha256": {
+              "const": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c"
+            }
+          }
+        }
+      ]
+    },
+    "protected_legacy_heldout_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {"const": "configs/training/heldout_cases.jsonl"},
+            "sha256": {
+              "const": "c57c1ec144989fef47abeeda13e5fee90d81207418b9840043ec54a0f74ba70c"
+            }
+          }
+        }
+      ]
+    },
+    "protected_synthetic_scaffold_binding": {
+      "allOf": [
+        {"$ref": "#/$defs/protected_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "fixtures/research/swebench_natural_language_scaffold/manifest.json"
+            },
+            "sha256": {
+              "const": "25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc"
+            }
+          }
+        }
+      ]
+    },
+    "read_base": {
+      "type": "object",
+      "required": [
+        "role",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "generator_read": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/read_base"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "path",
+            "bytes",
+            "sha256"
+          ],
+          "properties": {
+            "role": {
+              "const": "generator"
+            },
+            "path": {
+              "$ref": "#/$defs/safe_relative_path"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      ]
+    },
+    "config_read": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/read_base"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "path",
+            "bytes",
+            "sha256"
+          ],
+          "properties": {
+            "role": {
+              "const": "generator_config"
+            },
+            "path": {
+              "$ref": "#/$defs/safe_relative_path"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      ]
+    },
+    "grammar_read": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/read_base"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "path",
+            "bytes",
+            "sha256"
+          ],
+          "properties": {
+            "role": {
+              "const": "closed_grammar"
+            },
+            "path": {
+              "$ref": "#/$defs/safe_relative_path"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

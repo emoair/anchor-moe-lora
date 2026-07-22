@@ -1,0 +1,45 @@
+schema_version: anchor.qwen-train-prerequisite-consumer-config.v1
+claim_scope: content_free_prerequisite_gate_only_no_training_authority
+
+paths:
+  repository_root: ../..
+  prerequisite_status: fixtures/research/qwen_train_prerequisite_status/manifest.json
+  prerequisite_status_schema: configs/research/qwen_train_prerequisite_status.schema.json
+  tokenizer_binding_schema: configs/research/scaffold_tokenizer_binding_manifest.schema.json
+  toy_attestation_schema: configs/research/qwen_toy_source_disjoint_attestation.schema.json
+  formal_release_lock_schema: configs/research/generic_train_release_lock.schema.json
+
+producer_contract:
+  commit: a8efe5f55b72960b49bcb1ae3753b633afd14959
+  prerequisite_status_schema_version: anchor.qwen-train-prerequisite-status.v1
+  tokenizer_binding_schema_version: anchor.scaffold-tokenizer-binding-manifest.v1
+  toy_attestation_schema_version: anchor.qwen-toy-source-disjoint-attestation.v1
+  formal_release_lock_schema_version: anchor.generic-train-release-lock.v2
+
+# Order is part of the producer freeze contract.
+bindings:
+  prerequisite_status_schema_sha256: e8d09abc26effcedc642125b4d84185f0e5072a23f5611f068274bd963c4f577
+  prerequisite_status_manifest_sha256: 70c8f0a866c5fb41c4c3726638b55a66efab77f8b2ee31c27ad31ab55def67da
+  tokenizer_binding_schema_sha256: 5b2e7c2e8e6efc1c9b7251fde853631e65806aca0364d9bb092ee9a07d135b25
+  tokenizer_binding_manifest_sha256: null
+  toy_attestation_schema_sha256: 7cdc714308b238db86303c61103d0b3e544cd0123bcdca625d6a9717ef5029ea
+  toy_attestation_sha256: null
+  formal_release_lock_schema_sha256: 119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa
+  formal_release_lock_sha256: null
+
+physical_sidecars:
+  prerequisite_status_sha256: 706c6bd6bfd0389bffe72ef9f8b34c51ef40885c78d65c9e9ef77ec5d304b948
+
+artifact_paths:
+  tokenizer_binding: null
+  toy_attestation: null
+  formal_release_lock: null
+
+policy:
+  unknown_or_missing_result: fail_closed
+  require_mandatory_sha256_sidecars: true
+  training_authorized: false
+  model_loads: 0
+  gpu_requests: 0
+  network_requests: 0
+  provider_requests: 0
