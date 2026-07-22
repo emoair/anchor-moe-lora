@@ -1,0 +1,111 @@
+{
+  "schema_version": "anchor.qwen-toy-prerequisite-companion-config.v2",
+  "producer_id": "anchor.qwen-toy-prerequisite-companion-producer.v2",
+  "producer_baseline_commit": "744e23f975b13923903f5fabe04c32e74ea25dc4",
+  "producer_baseline_tree": "90cb962f5341717501fcb16caef13db8922f1cb4",
+  "manifest_schema_path": "configs/research/qwen_toy_prerequisite_companion_v2.schema.json",
+  "implementation_path": "src/anchor_mvp/swebench/qwen_toy_prerequisite_companion_v2.py",
+  "v1_dependency": {
+    "manifest_schema_path": "configs/research/qwen_toy_prerequisite_manifest.schema.json",
+    "manifest_schema_sha256": "b55a0200a3945189687dc0363915e5911bbef41eb6aedcf0cb0f0ceb5bb18e20",
+    "manifest_schema_bytes": 12905,
+    "pending_trigger_schema_path": "configs/research/qwen_request_local_trigger_materialization.schema.json",
+    "pending_trigger_schema_sha256": "8a8d97c1ef1513999e215fa63883d476ad7d062e7bcff8274971b2388e9c62e9",
+    "pending_trigger_schema_bytes": 3976,
+    "manifest_path": "fixtures/research/qwen_toy_prerequisite_v1/manifest.json",
+    "manifest_sha256": "99b94d71639e252c2d768b84a444efa09e844d287c691d8ddfa8312481f2f311",
+    "manifest_bytes": 7910,
+    "sidecar_path": "fixtures/research/qwen_toy_prerequisite_v1/manifest.json.sha256",
+    "sidecar_sha256": "b8a3f7f7bec390da842ef35f8c9942a985051400c8e65857d6ba1a906b23c951",
+    "sidecar_bytes": 80,
+    "protected_inventory_set_sha256": "d0bd5702a9c6bbbb1db547b826a94d960a518e1f6ef3e60bfdd25dcd93a3fe22"
+  },
+  "consumer_dependency": {
+    "repository": "anchor-moe-lora",
+    "local_remote_tracking_ref": "refs/remotes/origin/research/neural-swarm-kv",
+    "consumer_release_commit": "7cb1f7454a76fa3c8c9f46d64da9f11244b51c54",
+    "consumer_release_tree": "67ca22bd2f9d50642bf88e484408082abebe2126",
+    "consumer_baseline_commit": "b0441e6beaa07b180d7fc69e462b4d2babf21792",
+    "consumer_baseline_semantics": "required_ancestor_or_equal_dependency",
+    "artifacts": [
+      {
+        "role": "config_schema",
+        "path": "configs/research/qwen_request_local_trigger_receipt_v2_config.schema.json",
+        "sha256": "aa2822a7c4ea60d6148858567920a623959fbe5363a21e2a86d5c855b5d6330f",
+        "bytes": 13710
+      },
+      {
+        "role": "receipt_schema",
+        "path": "configs/research/qwen_request_local_trigger_receipt_v2.schema.json",
+        "sha256": "d5324e8a50dc033850ff4301b7723ad3fc84bcaa312a1ff4eabac43e348a98fc",
+        "bytes": 10873
+      },
+      {
+        "role": "config",
+        "path": "configs/research/qwen_request_local_trigger_receipt_v2.yaml",
+        "sha256": "4425ee2bfcf2a01af0097db242ec7d244b622e3cfb34534628b60653297d7ee4",
+        "bytes": 5519
+      },
+      {
+        "role": "implementation",
+        "path": "src/anchor_mvp/research/qwen_request_local_trigger_receipt_v2.py",
+        "sha256": "dc1fb65441ff67837cb31e9a83df7818d0fb6f4b5b9afd8037423040e59e9f6f",
+        "bytes": 31774
+      },
+      {
+        "role": "receipt",
+        "path": "fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json",
+        "sha256": "ae15b7a0edad2527348189fa65532865bdbbe6be0f32757714f2b0fe6582089e",
+        "bytes": 5618
+      },
+      {
+        "role": "receipt_sidecar",
+        "path": "fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json.sha256",
+        "sha256": "ca54594ac067286e5a8619f26870537291fb5e1c5556e8b8efbccc4a67a58a8a",
+        "bytes": 79
+      },
+      {
+        "role": "tf32_proxy_receipt",
+        "path": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json",
+        "sha256": "278a58441e2f4fb7fc46a67dd5acec3851a7b6937685d90c77873e5972b49cce",
+        "bytes": 3294
+      },
+      {
+        "role": "tf32_proxy_sidecar",
+        "path": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json.sha256",
+        "sha256": "5e958452e82ca351c06ba8c8cf555cb699841c128526aec219ea97a2460c03be",
+        "bytes": 90
+      }
+    ]
+  },
+  "expected_trigger": {
+    "tokenizer_binding_sha256": "a76b0f60e5c1e2d92b8a8d9131f9afe9edfda3fcbf0221c4234359f70e806425",
+    "chat_template_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+    "exact_r2_serialization_sha256": "ed6adfcbd0052fdda52a5ab8c52ed04d6e55c7f62493f0d326d4e1b29d55c9f3",
+    "ordered_input_token_ids_sha256": "d989d46116cd50f30d5bba1be48a366e2a04efb8c156550d0f11a532f19121e6",
+    "ordered_input_token_ids_digest_algorithm": "sha256_concat_signed_int64_big_endian_v1",
+    "total_tokens": 44,
+    "trigger_span_start": 25,
+    "trigger_span_end": 33,
+    "trigger_span_width": 8,
+    "leading_utf8_bytes": 0,
+    "trailing_utf8_bytes": 1,
+    "leading_codepoints": 0,
+    "trailing_codepoints": 1,
+    "trigger_text_sha256": "c963be7f4ed297935fb5fc732292ad62f4fce620a75a6906639bcda0edfdec3c",
+    "trigger_covering_token_ids_sha256": "1d6889128be1b4b84ae22999ffe267a1cc862209b7c38ef3f932a5e69851a412"
+  },
+  "safety": {
+    "diagnostic_only": true,
+    "formal_training_authorized": false,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "protected_content_reads": 0,
+    "consumer_worktree_file_reads": 0,
+    "consumer_git_blob_initial_reads": 8,
+    "consumer_git_blob_final_recheck_reads": 8,
+    "source_materialization_runs": 0
+  }
+}
