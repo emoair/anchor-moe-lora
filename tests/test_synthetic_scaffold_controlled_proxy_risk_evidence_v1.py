@@ -135,10 +135,33 @@ def test_frozen_v1_identities_and_audit_remain_unchanged() -> None:
     assert audit_module.frozen_v1.audit_followup(ROOT)["status"] == "passed"
 
 
-def test_consumer_worktree_receipts_are_not_required() -> None:
-    for source in EXPECTED_SOURCES:
-        assert not (ROOT / source["path"]).exists()
-        assert not (ROOT / source["sidecar_path"]).exists()
+def test_consumer_worktree_receipts_are_not_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    forbidden = {
+        (ROOT / source[key]).resolve()
+        for source in EXPECTED_SOURCES
+        for key in ("path", "sidecar_path")
+    }
+    original_read_bytes = Path.read_bytes
+    original_open = Path.open
+
+    def guarded_read_bytes(path: Path) -> bytes:
+        if path.resolve() in forbidden:
+            raise AssertionError(
+                "audit must authenticate Git blobs, not worktree receipts"
+            )
+        return original_read_bytes(path)
+
+    def guarded_open(path: Path, *args: object, **kwargs: object) -> object:
+        if path.resolve() in forbidden:
+            raise AssertionError(
+                "audit must authenticate Git blobs, not worktree receipts"
+            )
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+    monkeypatch.setattr(Path, "open", guarded_open)
     assert audit_risk_evidence(ROOT)["receipt_count"] == 3
 
 

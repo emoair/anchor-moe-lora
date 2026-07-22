@@ -1,0 +1,117 @@
+schema_version: anchor.qwen-controlled-proxy-risk-evidence-consumer-config.v1
+claim_scope: additive_diagnostic_risk_evidence_only_no_training_authority
+
+paths:
+  repository_root: ../..
+  prerequisite_config: configs/research/qwen_train_prerequisite_consumer_v2.yaml
+  prerequisite_implementation: src/anchor_mvp/research/qwen_train_prerequisite_consumer_v2.py
+  followup_contract: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json
+  followup_contract_sidecar: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json.sha256
+  followup_schema: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.schema.json
+  followup_implementation: src/anchor_mvp/swebench/synthetic_scaffold_controlled_proxy_followup.py
+  followup_source: fixtures/research/synthetic_scaffold_controlled_proxy_followup_v1/source/qwen_budget_matched_ablation_v1/comparison.json
+  followup_source_sidecar: fixtures/research/synthetic_scaffold_controlled_proxy_followup_v1/source/qwen_budget_matched_ablation_v1/comparison.json.sha256
+  risk_contract: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json
+  risk_contract_sidecar: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json.sha256
+  risk_schema: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.schema.json
+  risk_implementation: src/anchor_mvp/swebench/synthetic_scaffold_controlled_proxy_risk_evidence.py
+
+prerequisite_binding:
+  config_sha256: 616d685c35e044d5e52f87b2a7868d6e4bd25b3c7119e7f5680634905bb07004
+  implementation_sha256: 01bf5fcbc16bdd781ce7ac1c209b2fbe9c52c3a7e8196ba6d3c146226ff28f90
+  required_status: blocked
+  training_authorized: false
+  formal_training_authorized: false
+
+producer_releases:
+  followup_v1:
+    commit: 23194f7b3c707e3531ac92a64863c2b2f523f81d
+    parent: 901a7e17f1373c50ceff3381691956c08890696c
+    tree: 7c580ea4f24a6a34d95f03c766f95affe29aa34e
+    artifacts:
+      - role: schema
+        path: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.schema.json
+        sha256: fe3878cac9d3be773a676c23025e79cc7f64063da03a53c54eb7f4b59594e0b6
+        git_blob_sha1: 903b1e6858ab6c05d76cb29e75ed0f51c3e77503
+      - role: contract
+        path: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json
+        sha256: 06ed121b23570546eb00088c891b273806dab1a1f764c9e40fba527cbf6447df
+        git_blob_sha1: 9b706c77bbe57558d12670b47516920e87eb57d9
+      - role: contract_sidecar
+        path: configs/research/synthetic_scaffold_controlled_proxy_followup_v1.json.sha256
+        sha256: bf346eb634d8f00f36eb069707069f2983d9083c9f8c1f416dc93795cb4f7209
+        git_blob_sha1: 53b4cf17d96fdd92186fe1cb1ead47f50801da91
+      - role: implementation
+        path: src/anchor_mvp/swebench/synthetic_scaffold_controlled_proxy_followup.py
+        sha256: 588c396febab5de75b772a4f46d58f21c8456247097fccc345cb1c738b0093a3
+        git_blob_sha1: 2091a44cfdfd6bd87266836fea2d5dda22add932
+      - role: source
+        path: fixtures/research/synthetic_scaffold_controlled_proxy_followup_v1/source/qwen_budget_matched_ablation_v1/comparison.json
+        sha256: 920f0abe3241a8a056114bd509f04a9b1fd0b23cfe0582857ff8719fefcd5e45
+        git_blob_sha1: 89d45cb9486702436f4732529f8cb88a278ac803
+      - role: source_sidecar
+        path: fixtures/research/synthetic_scaffold_controlled_proxy_followup_v1/source/qwen_budget_matched_ablation_v1/comparison.json.sha256
+        sha256: bbdeb5b3ac8f7890a93c736b19bcd920875f642174f99914b199d1d62ce06830
+        git_blob_sha1: 8e256d24048b09299228395ff0f971c5906fe1b7
+  risk_companion_v1:
+    commit: 7acf75a4d0198230e9ac4b1d894fdf4d93721c96
+    parent: 23194f7b3c707e3531ac92a64863c2b2f523f81d
+    tree: e7aed3b5934ca4bd17b9c46d566442c04c22806a
+    artifacts:
+      - role: schema
+        path: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.schema.json
+        sha256: c04ba5072c2892f111a913808559f1c3eca9864977159c387df09fa6b7081068
+        git_blob_sha1: 6ad789912ab6454d39d5559a5aa82d3be8eba7dd
+      - role: contract
+        path: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json
+        sha256: 352870bbea976c0b97df722fd3b188d731a8d463ec33f27bcd15bdb2e292ac28
+        git_blob_sha1: 045c2622ccfb8ba71a760e8803f684ef782aad9f
+      - role: contract_sidecar
+        path: configs/research/synthetic_scaffold_controlled_proxy_risk_evidence_companion_v1.json.sha256
+        sha256: c75a91a78123fc1f583e9d053525c290fa39c3e6a811b22ecb48b11581c5503b
+        git_blob_sha1: fd972a346bec393fa7a2401ef1ad569938ad525c
+      - role: implementation
+        path: src/anchor_mvp/swebench/synthetic_scaffold_controlled_proxy_risk_evidence.py
+        sha256: 2f707507014dc9e70546a024b8bf109f779cf0c33019439f8396563e795e5d3a
+        git_blob_sha1: 91115a48effa29502360200d1fbd379677fa38ec
+
+consumer_evidence_binding:
+  commit: 58e9cd0c021ac0f01250746d44f199c1f616261d
+  parent: 6ef29f1e0e9e110d59f9f2a09c1a8151f04b2465
+  tree: 1f275e2451c08f540d82ac5f24ee8b7beace060b
+  receipts:
+    - role: q_o_branch_ablation
+      path: docs/research/results/qwen_qo_memory_ablation_audit_v1_receipt.json
+      sha256: 59750842e7bbad7fb06fcc64a1b9956dbd449e5591ba85f4abca021616da8ca3
+      sidecar_sha256: ad18c248e9bb091797f229927febddd11c0520d1497943119e0da2401b657a31
+    - role: spectral_risk
+      path: docs/research/results/qwen_qo_spectral_memory_audit_v1_receipt.json
+      sha256: c2fddd98ece4127ad3f17a19ffbd5bfa6e8d7f95588964b389e7e2970cfc8dd3
+      sidecar_sha256: 61b829f963b48dfe1b3f98337b6992dce0e5944595ec436e296b37b2986ac74a
+    - role: attention_hook
+      path: docs/research/results/qwen_attention_weight_hook_qpluso_v1_summary.json
+      sha256: fc1ce0168cacfd1ed46a7ffcc1b482e7593253e224e780ab7dc6f7b701bb58a4
+      sidecar_sha256: 1238605cf7abff130096e78071dd1f6ab2f916af93d85b29fdf3e054e1a13120
+
+policy:
+  effective_condition: prerequisite_v2_and_followup_v1_and_risk_companion_v1
+  unknown_or_missing_result: fail_closed
+  require_single_bytes_snapshot_and_final_recheck: true
+  require_exact_sha256_sidecars: true
+  evidence_status: authenticated_non_authorizing_diagnostic
+  branch_ablation_semantics: jointly_trained_q_plus_o_checkpoint_retained_branches
+  retained_branch_label: o_branch_retained
+  independently_trained_o_only_claimed: false
+  branch_effects_additive_claimed: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  formal_v3_ready_count: 0
+  formal_v3_total: 5
+  protected_inventory_ready_count: 2
+  protected_inventory_total: 6
+  model_loads: 0
+  gpu_requests: 0
+  network_requests: 0
+  provider_requests: 0
+  protected_content_reads: 0
