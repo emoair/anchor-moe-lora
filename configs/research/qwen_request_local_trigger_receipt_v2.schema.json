@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-request-local-trigger-receipt-v2.json",
+  "title": "Standalone Qwen request-local 44-token trigger receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "source_bindings",
+    "producer",
+    "tokenizer_binding_sha256",
+    "tokenizer_binding",
+    "request2_materialization",
+    "tf32_proxy_source",
+    "audit",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.qwen-request-local-trigger-receipt.v2"},
+    "status": {"const": "ready_diagnostic_only"},
+    "source_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_commit",
+        "consumer_baseline_commit",
+        "consumer_baseline_semantics"
+      ],
+      "properties": {
+        "producer_commit": {"const": "744e23f975b13923903f5fabe04c32e74ea25dc4"},
+        "consumer_baseline_commit": {"const": "b0441e6beaa07b180d7fc69e462b4d2babf21792"},
+        "consumer_baseline_semantics": {
+          "const": "required_ancestor_or_equal_dependency"
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "config",
+        "config_schema",
+        "receipt_schema",
+        "implementation",
+        "canonical_json_policy",
+        "receipt_sha256_sidecar_required",
+        "receipt_self_sha256_in_body"
+      ],
+      "properties": {
+        "producer_id": {"const": "anchor.qwen-request-local-trigger-materializer.v2"},
+        "config": {"$ref": "#/$defs/path_sha"},
+        "config_schema": {"$ref": "#/$defs/path_sha"},
+        "receipt_schema": {"$ref": "#/$defs/path_sha"},
+        "implementation": {"$ref": "#/$defs/path_sha"},
+        "canonical_json_policy": {"const": "utf8_sort_keys_compact_no_normalization_lf_v1"},
+        "receipt_sha256_sidecar_required": {"const": true},
+        "receipt_self_sha256_in_body": {"const": false}
+      }
+    },
+    "tokenizer_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "tokenizer_binding": {"$ref": "#/$defs/tokenizer_binding"},
+    "request2_materialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activation_semantics",
+        "serialization_scope",
+        "exact_r2_serialization_sha256",
+        "chat_template_sha256",
+        "ordered_input_token_ids_sha256",
+        "ordered_input_token_ids_digest_algorithm",
+        "legacy_manual_probe_ordered_ids_sha256",
+        "trigger_text_sha256",
+        "trigger_covering_token_ids_sha256",
+        "legacy_manual_probe_trigger_ids_sha256",
+        "trigger_text_occurrences",
+        "trigger_token_sequence_occurrences",
+        "trigger_span_zero_based_exclusive",
+        "total_tokens",
+        "trigger_span_width",
+        "boundary_overhang",
+        "complete_r2_tokenization_count",
+        "isolated_trigger_encoding_authoritative",
+        "raw_token_ids_emitted",
+        "global_token_index_emitted",
+        "planner_request1_private_kv_reused"
+      ],
+      "properties": {
+        "activation_semantics": {"const": "next_request_input_activation_only"},
+        "serialization_scope": {"const": "exact_full_chat_templated_request2_bytes_single_tokenization"},
+        "exact_r2_serialization_sha256": {"const": "ed6adfcbd0052fdda52a5ab8c52ed04d6e55c7f62493f0d326d4e1b29d55c9f3"},
+        "chat_template_sha256": {"const": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f"},
+        "ordered_input_token_ids_sha256": {"const": "d989d46116cd50f30d5bba1be48a366e2a04efb8c156550d0f11a532f19121e6"},
+        "ordered_input_token_ids_digest_algorithm": {"const": "sha256_concat_signed_int64_big_endian_v1"},
+        "legacy_manual_probe_ordered_ids_sha256": {"const": "c78e409a9ec5b772c0b56f9efbd0f179bfbf35a21c6e8cbb3f6c998d9d1f57f2"},
+        "trigger_text_sha256": {"const": "c963be7f4ed297935fb5fc732292ad62f4fce620a75a6906639bcda0edfdec3c"},
+        "trigger_covering_token_ids_sha256": {"const": "1d6889128be1b4b84ae22999ffe267a1cc862209b7c38ef3f932a5e69851a412"},
+        "legacy_manual_probe_trigger_ids_sha256": {"const": "fca583f23dcd62a9d0531744a7c70366558768a6483398150d1d5e94c13fbf8d"},
+        "trigger_text_occurrences": {"const": 1},
+        "trigger_token_sequence_occurrences": {"const": 1},
+        "trigger_span_zero_based_exclusive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["index_base", "end_semantics", "start", "end"],
+          "properties": {
+            "index_base": {"const": "zero"},
+            "end_semantics": {"const": "exclusive"},
+            "start": {"const": 25},
+            "end": {"const": 33}
+          }
+        },
+        "total_tokens": {"const": 44},
+        "trigger_span_width": {"const": 8},
+        "boundary_overhang": {"$ref": "#/$defs/overhang"},
+        "complete_r2_tokenization_count": {"const": 1},
+        "isolated_trigger_encoding_authoritative": {"const": false},
+        "raw_token_ids_emitted": {"const": false},
+        "global_token_index_emitted": {"const": false},
+        "planner_request1_private_kv_reused": {"const": false}
+      }
+    },
+    "tf32_proxy_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "schema_version", "proxy_signal_passed"],
+      "properties": {
+        "path": {"const": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json"},
+        "sha256": {"const": "278a58441e2f4fb7fc46a67dd5acec3851a7b6937685d90c77873e5972b49cce"},
+        "schema_version": {"const": "anchor.qwen-alora-prefix-kv-diagnostic-receipt.v2"},
+        "proxy_signal_passed": {"const": true}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "model_weight_files_read",
+        "gguf_files_read",
+        "dataset_reads",
+        "canonical_gold_read",
+        "heldout_content_read",
+        "scaffold_content_read"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "model_weight_files_read": {"const": false},
+        "gguf_files_read": {"const": false},
+        "dataset_reads": {"const": 0},
+        "canonical_gold_read": {"const": false},
+        "heldout_content_read": {"const": false},
+        "scaffold_content_read": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "formal",
+        "training_authorized",
+        "numeric_equivalence",
+        "thresholds_formal",
+        "proxy_signal_passed",
+        "quality_validated",
+        "physical_kv_claimed",
+        "multistream_claimed"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "numeric_equivalence": {"const": false},
+        "thresholds_formal": {"const": false},
+        "proxy_signal_passed": {"const": true},
+        "quality_validated": {"const": false},
+        "physical_kv_claimed": {"const": false},
+        "multistream_claimed": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    },
+    "path_sha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"enum": ["merges.txt", "tokenizer.json", "tokenizer_config.json", "vocab.json"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 134217728}
+      }
+    },
+    "tokenizer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "tokenizer_id",
+        "tokenizer_revision",
+        "asset_inventory",
+        "tokenizer_assets_sha256",
+        "runtime_descriptor",
+        "tokenizer_runtime_descriptor_sha256",
+        "chat_template",
+        "serialization_policy",
+        "serialization_policy_sha256",
+        "special_token_policy",
+        "special_token_policy_sha256",
+        "network_access",
+        "local_files_only",
+        "trust_remote_code",
+        "model_weight_files_read",
+        "gguf_files_read",
+        "exact_tokenization_ready",
+        "training_authorized"
+      ],
+      "properties": {
+        "backend": {"const": "local_offline_hf_fast_tokenizer"},
+        "tokenizer_id": {"const": "Qwen/Qwen2.5-1.5B-Instruct"},
+        "tokenizer_revision": {"const": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34"},
+        "asset_inventory": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/asset"},
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tokenizer_assets_sha256": {"const": "872b55391b4daff195a1caf9a05bb3305d7c84b759394ad5cd0d7ebc0b8192a8"},
+        "runtime_descriptor": {"type": "object"},
+        "tokenizer_runtime_descriptor_sha256": {"$ref": "#/$defs/sha256"},
+        "chat_template": {"type": "object"},
+        "serialization_policy": {"type": "object"},
+        "serialization_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "special_token_policy": {"type": "object"},
+        "special_token_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "network_access": {"const": false},
+        "local_files_only": {"const": true},
+        "trust_remote_code": {"const": false},
+        "model_weight_files_read": {"const": false},
+        "gguf_files_read": {"const": false},
+        "exact_tokenization_ready": {"const": true},
+        "training_authorized": {"const": false}
+      }
+    },
+    "overhang": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leading_utf8_bytes",
+        "trailing_utf8_bytes",
+        "leading_codepoints",
+        "trailing_codepoints"
+      ],
+      "properties": {
+        "leading_utf8_bytes": {"const": 0},
+        "trailing_utf8_bytes": {"const": 1},
+        "leading_codepoints": {"const": 0},
+        "trailing_codepoints": {"const": 1}
+      }
+    }
+  }
+}

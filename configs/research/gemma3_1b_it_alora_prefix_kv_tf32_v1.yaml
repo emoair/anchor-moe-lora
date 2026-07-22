@@ -1,0 +1,141 @@
+{
+  "schema_version": "anchor.gemma3-alora-prefix-kv-diagnostic-config.v1",
+  "profile_id": "gemma3_1b_it_tf32_qproj_alora_v1",
+  "claim_scope": {
+    "diagnostic_only": true,
+    "formal": false,
+    "training_authorized": false,
+    "quality_validated": false,
+    "evidence_scope": "local_gemma3_1b_mechanical_prefix_kv_feasibility_tf32_only",
+    "gate_semantics": "predeclared_non_formal_proxy_not_numeric_equivalence"
+  },
+  "schemas": {
+    "config": {
+      "path": "configs/research/gemma3_alora_prefix_kv_diagnostic_config.schema.json",
+      "version": "anchor.gemma3-alora-prefix-kv-diagnostic-config.v1",
+      "sha256": "e0755a253fd4203c186d50553a1439ef6b4f14ebe6a7383519bf4ff64b47fb59"
+    },
+    "receipt": {
+      "path": "configs/research/gemma3_alora_prefix_kv_diagnostic_receipt.schema.json",
+      "version": "anchor.gemma3-alora-prefix-kv-diagnostic-receipt.v1",
+      "sha256": "178ae228716d4d26c91185d03954dbcd1b36592a459756bb7b0b43488b101004"
+    }
+  },
+  "model": {
+    "id": "google/gemma-3-1b-it-keras-v3-hf-export",
+    "source_format": "keras_hub_preset_to_hf_transformers_bf16",
+    "exporter": "keras_hub.models.Gemma3CausalLM.export_to_transformers",
+    "exporter_version": "0.29.1",
+    "load_strategy": "authenticated_private_physical_copy",
+    "local_path": "${ANCHOR_GEMMA3_1B_IT_HF_PATH:-../models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16}",
+    "local_files_only": true,
+    "network_allowed": false,
+    "trust_remote_code": false,
+    "assets": [
+      {"path": "config.json", "sha256": "a102086c644174f9f7432df15d28fd69ad687b64d8e7756f0e9b6bfabc002d0c"},
+      {"path": "model.safetensors", "sha256": "c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9"},
+      {"path": "EXPORT_MANIFEST.json", "sha256": "61a9ac5fab43da9bf053eb46642a030fcd7485100c3e82eb5d90f03b9d8124bb"}
+    ]
+  },
+  "tokenizer": {
+    "backend": "sentencepiece_direct_immutable_proto",
+    "sentencepiece_path": "${ANCHOR_GEMMA3_1B_IT_SPM_PATH:-../models/google-gemma-3-1b-it-keras-v3/extracted/assets/tokenizer/vocabulary.spm}",
+    "sentencepiece_sha256": "1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c",
+    "vocab_size": 262144,
+    "explicit_bos_id": 2,
+    "token_ids_digest_algorithm": "sha256_signed_int64_big_endian_concatenation_v1",
+    "chat_template_bound": false,
+    "auto_tokenizer_used": false
+  },
+  "adapter": {
+    "kind": "peft_alora_probe",
+    "target_modules": ["q_proj"],
+    "rank": 4,
+    "alpha": 8,
+    "dropout": 0.0,
+    "bias": "none",
+    "initialization": "deterministic_nonzero_b_probe_only",
+    "seed": 20260722,
+    "training_steps": 0,
+    "save_adapter": false
+  },
+  "protocol": {
+    "planner_request": {
+      "executed": false,
+      "private_kv_reused": false,
+      "committed_scaffold_reencoded_in_request2": true
+    },
+    "request2": {
+      "serialization_version": "anchor.gemma3-plaintext-r2.v1",
+      "turn_start": "<start_of_turn>",
+      "turn_end": "<end_of_turn>",
+      "user_role": "user",
+      "model_role": "model",
+      "header": "Builder request v1",
+      "planner_scaffold_summary": "Return JSON for adding 2 and 3.",
+      "task_summary": "Return only the result object.",
+      "invocation_text": "<|activate:builder|>",
+      "missing_invocation_text": "<|inactive:builder|>",
+      "complete_serialization_count": 1,
+      "span_method": "sentencepiece_single_full_request_immutable_proto_covering_span",
+      "isolated_invocation_authoritative": false
+    },
+    "cache_reuse": {
+      "prefix_producer": "frozen_base",
+      "prefix_adapter_state": "off",
+      "planner_private_kv_allowed": false,
+      "exact_ordered_prefix_required": true,
+      "full_generation_kv_shared_claimed": false
+    }
+  },
+  "numerics": {
+    "dtype": "float32",
+    "attention": "eager",
+    "tf32": true,
+    "matmul_precision": "high",
+    "cublas_workspace_config": ":4096:8",
+    "deterministic_algorithms": true,
+    "batch_size": 1,
+    "seed": 20260722,
+    "autocast": false,
+    "greedy_tokens": 4
+  },
+  "gates": {
+    "paired_differential_max_abs": 0.05,
+    "paired_to_adapter_effect_ratio_max": 0.2,
+    "adapter_effect_min_abs": 0.001,
+    "missing_trigger_effect_exact": 0.0,
+    "prefix_kv_bit_equal": true,
+    "finite": true,
+    "shape_equal": true,
+    "argmax_equal": true,
+    "greedy_equal": true,
+    "peak_allocated_mib_max": 7168
+  },
+  "output": {
+    "receipt_path": "artifacts/diagnostics/gemma3_1b_it_alora_prefix_kv_tf32_v1/diagnostic_receipt.json",
+    "persist_logits": false,
+    "persist_kv": false,
+    "persist_token_ids": false,
+    "persist_adapter": false,
+    "atomic_publish": true,
+    "refuse_overwrite": true
+  },
+  "audit": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "dataset_reads": 0,
+    "model_loads_max": 1,
+    "training_executed": false,
+    "prohibited_claims": [
+      "numeric_equivalence",
+      "formal_readiness",
+      "training_readiness",
+      "quality_improvement",
+      "multistream_runtime",
+      "zero_copy_kv",
+      "full_generation_kv_shared",
+      "chat_template_equivalence"
+    ]
+  }
+}

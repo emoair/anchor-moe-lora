@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-alora-prefix-kv-diagnostic-config.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "claim_scope", "schemas", "model", "tokenizer", "adapter", "protocol", "numerics", "gates", "output", "audit"],
+  "properties": {
+    "schema_version": {"const": "anchor.gemma3-alora-prefix-kv-diagnostic-config.v1"},
+    "profile_id": {"const": "gemma3_1b_it_tf32_qproj_alora_v1"},
+    "claim_scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["diagnostic_only", "formal", "training_authorized", "quality_validated", "evidence_scope", "gate_semantics"],
+      "properties": {
+        "diagnostic_only": {"const": true}, "formal": {"const": false},
+        "training_authorized": {"const": false}, "quality_validated": {"const": false},
+        "evidence_scope": {"const": "local_gemma3_1b_mechanical_prefix_kv_feasibility_tf32_only"},
+        "gate_semantics": {"const": "predeclared_non_formal_proxy_not_numeric_equivalence"}
+      }
+    },
+    "schemas": {
+      "type": "object", "additionalProperties": false, "required": ["config", "receipt"],
+      "properties": {
+        "config": {"$ref": "#/$defs/config_schema_binding"},
+        "receipt": {"$ref": "#/$defs/receipt_schema_binding"}
+      }
+    },
+    "model": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "source_format", "exporter", "exporter_version", "load_strategy", "local_path", "local_files_only", "network_allowed", "trust_remote_code", "assets"],
+      "properties": {
+        "id": {"const": "google/gemma-3-1b-it-keras-v3-hf-export"},
+        "source_format": {"const": "keras_hub_preset_to_hf_transformers_bf16"},
+        "exporter": {"const": "keras_hub.models.Gemma3CausalLM.export_to_transformers"},
+        "exporter_version": {"const": "0.29.1"},
+        "load_strategy": {"const": "authenticated_private_physical_copy"},
+        "local_path": {"type": "string", "minLength": 1, "not": {"pattern": "(?i)(?:\\.gguf|q4_k|q8_0)"}},
+        "local_files_only": {"const": true}, "network_allowed": {"const": false},
+        "trust_remote_code": {"const": false},
+        "assets": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "prefixItems": [
+            {"$ref": "#/$defs/config_asset"}, {"$ref": "#/$defs/model_asset"},
+            {"$ref": "#/$defs/export_manifest_asset"}
+          ], "items": false
+        }
+      }
+    },
+    "tokenizer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["backend", "sentencepiece_path", "sentencepiece_sha256", "vocab_size", "explicit_bos_id", "token_ids_digest_algorithm", "chat_template_bound", "auto_tokenizer_used"],
+      "properties": {
+        "backend": {"const": "sentencepiece_direct_immutable_proto"},
+        "sentencepiece_path": {"type": "string", "minLength": 1},
+        "sentencepiece_sha256": {"const": "1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c"},
+        "vocab_size": {"const": 262144}, "explicit_bos_id": {"const": 2},
+        "token_ids_digest_algorithm": {"const": "sha256_signed_int64_big_endian_concatenation_v1"},
+        "chat_template_bound": {"const": false}, "auto_tokenizer_used": {"const": false}
+      }
+    },
+    "adapter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "target_modules", "rank", "alpha", "dropout", "bias", "initialization", "seed", "training_steps", "save_adapter"],
+      "properties": {
+        "kind": {"const": "peft_alora_probe"}, "target_modules": {"const": ["q_proj"]},
+        "rank": {"const": 4}, "alpha": {"const": 8}, "dropout": {"const": 0.0},
+        "bias": {"const": "none"}, "initialization": {"const": "deterministic_nonzero_b_probe_only"},
+        "seed": {"const": 20260722}, "training_steps": {"const": 0}, "save_adapter": {"const": false}
+      }
+    },
+    "protocol": {
+      "type": "object", "additionalProperties": false, "required": ["planner_request", "request2", "cache_reuse"],
+      "properties": {
+        "planner_request": {
+          "type": "object", "additionalProperties": false,
+          "required": ["executed", "private_kv_reused", "committed_scaffold_reencoded_in_request2"],
+          "properties": {"executed": {"const": false}, "private_kv_reused": {"const": false}, "committed_scaffold_reencoded_in_request2": {"const": true}}
+        },
+        "request2": {
+          "type": "object", "additionalProperties": false,
+          "required": ["serialization_version", "turn_start", "turn_end", "user_role", "model_role", "header", "planner_scaffold_summary", "task_summary", "invocation_text", "missing_invocation_text", "complete_serialization_count", "span_method", "isolated_invocation_authoritative"],
+          "properties": {
+            "serialization_version": {"const": "anchor.gemma3-plaintext-r2.v1"},
+            "turn_start": {"const": "<start_of_turn>"}, "turn_end": {"const": "<end_of_turn>"},
+            "user_role": {"const": "user"}, "model_role": {"const": "model"},
+            "header": {"const": "Builder request v1"},
+            "planner_scaffold_summary": {"const": "Return JSON for adding 2 and 3."},
+            "task_summary": {"const": "Return only the result object."},
+            "invocation_text": {"const": "<|activate:builder|>"},
+            "missing_invocation_text": {"const": "<|inactive:builder|>"},
+            "complete_serialization_count": {"const": 1},
+            "span_method": {"const": "sentencepiece_single_full_request_immutable_proto_covering_span"},
+            "isolated_invocation_authoritative": {"const": false}
+          }
+        },
+        "cache_reuse": {
+          "type": "object", "additionalProperties": false,
+          "required": ["prefix_producer", "prefix_adapter_state", "planner_private_kv_allowed", "exact_ordered_prefix_required", "full_generation_kv_shared_claimed"],
+          "properties": {
+            "prefix_producer": {"const": "frozen_base"}, "prefix_adapter_state": {"const": "off"},
+            "planner_private_kv_allowed": {"const": false}, "exact_ordered_prefix_required": {"const": true},
+            "full_generation_kv_shared_claimed": {"const": false}
+          }
+        }
+      }
+    },
+    "numerics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["dtype", "attention", "tf32", "matmul_precision", "cublas_workspace_config", "deterministic_algorithms", "batch_size", "seed", "autocast", "greedy_tokens"],
+      "properties": {
+        "dtype": {"const": "float32"}, "attention": {"const": "eager"}, "tf32": {"const": true},
+        "matmul_precision": {"const": "high"}, "cublas_workspace_config": {"const": ":4096:8"},
+        "deterministic_algorithms": {"const": true}, "batch_size": {"const": 1},
+        "seed": {"const": 20260722}, "autocast": {"const": false}, "greedy_tokens": {"const": 4}
+      }
+    },
+    "gates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["paired_differential_max_abs", "paired_to_adapter_effect_ratio_max", "adapter_effect_min_abs", "missing_trigger_effect_exact", "prefix_kv_bit_equal", "finite", "shape_equal", "argmax_equal", "greedy_equal", "peak_allocated_mib_max"],
+      "properties": {
+        "paired_differential_max_abs": {"const": 0.05}, "paired_to_adapter_effect_ratio_max": {"const": 0.2},
+        "adapter_effect_min_abs": {"const": 0.001}, "missing_trigger_effect_exact": {"const": 0.0},
+        "prefix_kv_bit_equal": {"const": true}, "finite": {"const": true}, "shape_equal": {"const": true},
+        "argmax_equal": {"const": true}, "greedy_equal": {"const": true}, "peak_allocated_mib_max": {"const": 7168}
+      }
+    },
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["receipt_path", "persist_logits", "persist_kv", "persist_token_ids", "persist_adapter", "atomic_publish", "refuse_overwrite"],
+      "properties": {
+        "receipt_path": {"const": "artifacts/diagnostics/gemma3_1b_it_alora_prefix_kv_tf32_v1/diagnostic_receipt.json"},
+        "persist_logits": {"const": false}, "persist_kv": {"const": false}, "persist_token_ids": {"const": false},
+        "persist_adapter": {"const": false}, "atomic_publish": {"const": true}, "refuse_overwrite": {"const": true}
+      }
+    },
+    "audit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "dataset_reads", "model_loads_max", "training_executed", "prohibited_claims"],
+      "properties": {
+        "provider_requests": {"const": 0}, "network_requests": {"const": 0}, "dataset_reads": {"const": 0},
+        "model_loads_max": {"const": 1}, "training_executed": {"const": false},
+        "prohibited_claims": {"const": ["numeric_equivalence", "formal_readiness", "training_readiness", "quality_improvement", "multistream_runtime", "zero_copy_kv", "full_generation_kv_shared", "chat_template_equivalence"]}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "config_schema_binding": {"type": "object", "additionalProperties": false, "required": ["path", "version", "sha256"], "properties": {"path": {"const": "configs/research/gemma3_alora_prefix_kv_diagnostic_config.schema.json"}, "version": {"const": "anchor.gemma3-alora-prefix-kv-diagnostic-config.v1"}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "receipt_schema_binding": {"type": "object", "additionalProperties": false, "required": ["path", "version", "sha256"], "properties": {"path": {"const": "configs/research/gemma3_alora_prefix_kv_diagnostic_receipt.schema.json"}, "version": {"const": "anchor.gemma3-alora-prefix-kv-diagnostic-receipt.v1"}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "config_asset": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"const": "config.json"}, "sha256": {"const": "a102086c644174f9f7432df15d28fd69ad687b64d8e7756f0e9b6bfabc002d0c"}}},
+    "model_asset": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"const": "model.safetensors"}, "sha256": {"const": "c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9"}}},
+    "export_manifest_asset": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"const": "EXPORT_MANIFEST.json"}, "sha256": {"const": "61a9ac5fab43da9bf053eb46642a030fcd7485100c3e82eb5d90f03b9d8124bb"}}}
+  }
+}

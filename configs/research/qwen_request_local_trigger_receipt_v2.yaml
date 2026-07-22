@@ -1,0 +1,127 @@
+{
+  "schema_version": "anchor.qwen-request-local-trigger-receipt-config.v2",
+  "claim_scope": {
+    "diagnostic_only": true,
+    "formal": false,
+    "training_authorized": false,
+    "numeric_equivalence": false,
+    "thresholds_formal": false,
+    "proxy_signal_passed": true
+  },
+  "source_bindings": {
+    "producer_commit": "744e23f975b13923903f5fabe04c32e74ea25dc4",
+    "consumer_baseline_commit": "b0441e6beaa07b180d7fc69e462b4d2babf21792",
+    "consumer_baseline_semantics": "required_ancestor_or_equal_dependency"
+  },
+  "schemas": {
+    "config": {
+      "path": "configs/research/qwen_request_local_trigger_receipt_v2_config.schema.json",
+      "version": "anchor.qwen-request-local-trigger-receipt-config.v2",
+      "sha256": "aa2822a7c4ea60d6148858567920a623959fbe5363a21e2a86d5c855b5d6330f"
+    },
+    "receipt": {
+      "path": "configs/research/qwen_request_local_trigger_receipt_v2.schema.json",
+      "version": "anchor.qwen-request-local-trigger-receipt.v2",
+      "sha256": "d5324e8a50dc033850ff4301b7723ad3fc84bcaa312a1ff4eabac43e348a98fc"
+    }
+  },
+  "implementation": {
+    "path": "src/anchor_mvp/research/qwen_request_local_trigger_receipt_v2.py",
+    "algorithm": "anchor.qwen-request-local-trigger-materializer.v2"
+  },
+  "tokenizer": {
+    "id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "revision": "3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34",
+    "local_path": "${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}",
+    "assets": [
+      {"path": "merges.txt", "sha256": "0de0bc38a29ea38eef099b677fa1ff52edd181e573529af26c4cd2136e233777", "bytes": 1823226},
+      {"path": "tokenizer.json", "sha256": "47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9", "bytes": 7334926},
+      {"path": "tokenizer_config.json", "sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8", "bytes": 7511},
+      {"path": "vocab.json", "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", "bytes": 2776833}
+    ],
+    "tokenizer_assets_sha256": "872b55391b4daff195a1caf9a05bb3305d7c84b759394ad5cd0d7ebc0b8192a8",
+    "runtime": {
+      "python": "3.11.15",
+      "transformers": "5.13.0",
+      "tokenizers": "0.22.2",
+      "tokenizer_class": "Qwen2Tokenizer",
+      "is_fast": true
+    },
+    "chat_template": {
+      "source_asset_path": "tokenizer_config.json",
+      "source_asset_sha256": "fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8",
+      "source_locator": "/chat_template",
+      "exact_utf8_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f"
+    },
+    "serialization_policy": {
+      "apply_chat_template": true,
+      "tokenize": false,
+      "add_generation_prompt": true,
+      "add_special_tokens": false,
+      "complete_request_tokenization_count": 1,
+      "unicode_normalization": false,
+      "newline_normalization": false
+    },
+    "special_token_policy": {
+      "chat_template_owns_special_tokens": true,
+      "caller_added_special_tokens": false,
+      "trust_remote_code": false,
+      "local_files_only": true,
+      "network_allowed": false
+    },
+    "expected_tokenizer_binding_sha256": "a76b0f60e5c1e2d92b8a8d9131f9afe9edfda3fcbf0221c4234359f70e806425"
+  },
+  "request2": {
+    "system_content": "You are a deterministic frontend builder.",
+    "user_prefix": "Planner scaffold: implement one small deterministic function.",
+    "trigger_text": "<|anchor_builder_v1|>",
+    "user_suffix": "Execute the committed builder task."
+  },
+  "expected_materialization": {
+    "exact_r2_serialization_sha256": "ed6adfcbd0052fdda52a5ab8c52ed04d6e55c7f62493f0d326d4e1b29d55c9f3",
+    "ordered_input_token_ids_sha256": "d989d46116cd50f30d5bba1be48a366e2a04efb8c156550d0f11a532f19121e6",
+    "ordered_input_token_ids_digest_algorithm": "sha256_concat_signed_int64_big_endian_v1",
+    "legacy_json_array_ordered_ids_sha256": "c78e409a9ec5b772c0b56f9efbd0f179bfbf35a21c6e8cbb3f6c998d9d1f57f2",
+    "trigger_text_sha256": "c963be7f4ed297935fb5fc732292ad62f4fce620a75a6906639bcda0edfdec3c",
+    "trigger_covering_token_ids_sha256": "1d6889128be1b4b84ae22999ffe267a1cc862209b7c38ef3f932a5e69851a412",
+    "legacy_json_array_trigger_ids_sha256": "fca583f23dcd62a9d0531744a7c70366558768a6483398150d1d5e94c13fbf8d",
+    "total_tokens": 44,
+    "trigger_span_start": 25,
+    "trigger_span_end": 33,
+    "trigger_span_width": 8,
+    "trigger_text_occurrences": 1,
+    "trigger_token_sequence_occurrences": 1,
+    "boundary_overhang": {
+      "leading_utf8_bytes": 0,
+      "trailing_utf8_bytes": 1,
+      "leading_codepoints": 0,
+      "trailing_codepoints": 1
+    }
+  },
+  "tf32_proxy_source": {
+    "path": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json",
+    "sha256": "278a58441e2f4fb7fc46a67dd5acec3851a7b6937685d90c77873e5972b49cce",
+    "schema_version": "anchor.qwen-alora-prefix-kv-diagnostic-receipt.v2",
+    "proxy_signal_passed": true
+  },
+  "output": {
+    "receipt_path": "fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json",
+    "mandatory_sha256_sidecar": true,
+    "atomic_publish": true,
+    "refuse_overwrite": true,
+    "raw_token_ids_emitted": false,
+    "global_token_index_emitted": false
+  },
+  "audit": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "model_weight_files_read": false,
+    "gguf_files_read": false,
+    "dataset_reads": 0,
+    "canonical_gold_read": false,
+    "heldout_content_read": false,
+    "scaffold_content_read": false
+  }
+}
