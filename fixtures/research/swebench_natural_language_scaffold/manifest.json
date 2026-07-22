@@ -166,12 +166,12 @@
   "network_requests": 0,
   "producer": {
     "config_schema_version": "anchor.natural-language-scaffold-config.v1",
-    "config_sha256": "9c092c1f39e56b5e745515a0124715dd025aed5f78597edc2a1dfc894f0fdd40",
-    "implementation_sha256": "49065192d4f9e64e1e386820b9f0e04b5b97836a17f53c430434fbe93086cc20",
-    "manifest_schema_sha256": "58acca23cf5f76187aadf40b95f6fbeb4cd667299e6c1183656bf296c21ee302",
+    "config_sha256": "e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38",
+    "implementation_sha256": "09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330",
+    "manifest_schema_sha256": "8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16",
     "name": "anchor.natural-language-scaffold",
     "producer_version": "anchor.natural-language-scaffold-producer.v1",
-    "record_schema_sha256": "3892af891f3f3c0cf9462dd28713ece6c74bcaefffea20ad4d614a82898f85dd",
+    "record_schema_sha256": "84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14",
     "record_schema_version": "anchor.natural-language-scaffold.v1",
     "smoke_contract_schema_sha256": "3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b",
     "smoke_contract_schema_version": "anchor.natural-language-scaffold-smoke-contract.v1",
@@ -232,6 +232,10 @@
     "future_block_body_serialized": false,
     "paired_views_share_allowed_and_forbidden_evidence": true,
     "paired_views_share_source_and_target": true,
+    "source_block_id_schemes": [
+      "tb-block-v1",
+      "tb-stale-v1"
+    ],
     "split_before_augmentation": true,
     "split_group_key": "task_bundle_sha256",
     "task_id_cross_binding_key": "task_id_sha256",

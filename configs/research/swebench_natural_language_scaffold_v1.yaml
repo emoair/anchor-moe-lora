@@ -50,6 +50,9 @@ visibility_contract:
   split_group_key: task_bundle_sha256
   task_id_cross_binding_key: task_id_sha256
   task_id_cross_binding_transform: sha256_utf8_training_record_task_board_task_id
+  source_block_id_schemes:
+    - tb-block-v1
+    - tb-stale-v1
   all_five_role_views_same_split: true
   split_before_augmentation: true
   paired_views_share_source_and_target: true

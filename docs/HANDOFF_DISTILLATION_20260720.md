@@ -256,25 +256,42 @@ Historical v1 notes follow.
 
 ## Natural-language scaffold producer freeze (2026-07-22)
 
+The original `0a47b8a8fcf460a3da50ccbf4d77436f7bd78a25` freeze is
+superseded. Its config
+`9c092c1f39e56b5e745515a0124715dd025aed5f78597edc2a1dfc894f0fdd40`,
+record schema
+`3892af891f3f3c0cf9462dd28713ece6c74bcaefffea20ad4d614a82898f85dd`,
+manifest schema
+`58acca23cf5f76187aadf40b95f6fbeb4cd667299e6c1183656bf296c21ee302`,
+and fixture manifest
+`ca95110a0062da50b1b01d273e478f5b781b7cb4ed820c324f97cffd1c1e5a9a`
+must not be accepted.
+That freeze's record schema omitted the authenticated TaskBoard v2 stale-noise
+overlay ID form. The replacement below explicitly enumerates canonical
+`tb-block-v1:<64-lowercase-hex>` and stale-overlay
+`tb-stale-v1:<64-lowercase-hex>` identifiers and was revalidated against every
+published JSONL instance with a real Draft 2020-12 validator. Consumers remain
+fail-closed; no compatibility exception is permitted.
+
 - The provider-free producer is implemented in
   `src/anchor_mvp/swebench/natural_language_scaffold.py`; its core physical
   SHA-256 is
-  `49065192d4f9e64e1e386820b9f0e04b5b97836a17f53c430434fbe93086cc20`.
+  `09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330`.
   The build and audit entry points are
   `scripts/data/build_swebench_natural_language_scaffold.py` and
   `scripts/data/audit_swebench_natural_language_scaffold_fixture.py`.
 - The immutable producer contracts are config
-  `9c092c1f39e56b5e745515a0124715dd025aed5f78597edc2a1dfc894f0fdd40`,
+  `e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38`,
   record schema
-  `3892af891f3f3c0cf9462dd28713ece6c74bcaefffea20ad4d614a82898f85dd`,
+  `84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14`,
   manifest schema
-  `58acca23cf5f76187aadf40b95f6fbeb4cd667299e6c1183656bf296c21ee302`,
+  `8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16`,
   smoke schema
   `3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b`,
   and smoke contract
   `46bca04c358cc1e80f55c7eacff36fdf3f11a83efda52ad4386035ca5d614719`.
 - The checked-in synthetic fixture manifest is
-  `ca95110a0062da50b1b01d273e478f5b781b7cb4ed820c324f97cffd1c1e5a9a`.
+  `25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc`.
   It contains 20 records: two source-disjoint task bundles, five roles per
   bundle, and paired `json_only` / `concise_rationale_plus_json` views. The
   four partition SHA-256 values are train JSON-only
@@ -299,11 +316,12 @@ Historical v1 notes follow.
   Tokenizer identity is unbound, so no token ID, position, offset, or boundary
   index is emitted. Q-only, Q+O, and wide-LoRA are labels for future controlled
   comparisons, not outcome claims.
-- Focused scaffold tests pass 19/19. The combined projector, long-context,
-  release-freeze, and scaffold set collects 103 tests and passes 102 with one
+- Focused scaffold tests pass 20/20. The combined projector, long-context,
+  release-freeze, and scaffold set collects 104 tests and passes 103 with one
   Windows symlink-capability skip. Ruff, formatting, `py_compile`, both CLI
-  helps, deterministic rebuild, physical manifest/sidecar audit, UTF-8/LF,
-  body exclusion, and zero-request/resource assertions pass.
+  helps, deterministic rebuild, physical manifest/sidecar audit, real Draft
+  2020-12 validation of all 20 published records plus manifest and smoke,
+  UTF-8/LF, body exclusion, and zero-request/resource assertions pass.
 - The local Qwen GGUF smoke contract remains unexecuted and non-authorizing.
   It is not trainable weights and is not proof of physical Q-reader zero-copy
   or shared KV. A real tokenizer binding, aLoRA adapter, frozen formal-v3

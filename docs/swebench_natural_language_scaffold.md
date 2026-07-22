@@ -107,6 +107,14 @@ are `planner/planner`, `tool_policy/tool_policy`,
 `domain_builder/frontend_gen`, `domain_review/frontend_review`, and
 `security/security_gate`.
 
+TaskBoard v2 has exactly two source-block ID schemes at this boundary:
+canonical blocks use `tb-block-v1:<64-lowercase-hex>` and deterministic stale
+noise overlays use `tb-stale-v1:<64-lowercase-hex>`. Both forms are
+content-addressed identifiers. The record schema enumerates them as two
+mutually exclusive, fully anchored patterns; no generic or consumer-local
+prefix fallback is allowed. Stale overlay IDs may occur only through the
+authenticated noisy augmentation path and do not widen body visibility.
+
 The minimal checked-in fixture selects two authenticated source bundles: one
 `train/noisy` bundle and one `calibration/clean` bundle. It emits five roles and
 two scaffold variants per bundle, for exactly 20 records. The source

@@ -96,6 +96,13 @@ stage/expert 是 `planner/planner`、`tool_policy/tool_policy`、
 `domain_builder/frontend_gen`、`domain_review/frontend_review` 和
 `security/security_gate`。
 
+在这条边界上，TaskBoard v2 的 source block ID 正式枚举恰好只有两种：canonical
+block 使用 `tb-block-v1:<64-lowercase-hex>`，确定性的 stale noise overlay 使用
+`tb-stale-v1:<64-lowercase-hex>`。两者都是 content-addressed identifier。record
+schema 用两个互斥、完全锚定的 pattern 显式枚举它们；不得添加 generic prefix，
+也不得由 consumer 本地特判。stale overlay ID 只能来自已认证 noisy augmentation
+路径，并不扩大正文可见范围。
+
 最小签入 fixture 确定性选择两个已认证 source bundle：一个
 `train/noisy` bundle 与一个 `calibration/clean` bundle。每个 bundle 产生五个
 角色、每个角色产生两种 scaffold variant，因此总计恰好 20 条记录。源端

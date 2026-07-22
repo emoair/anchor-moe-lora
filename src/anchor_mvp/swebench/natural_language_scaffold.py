@@ -250,6 +250,8 @@ class NaturalLanguageScaffoldConfig:
             or architecture.get("hidden_chain_of_thought_exposed") is not False
             or architecture.get("cross_attention_q_reader_implemented") is not False
             or visibility.get("split_group_key") != "task_bundle_sha256"
+            or visibility.get("source_block_id_schemes")
+            != ["tb-block-v1", "tb-stale-v1"]
             or visibility.get("split_before_augmentation") is not True
             or visibility.get("all_five_role_views_same_split") is not True
             or visibility.get("current_target_body_serialized") is not False

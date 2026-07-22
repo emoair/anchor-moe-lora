@@ -29,7 +29,12 @@ training = [
 ]
 serving = ["aiohttp>=3.10"]
 download = ["huggingface-hub>=0.16"]
-dev = ["pytest>=8", "ruff>=0.14", "types-PyYAML>=6.0"]
+dev = [
+  "jsonschema>=4.16,<5",
+  "pytest>=8",
+  "ruff>=0.14",
+  "types-PyYAML>=6.0",
+]
 
 [project.scripts]
 anchor-data = "anchor_mvp.data.cli:main"

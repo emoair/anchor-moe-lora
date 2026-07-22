@@ -11,6 +11,8 @@ from typing import Any, Callable, Mapping
 
 import pytest
 import yaml
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 from anchor_mvp.swebench import natural_language_scaffold as scaffold_module
 from anchor_mvp.swebench.natural_language_scaffold import (
@@ -46,6 +48,7 @@ SMOKE_CONFIG = (
 )
 BUILD_CLI = ROOT / "scripts/data/build_swebench_natural_language_scaffold.py"
 AUDIT_CLI = ROOT / "scripts/data/audit_swebench_natural_language_scaffold_fixture.py"
+PUBLISHED_FIXTURE = ROOT / "fixtures/research/swebench_natural_language_scaffold"
 SOURCE_FILES = (
     "train/clean.jsonl",
     "train/noisy.jsonl",
@@ -288,6 +291,57 @@ def test_builds_deterministic_authenticated_body_free_twenty_record_fixture(
         assert denied_body not in artifact_bytes
     assert not (TOKEN_POSITION_KEYS & _walk_keys(manifest))
     assert all(not (TOKEN_POSITION_KEYS & _walk_keys(row)) for row in rows)
+
+
+def test_published_fixture_passes_real_draft_2020_12_schemas() -> None:
+    record_schema = _read_json(RECORD_SCHEMA)
+    manifest_schema = _read_json(MANIFEST_SCHEMA)
+    smoke_schema = _read_json(SMOKE_SCHEMA)
+    for schema in (record_schema, manifest_schema, smoke_schema):
+        Draft202012Validator.check_schema(schema)
+
+    record_validator = Draft202012Validator(record_schema)
+    rows = [
+        row
+        for relative in FIXED_FILES
+        for row in _read_jsonl(PUBLISHED_FIXTURE / relative)
+    ]
+    assert len(rows) == 20
+    for row in rows:
+        record_validator.validate(row)
+
+    observed_prefixes = {
+        str(ref["source_block_id"]).split(":", 1)[0]
+        for row in rows
+        for ref in row["routing_json"]["allowed_segment_refs"]
+    }
+    assert observed_prefixes == {"tb-block-v1", "tb-stale-v1"}
+
+    valid_row = rows[0]
+    invalid_ids = (
+        f"tb-overlay-v1:{'0' * 64}",
+        f"tb-unknown-v1:{'0' * 64}",
+        f"tb-block-v1:{'A' * 64}",
+        f"tb-block-v1:{'0' * 63}",
+        f"xtb-block-v1:{'0' * 64}",
+        f"tb-block-v1:{'0' * 64}x",
+        f"tb-block-v1:{'0' * 64}\n",
+        f"tb-stale-v1:{'0' * 64}\r\n",
+    )
+    for invalid_id in invalid_ids:
+        mutated = json.loads(json.dumps(valid_row))
+        mutated["routing_json"]["allowed_segment_refs"][0]["source_block_id"] = (
+            invalid_id
+        )
+        with pytest.raises(ValidationError):
+            record_validator.validate(mutated)
+
+    Draft202012Validator(manifest_schema).validate(
+        _read_json(PUBLISHED_FIXTURE / "manifest.json")
+    )
+    Draft202012Validator(smoke_schema).validate(
+        yaml.safe_load(SMOKE_CONFIG.read_text(encoding="utf-8"))
+    )
 
 
 def test_record_schema_and_scaffold_serialization_are_closed(tmp_path: Path) -> None:

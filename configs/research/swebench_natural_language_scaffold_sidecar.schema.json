@@ -187,7 +187,12 @@
     },
     "block_id": {
       "type": "string",
-      "pattern": "^tb-block-v1:[0-9a-f]{64}$"
+      "minLength": 76,
+      "maxLength": 76,
+      "oneOf": [
+        {"pattern": "^tb-block-v1:[0-9a-f]{64}$"},
+        {"pattern": "^tb-stale-v1:[0-9a-f]{64}$"}
+      ]
     },
     "stage": {
       "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]

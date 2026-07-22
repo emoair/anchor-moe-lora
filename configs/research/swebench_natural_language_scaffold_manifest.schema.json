@@ -240,6 +240,7 @@
         "split_group_key",
         "task_id_cross_binding_key",
         "task_id_cross_binding_transform",
+        "source_block_id_schemes",
         "all_five_role_views_same_split",
         "split_before_augmentation",
         "paired_views_share_source_and_target",
@@ -254,6 +255,16 @@
         "task_id_cross_binding_key": {"const": "task_id_sha256"},
         "task_id_cross_binding_transform": {
           "const": "sha256_utf8_training_record_task_board_task_id"
+        },
+        "source_block_id_schemes": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "tb-block-v1"},
+            {"const": "tb-stale-v1"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
         },
         "all_five_role_views_same_split": {"const": true},
         "split_before_augmentation": {"const": true},
