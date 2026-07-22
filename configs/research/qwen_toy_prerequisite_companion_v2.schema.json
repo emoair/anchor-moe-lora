@@ -1,0 +1,636 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/qwen-toy-prerequisite-companion-v2.json",
+  "title": "Qwen toy prerequisite trigger-ready companion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "overlay_semantics",
+    "producer",
+    "v1_dependency",
+    "consumer_dependency",
+    "trigger_materialization",
+    "inventory_status",
+    "proof",
+    "verification",
+    "execution",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.qwen-toy-prerequisite-companion-manifest.v2"
+    },
+    "status": {"const": "trigger_ready_diagnostic_only_inventory_incomplete"},
+    "claim_scope": {
+      "const": "diagnostic_only_trigger_materialization_overlay_no_training_authority"
+    },
+    "overlay_semantics": {
+      "const": "non_mutating_conjunctive_overlay_preserve_v1_pending_add_authenticated_ready_trigger"
+    },
+    "producer": {"$ref": "#/$defs/producer"},
+    "v1_dependency": {"$ref": "#/$defs/v1_dependency"},
+    "consumer_dependency": {"$ref": "#/$defs/consumer_dependency"},
+    "trigger_materialization": {"$ref": "#/$defs/trigger_materialization"},
+    "inventory_status": {"$ref": "#/$defs/inventory_status"},
+    "proof": {"$ref": "#/$defs/proof"},
+    "verification": {"$ref": "#/$defs/verification"},
+    "execution": {"$ref": "#/$defs/execution"},
+    "claims": {"$ref": "#/$defs/claims"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    },
+    "path_sha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "path_sha_bytes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "repository",
+        "baseline_commit",
+        "baseline_tree",
+        "config",
+        "manifest_schema",
+        "implementation",
+        "canonical_json_policy",
+        "manifest_sidecar_required",
+        "single_snapshot",
+        "same_bytes_reparse",
+        "final_recheck",
+        "atomic_publish"
+      ],
+      "properties": {
+        "producer_id": {
+          "const": "anchor.qwen-toy-prerequisite-companion-producer.v2"
+        },
+        "repository": {"const": "anchor-moe-lora"},
+        "baseline_commit": {
+          "const": "744e23f975b13923903f5fabe04c32e74ea25dc4"
+        },
+        "baseline_tree": {
+          "const": "90cb962f5341717501fcb16caef13db8922f1cb4"
+        },
+        "config": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha"},
+            {"properties": {
+              "path": {"const": "configs/research/qwen_toy_prerequisite_companion_v2.json"},
+              "sha256": {"const": "21d483bfbfdab61a48996664b9221443c794902c4dcc547522b29b0c2346e50f"}
+            }}
+          ]
+        },
+        "manifest_schema": {"$ref": "#/$defs/path_sha"},
+        "implementation": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha"},
+            {"properties": {
+              "path": {"const": "src/anchor_mvp/swebench/qwen_toy_prerequisite_companion_v2.py"},
+              "sha256": {"const": "dc96b2690769f14397393af0f6cfc07450dd58e9073ca5982adc2a9cc84c905e"}
+            }}
+          ]
+        },
+        "canonical_json_policy": {
+          "const": "utf8_sort_keys_compact_no_normalization_lf_v1"
+        },
+        "manifest_sidecar_required": {"const": true},
+        "single_snapshot": {"const": true},
+        "same_bytes_reparse": {"const": true},
+        "final_recheck": {"const": true},
+        "atomic_publish": {"const": true}
+      }
+    },
+    "v1_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_commit",
+        "manifest_schema",
+        "pending_trigger_schema",
+        "manifest",
+        "sidecar",
+        "sidecar_declared_manifest_sha256",
+        "protected_inventory_set_sha256",
+        "coverage_ready_count",
+        "coverage_total",
+        "missing_source_classes",
+        "v1_bytes_modified"
+      ],
+      "properties": {
+        "producer_commit": {
+          "const": "744e23f975b13923903f5fabe04c32e74ea25dc4"
+        },
+        "manifest_schema": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha_bytes"},
+            {"properties": {
+              "path": {"const": "configs/research/qwen_toy_prerequisite_manifest.schema.json"},
+              "sha256": {"const": "b55a0200a3945189687dc0363915e5911bbef41eb6aedcf0cb0f0ceb5bb18e20"},
+              "bytes": {"const": 12905}
+            }}
+          ]
+        },
+        "pending_trigger_schema": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha_bytes"},
+            {"properties": {
+              "path": {"const": "configs/research/qwen_request_local_trigger_materialization.schema.json"},
+              "sha256": {"const": "8a8d97c1ef1513999e215fa63883d476ad7d062e7bcff8274971b2388e9c62e9"},
+              "bytes": {"const": 3976}
+            }}
+          ]
+        },
+        "manifest": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha_bytes"},
+            {"properties": {
+              "path": {"const": "fixtures/research/qwen_toy_prerequisite_v1/manifest.json"},
+              "sha256": {"const": "99b94d71639e252c2d768b84a444efa09e844d287c691d8ddfa8312481f2f311"},
+              "bytes": {"const": 7910}
+            }}
+          ]
+        },
+        "sidecar": {
+          "allOf": [
+            {"$ref": "#/$defs/path_sha_bytes"},
+            {"properties": {
+              "path": {"const": "fixtures/research/qwen_toy_prerequisite_v1/manifest.json.sha256"},
+              "sha256": {"const": "b8a3f7f7bec390da842ef35f8c9942a985051400c8e65857d6ba1a906b23c951"},
+              "bytes": {"const": 80}
+            }}
+          ]
+        },
+        "sidecar_declared_manifest_sha256": {
+          "const": "99b94d71639e252c2d768b84a444efa09e844d287c691d8ddfa8312481f2f311"
+        },
+        "protected_inventory_set_sha256": {
+          "const": "d0bd5702a9c6bbbb1db547b826a94d960a518e1f6ef3e60bfdd25dcd93a3fe22"
+        },
+        "coverage_ready_count": {"const": 2},
+        "coverage_total": {"const": 6},
+        "missing_source_classes": {"$ref": "#/$defs/missing_sources"},
+        "v1_bytes_modified": {"const": false}
+      }
+    },
+    "source_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes"],
+      "properties": {
+        "role": {
+          "enum": [
+            "config_schema",
+            "receipt_schema",
+            "config",
+            "implementation",
+            "receipt",
+            "receipt_sidecar",
+            "tf32_proxy_receipt",
+            "tf32_proxy_sidecar"
+          ]
+        },
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "consumer_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "local_remote_tracking_ref",
+        "consumer_release_commit",
+        "consumer_release_tree",
+        "consumer_baseline_commit",
+        "consumer_baseline_semantics",
+        "baseline_is_ancestor_or_equal",
+        "release_commit_is_ancestor_of_local_remote_tracking_ref",
+        "release_commit_signature_claimed",
+        "live_remote_authenticated",
+        "source_snapshot_semantics",
+        "consumer_worktree_file_read",
+        "artifacts",
+        "artifact_inventory_sha256",
+        "artifact_inventory_hash_algorithm",
+        "artifact_inventory_hash_domain"
+      ],
+      "properties": {
+        "repository": {"const": "anchor-moe-lora"},
+        "local_remote_tracking_ref": {
+          "const": "refs/remotes/origin/research/neural-swarm-kv"
+        },
+        "consumer_release_commit": {
+          "const": "7cb1f7454a76fa3c8c9f46d64da9f11244b51c54"
+        },
+        "consumer_release_tree": {
+          "const": "67ca22bd2f9d50642bf88e484408082abebe2126"
+        },
+        "consumer_baseline_commit": {
+          "const": "b0441e6beaa07b180d7fc69e462b4d2babf21792"
+        },
+        "consumer_baseline_semantics": {
+          "const": "required_ancestor_or_equal_dependency"
+        },
+        "baseline_is_ancestor_or_equal": {"const": true},
+        "release_commit_is_ancestor_of_local_remote_tracking_ref": {
+          "const": true
+        },
+        "release_commit_signature_claimed": {"const": false},
+        "live_remote_authenticated": {"const": false},
+        "source_snapshot_semantics": {
+          "const": "exact_git_blob_bytes_at_consumer_release_commit"
+        },
+        "consumer_worktree_file_read": {"const": false},
+        "artifacts": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "prefixItems": [
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "config_schema"},
+              "path": {"const": "configs/research/qwen_request_local_trigger_receipt_v2_config.schema.json"},
+              "sha256": {"const": "aa2822a7c4ea60d6148858567920a623959fbe5363a21e2a86d5c855b5d6330f"},
+              "bytes": {"const": 13710}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "receipt_schema"},
+              "path": {"const": "configs/research/qwen_request_local_trigger_receipt_v2.schema.json"},
+              "sha256": {"const": "d5324e8a50dc033850ff4301b7723ad3fc84bcaa312a1ff4eabac43e348a98fc"},
+              "bytes": {"const": 10873}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "config"},
+              "path": {"const": "configs/research/qwen_request_local_trigger_receipt_v2.yaml"},
+              "sha256": {"const": "4425ee2bfcf2a01af0097db242ec7d244b622e3cfb34534628b60653297d7ee4"},
+              "bytes": {"const": 5519}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "implementation"},
+              "path": {"const": "src/anchor_mvp/research/qwen_request_local_trigger_receipt_v2.py"},
+              "sha256": {"const": "dc1fb65441ff67837cb31e9a83df7818d0fb6f4b5b9afd8037423040e59e9f6f"},
+              "bytes": {"const": 31774}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "receipt"},
+              "path": {"const": "fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json"},
+              "sha256": {"const": "ae15b7a0edad2527348189fa65532865bdbbe6be0f32757714f2b0fe6582089e"},
+              "bytes": {"const": 5618}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "receipt_sidecar"},
+              "path": {"const": "fixtures/research/qwen_request_local_trigger_receipt_v2/receipt.json.sha256"},
+              "sha256": {"const": "ca54594ac067286e5a8619f26870537291fb5e1c5556e8b8efbccc4a67a58a8a"},
+              "bytes": {"const": 79}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "tf32_proxy_receipt"},
+              "path": {"const": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json"},
+              "sha256": {"const": "278a58441e2f4fb7fc46a67dd5acec3851a7b6937685d90c77873e5972b49cce"},
+              "bytes": {"const": 3294}
+            }}]},
+            {"allOf": [{"$ref": "#/$defs/source_artifact"}, {"properties": {
+              "role": {"const": "tf32_proxy_sidecar"},
+              "path": {"const": "fixtures/research/qwen_alora_prefix_kv_diagnostic_tf32_v2/diagnostic_receipt.json.sha256"},
+              "sha256": {"const": "5e958452e82ca351c06ba8c8cf555cb699841c128526aec219ea97a2460c03be"},
+              "bytes": {"const": 90}
+            }}]}
+          ],
+          "items": false
+        },
+        "artifact_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_inventory_hash_algorithm": {
+          "const": "sha256_canonical_json_domain_and_ordered_artifacts_utf8_sort_keys_compact_v1"
+        },
+        "artifact_inventory_hash_domain": {
+          "const": "anchor.qwen-toy-prerequisite-companion.consumer-artifacts.v2"
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "index_base", "end_semantics"],
+      "properties": {
+        "start": {"const": 25},
+        "end": {"const": 33},
+        "index_base": {"const": "zero"},
+        "end_semantics": {"const": "exclusive"}
+      }
+    },
+    "overhang": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leading_utf8_bytes",
+        "trailing_utf8_bytes",
+        "leading_codepoints",
+        "trailing_codepoints"
+      ],
+      "properties": {
+        "leading_utf8_bytes": {"const": 0},
+        "trailing_utf8_bytes": {"const": 1},
+        "leading_codepoints": {"const": 0},
+        "trailing_codepoints": {"const": 1}
+      }
+    },
+    "source_receipt_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "sidecar_path",
+        "sidecar_sha256",
+        "sidecar_declared_sha256",
+        "source_bytes_equal_git_blob"
+      ],
+      "properties": {
+        "path": {
+          "const": "source/qwen_request_local_trigger_receipt_v2/receipt.json"
+        },
+        "sha256": {
+          "const": "ae15b7a0edad2527348189fa65532865bdbbe6be0f32757714f2b0fe6582089e"
+        },
+        "bytes": {"const": 5618},
+        "sidecar_path": {
+          "const": "source/qwen_request_local_trigger_receipt_v2/receipt.json.sha256"
+        },
+        "sidecar_sha256": {
+          "const": "ca54594ac067286e5a8619f26870537291fb5e1c5556e8b8efbccc4a67a58a8a"
+        },
+        "sidecar_declared_sha256": {
+          "const": "ae15b7a0edad2527348189fa65532865bdbbe6be0f32757714f2b0fe6582089e"
+        },
+        "source_bytes_equal_git_blob": {"const": true}
+      }
+    },
+    "trigger_materialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "source_receipt_copy",
+        "tokenizer_binding_sha256",
+        "chat_template_sha256",
+        "exact_r2_serialization_sha256",
+        "ordered_input_token_ids_sha256",
+        "ordered_input_token_ids_digest_algorithm",
+        "total_tokens",
+        "trigger_span_zero_based_exclusive",
+        "trigger_span_width",
+        "boundary_overhang",
+        "trigger_text_sha256",
+        "trigger_text_occurrences",
+        "trigger_token_sequence_occurrences",
+        "trigger_covering_token_ids_sha256",
+        "complete_r2_tokenization_count",
+        "activation_semantics",
+        "serialization_scope",
+        "isolated_trigger_encoding_authoritative",
+        "raw_token_ids_emitted",
+        "global_token_index_emitted",
+        "planner_request1_private_kv_reused",
+        "source_materialization_reexecuted_by_companion"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.qwen-request-local-trigger-receipt.v2"
+        },
+        "status": {"const": "ready_diagnostic_only"},
+        "source_receipt_copy": {"$ref": "#/$defs/source_receipt_copy"},
+        "tokenizer_binding_sha256": {
+          "const": "a76b0f60e5c1e2d92b8a8d9131f9afe9edfda3fcbf0221c4234359f70e806425"
+        },
+        "chat_template_sha256": {
+          "const": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f"
+        },
+        "exact_r2_serialization_sha256": {
+          "const": "ed6adfcbd0052fdda52a5ab8c52ed04d6e55c7f62493f0d326d4e1b29d55c9f3"
+        },
+        "ordered_input_token_ids_sha256": {
+          "const": "d989d46116cd50f30d5bba1be48a366e2a04efb8c156550d0f11a532f19121e6"
+        },
+        "ordered_input_token_ids_digest_algorithm": {
+          "const": "sha256_concat_signed_int64_big_endian_v1"
+        },
+        "total_tokens": {"const": 44},
+        "trigger_span_zero_based_exclusive": {"$ref": "#/$defs/span"},
+        "trigger_span_width": {"const": 8},
+        "boundary_overhang": {"$ref": "#/$defs/overhang"},
+        "trigger_text_sha256": {
+          "const": "c963be7f4ed297935fb5fc732292ad62f4fce620a75a6906639bcda0edfdec3c"
+        },
+        "trigger_text_occurrences": {"const": 1},
+        "trigger_token_sequence_occurrences": {"const": 1},
+        "trigger_covering_token_ids_sha256": {
+          "const": "1d6889128be1b4b84ae22999ffe267a1cc862209b7c38ef3f932a5e69851a412"
+        },
+        "complete_r2_tokenization_count": {"const": 1},
+        "activation_semantics": {"const": "next_request_input_activation_only"},
+        "serialization_scope": {
+          "const": "exact_full_chat_templated_request2_bytes_single_tokenization"
+        },
+        "isolated_trigger_encoding_authoritative": {"const": false},
+        "raw_token_ids_emitted": {"const": false},
+        "global_token_index_emitted": {"const": false},
+        "planner_request1_private_kv_reused": {"const": false},
+        "source_materialization_reexecuted_by_companion": {"const": false}
+      }
+    },
+    "missing_sources": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "gold_partition"},
+        {"const": "partial_gold_export"},
+        {"const": "legacy_heldout_cases"},
+        {"const": "synthetic_scaffold"}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "inventory_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "coverage_ready_count",
+        "coverage_total",
+        "ready_source_classes",
+        "missing_source_classes",
+        "inventories_modified_by_companion"
+      ],
+      "properties": {
+        "source": {"const": "frozen_v1_dependency"},
+        "coverage_ready_count": {"const": 2},
+        "coverage_total": {"const": 6},
+        "ready_source_classes": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "swebench_source"},
+            {"const": "heldout"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "missing_source_classes": {"$ref": "#/$defs/missing_sources"},
+        "inventories_modified_by_companion": {"const": false}
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "zero_intersection_claimed",
+        "v1_attestation_emitted",
+        "formal_training_authorized"
+      ],
+      "properties": {
+        "status": {"const": "blocked_incomplete_protected_inventories"},
+        "zero_intersection_claimed": {"const": false},
+        "v1_attestation_emitted": {"const": false},
+        "formal_training_authorized": {"const": false}
+      },
+      "not": {
+        "anyOf": [
+          {"required": ["intersection_count"]},
+          {"required": ["intersection_proof_sha256"]},
+          {"required": ["proof_input_inventory_sha256"]}
+        ]
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_release_commit_authenticated",
+        "consumer_release_raw_parent_and_tree_verified",
+        "consumer_baseline_ancestry_verified",
+        "git_environment_overrides_cleared",
+        "git_replace_and_grafts_absent",
+        "source_artifact_hashes_match",
+        "source_receipt_schema_validated",
+        "source_config_schema_validated",
+        "source_receipt_sidecar_matches",
+        "tf32_proxy_sidecar_matches",
+        "tf32_proxy_receipt_matches_source_binding",
+        "source_receipt_projection_matches",
+        "v1_manifest_sidecar_matches",
+        "span_bounds_valid",
+        "span_width_valid",
+        "same_bytes_reparse_passed",
+        "final_recheck_passed"
+      ],
+      "properties": {
+        "consumer_release_commit_authenticated": {"const": true},
+        "consumer_release_raw_parent_and_tree_verified": {"const": true},
+        "consumer_baseline_ancestry_verified": {"const": true},
+        "git_environment_overrides_cleared": {"const": true},
+        "git_replace_and_grafts_absent": {"const": true},
+        "source_artifact_hashes_match": {"const": true},
+        "source_receipt_schema_validated": {"const": true},
+        "source_config_schema_validated": {"const": true},
+        "source_receipt_sidecar_matches": {"const": true},
+        "tf32_proxy_sidecar_matches": {"const": true},
+        "tf32_proxy_receipt_matches_source_binding": {"const": true},
+        "source_receipt_projection_matches": {"const": true},
+        "v1_manifest_sidecar_matches": {"const": true},
+        "span_bounds_valid": {"const": true},
+        "span_width_valid": {"const": true},
+        "same_bytes_reparse_passed": {"const": true},
+        "final_recheck_passed": {"const": true}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_content_reads",
+        "consumer_worktree_file_reads",
+        "consumer_git_blob_initial_reads",
+        "consumer_git_blob_final_recheck_reads",
+        "source_materialization_runs"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_content_reads": {"const": 0},
+        "consumer_worktree_file_reads": {"const": 0},
+        "consumer_git_blob_initial_reads": {"const": 8},
+        "consumer_git_blob_final_recheck_reads": {"const": 8},
+        "source_materialization_runs": {"const": 0}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "trigger_materialization_ready",
+        "inventory_complete",
+        "training_authorized",
+        "formal",
+        "numeric_equivalence",
+        "thresholds_formal",
+        "quality_validated",
+        "proxy_signal_passed",
+        "physical_kv_claimed",
+        "multistream_claimed",
+        "zero_copy_claimed",
+        "full_generation_kv_shared_claimed"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "trigger_materialization_ready": {"const": true},
+        "inventory_complete": {"const": false},
+        "training_authorized": {"const": false},
+        "formal": {"const": false},
+        "numeric_equivalence": {"const": false},
+        "thresholds_formal": {"const": false},
+        "quality_validated": {"const": false},
+        "proxy_signal_passed": {"const": true},
+        "physical_kv_claimed": {"const": false},
+        "multistream_claimed": {"const": false},
+        "zero_copy_claimed": {"const": false},
+        "full_generation_kv_shared_claimed": {"const": false}
+      }
+    }
+  }
+}
