@@ -33,3 +33,6 @@ src/anchor_mvp/research/neural_swarm_kv_runtime.py text eol=lf
 src/anchor_mvp/research/taskboard_kv_segments.py text eol=lf
 scripts/research/demo_hierarchical_kv_swarm.py text eol=lf
 scripts/research/materialize_taskboard_kv_segments.py text eol=lf
+configs/research/natural_language_scaffold_consumer_v1.yaml text eol=lf
+configs/research/swebench_natural_language_scaffold* text eol=lf
+fixtures/research/swebench_natural_language_scaffold/** text eol=lf

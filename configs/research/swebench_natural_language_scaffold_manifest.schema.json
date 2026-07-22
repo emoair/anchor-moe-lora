@@ -1,0 +1,579 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/natural-language-scaffold-manifest-v1.json",
+  "title": "Authenticated natural-language scaffold fixture manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "input",
+    "producer",
+    "architecture_contract",
+    "visibility_contract",
+    "route_activation_contract",
+    "cache_contract",
+    "adapter_control_contract",
+    "serialization_contract",
+    "files",
+    "counts",
+    "smoke_contract",
+    "manifest_sha256_sidecar_required",
+    "provider_requests",
+    "model_loads",
+    "gpu_requests",
+    "network_requests",
+    "canonical_gold_written",
+    "heldout_written",
+    "evaluation_status",
+    "quality_validated",
+    "execution_authorized",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.natural-language-scaffold-manifest.v1"},
+    "status": {"const": "synthetic_fixture_ready"},
+    "input": {"$ref": "#/$defs/input"},
+    "producer": {"$ref": "#/$defs/producer"},
+    "architecture_contract": {"$ref": "#/$defs/architecture_contract"},
+    "visibility_contract": {"$ref": "#/$defs/visibility_contract"},
+    "route_activation_contract": {"$ref": "#/$defs/route_activation_contract"},
+    "cache_contract": {"$ref": "#/$defs/cache_contract"},
+    "adapter_control_contract": {"$ref": "#/$defs/adapter_control_contract"},
+    "serialization_contract": {"$ref": "#/$defs/serialization_contract"},
+    "files": {
+      "type": "array",
+      "prefixItems": [
+        {"$ref": "#/$defs/train_json_only"},
+        {"$ref": "#/$defs/train_rationale_json"},
+        {"$ref": "#/$defs/calibration_json_only"},
+        {"$ref": "#/$defs/calibration_rationale_json"}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "counts": {"$ref": "#/$defs/counts"},
+    "smoke_contract": {"$ref": "#/$defs/smoke_binding"},
+    "manifest_sha256_sidecar_required": {"const": true},
+    "provider_requests": {"const": 0},
+    "model_loads": {"const": 0},
+    "gpu_requests": {"const": 0},
+    "network_requests": {"const": 0},
+    "canonical_gold_written": {"const": false},
+    "heldout_written": {"const": false},
+    "evaluation_status": {"const": "not_evaluated"},
+    "quality_validated": {"const": false},
+    "execution_authorized": {"const": false},
+    "claim_scope": {"const": "synthetic_fixture_contract_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "stage": {
+      "enum": ["planner", "tool_policy", "domain_builder", "domain_review", "security"]
+    },
+    "expert": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "records", "split", "variant"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"type": "integer", "minimum": 1},
+        "split": {"enum": ["train", "calibration"]},
+        "variant": {"enum": ["clean", "noisy"]}
+      }
+    },
+    "projector_train_clean": {
+      "allOf": [{"$ref": "#/$defs/partition"}, {"properties": {
+        "path": {"const": "train/clean.jsonl"},
+        "split": {"const": "train"},
+        "variant": {"const": "clean"}
+      }}]
+    },
+    "projector_train_noisy": {
+      "allOf": [{"$ref": "#/$defs/partition"}, {"properties": {
+        "path": {"const": "train/noisy.jsonl"},
+        "split": {"const": "train"},
+        "variant": {"const": "noisy"}
+      }}]
+    },
+    "projector_calibration_clean": {
+      "allOf": [{"$ref": "#/$defs/partition"}, {"properties": {
+        "path": {"const": "calibration/clean.jsonl"},
+        "split": {"const": "calibration"},
+        "variant": {"const": "clean"}
+      }}]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projector_manifest_schema_version",
+        "projector_manifest_sha256",
+        "projector_manifest_sha256_sidecar_sha256",
+        "projector_manifest_schema_sha256",
+        "projector_config_sha256",
+        "projector_sidecar_schema_sha256",
+        "segment_plan_schema_sha256",
+        "partitions",
+        "selected_source_partitions"
+      ],
+      "properties": {
+        "projector_manifest_schema_version": {
+          "const": "anchor.swebench-taskboard-projector-manifest.v2"
+        },
+        "projector_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_sha256_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_config_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_sidecar_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "partitions": {
+          "type": "array",
+          "prefixItems": [
+            {"$ref": "#/$defs/projector_train_clean"},
+            {"$ref": "#/$defs/projector_train_noisy"},
+            {"$ref": "#/$defs/projector_calibration_clean"}
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "selected_source_partitions": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "train/noisy.jsonl"},
+            {"const": "calibration/clean.jsonl"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "producer_version",
+        "config_schema_version",
+        "config_sha256",
+        "implementation_sha256",
+        "record_schema_version",
+        "record_schema_sha256",
+        "manifest_schema_sha256",
+        "smoke_contract_schema_version",
+        "smoke_contract_schema_sha256",
+        "smoke_contract_sha256"
+      ],
+      "properties": {
+        "name": {"const": "anchor.natural-language-scaffold"},
+        "producer_version": {"const": "anchor.natural-language-scaffold-producer.v1"},
+        "config_schema_version": {"const": "anchor.natural-language-scaffold-config.v1"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_version": {"const": "anchor.natural-language-scaffold.v1"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "smoke_contract_schema_version": {
+          "const": "anchor.natural-language-scaffold-smoke-contract.v1"
+        },
+        "smoke_contract_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "smoke_contract_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "architecture_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "name",
+        "execution_mode",
+        "shared_prefix_producer",
+        "adapter_state_on_prefix",
+        "adapter_state_after_boundary",
+        "private_tail_kv_required",
+        "full_generation_kv_shared_claimed",
+        "cross_attention_q_reader_implemented",
+        "physical_shared_kv_implemented",
+        "hidden_chain_of_thought_exposed",
+        "lossless_reasoning_inheritance_claimed",
+        "expert_generates_no_kv_claimed",
+        "constant_attention_complexity_claimed",
+        "base_compute_disappears_claimed",
+        "naive_in_stack_q_lora_exact_reuse_claimed"
+      ],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "name": {"const": "frozen_prefix_q_reader__prefix_branch_producer_consumer"},
+        "execution_mode": {"const": "decoupled_frozen_prefix_producer_required"},
+        "shared_prefix_producer": {"const": "frozen_planner_base"},
+        "adapter_state_on_prefix": {"const": "off"},
+        "adapter_state_after_boundary": {"const": "expert_only"},
+        "private_tail_kv_required": {"const": true},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "cross_attention_q_reader_implemented": {"const": false},
+        "physical_shared_kv_implemented": {"const": false},
+        "hidden_chain_of_thought_exposed": {"const": false},
+        "lossless_reasoning_inheritance_claimed": {"const": false},
+        "expert_generates_no_kv_claimed": {"const": false},
+        "constant_attention_complexity_claimed": {"const": false},
+        "base_compute_disappears_claimed": {"const": false},
+        "naive_in_stack_q_lora_exact_reuse_claimed": {"const": false}
+      }
+    },
+    "visibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "split_group_key",
+        "task_id_cross_binding_key",
+        "task_id_cross_binding_transform",
+        "source_block_id_schemes",
+        "all_five_role_views_same_split",
+        "split_before_augmentation",
+        "paired_views_share_source_and_target",
+        "paired_views_share_allowed_and_forbidden_evidence",
+        "current_target_body_serialized",
+        "future_block_body_serialized",
+        "forbidden_block_body_serialized",
+        "whole_taskboard_stringification_allowed"
+      ],
+      "properties": {
+        "split_group_key": {"const": "task_bundle_sha256"},
+        "task_id_cross_binding_key": {"const": "task_id_sha256"},
+        "task_id_cross_binding_transform": {
+          "const": "sha256_utf8_training_record_task_board_task_id"
+        },
+        "source_block_id_schemes": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "tb-block-v1"},
+            {"const": "tb-stale-v1"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "all_five_role_views_same_split": {"const": true},
+        "split_before_augmentation": {"const": true},
+        "paired_views_share_source_and_target": {"const": true},
+        "paired_views_share_allowed_and_forbidden_evidence": {"const": true},
+        "current_target_body_serialized": {"const": false},
+        "future_block_body_serialized": {"const": false},
+        "forbidden_block_body_serialized": {"const": false},
+        "whole_taskboard_stringification_allowed": {"const": false}
+      }
+    },
+    "route_activation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantics",
+        "planner_request_output",
+        "validation_required",
+        "commit_required",
+        "commit_promotes_text_only",
+        "planner_private_tail_kv_transfer_allowed",
+        "committed_scaffold_reencode_required",
+        "committed_scaffold_reencode_producer",
+        "committed_scaffold_reencode_adapter_state",
+        "committed_scaffold_output",
+        "expert_activation_request",
+        "expert_request_requires_committed_scaffold_as_input",
+        "alora_activation_semantics",
+        "same_request_activation_allowed",
+        "mid_request_generated_activation_allowed",
+        "mid_request_generated_trigger_switch_claimed",
+        "token_boundary_status"
+      ],
+      "properties": {
+        "semantics": {"const": "explicit_two_request_commit_boundary"},
+        "planner_request_output": {"const": "rationale_route_and_sentinel_candidate"},
+        "validation_required": {"const": true},
+        "commit_required": {"const": true},
+        "commit_promotes_text_only": {"const": true},
+        "planner_private_tail_kv_transfer_allowed": {"const": false},
+        "committed_scaffold_reencode_required": {"const": true},
+        "committed_scaffold_reencode_producer": {"const": "frozen_base"},
+        "committed_scaffold_reencode_adapter_state": {"const": "off"},
+        "committed_scaffold_output": {
+          "const": "downstream_immutable_segment_with_new_lineage"
+        },
+        "expert_activation_request": {"const": "next_request"},
+        "expert_request_requires_committed_scaffold_as_input": {"const": true},
+        "alora_activation_semantics": {"const": "next_request_input_activation_only"},
+        "same_request_activation_allowed": {"const": false},
+        "mid_request_generated_activation_allowed": {"const": false},
+        "mid_request_generated_trigger_switch_claimed": {"const": false},
+        "token_boundary_status": {"const": "tokenizer_binding_required"}
+      }
+    },
+    "cache_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_prefix_scope",
+        "private_tail_scope",
+        "exact_reuse_scope",
+        "identical_token_order_positions_rope_required",
+        "cache_identity_status",
+        "exact_cache_reuse_enabled",
+        "reuse_savings_tokens",
+        "planner_private_tail_kv_reused_by_expert",
+        "physical_kv_tensor_emitted",
+        "full_generation_kv_shared_claimed",
+        "committed_scaffold_reencode_executed",
+        "downstream_immutable_segment_emitted"
+      ],
+      "properties": {
+        "shared_prefix_scope": {"const": "task_shared_prefix"},
+        "private_tail_scope": {"const": "expert_private_delta"},
+        "exact_reuse_scope": {"const": "identical_ordered_prefix_lineage_only"},
+        "identical_token_order_positions_rope_required": {"const": true},
+        "cache_identity_status": {"const": "identity_unbound"},
+        "exact_cache_reuse_enabled": {"const": false},
+        "reuse_savings_tokens": {"const": 0},
+        "planner_private_tail_kv_reused_by_expert": {"const": false},
+        "physical_kv_tensor_emitted": {"const": false},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "committed_scaffold_reencode_executed": {"const": false},
+        "downstream_immutable_segment_emitted": {"const": false}
+      }
+    },
+    "adapter_control_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "labels",
+        "labels_are_experimental_controls_only",
+        "producer_selects_winner",
+        "producer_claims_training_outcome",
+        "prefix_adapter_state",
+        "post_boundary_adapter_scope"
+      ],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "labels": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "q_only"},
+            {"const": "q_plus_o"},
+            {"const": "wide_lora"}
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "labels_are_experimental_controls_only": {"const": true},
+        "producer_selects_winner": {"const": false},
+        "producer_claims_training_outcome": {"const": false},
+        "prefix_adapter_state": {"const": "off"},
+        "post_boundary_adapter_scope": {"const": "expert_private_delta_only"}
+      }
+    },
+    "serialization_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "encoding",
+        "newline",
+        "json_object_serialization",
+        "route_json_hash_basis",
+        "payload_hash_basis",
+        "scaffold_text_hash_basis",
+        "segment_reference_order",
+        "tokenizer_binding_status",
+        "token_fields_emitted"
+      ],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "encoding": {"const": "utf-8"},
+        "newline": {"const": "lf"},
+        "json_object_serialization": {"const": "canonical_json_sort_keys_compact_utf8"},
+        "route_json_hash_basis": {"const": "canonical_routing_json_utf8"},
+        "payload_hash_basis": {"const": "canonical_structured_interface_utf8"},
+        "scaffold_text_hash_basis": {"const": "exact_utf8_bytes"},
+        "segment_reference_order": {"const": "causal_order_then_segment_id"},
+        "tokenizer_binding_status": {"const": "unbound"},
+        "token_fields_emitted": {"const": false}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "records",
+        "split",
+        "source_variant",
+        "scaffold_variant"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"const": 5},
+        "split": {"enum": ["train", "calibration"]},
+        "source_variant": {"enum": ["clean", "noisy"]},
+        "scaffold_variant": {
+          "enum": ["json_only", "concise_rationale_plus_json"]
+        }
+      }
+    },
+    "train_json_only": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "train/json_only.jsonl"},
+        "split": {"const": "train"},
+        "source_variant": {"const": "noisy"},
+        "scaffold_variant": {"const": "json_only"}
+      }}]
+    },
+    "train_rationale_json": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "train/concise_rationale_plus_json.jsonl"},
+        "split": {"const": "train"},
+        "source_variant": {"const": "noisy"},
+        "scaffold_variant": {"const": "concise_rationale_plus_json"}
+      }}]
+    },
+    "calibration_json_only": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "calibration/json_only.jsonl"},
+        "split": {"const": "calibration"},
+        "source_variant": {"const": "clean"},
+        "scaffold_variant": {"const": "json_only"}
+      }}]
+    },
+    "calibration_rationale_json": {
+      "allOf": [{"$ref": "#/$defs/file"}, {"properties": {
+        "path": {"const": "calibration/concise_rationale_plus_json.jsonl"},
+        "split": {"const": "calibration"},
+        "source_variant": {"const": "clean"},
+        "scaffold_variant": {"const": "concise_rationale_plus_json"}
+      }}]
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "pairs",
+        "unique_task_bundles",
+        "task_ids_sha256",
+        "allowed_segment_references",
+        "unique_allowed_segments",
+        "by_split",
+        "by_source_variant",
+        "by_scaffold_variant",
+        "by_stage",
+        "by_expert"
+      ],
+      "properties": {
+        "total": {"const": 20},
+        "pairs": {"const": 10},
+        "unique_task_bundles": {"const": 2},
+        "task_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "allowed_segment_references": {"type": "integer", "minimum": 20},
+        "unique_allowed_segments": {"type": "integer", "minimum": 2},
+        "by_split": {"$ref": "#/$defs/by_split"},
+        "by_source_variant": {"$ref": "#/$defs/by_source_variant"},
+        "by_scaffold_variant": {"$ref": "#/$defs/by_scaffold_variant"},
+        "by_stage": {"$ref": "#/$defs/by_stage"},
+        "by_expert": {"$ref": "#/$defs/by_expert"}
+      }
+    },
+    "by_split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["train", "calibration"],
+      "properties": {"train": {"const": 10}, "calibration": {"const": 10}}
+    },
+    "by_source_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clean", "noisy"],
+      "properties": {"clean": {"const": 10}, "noisy": {"const": 10}}
+    },
+    "by_scaffold_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["json_only", "concise_rationale_plus_json"],
+      "properties": {
+        "json_only": {"const": 10},
+        "concise_rationale_plus_json": {"const": 10}
+      }
+    },
+    "by_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "domain_builder", "domain_review", "security"],
+      "properties": {
+        "planner": {"const": 4},
+        "tool_policy": {"const": 4},
+        "domain_builder": {"const": 4},
+        "domain_review": {"const": 4},
+        "security": {"const": 4}
+      }
+    },
+    "by_expert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+      "properties": {
+        "planner": {"const": 4},
+        "tool_policy": {"const": 4},
+        "frontend_gen": {"const": 4},
+        "frontend_review": {"const": 4},
+        "security_gate": {"const": 4}
+      }
+    },
+    "smoke_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "contract_sha256",
+        "contract_schema_sha256",
+        "execution_mode",
+        "model_file_basename",
+        "model_sha256_status",
+        "model_bytes_status",
+        "model_loaded",
+        "smoke_executed",
+        "provider_requests",
+        "network_requests"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.natural-language-scaffold-smoke-contract.v1"
+        },
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "contract_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "execution_mode": {"const": "contract_only_unexecuted"},
+        "model_file_basename": {"const": "qwen2.5-1.5b-instruct-q4_k_m.gguf"},
+        "model_sha256_status": {"const": "runtime_required"},
+        "model_bytes_status": {"const": "runtime_required"},
+        "model_loaded": {"const": false},
+        "smoke_executed": {"const": false},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0}
+      }
+    }
+  }
+}

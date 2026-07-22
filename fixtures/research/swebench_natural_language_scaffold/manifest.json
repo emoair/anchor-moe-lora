@@ -1,0 +1,245 @@
+{
+  "adapter_control_contract": {
+    "labels": [
+      "q_only",
+      "q_plus_o",
+      "wide_lora"
+    ],
+    "labels_are_experimental_controls_only": true,
+    "post_boundary_adapter_scope": "expert_private_delta_only",
+    "prefix_adapter_state": "off",
+    "producer_claims_training_outcome": false,
+    "producer_selects_winner": false,
+    "sha256": "f273ff3119381cc91e671e4b33f73f22659c0212ffc0f6532303cc8ab99c8980"
+  },
+  "architecture_contract": {
+    "adapter_state_after_boundary": "expert_only",
+    "adapter_state_on_prefix": "off",
+    "base_compute_disappears_claimed": false,
+    "constant_attention_complexity_claimed": false,
+    "cross_attention_q_reader_implemented": false,
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "expert_generates_no_kv_claimed": false,
+    "full_generation_kv_shared_claimed": false,
+    "hidden_chain_of_thought_exposed": false,
+    "lossless_reasoning_inheritance_claimed": false,
+    "naive_in_stack_q_lora_exact_reuse_claimed": false,
+    "name": "frozen_prefix_q_reader__prefix_branch_producer_consumer",
+    "physical_shared_kv_implemented": false,
+    "private_tail_kv_required": true,
+    "sha256": "e2017cd1603fe305107978592ee09de932a9e4c9c5cda5d3f39a4cca6f6a9047",
+    "shared_prefix_producer": "frozen_planner_base"
+  },
+  "cache_contract": {
+    "cache_identity_status": "identity_unbound",
+    "committed_scaffold_reencode_executed": false,
+    "downstream_immutable_segment_emitted": false,
+    "exact_cache_reuse_enabled": false,
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "full_generation_kv_shared_claimed": false,
+    "identical_token_order_positions_rope_required": true,
+    "physical_kv_tensor_emitted": false,
+    "planner_private_tail_kv_reused_by_expert": false,
+    "private_tail_scope": "expert_private_delta",
+    "reuse_savings_tokens": 0,
+    "shared_prefix_scope": "task_shared_prefix"
+  },
+  "canonical_gold_written": false,
+  "claim_scope": "synthetic_fixture_contract_only",
+  "counts": {
+    "allowed_segment_references": 122,
+    "by_expert": {
+      "frontend_gen": 4,
+      "frontend_review": 4,
+      "planner": 4,
+      "security_gate": 4,
+      "tool_policy": 4
+    },
+    "by_scaffold_variant": {
+      "concise_rationale_plus_json": 10,
+      "json_only": 10
+    },
+    "by_source_variant": {
+      "clean": 10,
+      "noisy": 10
+    },
+    "by_split": {
+      "calibration": 10,
+      "train": 10
+    },
+    "by_stage": {
+      "domain_builder": 4,
+      "domain_review": 4,
+      "planner": 4,
+      "security": 4,
+      "tool_policy": 4
+    },
+    "pairs": 10,
+    "task_ids_sha256": "9ff1b50de2b5540f3cd3e9db0074c4bb95e38c4e4a17134a415c0c75c1c47507",
+    "total": 20,
+    "unique_allowed_segments": 25,
+    "unique_task_bundles": 2
+  },
+  "evaluation_status": "not_evaluated",
+  "execution_authorized": false,
+  "files": [
+    {
+      "bytes": 96866,
+      "path": "train/json_only.jsonl",
+      "records": 5,
+      "scaffold_variant": "json_only",
+      "sha256": "6aad30ccc1aaaac432a76559e15879acac4f82f382c4020a8e7c1831b2ef2751",
+      "source_variant": "noisy",
+      "split": "train"
+    },
+    {
+      "bytes": 98447,
+      "path": "train/concise_rationale_plus_json.jsonl",
+      "records": 5,
+      "scaffold_variant": "concise_rationale_plus_json",
+      "sha256": "02e85be2477fd8937fe3dc3f6222c771d7725864232e11ae8338fcc061d02617",
+      "source_variant": "noisy",
+      "split": "train"
+    },
+    {
+      "bytes": 91711,
+      "path": "calibration/json_only.jsonl",
+      "records": 5,
+      "scaffold_variant": "json_only",
+      "sha256": "2e30596b078a47416aec51c80aaaa5fa946d7f0cbd2231f49974ba4e6f7ef065",
+      "source_variant": "clean",
+      "split": "calibration"
+    },
+    {
+      "bytes": 93022,
+      "path": "calibration/concise_rationale_plus_json.jsonl",
+      "records": 5,
+      "scaffold_variant": "concise_rationale_plus_json",
+      "sha256": "260f1b7d14f1c1563b7a235bc475992f628f70f1e5e67351d05b76aba2299168",
+      "source_variant": "clean",
+      "split": "calibration"
+    }
+  ],
+  "gpu_requests": 0,
+  "heldout_written": false,
+  "input": {
+    "partitions": [
+      {
+        "bytes": 75662,
+        "path": "train/clean.jsonl",
+        "records": 5,
+        "sha256": "3b0f83991bdd5330de5261a922c1d0051c434418ff54b744957af02d7eb04927",
+        "split": "train",
+        "variant": "clean"
+      },
+      {
+        "bytes": 84225,
+        "path": "train/noisy.jsonl",
+        "records": 5,
+        "sha256": "eb6eea5d13bb6416836b3463082398a8906ba85b09389c073cffc3ede12c613d",
+        "split": "train",
+        "variant": "noisy"
+      },
+      {
+        "bytes": 75852,
+        "path": "calibration/clean.jsonl",
+        "records": 5,
+        "sha256": "f6d5534897d93ef2544023d7d5ac9bcac15d64e4fe14c2529a754e1253b16448",
+        "split": "calibration",
+        "variant": "clean"
+      }
+    ],
+    "projector_config_sha256": "b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943",
+    "projector_manifest_schema_sha256": "2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347",
+    "projector_manifest_schema_version": "anchor.swebench-taskboard-projector-manifest.v2",
+    "projector_manifest_sha256": "595cd150845015f3723e28a6aa0cb48730cdca6457580ad66a393ef4143fa2ac",
+    "projector_manifest_sha256_sidecar_sha256": "ccb41b0515d38350231ccb6961ce9ed09f5f9076fe74cd8334cc026f534a4c5e",
+    "projector_sidecar_schema_sha256": "c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5",
+    "segment_plan_schema_sha256": "80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf",
+    "selected_source_partitions": [
+      "train/noisy.jsonl",
+      "calibration/clean.jsonl"
+    ]
+  },
+  "manifest_sha256_sidecar_required": true,
+  "model_loads": 0,
+  "network_requests": 0,
+  "producer": {
+    "config_schema_version": "anchor.natural-language-scaffold-config.v1",
+    "config_sha256": "e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38",
+    "implementation_sha256": "09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330",
+    "manifest_schema_sha256": "8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16",
+    "name": "anchor.natural-language-scaffold",
+    "producer_version": "anchor.natural-language-scaffold-producer.v1",
+    "record_schema_sha256": "84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14",
+    "record_schema_version": "anchor.natural-language-scaffold.v1",
+    "smoke_contract_schema_sha256": "3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b",
+    "smoke_contract_schema_version": "anchor.natural-language-scaffold-smoke-contract.v1",
+    "smoke_contract_sha256": "46bca04c358cc1e80f55c7eacff36fdf3f11a83efda52ad4386035ca5d614719"
+  },
+  "provider_requests": 0,
+  "quality_validated": false,
+  "route_activation_contract": {
+    "alora_activation_semantics": "next_request_input_activation_only",
+    "commit_promotes_text_only": true,
+    "commit_required": true,
+    "committed_scaffold_output": "downstream_immutable_segment_with_new_lineage",
+    "committed_scaffold_reencode_adapter_state": "off",
+    "committed_scaffold_reencode_producer": "frozen_base",
+    "committed_scaffold_reencode_required": true,
+    "expert_activation_request": "next_request",
+    "expert_request_requires_committed_scaffold_as_input": true,
+    "mid_request_generated_activation_allowed": false,
+    "mid_request_generated_trigger_switch_claimed": false,
+    "planner_private_tail_kv_transfer_allowed": false,
+    "planner_request_output": "rationale_route_and_sentinel_candidate",
+    "same_request_activation_allowed": false,
+    "semantics": "explicit_two_request_commit_boundary",
+    "token_boundary_status": "tokenizer_binding_required",
+    "validation_required": true
+  },
+  "schema_version": "anchor.natural-language-scaffold-manifest.v1",
+  "serialization_contract": {
+    "encoding": "utf-8",
+    "json_object_serialization": "canonical_json_sort_keys_compact_utf8",
+    "newline": "lf",
+    "payload_hash_basis": "canonical_structured_interface_utf8",
+    "route_json_hash_basis": "canonical_routing_json_utf8",
+    "scaffold_text_hash_basis": "exact_utf8_bytes",
+    "segment_reference_order": "causal_order_then_segment_id",
+    "sha256": "5b5fb80cc11a855c0ad154d12a4a2da470bed32a3211c48054e19692df1bb247",
+    "token_fields_emitted": false,
+    "tokenizer_binding_status": "unbound"
+  },
+  "smoke_contract": {
+    "contract_schema_sha256": "3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b",
+    "contract_sha256": "46bca04c358cc1e80f55c7eacff36fdf3f11a83efda52ad4386035ca5d614719",
+    "execution_mode": "contract_only_unexecuted",
+    "model_bytes_status": "runtime_required",
+    "model_file_basename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "model_loaded": false,
+    "model_sha256_status": "runtime_required",
+    "network_requests": 0,
+    "provider_requests": 0,
+    "schema_version": "anchor.natural-language-scaffold-smoke-contract.v1",
+    "smoke_executed": false
+  },
+  "status": "synthetic_fixture_ready",
+  "visibility_contract": {
+    "all_five_role_views_same_split": true,
+    "current_target_body_serialized": false,
+    "forbidden_block_body_serialized": false,
+    "future_block_body_serialized": false,
+    "paired_views_share_allowed_and_forbidden_evidence": true,
+    "paired_views_share_source_and_target": true,
+    "source_block_id_schemes": [
+      "tb-block-v1",
+      "tb-stale-v1"
+    ],
+    "split_before_augmentation": true,
+    "split_group_key": "task_bundle_sha256",
+    "task_id_cross_binding_key": "task_id_sha256",
+    "task_id_cross_binding_transform": "sha256_utf8_training_record_task_board_task_id",
+    "whole_taskboard_stringification_allowed": false
+  }
+}

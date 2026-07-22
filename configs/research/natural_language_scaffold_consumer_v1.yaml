@@ -1,0 +1,68 @@
+schema_version: anchor.natural-language-scaffold-consumer-config.v1
+claim_scope: synthetic_fixture_contract_only
+
+producer_contract:
+  commit: 03ea0214567289e4f46378d4731b0177c18a1402
+  config: configs/research/swebench_natural_language_scaffold_v1.yaml
+  config_sha256: e81fc742ffb99d0f71ff3cc03ba68e82644ed7f539eb190eb2945bec7567fe38
+  record_schema: configs/research/swebench_natural_language_scaffold_sidecar.schema.json
+  record_schema_sha256: 84efd818a52334e6b63a2132126d4a133ea3a143e13d11431bda3a242ba67d14
+  manifest_schema: configs/research/swebench_natural_language_scaffold_manifest.schema.json
+  manifest_schema_sha256: 8034b673798b0dc8b8a620b53a4a92e5565b5f9d936ad76ef8d30add50a98b16
+  smoke_schema: configs/research/swebench_natural_language_scaffold_smoke_contract.schema.json
+  smoke_schema_sha256: 3944b28736ad1b6df9088ec69753c471d52ddb4f2753a974a23a29343c2cba5b
+  smoke_contract: configs/research/swebench_natural_language_scaffold_smoke_v1.yaml
+  smoke_contract_sha256: 46bca04c358cc1e80f55c7eacff36fdf3f11a83efda52ad4386035ca5d614719
+  producer_implementation_sha256: 09e7dae7f0fcafabbf2ea682504355d2c95c545764295c84eace7d16b3332330
+  fixture: fixtures/research/swebench_natural_language_scaffold
+  fixture_manifest_sha256: 25e40da8fea46ba018ae0031fa8c37da38b59438bb92d9052a915fd256d822dc
+  fixture_manifest_sidecar_sha256: 9de02cee4bf902e8ef71c48d70e1d327659f4c31b125178728b7eb9401c6751f
+
+paired_ablation:
+  split_group_key: task_bundle_sha256
+  variants: [json_only, concise_rationale_plus_json]
+  paired_inputs_identical: true
+  variant_specific_targets: true
+  roles_per_bundle: 5
+  source_bundles: 2
+
+runtime_boundary:
+  semantics: explicit_two_request_commit_boundary
+  planner_request_adapter: base
+  commit_promotes: text_only
+  planner_private_kv_transfer: false
+  committed_scaffold_reencode: frozen_base_adapter_off
+  expert_activation_request: next_request
+  same_request_activation: false
+  mid_request_generated_activation: false
+  tokenizer_binding_status: unbound
+
+adapter_controls:
+  labels: [q_only, q_plus_o, wide_lora]
+  labels_are_attestations: false
+  labels_authorize_execution: false
+  physical_adapter_attestation_required: true
+
+gates:
+  strict_schema: true
+  physical_sha256: true
+  mandatory_manifest_sha256_sidecar: true
+  single_bytes_snapshot: true
+  paired_ablation: true
+  two_request_runtime: true
+  body_exclusion: true
+  training_authorized: false
+  quality_validated: false
+  provider_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  network_requests: 0
+
+pending_real_training:
+  tokenizer_binding: unavailable
+  token_boundary: unavailable
+  alora_adapter_artifact: unavailable
+  adapter_tensor_attestation: unavailable
+  frozen_formal_v3_release_lock: unavailable
+  physical_kv_cuda: unavailable
+  correctness_performance_quality_evaluation: unavailable

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/natural-language-scaffold-smoke-contract-v1.json",
+  "title": "Low-cost local scaffold behavior smoke contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_scope",
+    "execution_mode",
+    "model_artifact",
+    "runtime_capability",
+    "two_request_protocol",
+    "behavior_assertions",
+    "resource_limits",
+    "current_execution",
+    "prohibited_claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.natural-language-scaffold-smoke-contract.v1"
+    },
+    "contract_scope": {"const": "behavior_smoke_only"},
+    "execution_mode": {"const": "contract_only_unexecuted"},
+    "model_artifact": {"$ref": "#/$defs/model_artifact"},
+    "runtime_capability": {"$ref": "#/$defs/runtime_capability"},
+    "two_request_protocol": {"$ref": "#/$defs/two_request_protocol"},
+    "behavior_assertions": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "strict_routing_json_parses"},
+        {"const": "concise_rationale_is_auditable_summary_not_hidden_cot"},
+        {"const": "synthetic_tool_trace_schema_valid"},
+        {"const": "candidate_scaffold_validated_before_commit"},
+        {"const": "committed_scaffold_is_next_request_input"},
+        {"const": "same_request_generated_trigger_switch_not_attempted"},
+        {"const": "expert_private_tail_not_claimed_shared"}
+      ],
+      "items": false,
+      "minItems": 7,
+      "maxItems": 7
+    },
+    "resource_limits": {"$ref": "#/$defs/resource_limits"},
+    "current_execution": {"$ref": "#/$defs/current_execution"},
+    "prohibited_claims": {"$ref": "#/$defs/prohibited_claims"}
+  },
+  "$defs": {
+    "model_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basename",
+        "format",
+        "quantization",
+        "location_binding_status",
+        "sha256_status",
+        "bytes_status",
+        "trainable_weights",
+        "training_use_allowed",
+        "quality_evidence"
+      ],
+      "properties": {
+        "basename": {"const": "qwen2.5-1.5b-instruct-q4_k_m.gguf"},
+        "format": {"const": "gguf"},
+        "quantization": {"const": "q4_k_m"},
+        "location_binding_status": {"const": "runtime_argument_required"},
+        "sha256_status": {"const": "runtime_required"},
+        "bytes_status": {"const": "runtime_required"},
+        "trainable_weights": {"const": false},
+        "training_use_allowed": {"const": false},
+        "quality_evidence": {"const": "none"}
+      }
+    },
+    "runtime_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "interface_scope",
+        "alora_invocation_protocol_optional",
+        "alora_protocol_capability_evidence",
+        "alora_adapter_available",
+        "alora_adapter_loaded",
+        "activation_semantics",
+        "invocation_scan_scope",
+        "same_request_activation_allowed",
+        "mid_request_generated_activation_allowed",
+        "mid_request_generated_trigger_switch_claimed",
+        "cross_attention_q_reader_implemented",
+        "physical_shared_kv_implemented",
+        "zero_copy_kv_claimed"
+      ],
+      "properties": {
+        "engine": {"const": "llama.cpp"},
+        "interface_scope": {"const": "local_json_scaffold_and_tool_trace_behavior"},
+        "alora_invocation_protocol_optional": {"const": true},
+        "alora_protocol_capability_evidence": {
+          "const": "externally_observed_not_artifact_authenticated"
+        },
+        "alora_adapter_available": {"const": false},
+        "alora_adapter_loaded": {"const": false},
+        "activation_semantics": {"const": "next_request_input_activation_only"},
+        "invocation_scan_scope": {"const": "new_request_input_tokens_only"},
+        "same_request_activation_allowed": {"const": false},
+        "mid_request_generated_activation_allowed": {"const": false},
+        "mid_request_generated_trigger_switch_claimed": {"const": false},
+        "cross_attention_q_reader_implemented": {"const": false},
+        "physical_shared_kv_implemented": {"const": false},
+        "zero_copy_kv_claimed": {"const": false}
+      }
+    },
+    "two_request_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_request",
+        "validation_commit",
+        "committed_scaffold_reencode",
+        "expert_request",
+        "planner_private_tail_kv_transfer_allowed",
+        "token_boundary_status"
+      ],
+      "properties": {
+        "planner_request": {"const": "produce_rationale_route_and_sentinel_candidate"},
+        "validation_commit": {"const": "strict_validate_then_explicit_commit"},
+        "committed_scaffold_reencode": {
+          "const": "frozen_base_adapter_off_new_downstream_immutable_lineage"
+        },
+        "expert_request": {"const": "next_request_with_committed_scaffold_as_input"},
+        "planner_private_tail_kv_transfer_allowed": {"const": false},
+        "token_boundary_status": {"const": "tokenizer_binding_required"}
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "concurrency",
+        "max_local_model_requests_when_explicitly_enabled",
+        "max_context_tokens_when_runtime_bound",
+        "max_output_tokens_when_runtime_bound",
+        "gpu_required",
+        "full_dataset_projection_allowed",
+        "training_allowed"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "concurrency": {"const": 1},
+        "max_local_model_requests_when_explicitly_enabled": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "max_context_tokens_when_runtime_bound": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "max_output_tokens_when_runtime_bound": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        },
+        "gpu_required": {"const": false},
+        "full_dataset_projection_allowed": {"const": false},
+        "training_allowed": {"const": false}
+      }
+    },
+    "current_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executed",
+        "model_loaded",
+        "local_model_requests",
+        "provider_requests",
+        "network_requests",
+        "adapter_activation_executed",
+        "result_status"
+      ],
+      "properties": {
+        "executed": {"const": false},
+        "model_loaded": {"const": false},
+        "local_model_requests": {"const": 0},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "adapter_activation_executed": {"const": false},
+        "result_status": {"const": "not_run"}
+      }
+    },
+    "prohibited_claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gguf_is_trainable_weights",
+        "quality_validated",
+        "hidden_chain_of_thought",
+        "lossless_reasoning_inheritance",
+        "expert_generates_no_kv",
+        "constant_attention_complexity",
+        "base_compute_disappears",
+        "ordinary_llama_kv_is_q_reader_zero_copy",
+        "ordinary_in_stack_q_lora_exact_full_stack_reuse",
+        "mid_request_generated_trigger_switch"
+      ],
+      "properties": {
+        "gguf_is_trainable_weights": {"const": false},
+        "quality_validated": {"const": false},
+        "hidden_chain_of_thought": {"const": false},
+        "lossless_reasoning_inheritance": {"const": false},
+        "expert_generates_no_kv": {"const": false},
+        "constant_attention_complexity": {"const": false},
+        "base_compute_disappears": {"const": false},
+        "ordinary_llama_kv_is_q_reader_zero_copy": {"const": false},
+        "ordinary_in_stack_q_lora_exact_full_stack_reuse": {"const": false},
+        "mid_request_generated_trigger_switch": {"const": false}
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+schema_version: anchor.natural-language-scaffold-smoke-contract.v1
+contract_scope: behavior_smoke_only
+execution_mode: contract_only_unexecuted
+
+model_artifact:
+  basename: qwen2.5-1.5b-instruct-q4_k_m.gguf
+  format: gguf
+  quantization: q4_k_m
+  location_binding_status: runtime_argument_required
+  sha256_status: runtime_required
+  bytes_status: runtime_required
+  trainable_weights: false
+  training_use_allowed: false
+  quality_evidence: none
+
+runtime_capability:
+  engine: llama.cpp
+  interface_scope: local_json_scaffold_and_tool_trace_behavior
+  alora_invocation_protocol_optional: true
+  alora_protocol_capability_evidence: externally_observed_not_artifact_authenticated
+  alora_adapter_available: false
+  alora_adapter_loaded: false
+  activation_semantics: next_request_input_activation_only
+  invocation_scan_scope: new_request_input_tokens_only
+  same_request_activation_allowed: false
+  mid_request_generated_activation_allowed: false
+  mid_request_generated_trigger_switch_claimed: false
+  cross_attention_q_reader_implemented: false
+  physical_shared_kv_implemented: false
+  zero_copy_kv_claimed: false
+
+two_request_protocol:
+  planner_request: produce_rationale_route_and_sentinel_candidate
+  validation_commit: strict_validate_then_explicit_commit
+  committed_scaffold_reencode: frozen_base_adapter_off_new_downstream_immutable_lineage
+  expert_request: next_request_with_committed_scaffold_as_input
+  planner_private_tail_kv_transfer_allowed: false
+  token_boundary_status: tokenizer_binding_required
+
+behavior_assertions:
+  - strict_routing_json_parses
+  - concise_rationale_is_auditable_summary_not_hidden_cot
+  - synthetic_tool_trace_schema_valid
+  - candidate_scaffold_validated_before_commit
+  - committed_scaffold_is_next_request_input
+  - same_request_generated_trigger_switch_not_attempted
+  - expert_private_tail_not_claimed_shared
+
+resource_limits:
+  provider_requests: 0
+  network_requests: 0
+  concurrency: 1
+  max_local_model_requests_when_explicitly_enabled: 2
+  max_context_tokens_when_runtime_bound: 8192
+  max_output_tokens_when_runtime_bound: 512
+  gpu_required: false
+  full_dataset_projection_allowed: false
+  training_allowed: false
+
+current_execution:
+  executed: false
+  model_loaded: false
+  local_model_requests: 0
+  provider_requests: 0
+  network_requests: 0
+  adapter_activation_executed: false
+  result_status: not_run
+
+prohibited_claims:
+  gguf_is_trainable_weights: false
+  quality_validated: false
+  hidden_chain_of_thought: false
+  lossless_reasoning_inheritance: false
+  expert_generates_no_kv: false
+  constant_attention_complexity: false
+  base_compute_disappears: false
+  ordinary_llama_kv_is_q_reader_zero_copy: false
+  ordinary_in_stack_q_lora_exact_full_stack_reuse: false
+  mid_request_generated_trigger_switch: false
