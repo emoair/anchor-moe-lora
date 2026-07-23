@@ -750,6 +750,80 @@ def test_execute_receipts_bind_lock_gpu_and_run(
         )
 
 
+def test_wddm_attested_inventory_requires_canonical_pid_order() -> None:
+    canonical = [
+        {
+            "pid": 4304,
+            "process_name": "dwm.exe",
+            "used_gpu_memory_mib": "[N/A]",
+            "reported_name_was_permission_denied": False,
+            "allowlisted_wddm_gui": True,
+        },
+        {
+            "pid": 16180,
+            "process_name": "explorer.exe",
+            "used_gpu_memory_mib": "[N/A]",
+            "reported_name_was_permission_denied": False,
+            "allowlisted_wddm_gui": True,
+        },
+    ]
+
+    assert runner._validate_attested_wddm_processes(canonical) == tuple(canonical)
+    with pytest.raises(
+        runner.GemmaFiveRoleError,
+        match="wddm_compute_inventory_not_canonical",
+    ):
+        runner._validate_attested_wddm_processes(list(reversed(canonical)))
+
+
+def test_prevalidation_failure_publishes_fail_closed_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = copy.deepcopy(_config())
+    root = tmp_path / "repo"
+    monkeypatch.setattr(runner, "_root", lambda: root)
+    monkeypatch.setattr(runner, "build_preflight", lambda _config: {})
+
+    def fail_validation(*_args: object, **_kwargs: object) -> object:
+        raise runner.GemmaFiveRoleError("wddm_compute_inventory_not_canonical")
+
+    monkeypatch.setattr(runner, "_validate_launch_receipts", fail_validation)
+
+    with pytest.raises(
+        runner.GemmaFiveRoleError,
+        match="wddm_compute_inventory_not_canonical",
+    ):
+        runner.execute(
+            config,
+            run_id="prevalidation-failure",
+            lease_path="unused-lease.json",
+            lease_sha256="a" * 64,
+            gpu_attestation_path="unused-attestation.json",
+            gpu_attestation_sha256="b" * 64,
+        )
+
+    launch_root = root.joinpath(
+        *runner.PurePosixPath(config["output"]["launch_root"]).parts
+    )
+    receipt_path = launch_root / "prevalidation-failure" / "failure_receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt == {
+        "schema_version": runner.FAILURE_RECEIPT_VERSION,
+        "status": "blocked",
+        "run_id": "prevalidation-failure",
+        "error_code": "wddm_compute_inventory_not_canonical",
+        "role": None,
+        "phase": None,
+        "sample_content_included": False,
+        "automatic_retry": False,
+        "claims": {
+            "formal": False,
+            "training_authorized": False,
+            "formal_training_authorized": False,
+        },
+    }
+
+
 def test_launcher_guard_requires_current_parent_and_canonical_lock(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

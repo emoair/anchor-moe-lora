@@ -611,7 +611,10 @@ function Get-GpuSample(
             $ResolvedProcess = Resolve-ComputeProcessBasename `
                 -PidValue $PidValue `
                 -ReportedName $ReportedProcessName
-            $ProcessRecord = [ordered]@{
+            # Emit a real PSObject so Sort-Object resolves pid/process_name as
+            # properties. An OrderedDictionary preserves insertion order but
+            # Sort-Object can otherwise retain the nvidia-smi row order.
+            $ProcessRecord = [pscustomobject][ordered]@{
                 pid = $PidValue
                 process_name = $ResolvedProcess.process_name
                 used_gpu_memory_mib = $MemoryText

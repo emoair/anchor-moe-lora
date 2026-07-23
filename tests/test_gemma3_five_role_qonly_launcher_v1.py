@@ -80,6 +80,8 @@ def _make_project(tmp_path: Path) -> dict[str, Path]:
             ")\r\n"
             'if /i "%~1"=="--query-compute-apps=gpu_uuid,pid,process_name,'
             'used_gpu_memory" (\r\n'
+            f"  echo {GPU_UUID}, 16180, "
+            '"C:\\Windows\\explorer.exe", [N/A]\r\n'
             f"  echo {GPU_UUID}, 4304, "
             '"C:\\Windows\\System32\\dwm.exe", [N/A]\r\n'
             "  if defined ANCHOR_MOCK_FOREIGN (\r\n"
@@ -300,18 +302,29 @@ def test_mock_wddm_idle_gate_publishes_attestation_and_releases_lock(
             "used_gpu_memory_mib": "[N/A]",
             "reported_name_was_permission_denied": False,
             "allowlisted_wddm_gui": True,
-        }
+        },
+        {
+            "pid": 16180,
+            "process_name": "explorer.exe",
+            "used_gpu_memory_mib": "[N/A]",
+            "reported_name_was_permission_denied": False,
+            "allowlisted_wddm_gui": True,
+        },
     ]
     assert len(payload["pre_lock_samples"]) == 3
     assert len(payload["post_lock_samples"]) == 3
     all_samples = payload["pre_lock_samples"] + payload["post_lock_samples"]
     assert all(
-        sample["selected_gpu_compute_process_count"] == 1 for sample in all_samples
+        sample["selected_gpu_compute_process_count"] == 2 for sample in all_samples
     )
     assert len({sample["compute_inventory_sha256"] for sample in all_samples}) == 1
     assert all(
         sample["compute_processes"] == payload["compute_processes"]
         for sample in all_samples
+    )
+    assert payload["compute_processes"] == sorted(
+        payload["compute_processes"],
+        key=lambda item: (item["pid"], item["process_name"]),
     )
     assert all(sample["wddm_desktop_baseline_tolerated"] for sample in all_samples)
     assert payload["lock"]["file_mode"] == "CreateNew"

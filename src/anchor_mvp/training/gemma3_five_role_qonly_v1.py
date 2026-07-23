@@ -2051,27 +2051,28 @@ def execute(
     gpu_attestation_path: str | Path,
     gpu_attestation_sha256: str,
 ) -> dict[str, Any]:
-    preflight = build_preflight(config)
-    lease, attestation, external_snapshots = _validate_launch_receipts(
-        config,
-        run_id=run_id,
-        lease_path=lease_path,
-        lease_sha256=lease_sha256,
-        gpu_attestation_path=gpu_attestation_path,
-        gpu_attestation_sha256=gpu_attestation_sha256,
-    )
-    output_root = _root().joinpath(
-        *_output_relative(config["output"]["artifact_root"]).parts
-    )
-    output_root.mkdir(parents=True, exist_ok=True)
-    destination = output_root / run_id
-    if os.path.lexists(destination):
-        raise FileExistsError(f"run output exists: {destination}")
-    staging = output_root / f".{run_id}.tmp-{uuid.uuid4().hex}"
-    staging.mkdir(exist_ok=False)
     current_role: str | None = None
     current_phase: str | None = None
+    staging: Path | None = None
     try:
+        preflight = build_preflight(config)
+        lease, attestation, external_snapshots = _validate_launch_receipts(
+            config,
+            run_id=run_id,
+            lease_path=lease_path,
+            lease_sha256=lease_sha256,
+            gpu_attestation_path=gpu_attestation_path,
+            gpu_attestation_sha256=gpu_attestation_sha256,
+        )
+        output_root = _root().joinpath(
+            *_output_relative(config["output"]["artifact_root"]).parts
+        )
+        output_root.mkdir(parents=True, exist_ok=True)
+        destination = output_root / run_id
+        if os.path.lexists(destination):
+            raise FileExistsError(f"run output exists: {destination}")
+        staging = output_root / f".{run_id}.tmp-{uuid.uuid4().hex}"
+        staging.mkdir(exist_ok=False)
         binding_config = _binding_config(config)
         datasets = binding.load_all_role_datasets(binding_config)
         with _private_model_snapshot(config, run_id) as (
@@ -2198,7 +2199,7 @@ def execute(
             raise GemmaFiveRoleError("published_run_receipt_verification_failed")
         return success
     except Exception as error:
-        if os.path.lexists(staging):
+        if staging is not None and os.path.lexists(staging):
             shutil.rmtree(staging)
         code = (
             str(error)
