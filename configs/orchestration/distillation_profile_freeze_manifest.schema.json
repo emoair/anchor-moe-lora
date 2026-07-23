@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/distillation_profile_freeze_manifest.v1.json",
+  "title": "Anchor task-level MoE-LoRA distillation profile freeze manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_sha256",
+    "profile_path",
+    "profile_schema",
+    "freeze_manifest_schema",
+    "execution_core_id",
+    "post_gold_view_id",
+    "profile_scope",
+    "dependencies",
+    "authenticated_dependency_count",
+    "canonical_gold_written",
+    "canonical_gold_mutated",
+    "provider_requests",
+    "credentials_read",
+    "gold_bodies_read",
+    "heldout_bodies_read",
+    "model_loads",
+    "gpu_requests",
+    "network_requests",
+    "live_authorized",
+    "training_authorized",
+    "formal_training_authorized",
+    "release_authorized"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.distillation-profile-freeze-manifest.v1"
+    },
+    "profile_id": {
+      "const": "task-level-moe-lora-v1"
+    },
+    "profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "profile_path": {
+      "const": "configs/orchestration/profiles/task_level_moe_lora_v1.json"
+    },
+    "profile_schema": {
+      "$ref": "#/$defs/file_binding"
+    },
+    "freeze_manifest_schema": {
+      "$ref": "#/$defs/file_binding"
+    },
+    "execution_core_id": {
+      "const": "anchor.swebench-five-stage-execution-core.v1"
+    },
+    "post_gold_view_id": {
+      "const": "anchor.task-level-moe-lora-view.v1"
+    },
+    "profile_scope": {
+      "const": "post_canonical_gold_view_only"
+    },
+    "dependencies": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/anchor_launcher"
+        },
+        {
+          "$ref": "#/$defs/full_bank_builder"
+        },
+        {
+          "$ref": "#/$defs/full_bank_implementation"
+        },
+        {
+          "$ref": "#/$defs/full_bank_config"
+        },
+        {
+          "$ref": "#/$defs/coordinator_implementation"
+        },
+        {
+          "$ref": "#/$defs/coordinator_config"
+        },
+        {
+          "$ref": "#/$defs/execution_contract_implementation"
+        },
+        {
+          "$ref": "#/$defs/execution_runtime_implementation"
+        },
+        {
+          "$ref": "#/$defs/formal_gold_export_script"
+        },
+        {
+          "$ref": "#/$defs/formal_gold_implementation"
+        },
+        {
+          "$ref": "#/$defs/profile_implementation"
+        },
+        {
+          "$ref": "#/$defs/profile_runner"
+        }
+      ],
+      "items": false
+    },
+    "authenticated_dependency_count": {
+      "const": 14
+    },
+    "canonical_gold_written": {
+      "const": false
+    },
+    "canonical_gold_mutated": {
+      "const": false
+    },
+    "provider_requests": {
+      "const": 0
+    },
+    "credentials_read": {
+      "const": false
+    },
+    "gold_bodies_read": {
+      "const": false
+    },
+    "heldout_bodies_read": {
+      "const": false
+    },
+    "model_loads": {
+      "const": 0
+    },
+    "gpu_requests": {
+      "const": 0
+    },
+    "network_requests": {
+      "const": 0
+    },
+    "live_authorized": {
+      "const": false
+    },
+    "training_authorized": {
+      "const": false
+    },
+    "formal_training_authorized": {
+      "const": false
+    },
+    "release_authorized": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "project_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "dependency_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "anchor_launcher": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "anchor_launcher"
+        },
+        "path": {
+          "const": "anchor.ps1"
+        }
+      }
+    },
+    "full_bank_builder": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "full_bank_builder"
+        },
+        "path": {
+          "const": "scripts/data/build_swebench_full_bank.py"
+        }
+      }
+    },
+    "full_bank_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "full_bank_implementation"
+        },
+        "path": {
+          "const": "src/anchor_mvp/swebench/full_bank.py"
+        }
+      }
+    },
+    "full_bank_config": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "full_bank_config"
+        },
+        "path": {
+          "const": "configs/data/swebench_full_bank.formal.yaml"
+        }
+      }
+    },
+    "coordinator_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "coordinator_implementation"
+        },
+        "path": {
+          "const": "scripts/tooling/run_swebench_ccswitch.py"
+        }
+      }
+    },
+    "coordinator_config": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "coordinator_config"
+        },
+        "path": {
+          "const": "configs/data/swebench_five_stage.ccswitch.yaml"
+        }
+      }
+    },
+    "execution_contract_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "execution_contract_implementation"
+        },
+        "path": {
+          "const": "src/anchor_mvp/tooling/swebench_execution_v3.py"
+        }
+      }
+    },
+    "execution_runtime_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "execution_runtime_implementation"
+        },
+        "path": {
+          "const": "src/anchor_mvp/tooling/swebench_runtime_v3.py"
+        }
+      }
+    },
+    "formal_gold_export_script": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "formal_gold_export_script"
+        },
+        "path": {
+          "const": "scripts/data/export_swebench_formal_gold.py"
+        }
+      }
+    },
+    "formal_gold_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "formal_gold_implementation"
+        },
+        "path": {
+          "const": "src/anchor_mvp/swebench/formal_gold.py"
+        }
+      }
+    },
+    "profile_implementation": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "profile_implementation"
+        },
+        "path": {
+          "const": "src/anchor_mvp/swebench/distillation_profile.py"
+        }
+      }
+    },
+    "profile_runner": {
+      "$ref": "#/$defs/dependency_binding",
+      "properties": {
+        "role": {
+          "const": "profile_runner"
+        },
+        "path": {
+          "const": "scripts/data/run_distillation_profile.py"
+        }
+      }
+    }
+  }
+}

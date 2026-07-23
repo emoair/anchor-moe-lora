@@ -15,6 +15,8 @@ param(
     [string]$Config = "configs/data/automation.yaml",
     [string]$SWEConfig = "configs/data/swebench_full_bank.formal.yaml",
     [string]$SWECoordinatorConfig = "configs/data/swebench_five_stage.ccswitch.yaml",
+    [ValidateSet("task-level-moe-lora-v1")]
+    [string]$DistillationProfile,
     [switch]$ConfirmLive,
     [switch]$Resume,
     [int]$Concurrency = 0,
@@ -26,6 +28,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
+$distillationProfileWasBound = $PSBoundParameters.ContainsKey("DistillationProfile")
+$sweConfigWasBound = $PSBoundParameters.ContainsKey("SWEConfig")
+$sweCoordinatorConfigWasBound = $PSBoundParameters.ContainsKey("SWECoordinatorConfig")
 $automationLauncher = Join-Path $repoRoot "scripts\data\start_automation.ps1"
 $openCodeArtifacts = Join-Path $repoRoot "artifacts\tooling\opencode-patched"
 $openCodeVerifier = Join-Path $repoRoot "scripts\tooling\assemble_opencode_bundle.py"
@@ -38,6 +43,7 @@ $fullBankManifest = Join-Path $repoRoot "artifacts\swebench\full-bank-v1\manifes
 $dashboardScript = Join-Path $repoRoot "scripts\observability\distillation_dashboard.py"
 $formalGateReader = Join-Path $repoRoot "scripts\observability\formal_gate_status.py"
 $openCodeDryPreflight = Join-Path $repoRoot "scripts\tooling\run_live.py"
+$distillationProfileRunner = Join-Path $repoRoot "scripts\data\run_distillation_profile.py"
 
 function Write-AnchorTitle {
     param([string]$Title)
@@ -107,6 +113,79 @@ function Invoke-AutomationLauncher {
     & $powershell @childArguments | ForEach-Object { Write-Host $_ }
     $childExitCode = $LASTEXITCODE
     return $childExitCode
+}
+
+function Invoke-DistillationProfilePreflight {
+    if (-not $distillationProfileWasBound) {
+        return $null
+    }
+    if ($sweConfigWasBound -or $sweCoordinatorConfigWasBound) {
+        throw "distillation_profile_conflicts_with_direct_swe_config"
+    }
+    if (-not (Test-Path -LiteralPath $distillationProfileRunner -PathType Leaf)) {
+        throw "distillation_profile_runner_missing"
+    }
+    $profilePath = switch ($DistillationProfile) {
+        "task-level-moe-lora-v1" {
+            "configs/orchestration/profiles/task_level_moe_lora_v1.json"
+        }
+        default {
+            throw "unsupported_distillation_profile"
+        }
+    }
+    $python = Resolve-AnchorPython
+    $arguments = @($python.Prefix) + @(
+        $distillationProfileRunner,
+        "preflight",
+        "--profile", $profilePath
+    )
+    $raw = @(& $python.Executable @arguments 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $raw.Count -eq 0) {
+        throw "distillation_profile_preflight_failed"
+    }
+    try {
+        $payload = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        throw "distillation_profile_preflight_invalid"
+    }
+    $required = @(
+        "schema_version", "profile_ready", "profile_id", "profile_sha256",
+        "profile_schema_sha256", "freeze_manifest_schema_sha256",
+        "execution_core_id", "post_gold_view_id",
+        "full_bank_config_path", "coordinator_config_path",
+        "authenticated_dependency_count", "canonical_gold_mutated",
+        "provider_requests", "credentials_read", "gold_bodies_read",
+        "heldout_bodies_read", "model_loads", "gpu_requests",
+        "network_requests", "live_authorized", "training_authorized",
+        "formal_training_authorized", "release_authorized"
+    )
+    foreach ($name in $required) {
+        if ($null -eq $payload.PSObject.Properties[$name]) {
+            throw "distillation_profile_preflight_invalid"
+        }
+    }
+    if ($payload.schema_version -ne "anchor.distillation-profile-preflight.v1" -or
+        $payload.profile_ready -ne $true -or
+        $payload.profile_id -ne $DistillationProfile -or
+        $payload.execution_core_id -ne "anchor.swebench-five-stage-execution-core.v1" -or
+        $payload.post_gold_view_id -ne "anchor.task-level-moe-lora-view.v1" -or
+        $payload.authenticated_dependency_count -ne 14 -or
+        $payload.canonical_gold_mutated -ne $false -or
+        $payload.provider_requests -ne 0 -or
+        $payload.credentials_read -ne $false -or
+        $payload.gold_bodies_read -ne $false -or
+        $payload.heldout_bodies_read -ne $false -or
+        $payload.model_loads -ne 0 -or
+        $payload.gpu_requests -ne 0 -or
+        $payload.network_requests -ne 0 -or
+        $payload.live_authorized -ne $false -or
+        $payload.training_authorized -ne $false -or
+        $payload.formal_training_authorized -ne $false -or
+        $payload.release_authorized -ne $false) {
+        throw "distillation_profile_preflight_invalid"
+    }
+    return $payload
 }
 
 function Invoke-FullBankPreflight {
@@ -486,6 +565,20 @@ function Show-Docs {
 
 function Start-SWEBenchDistillation {
     Write-AnchorTitle "SWE-bench 五段蒸馏 / five-stage distillation"
+    if ($distillationProfileWasBound) {
+        try {
+            $profilePreflight = Invoke-DistillationProfilePreflight
+        }
+        catch {
+            Write-Host ("Profile preflight refused: {0}" -f $_.Exception.Message) -ForegroundColor Red
+            Write-Host "未读取 Gold/heldout 正文，也未启动 provider/model/GPU。" -ForegroundColor Yellow
+            exit 2
+        }
+        $SWEConfig = [string]$profilePreflight.full_bank_config_path
+        $SWECoordinatorConfig = [string]$profilePreflight.coordinator_config_path
+        Write-Host ("Profile authenticated: {0}; post-Gold view only; all authorization=false" -f `
+            $profilePreflight.profile_id) -ForegroundColor Green
+    }
     $missing = @()
     if (-not (Test-Path -LiteralPath $openCodeArtifacts -PathType Container)) {
         $missing += "patched OpenCode artifacts"

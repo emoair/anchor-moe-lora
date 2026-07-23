@@ -1,0 +1,588 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/distillation_pipeline_profile.v1.json",
+  "title": "Anchor distillation pipeline profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_version",
+    "profile_schema",
+    "freeze_manifest_schema",
+    "execution_core",
+    "canonical_gold_boundary",
+    "post_gold_view",
+    "authorization",
+    "audit_contract",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.distillation-pipeline-profile.v1"
+    },
+    "profile_id": {
+      "const": "task-level-moe-lora-v1"
+    },
+    "profile_version": {
+      "const": 1
+    },
+    "profile_schema": {
+      "$ref": "#/$defs/file_binding"
+    },
+    "freeze_manifest_schema": {
+      "$ref": "#/$defs/file_binding"
+    },
+    "execution_core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_id",
+        "full_bank_builder_dependency",
+        "full_bank_implementation_dependency",
+        "full_bank_config_dependency",
+        "coordinator_implementation_dependency",
+        "coordinator_config_dependency",
+        "execution_contract_dependency",
+        "execution_runtime_dependency",
+        "canonical_five_stage_order",
+        "shared_across_profiles",
+        "profile_changes_teacher_requests"
+      ],
+      "properties": {
+        "core_id": {
+          "const": "anchor.swebench-five-stage-execution-core.v1"
+        },
+        "full_bank_builder_dependency": {
+          "const": "full_bank_builder"
+        },
+        "full_bank_implementation_dependency": {
+          "const": "full_bank_implementation"
+        },
+        "full_bank_config_dependency": {
+          "const": "full_bank_config"
+        },
+        "coordinator_implementation_dependency": {
+          "const": "coordinator_implementation"
+        },
+        "coordinator_config_dependency": {
+          "const": "coordinator_config"
+        },
+        "execution_contract_dependency": {
+          "const": "execution_contract_implementation"
+        },
+        "execution_runtime_dependency": {
+          "const": "execution_runtime_implementation"
+        },
+        "canonical_five_stage_order": {
+          "const": [
+            "planner",
+            "tool_policy",
+            "domain_builder",
+            "domain_review",
+            "security"
+          ]
+        },
+        "shared_across_profiles": {
+          "const": true
+        },
+        "profile_changes_teacher_requests": {
+          "const": false
+        }
+      }
+    },
+    "canonical_gold_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_schema_version",
+        "partition_manifest_schema_version",
+        "profile_scope",
+        "canonical_gold_written",
+        "canonical_gold_mutated",
+        "gold_bodies_read_during_profile_preflight",
+        "heldout_bodies_read_during_profile_preflight"
+      ],
+      "properties": {
+        "export_schema_version": {
+          "const": "anchor.swebench-formal-gold-export.v2"
+        },
+        "partition_manifest_schema_version": {
+          "const": "anchor.automation-partition-manifest.v2"
+        },
+        "profile_scope": {
+          "const": "post_canonical_gold_view_only"
+        },
+        "canonical_gold_written": {
+          "const": false
+        },
+        "canonical_gold_mutated": {
+          "const": false
+        },
+        "gold_bodies_read_during_profile_preflight": {
+          "const": false
+        },
+        "heldout_bodies_read_during_profile_preflight": {
+          "const": false
+        }
+      }
+    },
+    "post_gold_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "mode",
+        "stage_to_expert",
+        "partition_files",
+        "taskboard_projector_enabled",
+        "natural_language_scaffold_enabled",
+        "frozen_prefix_qreader_claimed",
+        "source_records_rewritten"
+      ],
+      "properties": {
+        "view_id": {
+          "const": "anchor.task-level-moe-lora-view.v1"
+        },
+        "mode": {
+          "const": "direct_authenticated_five_partition_gold"
+        },
+        "stage_to_expert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "planner",
+            "tool_policy",
+            "domain_builder",
+            "domain_review",
+            "security"
+          ],
+          "properties": {
+            "planner": {
+              "const": "planner"
+            },
+            "tool_policy": {
+              "const": "tool_policy"
+            },
+            "domain_builder": {
+              "const": "frontend_gen"
+            },
+            "domain_review": {
+              "const": "frontend_review"
+            },
+            "security": {
+              "const": "security_gate"
+            }
+          }
+        },
+        "partition_files": {
+          "const": {
+            "planner": "data_plan.jsonl",
+            "tool_policy": "data_tool_policy.jsonl",
+            "frontend_gen": "data_frontend.jsonl",
+            "frontend_review": "data_review.jsonl",
+            "security_gate": "data_security.jsonl"
+          }
+        },
+        "taskboard_projector_enabled": {
+          "const": false
+        },
+        "natural_language_scaffold_enabled": {
+          "const": false
+        },
+        "frozen_prefix_qreader_claimed": {
+          "const": false
+        },
+        "source_records_rewritten": {
+          "const": false
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_authorized",
+        "training_authorized",
+        "formal_training_authorized",
+        "release_authorized",
+        "provider_requests",
+        "model_loads",
+        "gpu_requests",
+        "network_requests"
+      ],
+      "properties": {
+        "live_authorized": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        },
+        "provider_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        }
+      }
+    },
+    "audit_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_paths_project_relative",
+        "dependency_sha256_required",
+        "dependency_byte_count_required",
+        "single_bytes_snapshot",
+        "terminal_dependency_recheck",
+        "reject_symlink_or_reparse",
+        "atomic_freeze_publish",
+        "mandatory_manifest_sha256_sidecar"
+      ],
+      "properties": {
+        "dependency_paths_project_relative": {
+          "const": true
+        },
+        "dependency_sha256_required": {
+          "const": true
+        },
+        "dependency_byte_count_required": {
+          "const": true
+        },
+        "single_bytes_snapshot": {
+          "const": true
+        },
+        "terminal_dependency_recheck": {
+          "const": true
+        },
+        "reject_symlink_or_reparse": {
+          "const": true
+        },
+        "atomic_freeze_publish": {
+          "const": true
+        },
+        "mandatory_manifest_sha256_sidecar": {
+          "const": true
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/anchor_launcher"
+        },
+        {
+          "$ref": "#/$defs/full_bank_builder"
+        },
+        {
+          "$ref": "#/$defs/full_bank_implementation"
+        },
+        {
+          "$ref": "#/$defs/full_bank_config"
+        },
+        {
+          "$ref": "#/$defs/coordinator_implementation"
+        },
+        {
+          "$ref": "#/$defs/coordinator_config"
+        },
+        {
+          "$ref": "#/$defs/execution_contract_implementation"
+        },
+        {
+          "$ref": "#/$defs/execution_runtime_implementation"
+        },
+        {
+          "$ref": "#/$defs/formal_gold_export_script"
+        },
+        {
+          "$ref": "#/$defs/formal_gold_implementation"
+        },
+        {
+          "$ref": "#/$defs/profile_implementation"
+        },
+        {
+          "$ref": "#/$defs/profile_runner"
+        }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "project_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "dependency_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "anchor_launcher": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "anchor_launcher"
+            },
+            "path": {
+              "const": "anchor.ps1"
+            }
+          }
+        }
+      ]
+    },
+    "full_bank_builder": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "full_bank_builder"
+            },
+            "path": {
+              "const": "scripts/data/build_swebench_full_bank.py"
+            }
+          }
+        }
+      ]
+    },
+    "full_bank_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "full_bank_implementation"
+            },
+            "path": {
+              "const": "src/anchor_mvp/swebench/full_bank.py"
+            }
+          }
+        }
+      ]
+    },
+    "full_bank_config": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "full_bank_config"
+            },
+            "path": {
+              "const": "configs/data/swebench_full_bank.formal.yaml"
+            }
+          }
+        }
+      ]
+    },
+    "coordinator_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "coordinator_implementation"
+            },
+            "path": {
+              "const": "scripts/tooling/run_swebench_ccswitch.py"
+            }
+          }
+        }
+      ]
+    },
+    "coordinator_config": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "coordinator_config"
+            },
+            "path": {
+              "const": "configs/data/swebench_five_stage.ccswitch.yaml"
+            }
+          }
+        }
+      ]
+    },
+    "execution_contract_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "execution_contract_implementation"
+            },
+            "path": {
+              "const": "src/anchor_mvp/tooling/swebench_execution_v3.py"
+            }
+          }
+        }
+      ]
+    },
+    "execution_runtime_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "execution_runtime_implementation"
+            },
+            "path": {
+              "const": "src/anchor_mvp/tooling/swebench_runtime_v3.py"
+            }
+          }
+        }
+      ]
+    },
+    "formal_gold_export_script": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "formal_gold_export_script"
+            },
+            "path": {
+              "const": "scripts/data/export_swebench_formal_gold.py"
+            }
+          }
+        }
+      ]
+    },
+    "formal_gold_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "formal_gold_implementation"
+            },
+            "path": {
+              "const": "src/anchor_mvp/swebench/formal_gold.py"
+            }
+          }
+        }
+      ]
+    },
+    "profile_implementation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "profile_implementation"
+            },
+            "path": {
+              "const": "src/anchor_mvp/swebench/distillation_profile.py"
+            }
+          }
+        }
+      ]
+    },
+    "profile_runner": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_binding"
+        },
+        {
+          "properties": {
+            "role": {
+              "const": "profile_runner"
+            },
+            "path": {
+              "const": "scripts/data/run_distillation_profile.py"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

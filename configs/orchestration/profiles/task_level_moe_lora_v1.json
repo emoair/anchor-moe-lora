@@ -1,0 +1,159 @@
+{
+  "schema_version": "anchor.distillation-pipeline-profile.v1",
+  "profile_id": "task-level-moe-lora-v1",
+  "profile_version": 1,
+  "profile_schema": {
+    "path": "configs/orchestration/distillation_pipeline_profile.schema.json",
+    "sha256": "98a181de536dfefda22c4bd35cba4ebd81d8c8ea67235465becbac665e4d4f94",
+    "bytes": 14408
+  },
+  "freeze_manifest_schema": {
+    "path": "configs/orchestration/distillation_profile_freeze_manifest.schema.json",
+    "sha256": "ef81bab1d5c4066077031846dd3cc6cadfbddcb62cee45fff91a76e9c48a8343",
+    "bytes": 7948
+  },
+  "execution_core": {
+    "core_id": "anchor.swebench-five-stage-execution-core.v1",
+    "full_bank_builder_dependency": "full_bank_builder",
+    "full_bank_implementation_dependency": "full_bank_implementation",
+    "full_bank_config_dependency": "full_bank_config",
+    "coordinator_implementation_dependency": "coordinator_implementation",
+    "coordinator_config_dependency": "coordinator_config",
+    "execution_contract_dependency": "execution_contract_implementation",
+    "execution_runtime_dependency": "execution_runtime_implementation",
+    "canonical_five_stage_order": [
+      "planner",
+      "tool_policy",
+      "domain_builder",
+      "domain_review",
+      "security"
+    ],
+    "shared_across_profiles": true,
+    "profile_changes_teacher_requests": false
+  },
+  "canonical_gold_boundary": {
+    "export_schema_version": "anchor.swebench-formal-gold-export.v2",
+    "partition_manifest_schema_version": "anchor.automation-partition-manifest.v2",
+    "profile_scope": "post_canonical_gold_view_only",
+    "canonical_gold_written": false,
+    "canonical_gold_mutated": false,
+    "gold_bodies_read_during_profile_preflight": false,
+    "heldout_bodies_read_during_profile_preflight": false
+  },
+  "post_gold_view": {
+    "view_id": "anchor.task-level-moe-lora-view.v1",
+    "mode": "direct_authenticated_five_partition_gold",
+    "stage_to_expert": {
+      "planner": "planner",
+      "tool_policy": "tool_policy",
+      "domain_builder": "frontend_gen",
+      "domain_review": "frontend_review",
+      "security": "security_gate"
+    },
+    "partition_files": {
+      "planner": "data_plan.jsonl",
+      "tool_policy": "data_tool_policy.jsonl",
+      "frontend_gen": "data_frontend.jsonl",
+      "frontend_review": "data_review.jsonl",
+      "security_gate": "data_security.jsonl"
+    },
+    "taskboard_projector_enabled": false,
+    "natural_language_scaffold_enabled": false,
+    "frozen_prefix_qreader_claimed": false,
+    "source_records_rewritten": false
+  },
+  "authorization": {
+    "live_authorized": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "release_authorized": false,
+    "provider_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "network_requests": 0
+  },
+  "audit_contract": {
+    "dependency_paths_project_relative": true,
+    "dependency_sha256_required": true,
+    "dependency_byte_count_required": true,
+    "single_bytes_snapshot": true,
+    "terminal_dependency_recheck": true,
+    "reject_symlink_or_reparse": true,
+    "atomic_freeze_publish": true,
+    "mandatory_manifest_sha256_sidecar": true
+  },
+  "dependencies": [
+    {
+      "role": "anchor_launcher",
+      "path": "anchor.ps1",
+      "sha256": "b8389cd277b17aa755458b8b05d1a1d34ba2131e33317b1ec01cfb66994aba11",
+      "bytes": 34974
+    },
+    {
+      "role": "full_bank_builder",
+      "path": "scripts/data/build_swebench_full_bank.py",
+      "sha256": "10d66b98e8bc96f3f40dfc37e7934b9ebab0875dfa2e01373f9ebc477a9d324f",
+      "bytes": 4665
+    },
+    {
+      "role": "full_bank_implementation",
+      "path": "src/anchor_mvp/swebench/full_bank.py",
+      "sha256": "7cae847bb18e63ae080a1dd537ad47cb8f04b51ef8ba23d18a663867f4a70d64",
+      "bytes": 87657
+    },
+    {
+      "role": "full_bank_config",
+      "path": "configs/data/swebench_full_bank.formal.yaml",
+      "sha256": "8869cc3e07004430fc2ec5b549572dd4fef964b7e21807d8ed7613ce9d1eeaf0",
+      "bytes": 3767
+    },
+    {
+      "role": "coordinator_implementation",
+      "path": "scripts/tooling/run_swebench_ccswitch.py",
+      "sha256": "1ad9fa1ea7f87179fede9fed766f99784fd38a9937f5c171cf23ae6a3071e48c",
+      "bytes": 205904
+    },
+    {
+      "role": "coordinator_config",
+      "path": "configs/data/swebench_five_stage.ccswitch.yaml",
+      "sha256": "d8d401d7a8fd9227ade31f897dcf0ef14848347b33559e68284af28b5ca9e56e",
+      "bytes": 3183
+    },
+    {
+      "role": "execution_contract_implementation",
+      "path": "src/anchor_mvp/tooling/swebench_execution_v3.py",
+      "sha256": "6967eef0b4009a0019cb23c9bfa88593d47db7fca51d4950d981609a877d349e",
+      "bytes": 128975
+    },
+    {
+      "role": "execution_runtime_implementation",
+      "path": "src/anchor_mvp/tooling/swebench_runtime_v3.py",
+      "sha256": "8ac176faafbc8b201bca2b27de22240411377cd740a21ee009914080ee48dc27",
+      "bytes": 81422
+    },
+    {
+      "role": "formal_gold_export_script",
+      "path": "scripts/data/export_swebench_formal_gold.py",
+      "sha256": "ca32afd18b442a5d2cedb64da29a1bccc03c57bd54c238df78369f536c9f5b00",
+      "bytes": 9559
+    },
+    {
+      "role": "formal_gold_implementation",
+      "path": "src/anchor_mvp/swebench/formal_gold.py",
+      "sha256": "48bfbfc705cf3191411efd2edcdd1c76521b8b6a48c2b0371c07d43940b578a2",
+      "bytes": 43503
+    },
+    {
+      "role": "profile_implementation",
+      "path": "src/anchor_mvp/swebench/distillation_profile.py",
+      "sha256": "a274b78f16148b2ef83579dd6651d84e2fdda450b6dcbfc5ba16bb29b471c594",
+      "bytes": 23411
+    },
+    {
+      "role": "profile_runner",
+      "path": "scripts/data/run_distillation_profile.py",
+      "sha256": "2499981b6438d233331ff68bf0359e227e2e6730103a959e134cf00ed276b3a6",
+      "bytes": 2011
+    }
+  ]
+}
