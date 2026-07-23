@@ -10,6 +10,7 @@ import random
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .formal_execution_gate import require_formal_execution_authorization
 from .manifest import checkpoint_metadata, write_json
 from .progress import TrainingProgress
 
@@ -692,6 +693,14 @@ def _train_adapter_impl(
 ) -> dict[str, Any]:
     """Run one adapter SFT job. This is the only function that imports ML stacks."""
 
+    # This deepest callable boundary is public-by-convention in Python and can
+    # be reached without ``train_adapter``. Keep the gate ahead of the reporter,
+    # ML imports, CUDA probing, dataset reads, and output writes.
+    require_formal_execution_authorization(
+        config,
+        dataset_paths=dataset_paths,
+        output_dir=output_dir,
+    )
     reporter.emit("runtime_imports", "started")
     import torch
     from peft import (  # type: ignore[import-not-found]
@@ -1104,6 +1113,13 @@ def train_adapter(
 ) -> dict[str, Any]:
     """Run one adapter job with phase-level progress that survives failures."""
 
+    # Defense in depth for direct library callers.  Keep this before even the
+    # progress reporter creates an output directory.
+    require_formal_execution_authorization(
+        config,
+        dataset_paths=dataset_paths,
+        output_dir=output_dir,
+    )
     reporter = TrainingProgress(output_dir)
     reporter.emit("runtime", "started")
     try:

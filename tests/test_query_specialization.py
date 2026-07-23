@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import importlib.util
 import io
 import json
 import math
 import shutil
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -32,6 +34,69 @@ from anchor_mvp.research.query_specialization import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECTOR_FIXTURE = ROOT / "fixtures" / "research" / "taskboard_projector"
+QUERY_SPECIALIZATION_SCRIPT = (
+    ROOT / "scripts" / "research" / "train_query_specialization_mvp.py"
+)
+
+
+def _load_query_specialization_script():
+    module_name = "query_specialization_formal_semantics_test"
+    spec = importlib.util.spec_from_file_location(
+        module_name, QUERY_SPECIALIZATION_SCRIPT
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_release_authorization_keeps_research_proxy_distinct_from_formal() -> None:
+    module = _load_query_specialization_script()
+
+    fields = module._release_authorization_fields(
+        {
+            "research_proxy_training_authorized": True,
+            "formal_training_authorized": False,
+        }
+    )
+
+    assert fields == {
+        "research_proxy_training_authorized": True,
+        "formal_training_authorized": False,
+    }
+
+
+def test_release_authorization_rejects_formal_promotion() -> None:
+    module = _load_query_specialization_script()
+
+    with pytest.raises(
+        QuerySpecializationError,
+        match="research_proxy_only release cannot authorize formal training",
+    ):
+        module._release_authorization_fields(
+            {
+                "research_proxy_training_authorized": True,
+                "formal_training_authorized": True,
+            }
+        )
+
+
+def test_dry_run_reports_proxy_and_formal_authority_separately(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _load_query_specialization_script()
+    config = ROOT / "configs" / "research" / "query_specialization_mvp.yaml"
+
+    assert module.main(["--config", str(config), "--dry-run"]) == 0
+    plan = json.loads(capsys.readouterr().out)["plan"]
+
+    assert plan["research_proxy_training_authorized"] is False
+    assert plan["formal_training_authorized"] is False
+    assert (
+        plan["release_lock_validation"]["research_proxy_training_authorized"] is False
+    )
+    assert plan["release_lock_validation"]["formal_training_authorized"] is False
 
 
 def _copy_projector_fixture(tmp_path: Path) -> Path:
@@ -41,12 +106,15 @@ def _copy_projector_fixture(tmp_path: Path) -> Path:
 
 
 def _rewrite_manifest(fixture: Path, manifest: dict) -> None:
-    payload = json.dumps(
-        manifest,
-        ensure_ascii=False,
-        indent=2,
-        sort_keys=True,
-    ).encode("utf-8") + b"\n"
+    payload = (
+        json.dumps(
+            manifest,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ).encode("utf-8")
+        + b"\n"
+    )
     (fixture / "manifest.json").write_bytes(payload)
     digest = hashlib.sha256(payload).hexdigest()
     (fixture / "manifest.json.sha256").write_text(
@@ -360,9 +428,10 @@ def test_official_projector_fixture_loads_with_fixed_three_partition_contract() 
     assert summary["train_pairs"] == 5
     assert summary["segment_references"] == manifest["counts"]["segment_references"]
     assert summary["unique_segments"] == manifest["counts"]["unique_segments"]
-    assert summary["unique_segments_by_cache_scope"] == manifest["counts"][
-        "unique_segments_by_cache_scope"
-    ]
+    assert (
+        summary["unique_segments_by_cache_scope"]
+        == manifest["counts"]["unique_segments_by_cache_scope"]
+    )
     assert summary["segment_plan_cross_bindings_validated"] is True
     assert summary["by_expert"] == {
         "frontend_gen": 3,
@@ -377,9 +446,10 @@ def test_official_projector_fixture_loads_with_fixed_three_partition_contract() 
         for key, value in summary.items()
         if key not in {"manifest_sha256", "authenticated_file_sha256"}
     } == validation_summary
-    assert summary["authenticated_file_sha256"]["manifest.json"] == summary[
-        "manifest_sha256"
-    ]
+    assert (
+        summary["authenticated_file_sha256"]["manifest.json"]
+        == summary["manifest_sha256"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -438,7 +508,9 @@ def test_expected_manifest_schema_hash_is_bound_fail_closed(tmp_path: Path) -> N
     manifest["producer"]["manifest_schema_sha256"] = "0" * 64
     _rewrite_manifest(fixture, manifest)
     expected = hashlib.sha256(
-        (ROOT / "configs/research/taskboard_projector_manifest.schema.json").read_bytes()
+        (
+            ROOT / "configs/research/taskboard_projector_manifest.schema.json"
+        ).read_bytes()
     ).hexdigest()
 
     with pytest.raises(QuerySpecializationError, match="manifest schema hash mismatch"):
@@ -455,9 +527,7 @@ def test_partition_hash_and_parser_share_one_bytes_snapshot(
     partition_path = (fixture / "train" / "clean.jsonl").resolve()
     authenticated = partition_path.read_bytes()
     unauthenticated_answer = "UNAUTHENTICATED-PARTITION-SNAPSHOT"
-    replaced = _partition_with_replaced_answer(
-        authenticated, unauthenticated_answer
-    )
+    replaced = _partition_with_replaced_answer(authenticated, unauthenticated_answer)
     original_open = Path.open
     target_open_count = 0
 
@@ -607,9 +677,9 @@ def test_outer_sidecar_keeps_provenance_outside_inner_record() -> None:
     assert "provenance" not in inner
     assert outer["training_record"] == inner
     assert outer["id"] == inner["id"]
-    assert query_training_record_sha256(sidecar.training_record) != taskboard_sidecar_sha256(
-        sidecar
-    )
+    assert query_training_record_sha256(
+        sidecar.training_record
+    ) != taskboard_sidecar_sha256(sidecar)
 
 
 def test_sidecar_parser_rejects_wrapper_inner_and_augmentation_mismatches() -> None:
@@ -643,7 +713,9 @@ def test_v1_sidecar_and_manifest_are_rejected_with_explicit_version_policy(
         .splitlines()[0]
     )
     raw["schema_version"] = "anchor.swebench-taskboard-sidecar.v1"
-    with pytest.raises(QuerySpecializationError, match="unsupported sidecar schema_version"):
+    with pytest.raises(
+        QuerySpecializationError, match="unsupported sidecar schema_version"
+    ):
         parse_taskboard_sidecar(raw)
 
     fixture = _copy_projector_fixture(tmp_path)
@@ -740,7 +812,9 @@ def test_sidecar_dataset_prevents_bundle_split_leakage_and_language_mix() -> Non
     sidecars, _, _ = load_taskboard_sidecar_dataset(PROJECTOR_FIXTURE)
     train = next(sidecar for sidecar in sidecars if sidecar.split == "train")
     calibration_index = next(
-        index for index, sidecar in enumerate(sidecars) if sidecar.split == "calibration"
+        index
+        for index, sidecar in enumerate(sidecars)
+        if sidecar.split == "calibration"
     )
     leaked = list(sidecars)
     leaked[calibration_index] = replace(

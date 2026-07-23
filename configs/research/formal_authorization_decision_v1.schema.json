@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.formal-authorization-decision.v1",
+  "title": "Blocked-only formal authorization decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "training_authorized",
+    "formal_training_authorized",
+    "formal",
+    "self_bindings",
+    "authenticated_dependencies",
+    "qwen_prerequisite",
+    "multiseed_plan",
+    "legacy_generic_release_v2",
+    "gates",
+    "audit",
+    "decision_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.formal-authorization-decision.v1"
+    },
+    "status": {
+      "const": "blocked_formal_authorization_inputs_unavailable"
+    },
+    "claim_scope": {
+      "const": "immutable_non_authorizing_overlay_only"
+    },
+    "training_authorized": {
+      "const": false
+    },
+    "formal_training_authorized": {
+      "const": false
+    },
+    "formal": {
+      "const": false
+    },
+    "self_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config", "decision_schema", "implementation"],
+      "properties": {
+        "config": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "decision_schema": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "implementation": {
+          "$ref": "#/$defs/file_binding"
+        }
+      }
+    },
+    "authenticated_dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_decision_schema_sha256",
+        "generic_release_v2_schema_sha256",
+        "multiseed_plan_config_sha256",
+        "multiseed_plan_implementation_sha256",
+        "qwen_prerequisite_config_sha256",
+        "qwen_prerequisite_implementation_sha256",
+        "qwen_prerequisite_manifest_sha256",
+        "qwen_prerequisite_manifest_sidecar_physical_sha256",
+        "training_release_consumer_implementation_sha256"
+      ],
+      "properties": {
+        "formal_decision_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generic_release_v2_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "multiseed_plan_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "multiseed_plan_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "qwen_prerequisite_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "qwen_prerequisite_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "qwen_prerequisite_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "qwen_prerequisite_manifest_sidecar_physical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "training_release_consumer_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "qwen_prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "training_authorized",
+        "formal_training_authorized"
+      ],
+      "properties": {
+        "status": {
+          "const": "blocked"
+        },
+        "formal_v3_ready_count": {
+          "const": 0
+        },
+        "formal_v3_total": {
+          "const": 5
+        },
+        "protected_inventory_ready_count": {
+          "const": 2
+        },
+        "protected_inventory_total": {
+          "const": 6
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        }
+      }
+    },
+    "multiseed_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "plan_sha256",
+        "planned_independent_training_jobs",
+        "planned_trainable_checkpoint_receipts",
+        "planned_throughput_order_slots",
+        "secondary_factorial_may_satisfy_independent_confirmation",
+        "secondary_factorial_may_satisfy_bundle_generalization"
+      ],
+      "properties": {
+        "status": {
+          "const": "blocked_controlled_factorial_confirmation_inputs_unavailable"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planned_independent_training_jobs": {
+          "const": 40
+        },
+        "planned_trainable_checkpoint_receipts": {
+          "const": 200
+        },
+        "planned_throughput_order_slots": {
+          "const": 240
+        },
+        "secondary_factorial_may_satisfy_independent_confirmation": {
+          "const": false
+        },
+        "secondary_factorial_may_satisfy_bundle_generalization": {
+          "const": false
+        }
+      }
+    },
+    "legacy_generic_release_v2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "claim_scope", "eligible_for_formal", "reason"],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.generic-train-release-lock.v2"
+        },
+        "claim_scope": {
+          "const": "research_proxy_only"
+        },
+        "eligible_for_formal": {
+          "const": false
+        },
+        "reason": {
+          "const": "legacy_release_v2_is_research_proxy_only"
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_ready",
+        "materialization_ready",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal",
+        "independent_confirmation_validated",
+        "bundle_generalization_validated"
+      ],
+      "properties": {
+        "execution_ready": {
+          "const": false
+        },
+        "materialization_ready": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "independent_confirmation_validated": {
+          "const": false
+        },
+        "bundle_generalization_validated": {
+          "const": false
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_content_reads",
+        "dataset_body_reads",
+        "training_runs"
+      ],
+      "properties": {
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "protected_content_reads": {
+          "const": 0
+        },
+        "dataset_body_reads": {
+          "const": 0
+        },
+        "training_runs": {
+          "const": 0
+        }
+      }
+    },
+    "decision_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

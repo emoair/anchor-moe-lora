@@ -162,6 +162,11 @@ source hashes. The checked-in configuration remains explicitly unavailable and
 reports `formal_training_authorized=false`, because no real frozen formal-v3
 release artifact exists yet.
 
+Authorization is intentionally split: a validated `research_proxy_only`
+release may set `research_proxy_training_authorized=true`, but it must always
+keep `formal_training_authorized=false`. The query-specialization launcher
+rejects any proxy release that attempts to promote the formal flag.
+
 ## Training view and loss contract
 
 The training bridge emits deterministic

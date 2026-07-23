@@ -1,0 +1,140 @@
+schema_version: anchor.independent-confirmation-identity-consumer-config.v2
+claim_scope: additive_metadata_identity_overlay_non_authorizing
+
+paths:
+  producer_config: configs/research/synthetic_scaffold_independent_confirmation_identity_v1.json
+  producer_config_schema: configs/research/synthetic_scaffold_independent_confirmation_identity_v1_config.schema.json
+  producer_record_schema: configs/research/synthetic_scaffold_independent_confirmation_identity_v1_record.schema.json
+  producer_proof_schema: configs/research/synthetic_scaffold_independent_confirmation_identity_v1_proof.schema.json
+  producer_manifest_schema: configs/research/synthetic_scaffold_independent_confirmation_identity_v1_manifest.schema.json
+  producer_implementation: src/anchor_mvp/swebench/synthetic_scaffold_independent_confirmation_identity.py
+  producer_test: tests/test_synthetic_scaffold_independent_confirmation_identity_v1.py
+  producer_docs_en: docs/synthetic_scaffold_independent_confirmation_identity_v1.md
+  producer_docs_zh_cn: docs/synthetic_scaffold_independent_confirmation_identity_v1.zh-CN.md
+  producer_fixture: fixtures/research/synthetic_scaffold_independent_confirmation_identity_v1
+  decision_schema: configs/research/independent_confirmation_identity_decision_v2.schema.json
+
+producer_provenance:
+  branch: agent/restore-dual-router-ux
+  commit: 09a6829084f76790e3488cb999a6755cd4d5f95e
+  files_pinned: 19
+
+bindings:
+  producer_config_sha256: 4c9017c1ce0fa2c82168b03c0e157fa7c6251530c36bd3dbb1bd769f01b63ae3
+  producer_config_schema_sha256: 2bb127dd674bb767bac7159b60c23933ad9f5658e45379d6e6a419e5b3b49dfb
+  producer_record_schema_sha256: 53fee396b017eea9e3a6c9e6ad3faf2c36e6fcdf20f132ef22d5ea670a0a5f9a
+  producer_proof_schema_sha256: 273307c9e4c61c7ab2e4a9065020c005dac7509fc6f2d2f76969403bedd7226c
+  producer_manifest_schema_sha256: 4d85dd0c915302353a245c847af5229c9ade658fd1f62ce0841301be6b978289
+  producer_implementation_sha256: 8819a10923b4525acd53e255373a91cacd51fb921629241a955b09eed59d3952
+  producer_test_sha256: 94c4bca49e99d6359ede8c66c84b49292044aaaaa4b05acb99810312493dffb3
+  producer_docs_en_sha256: 362e0ad4266bd102cdbc14d70bc6af72db0d730ddd283a5323d6c6393fcadbdb
+  producer_docs_zh_cn_sha256: 0ffdf029bec0c898828ac7fd16f2cd80e490353dee517d722445e3d1f0013f21
+  producer_manifest_sha256: 1197abf22e3b19ee96eb9060cefa23e10b57971ca60358fe5bc9aefea02d75f6
+  producer_manifest_sidecar_physical_sha256: 434770a021fe45ee8bf469d5211156cf89d99cbbc741d0fae05e1647b0ade047
+  decision_schema_sha256: 84c9ebcbdf80b9ccb9e1a2f8c875642777bcef32b5ff6ead99a3059401ec609e
+
+partitions:
+  discovery/views.jsonl:
+    records: 10
+    bytes: 18643
+    sha256: e56cc7cc3396f2c0143e131bfd5333b24d9836749148aa642c65cf25f33d02dc
+  independent_confirmation/bundles.jsonl:
+    records: 60
+    bytes: 82270
+    sha256: b0fded75875a7b098d5a71a26bdd701aa23926759eb4ea0d35a2f1f08567ef43
+  secondary_factorial/bundles.jsonl:
+    records: 60
+    bytes: 94990
+    sha256: 215f92f3a7319a91f86dcec68ad534c2580a459d74f641ba0003ac93428e084d
+  inventories/task_semantic_ids.jsonl:
+    records: 65
+    bytes: 20780
+    sha256: 19d48c73d2b6886a710e057d97b99836d7e02efdf07674cd7e2a8615795f7eb8
+  inventories/template_family_ids.jsonl:
+    records: 21
+    bytes: 7270
+    sha256: c0efde5608e65346dcad6d7ad1ad7efbe98e4523f8545027079a4deaac9831e5
+  inventories/task_template_pair_ids.jsonl:
+    records: 105
+    bytes: 33470
+    sha256: f7c97423f8d9396e1f300bd278cb9be033961ec5cbfd905f145a9882ce615fea
+  proofs/discovery_vs_independent.json:
+    records: 1
+    bytes: 2462
+    sha256: dbaab54dc1d01b8b6697b84558b3805ecad06b4bdffe3e5340d4c8d41b09048a
+  proofs/secondary_factorial.json:
+    records: 1
+    bytes: 4081
+    sha256: 2494be797028ac1246748e7ec34084063eb9886284ac0d4146d8905dbfa12d2f
+
+expected:
+  discovery:
+    views: 10
+    unique_tasks: 5
+    unique_templates: 1
+    unique_pairs: 5
+  producer_independent_confirmation:
+    bundles: 60
+    train: 40
+    eval_proxy: 20
+    unique_tasks: 60
+    unique_templates: 20
+    unique_pairs: 60
+    discovery_intersections:
+      task: 0
+      template: 0
+      pair: 0
+  secondary_controlled_factorial_probe:
+    bundles: 60
+    train: 40
+    eval_proxy: 20
+    unique_tasks: 25
+    unique_templates: 21
+    unique_pairs: 60
+    factorial_match_groups: 20
+    factor_counts:
+      old_task_new_template: 20
+      new_task_old_template: 20
+      new_task_new_template: 20
+    train_factor_quotas:
+      old_task_new_template: 13
+      new_task_old_template: 14
+      new_task_new_template: 13
+    eval_factor_quotas:
+      old_task_new_template: 7
+      new_task_old_template: 6
+      new_task_new_template: 7
+    discovery_intersections:
+      task: 5
+      template: 1
+      pair: 0
+  union:
+    unique_tasks: 65
+    unique_templates: 21
+    unique_pairs: 105
+  materialized_records_if_both_tracks: 1200
+  formal_v3_ready_count: 0
+  formal_v3_total: 5
+  protected_inventory_ready_count: 2
+  protected_inventory_total: 6
+
+policy:
+  metadata_identity_ready: true
+  records_materialized: false
+  protected_source_disjoint: false
+  independent_confirmation_executed: false
+  controlled_factorial_executed: false
+  quality_validated: false
+  generalization_validated: false
+  materialization_ready: false
+  execution_lease_ready: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+
+audit:
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_body_reads: 0

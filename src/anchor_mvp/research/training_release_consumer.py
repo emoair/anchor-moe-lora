@@ -249,9 +249,7 @@ def _partition_path(root: Path, relative: object) -> Path:
 def _validate_path_hash(value: object) -> None:
     item = _mapping(value, "release_lock_consumer_invalid")
     _exact_fields(item, _PATH_HASH_FIELDS, "release_lock_consumer_invalid")
-    if not _safe_relative_path(item.get("path")) or not _is_sha256(
-        item.get("sha256")
-    ):
+    if not _safe_relative_path(item.get("path")) or not _is_sha256(item.get("sha256")):
         _fail("release_lock_consumer_invalid")
 
 
@@ -396,7 +394,8 @@ class TrainingReleaseValidation:
         return {
             "schema_version": RELEASE_LOCK_SCHEMA_VERSION,
             "status": "ready",
-            "formal_training_authorized": True,
+            "research_proxy_training_authorized": True,
+            "formal_training_authorized": False,
             "manifest_sha256": self.manifest_sha256,
             "schema_sha256": self.schema_sha256,
             "partition_sha256": dict(self.partition_sha256),
@@ -434,9 +433,9 @@ def validate_release_lock_schema(
         schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
         or schema.get("type") != "object"
         or _mapping(
-            _mapping(
-                schema.get("properties"), "release_lock_schema_invalid"
-            ).get("schema_version"),
+            _mapping(schema.get("properties"), "release_lock_schema_invalid").get(
+                "schema_version"
+            ),
             "release_lock_schema_invalid",
         ).get("const")
         != RELEASE_LOCK_SCHEMA_VERSION
@@ -505,9 +504,7 @@ def load_training_release_lock(
         if not _is_sha256(value):
             _fail("release_lock_expected_sha256_invalid")
 
-    schema_sha256 = validate_release_lock_schema(
-        schema_path, expected_schema_sha256
-    )
+    schema_sha256 = validate_release_lock_schema(schema_path, expected_schema_sha256)
 
     root = Path(release_root).expanduser().resolve()
     dataset = Path(dataset_root).expanduser().resolve()
@@ -526,9 +523,7 @@ def load_training_release_lock(
     sidecar_snapshot = _read_bytes_snapshot(
         root / "manifest.json.sha256", "release_lock_sha256_sidecar_invalid"
     )
-    expected_sidecar = f"{manifest_snapshot.sha256}  manifest.json\n".encode(
-        "ascii"
-    )
+    expected_sidecar = f"{manifest_snapshot.sha256}  manifest.json\n".encode("ascii")
     if sidecar_snapshot.data != expected_sidecar:
         _fail("release_lock_sha256_sidecar_invalid")
 
@@ -552,9 +547,7 @@ def load_training_release_lock(
     )
     expected_task_kv = {
         **_HIERARCHICAL_TASK_KV_CONTRACT,
-        "segment_plan_schema_sha256": (
-            expected_projector_segment_plan_schema_sha256
-        ),
+        "segment_plan_schema_sha256": (expected_projector_segment_plan_schema_sha256),
     }
     if dict(task_kv) != expected_task_kv:
         _fail("release_lock_hierarchical_task_kv_invalid")
@@ -593,9 +586,7 @@ def load_training_release_lock(
     )
 
     fixed_files = manifest.get("fixed_files")
-    if not isinstance(fixed_files, list) or len(fixed_files) != len(
-        FIXED_PARTITIONS
-    ):
+    if not isinstance(fixed_files, list) or len(fixed_files) != len(FIXED_PARTITIONS):
         _fail("release_lock_fixed_files_invalid")
     fixed_paths = {relative for relative, _split, _variant in FIXED_PARTITIONS}
     if set(authenticated_partition_sha256) != fixed_paths or not all(
@@ -627,9 +618,7 @@ def load_training_release_lock(
             partition_snapshot,
             expected_split=split,
             expected_variant=variant,
-            expected_sidecar_schema_sha256=(
-                expected_projector_sidecar_schema_sha256
-            ),
+            expected_sidecar_schema_sha256=(expected_projector_sidecar_schema_sha256),
             expected_segment_plan_schema_sha256=(
                 expected_projector_segment_plan_schema_sha256
             ),
@@ -691,9 +680,7 @@ def load_training_release_lock(
         consumer_version=expected_consumer_version,
         consumer_contract_sha256=expected_consumer_contract_sha256,
         consumer_files_sha256=consumer_files_sha256,
-        segment_plan_schema_sha256=(
-            expected_projector_segment_plan_schema_sha256
-        ),
+        segment_plan_schema_sha256=(expected_projector_segment_plan_schema_sha256),
     )
 
 

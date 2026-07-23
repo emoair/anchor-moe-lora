@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/independent-confirmation-identity-decision-v2.json",
+  "title": "Independent-confirmation identity consumer decision v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "metadata_identity_ready",
+    "producer_bindings",
+    "tracks",
+    "gates",
+    "claims",
+    "audit",
+    "decision_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.independent-confirmation-identity-consumer-decision.v2"
+    },
+    "status": {
+      "const": "metadata_identity_ready_execution_blocked"
+    },
+    "claim_scope": {
+      "const": "additive_metadata_identity_overlay_non_authorizing"
+    },
+    "metadata_identity_ready": {"const": true},
+    "producer_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_commit",
+        "config_sha256",
+        "config_schema_sha256",
+        "record_schema_sha256",
+        "proof_schema_sha256",
+        "manifest_schema_sha256",
+        "implementation_sha256",
+        "producer_test_sha256",
+        "producer_docs_en_sha256",
+        "producer_docs_zh_cn_sha256",
+        "manifest_sha256",
+        "manifest_sidecar_physical_sha256"
+      ],
+      "properties": {
+        "producer_commit": {"$ref": "#/$defs/sha1"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "config_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "proof_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_test_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_docs_en_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_docs_zh_cn_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sidecar_physical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "tracks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_independent_confirmation",
+        "secondary_controlled_factorial_probe"
+      ],
+      "properties": {
+        "producer_independent_confirmation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "metadata_identity_ready",
+            "bundles",
+            "train",
+            "eval_proxy",
+            "task_inventory",
+            "template_inventory",
+            "pair_inventory",
+            "discovery_intersections",
+            "records_materialized",
+            "protected_source_disjoint",
+            "independent_confirmation_executed"
+          ],
+          "properties": {
+            "metadata_identity_ready": {"const": true},
+            "bundles": {"const": 60},
+            "train": {"const": 40},
+            "eval_proxy": {"const": 20},
+            "task_inventory": {"const": 60},
+            "template_inventory": {"const": 20},
+            "pair_inventory": {"const": 60},
+            "discovery_intersections": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task", "template", "pair"],
+              "properties": {
+                "task": {"const": 0},
+                "template": {"const": 0},
+                "pair": {"const": 0}
+              }
+            },
+            "records_materialized": {"const": false},
+            "protected_source_disjoint": {"const": false},
+            "independent_confirmation_executed": {"const": false}
+          }
+        },
+        "secondary_controlled_factorial_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "metadata_identity_ready",
+            "bundles",
+            "train",
+            "eval_proxy",
+            "factorial_match_groups",
+            "factor_counts",
+            "train_factor_quotas",
+            "eval_factor_quotas",
+            "discovery_intersections",
+            "records_materialized",
+            "protected_source_disjoint",
+            "controlled_factorial_executed",
+            "may_satisfy_independent_confirmation"
+          ],
+          "properties": {
+            "metadata_identity_ready": {"const": true},
+            "bundles": {"const": 60},
+            "train": {"const": 40},
+            "eval_proxy": {"const": 20},
+            "factorial_match_groups": {"const": 20},
+            "factor_counts": {"$ref": "#/$defs/twentyEach"},
+            "train_factor_quotas": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "old_task_new_template",
+                "new_task_old_template",
+                "new_task_new_template"
+              ],
+              "properties": {
+                "old_task_new_template": {"const": 13},
+                "new_task_old_template": {"const": 14},
+                "new_task_new_template": {"const": 13}
+              }
+            },
+            "eval_factor_quotas": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "old_task_new_template",
+                "new_task_old_template",
+                "new_task_new_template"
+              ],
+              "properties": {
+                "old_task_new_template": {"const": 7},
+                "new_task_old_template": {"const": 6},
+                "new_task_new_template": {"const": 7}
+              }
+            },
+            "discovery_intersections": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task", "template", "pair"],
+              "properties": {
+                "task": {"const": 5},
+                "template": {"const": 1},
+                "pair": {"const": 0}
+              }
+            },
+            "records_materialized": {"const": false},
+            "protected_source_disjoint": {"const": false},
+            "controlled_factorial_executed": {"const": false},
+            "may_satisfy_independent_confirmation": {"const": false}
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "materialization_ready",
+        "execution_lease_ready"
+      ],
+      "properties": {
+        "formal_v3_ready_count": {"const": 0},
+        "formal_v3_total": {"const": 5},
+        "protected_inventory_ready_count": {"const": 2},
+        "protected_inventory_total": {"const": 6},
+        "materialization_ready": {"const": false},
+        "execution_lease_ready": {"const": false}
+      }
+    },
+    "claims": {"$ref": "#/$defs/falseClaims"},
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_bytes_snapshot",
+        "same_bytes_parse_hash_count",
+        "final_toctou_recheck",
+        "producer_git_commit_authenticated",
+        "producer_files_pinned",
+        "descriptor_atom_catalog_recomputed",
+        "schemas_validated",
+        "records_validated",
+        "proofs_recomputed",
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads"
+      ],
+      "properties": {
+        "single_bytes_snapshot": {"const": true},
+        "same_bytes_parse_hash_count": {"const": true},
+        "final_toctou_recheck": {"const": true},
+        "producer_git_commit_authenticated": {"const": true},
+        "producer_files_pinned": {"const": 19},
+        "descriptor_atom_catalog_recomputed": {"const": 241},
+        "schemas_validated": {"const": 5},
+        "records_validated": {"const": 321},
+        "proofs_recomputed": {"const": 2},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    },
+    "decision_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "twentyEach": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "old_task_new_template",
+        "new_task_old_template",
+        "new_task_new_template"
+      ],
+      "properties": {
+        "old_task_new_template": {"const": 20},
+        "new_task_old_template": {"const": 20},
+        "new_task_new_template": {"const": 20}
+      }
+    },
+    "falseClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records_materialized",
+        "protected_source_disjoint",
+        "independent_confirmation_executed",
+        "controlled_factorial_executed",
+        "quality_validated",
+        "generalization_validated",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "records_materialized": {"const": false},
+        "protected_source_disjoint": {"const": false},
+        "independent_confirmation_executed": {"const": false},
+        "controlled_factorial_executed": {"const": false},
+        "quality_validated": {"const": false},
+        "generalization_validated": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "formal": {"const": false}
+      }
+    }
+  }
+}

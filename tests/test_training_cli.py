@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -13,6 +15,7 @@ from anchor_mvp.training import cli  # noqa: E402
 
 CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_smoke.yaml"
 ONE_STEP_CONFIG = ROOT / "configs" / "training" / "gemma4_12b_qlora_one_step.yaml"
+FORMAL_CONFIG = ROOT / "configs" / "training" / "formal_v3_lowmem_common.yaml"
 
 
 def dependency_fixture(*, ready: bool) -> dict:
@@ -44,9 +47,7 @@ def blocked_preflight() -> tuple[dict, list]:
     return (
         {
             "passed": False,
-            "gates": {
-                "three_live_datasets_present": {"passed": False, "evidence": {}}
-            },
+            "gates": {"three_live_datasets_present": {"passed": False, "evidence": {}}},
             "dataset_snapshot_sha256": "missing-data",
             "base": {},
             "heldout": {},
@@ -75,7 +76,9 @@ def passed_preflight() -> tuple[dict, list]:
     )
 
 
-def test_dry_run_never_imports_runtime_or_requires_dataset(monkeypatch, tmp_path: Path) -> None:
+def test_dry_run_never_imports_runtime_or_requires_dataset(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(
         cli,
         "dependency_report",
@@ -173,6 +176,102 @@ def test_execute_cannot_start_before_three_live_datasets_pass(
     assert "anchor_mvp.training.runtime" not in sys.modules
     manifest = json.loads(output.read_text(encoding="utf-8"))
     assert manifest["preflight"]["passed"] is False
+
+
+def test_formal_execute_gate_precedes_gpu_data_manifest_and_runtime(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from anchor_mvp.training import formal_execution_gate as gate
+
+    decision: dict[str, object] = {
+        "schema_version": gate.FORMAL_DECISION_SCHEMA,
+        "status": "blocked_formal_authorization_inputs_unavailable",
+        "training_authorized": False,
+        "formal_training_authorized": False,
+        "formal": False,
+        "authenticated_inputs": {"formal_v3": "complete"},
+    }
+    decision["decision_sha256"] = gate._canonical_sha256(decision)
+    monkeypatch.setattr(gate, "_evaluate_authenticated_overlay", lambda: decision)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("formal execution touched a resource before its launcher lease")
+
+    monkeypatch.setattr(cli, "dependency_report", forbidden)
+    monkeypatch.setattr(cli, "build_preflight_report", forbidden)
+    monkeypatch.setattr(cli, "_dataset_reports", forbidden)
+    monkeypatch.setattr(cli, "build_manifest", forbidden)
+    monkeypatch.setattr(cli, "write_json", forbidden)
+    sys.modules.pop("anchor_mvp.training.runtime", None)
+    output = tmp_path / "must-not-exist.json"
+
+    result = cli.main(
+        [
+            "train",
+            "--config",
+            str(FORMAL_CONFIG),
+            "--adapter",
+            "planner",
+            "--execute",
+            "--manifest-out",
+            str(output),
+        ]
+    )
+
+    assert result == 2
+    assert "v1 is blocked-only" in capsys.readouterr().err
+    assert not output.exists()
+    assert "anchor_mvp.training.runtime" not in sys.modules
+
+
+@pytest.mark.parametrize("formal_component", ["FORMAL_V3", "formal_v3:stream"])
+def test_formal_manifest_override_cannot_be_hidden_by_renaming_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    formal_component: str,
+) -> None:
+    from anchor_mvp.training import formal_execution_gate as gate
+
+    decision: dict[str, object] = {
+        "schema_version": gate.FORMAL_DECISION_SCHEMA,
+        "status": "blocked_formal_authorization_inputs_unavailable",
+        "training_authorized": False,
+        "formal_training_authorized": False,
+        "formal": False,
+        "authenticated_inputs": {"formal_v3": "complete"},
+    }
+    decision["decision_sha256"] = gate._canonical_sha256(decision)
+    monkeypatch.setattr(gate, "_evaluate_authenticated_overlay", lambda: decision)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("formal manifest override touched execution resources")
+
+    monkeypatch.setattr(cli, "dependency_report", forbidden)
+    monkeypatch.setattr(cli, "build_preflight_report", forbidden)
+    monkeypatch.setattr(cli, "_dataset_reports", forbidden)
+    monkeypatch.setattr(cli, "build_manifest", forbidden)
+    monkeypatch.setattr(cli, "write_json", forbidden)
+    sys.modules.pop("anchor_mvp.training.runtime", None)
+    output = tmp_path / "ARTIFACTS" / formal_component
+    if ":" not in formal_component:
+        output /= "renamed.json"
+
+    result = cli.main(
+        [
+            "train",
+            "--config",
+            str(CONFIG),
+            "--adapter",
+            "frontend_gen",
+            "--execute",
+            "--manifest-out",
+            str(output),
+        ]
+    )
+
+    assert result == 2
+    assert not output.exists()
+    assert "anchor_mvp.training.runtime" not in sys.modules
 
 
 def test_one_step_smoke_gate_dry_run_records_profile_without_runtime(

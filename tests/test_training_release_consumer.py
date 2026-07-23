@@ -50,11 +50,7 @@ def _partition_rows(
         .splitlines()
         if line.strip()
     ]
-    return [
-        row
-        for row in rows
-        if row["training_record"]["role"] != omit_role
-    ]
+    return [row for row in rows if row["training_record"]["role"] != omit_role]
 
 
 def _write_release(
@@ -69,8 +65,7 @@ def _write_release(
     for relative, split, variant in consumer.FIXED_PARTITIONS:
         omitted = (
             omit_role[2]
-            if omit_role is not None
-            and omit_role[:2] == (split, variant)
+            if omit_role is not None and omit_role[:2] == (split, variant)
             else None
         )
         rows = _partition_rows(split, variant, omit_role=omitted)
@@ -107,9 +102,7 @@ def _write_release(
             "projector_manifest_sha256": PROJECTOR_MANIFEST_SHA,
             "projector_manifest_schema_sha256": PROJECTOR_MANIFEST_SCHEMA_SHA,
             "projector_sidecar_schema_sha256": PROJECTOR_SIDECAR_SCHEMA_SHA,
-            "projector_segment_plan_schema_sha256": (
-                PROJECTOR_SEGMENT_PLAN_SCHEMA_SHA
-            ),
+            "projector_segment_plan_schema_sha256": (PROJECTOR_SEGMENT_PLAN_SCHEMA_SHA),
             "source_disjoint_manifest_sha256": "8" * 64,
             "generic_execution_contract_sha256": "9" * 64,
             "consumer_contract_sha256": CONSUMER_CONTRACT_SHA,
@@ -137,9 +130,7 @@ def _write_release(
             "segment_plan_schema_version": (
                 "anchor.hierarchical-task-kv-segment-plan.v1"
             ),
-            "segment_plan_schema_sha256": (
-                PROJECTOR_SEGMENT_PLAN_SCHEMA_SHA
-            ),
+            "segment_plan_schema_sha256": (PROJECTOR_SEGMENT_PLAN_SCHEMA_SHA),
             "segment_plan_location": "outer_sidecar.segment_plan",
             "architecture": "hierarchical_task_kv",
             "execution_mode": "decoupled_frozen_prefix_producer_required",
@@ -169,9 +160,7 @@ def _write_release(
             "target_delta_promotion_requires": (
                 "explicit_committed_and_causally_visible_downstream"
             ),
-            "target_delta_promoted_cache_scope": (
-                "downstream_task_shared_immutable"
-            ),
+            "target_delta_promoted_cache_scope": ("downstream_task_shared_immutable"),
             "current_target_segment_emitted": False,
             "q_specialization_alone_sufficient_for_exact_reuse": False,
             "naive_in_stack_q_lora_exact_reuse_allowed": False,
@@ -228,9 +217,7 @@ def _load(
         required_implementation_files=(
             consumer.QUERY_SPECIALIZATION_IMPLEMENTATION_FILES
         ),
-        required_launch_entrypoint=(
-            consumer.QUERY_SPECIALIZATION_LAUNCH_ENTRYPOINT
-        ),
+        required_launch_entrypoint=(consumer.QUERY_SPECIALIZATION_LAUNCH_ENTRYPOINT),
         authenticated_partition_sha256=authenticated,
     )
 
@@ -292,6 +279,10 @@ def test_ready_release_authenticates_all_three_partitions_from_single_snapshots(
     assert result.schema_sha256 == consumer.RELEASE_LOCK_SCHEMA_SHA256
     assert result.task_bundle_count == 2
     assert result.segment_plan_schema_sha256 == PROJECTOR_SEGMENT_PLAN_SCHEMA_SHA
+    authorization = result.as_dict()
+    assert authorization["research_proxy_training_authorized"] is True
+    assert authorization["formal_training_authorized"] is False
+    assert authorization["claim_scope"] == "research_proxy_only"
     assert dict(result.partition_records) == {
         "train/clean.jsonl": 5,
         "train/noisy.jsonl": 5,
@@ -301,8 +292,14 @@ def test_ready_release_authenticates_all_three_partitions_from_single_snapshots(
         SCHEMA_PATH.resolve(),
         (release_root / "manifest.json").resolve(),
         (release_root / "manifest.json.sha256").resolve(),
-        *((dataset_root / relative).resolve() for relative, _, _ in consumer.FIXED_PARTITIONS),
-        *((release_root.parent / "repository" / relative).resolve() for relative in consumer.QUERY_SPECIALIZATION_IMPLEMENTATION_FILES),
+        *(
+            (dataset_root / relative).resolve()
+            for relative, _, _ in consumer.FIXED_PARTITIONS
+        ),
+        *(
+            (release_root.parent / "repository" / relative).resolve()
+            for relative in consumer.QUERY_SPECIALIZATION_IMPLEMENTATION_FILES
+        ),
         (
             release_root.parent
             / "repository"
@@ -428,7 +425,9 @@ def test_release_partition_rejects_v1_and_tampered_segment_plan(tmp_path: Path) 
     release_root, dataset_root, digest, authenticated = _write_release(tmp_path)
     relative = "train/clean.jsonl"
     partition = dataset_root / relative
-    rows = [json.loads(line) for line in partition.read_text(encoding="utf-8").splitlines()]
+    rows = [
+        json.loads(line) for line in partition.read_text(encoding="utf-8").splitlines()
+    ]
     rows[0]["schema_version"] = "anchor.swebench-taskboard-sidecar.v1"
     _write_jsonl(partition, rows)
     digest = _resign_release_after_partition_change(
@@ -458,7 +457,9 @@ def test_release_partition_rejects_v1_and_tampered_segment_plan(tmp_path: Path) 
         _load(release_root, dataset_root, digest, authenticated)
 
 
-def test_projector_binding_and_prior_authentication_are_required(tmp_path: Path) -> None:
+def test_projector_binding_and_prior_authentication_are_required(
+    tmp_path: Path,
+) -> None:
     release_root, dataset_root, digest, authenticated = _write_release(tmp_path)
     with pytest.raises(
         consumer.TrainingReleaseConsumerError, match="release_lock_claims_invalid"
@@ -517,9 +518,7 @@ def test_consumer_contract_identity_and_live_files_are_self_bound(
             expected_consumer_contract_sha256="0" * 64,
             repository_root=release_root.parent / "repository",
             expected_consumer_id=consumer.QUERY_SPECIALIZATION_CONSUMER_ID,
-            expected_consumer_version=(
-                consumer.QUERY_SPECIALIZATION_CONSUMER_VERSION
-            ),
+            expected_consumer_version=(consumer.QUERY_SPECIALIZATION_CONSUMER_VERSION),
             required_implementation_files=(
                 consumer.QUERY_SPECIALIZATION_IMPLEMENTATION_FILES
             ),

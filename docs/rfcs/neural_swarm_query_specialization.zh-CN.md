@@ -148,6 +148,11 @@ CI 展示，避免 RFC 数字随新增回归用例失效。
 真实 frozen formal-v3 release artifact 尚不存在，仓库默认配置继续显式标记
 unavailable，并报告 `formal_training_authorized=false`。
 
+授权字段现在明确分离：通过验证的 `research_proxy_only` release 可以报告
+`research_proxy_training_authorized=true`，但必须始终保持
+`formal_training_authorized=false`。如果代理 release 试图抬高正式授权字段，
+query-specialization 启动端会 fail-closed。
+
 ## 训练视图与损失契约
 
 桥接器确定性生成 `anchor.query-specialization-sft-view.v1` completion-only

@@ -1,0 +1,372 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anchor-moe-lora.local/schemas/synthetic-scaffold-independent-confirmation-identity-proof-v1.json",
+    "title": "Identity overlap and factorial membership proofs v1",
+    "oneOf": [{"$ref": "#/$defs/independentProof"}, {"$ref": "#/$defs/factorialProof"}],
+    "$defs": {
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "atom": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "digestCount": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["count", "sha256"],
+            "properties": {
+                "count": {"type": "integer", "minimum": 0, "maximum": 1000},
+                "sha256": {"$ref": "#/$defs/sha256"}
+            }
+        },
+        "intersection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["count", "ids", "sha256", "zero_overlap"],
+            "properties": {
+                "count": {"type": "integer", "minimum": 0, "maximum": 1000},
+                "ids": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/sha256"}
+                },
+                "sha256": {"$ref": "#/$defs/sha256"},
+                "zero_overlap": {"type": "boolean"}
+            }
+        },
+        "domains": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "task",
+                "template",
+                "pair",
+                "namespace_language_source_fields_excluded"
+            ],
+            "properties": {
+                "task": {"const": "anchor.controlled-factorial-task-identity.v1"},
+                "template": {
+                    "const": "anchor.controlled-factorial-template-identity.v1"
+                },
+                "pair": {"const": "anchor.controlled-factorial-task-template-pair.v1"},
+                "namespace_language_source_fields_excluded": {"const": true}
+            }
+        },
+        "inventorySet": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["task", "template", "pair"],
+            "properties": {
+                "task": {"$ref": "#/$defs/digestCount"},
+                "template": {"$ref": "#/$defs/digestCount"},
+                "pair": {"$ref": "#/$defs/digestCount"}
+            }
+        },
+        "claimBoundary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "real_world_semantic_disjointness_claimed",
+                "automatic_translation_equivalence_proven",
+                "independent_confirmation_executed",
+                "bundle_generalization_validated",
+                "training_authorized",
+                "formal_training_authorized",
+                "formal"
+            ],
+            "properties": {
+                "real_world_semantic_disjointness_claimed": {"const": false},
+                "automatic_translation_equivalence_proven": {"const": false},
+                "independent_confirmation_executed": {"const": false},
+                "bundle_generalization_validated": {"const": false},
+                "training_authorized": {"const": false},
+                "formal_training_authorized": {"const": false},
+                "formal": {"const": false}
+            }
+        },
+        "independentProof": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "schema_version",
+                "proof_kind",
+                "status",
+                "domains",
+                "discovery",
+                "independent_confirmation",
+                "intersections",
+                "historical_discovery_semantic_split",
+                "proof_algorithm",
+                "claims"
+            ],
+            "properties": {
+                "schema_version": {
+                    "const": "anchor.synthetic-scaffold-independent-confirmation-identity-proof.v1"
+                },
+                "proof_kind": {"const": "discovery_vs_independent_confirmation"},
+                "status": {
+                    "const": "descriptor_level_zero_overlap_proven_execution_not_authorized"
+                },
+                "domains": {"$ref": "#/$defs/domains"},
+                "discovery": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "source_bundle_views",
+                        "unique_semantics",
+                        "bilingual_groups",
+                        "inventories"
+                    ],
+                    "properties": {
+                        "source_bundle_views": {"const": 10},
+                        "unique_semantics": {"const": 5},
+                        "bilingual_groups": {"const": 5},
+                        "inventories": {"$ref": "#/$defs/inventorySet"}
+                    }
+                },
+                "independent_confirmation": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "bundle_views",
+                        "unique_semantics",
+                        "cross_language_translation_pairs",
+                        "inventories"
+                    ],
+                    "properties": {
+                        "bundle_views": {"const": 60},
+                        "unique_semantics": {"const": 60},
+                        "cross_language_translation_pairs": {"const": 0},
+                        "inventories": {"$ref": "#/$defs/inventorySet"}
+                    }
+                },
+                "intersections": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["task", "template", "pair"],
+                    "properties": {
+                        "task": {"$ref": "#/$defs/intersection"},
+                        "template": {"$ref": "#/$defs/intersection"},
+                        "pair": {"$ref": "#/$defs/intersection"}
+                    }
+                },
+                "historical_discovery_semantic_split": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "historical_split_rewritten",
+                        "train_unique_semantics",
+                        "eval_proxy_unique_semantics",
+                        "intersection",
+                        "bundle_generalization_supported"
+                    ],
+                    "properties": {
+                        "historical_split_rewritten": {"const": false},
+                        "train_unique_semantics": {"const": 5},
+                        "eval_proxy_unique_semantics": {"const": 2},
+                        "intersection": {"$ref": "#/$defs/intersection"},
+                        "bundle_generalization_supported": {"const": false}
+                    }
+                },
+                "proof_algorithm": {
+                    "const": "recompute_leaves_common_domains_sorted_unique_inventory_then_exact_set_intersection_v1"
+                },
+                "claims": {"$ref": "#/$defs/claimBoundary"}
+            }
+        },
+        "quotaMap": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "old_task_new_template",
+                "new_task_old_template",
+                "new_task_new_template"
+            ],
+            "properties": {
+                "old_task_new_template": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                },
+                "new_task_old_template": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                },
+                "new_task_new_template": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                }
+            }
+        },
+        "truthRow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "factor",
+                "bundle_count",
+                "task_in_discovery",
+                "template_in_discovery",
+                "pair_in_discovery",
+                "observed_pass"
+            ],
+            "properties": {
+                "factor": {
+                    "enum": [
+                        "old_task_new_template",
+                        "new_task_old_template",
+                        "new_task_new_template"
+                    ]
+                },
+                "bundle_count": {"const": 20},
+                "task_in_discovery": {"type": "boolean"},
+                "template_in_discovery": {"type": "boolean"},
+                "pair_in_discovery": {"const": false},
+                "observed_pass": {"const": true}
+            }
+        },
+        "cell": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["language", "stratum", "bundles", "train", "eval_proxy"],
+            "properties": {
+                "language": {"enum": ["en", "zh-CN"]},
+                "stratum": {"$ref": "#/$defs/atom"},
+                "bundles": {"const": 6},
+                "train": {"const": 4},
+                "eval_proxy": {"const": 2}
+            }
+        },
+        "factorialProof": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "schema_version",
+                "proof_kind",
+                "status",
+                "domains",
+                "counts",
+                "factor_counts",
+                "split_factor_quotas",
+                "language_stratum_cells",
+                "truth_table",
+                "matched_factor_controls",
+                "global_discovery_intersections",
+                "pair_inventory",
+                "proof_algorithm",
+                "claims"
+            ],
+            "properties": {
+                "schema_version": {
+                    "const": "anchor.synthetic-scaffold-independent-confirmation-identity-proof.v1"
+                },
+                "proof_kind": {"const": "secondary_controlled_factorial_membership"},
+                "status": {
+                    "const": "membership_truth_table_proven_not_independent_confirmation"
+                },
+                "domains": {"$ref": "#/$defs/domains"},
+                "counts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "bundles",
+                        "train",
+                        "eval_proxy",
+                        "language_stratum_cells",
+                        "factorial_match_keys"
+                    ],
+                    "properties": {
+                        "bundles": {"const": 60},
+                        "train": {"const": 40},
+                        "eval_proxy": {"const": 20},
+                        "language_stratum_cells": {"const": 10},
+                        "factorial_match_keys": {"const": 20}
+                    }
+                },
+                "factor_counts": {"$ref": "#/$defs/quotaMap"},
+                "split_factor_quotas": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["train", "eval_proxy"],
+                    "properties": {
+                        "train": {"$ref": "#/$defs/quotaMap"},
+                        "eval_proxy": {"$ref": "#/$defs/quotaMap"}
+                    }
+                },
+                "language_stratum_cells": {
+                    "type": "array",
+                    "minItems": 10,
+                    "maxItems": 10,
+                    "items": {"$ref": "#/$defs/cell"}
+                },
+                "truth_table": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {"$ref": "#/$defs/truthRow"}
+                },
+                "matched_factor_controls": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "new_task_inventory_equal_between_old_template_and_new_template_cells",
+                        "new_template_inventory_equal_between_old_task_and_new_task_cells",
+                        "each_match_key_has_all_three_factors"
+                    ],
+                    "properties": {
+                        "new_task_inventory_equal_between_old_template_and_new_template_cells": {
+                            "const": true
+                        },
+                        "new_template_inventory_equal_between_old_task_and_new_task_cells": {
+                            "const": true
+                        },
+                        "each_match_key_has_all_three_factors": {"const": true}
+                    }
+                },
+                "global_discovery_intersections": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "task",
+                        "template",
+                        "pair",
+                        "global_task_zero_overlap_required",
+                        "global_template_zero_overlap_required",
+                        "global_pair_zero_overlap_required"
+                    ],
+                    "properties": {
+                        "task": {"$ref": "#/$defs/intersection"},
+                        "template": {"$ref": "#/$defs/intersection"},
+                        "pair": {"$ref": "#/$defs/intersection"},
+                        "global_task_zero_overlap_required": {"const": false},
+                        "global_template_zero_overlap_required": {"const": false},
+                        "global_pair_zero_overlap_required": {"const": true}
+                    }
+                },
+                "pair_inventory": {"$ref": "#/$defs/digestCount"},
+                "proof_algorithm": {
+                    "const": "recompute_task_template_pair_membership_per_bundle_then_exact_truth_table_and_quota_audit_v1"
+                },
+                "claims": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "real_world_semantic_disjointness_claimed",
+                        "may_satisfy_independent_confirmation",
+                        "controlled_factorial_executed",
+                        "bundle_generalization_validated",
+                        "training_authorized",
+                        "formal_training_authorized",
+                        "formal"
+                    ],
+                    "properties": {
+                        "real_world_semantic_disjointness_claimed": {"const": false},
+                        "may_satisfy_independent_confirmation": {"const": false},
+                        "controlled_factorial_executed": {"const": false},
+                        "bundle_generalization_validated": {"const": false},
+                        "training_authorized": {"const": false},
+                        "formal_training_authorized": {"const": false},
+                        "formal": {"const": false}
+                    }
+                }
+            }
+        }
+    }
+}

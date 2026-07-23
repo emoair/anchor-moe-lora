@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -303,12 +304,25 @@ def test_launcher_is_safe_by_default_and_serializes_five_specialists() -> None:
     assert "foreach ($Entry in $Ranks.GetEnumerator())" in launcher
     assert "partial/stale output exists" in launcher
     assert "automatic exact resume is not supported" in launcher
+    assert "anchor_mvp.research.formal_authorization_consumer" in launcher
+    assert "anchor.formal-authorization-decision.v1" in launcher
+    assert "decision v1 is permanently blocked" in launcher
+    assert "versioned v2-or-later decision plus an authenticated execution lease" in (
+        launcher
+    )
+    assert "LockPath must equal the canonical single-GPU lock" in launcher
+    assert launcher.index("[IO.File]::Open(", launcher.index("try {")) < launcher.index(
+        "$AuthorizationDecision = Invoke-FormalAuthorization"
+    )
+    assert launcher.index(
+        "$AuthorizationDecision = Invoke-FormalAuthorization"
+    ) < launcher.rindex("Invoke-Preflight $Config")
 
 
 @pytest.mark.skipif(
     shutil.which("powershell.exe") is None, reason="PowerShell required"
 )
-def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
+def test_adaptive_manifest_exact_experts_in_non_execute_validation(
     tmp_path: Path,
 ) -> None:
     project = tmp_path / "project"
@@ -323,13 +337,8 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
         json.dumps({"snapshot_sha256": snapshot_sha}), encoding="utf-8"
     )
     fake_python = tmp_path / "fake-python.cmd"
-    fingerprint = "d" * 64
     fake_python.write_text(
-        "@echo off\r\n"
-        f'if "%1"=="-c" echo {{"fingerprint":"{fingerprint}",'
-        '"max_steps":32,"rank":16,"alpha":32,'
-        '"target_modules":["q_proj","v_proj"]}\r\n'
-        "exit /b 0\r\n",
+        "@echo off\r\nexit /b 0\r\n",
         encoding="ascii",
     )
     allocation = tmp_path / "allocation.json"
@@ -372,7 +381,6 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
         )
 
     write_allocation(base)
-    lock = tmp_path / "training.lock"
     command = [
         "powershell.exe",
         "-NoProfile",
@@ -382,17 +390,13 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
         str(launcher),
         "-Arm",
         "F",
-        "-Execute",
         "-AllocationManifest",
         str(allocation),
         "-Python",
         str(fake_python),
-        "-LockPath",
-        str(lock),
     ]
     passed = subprocess.run(command, text=True, capture_output=True, check=False)
     assert passed.returncode == 0, passed.stderr
-    assert not lock.exists()
 
     base["selected_ranks"]["unexpected"] = 1
     write_allocation(base)
@@ -401,7 +405,6 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
     assert "selected_ranks must name exactly the five specialists" in (
         rejected.stdout + rejected.stderr
     )
-    assert not lock.exists()
 
     del base["selected_ranks"]["unexpected"]
     base["arm"] = "E"
@@ -424,7 +427,6 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
     assert "Arm E requires a non-uniform adaptive rank allocation" in (
         uniform.stdout + uniform.stderr
     )
-    assert not lock.exists()
 
     base["selected_ranks"]["frontend_gen"] = 6
     base["attempted_allocations"] = [{"selected_ranks": dict(base["selected_ranks"])}]
@@ -438,50 +440,67 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
     assert "not frozen to this formal-v3 snapshot/arm" in (
         forged.stdout + forged.stderr
     )
-    assert not lock.exists()
 
-    run_manifest = project / "artifacts/formal_v3/C/manifests/planner-r16.execute.json"
-    run_manifest.parent.mkdir(parents=True)
-    run_manifest.write_text(
-        json.dumps(
-            {
-                "mode": "execute",
-                "run_name": "planner-r16",
-                "config_sha256": fingerprint,
-                "preflight": {
-                    "passed": True,
-                    "dataset_snapshot_sha256": snapshot_sha,
-                    "dataset_snapshot_manifest": {"passed": True},
-                },
-            }
-        ),
-        encoding="utf-8",
+
+@pytest.mark.skipif(
+    shutil.which("powershell.exe") is None, reason="PowerShell required"
+)
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "blocked",
+        "empty",
+        "malformed",
+        "wrong_schema",
+        "false",
+        "bad_sha",
+        "ready_v1",
+    ],
+)
+def test_execute_authorization_is_strict_and_cleans_lock(
+    tmp_path: Path, mode: str
+) -> None:
+    project = tmp_path / "project"
+    script_dir = project / "scripts" / "train"
+    script_dir.mkdir(parents=True)
+    launcher = script_dir / "run_formal_v3_lowmem.ps1"
+    shutil.copy2(ROOT / "scripts/train/run_formal_v3_lowmem.ps1", launcher)
+    fake_python = tmp_path / "fake-python.cmd"
+    ready_sha = "e" * 64
+    fake_python.write_text(
+        "@echo off\r\n"
+        'if not "%FAKE_PYTHON_LOG%"=="" echo %*>>"%FAKE_PYTHON_LOG%"\r\n'
+        'if "%2"=="anchor_mvp.research.formal_authorization_consumer" goto auth\r\n'
+        "exit /b 0\r\n"
+        ":auth\r\n"
+        'if not exist "%FAKE_EXPECT_LOCK%" exit /b 91\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="empty" exit /b 0\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="malformed" echo not-json& exit /b 0\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="blocked" '
+        'echo {"schema_version":"anchor.formal-authorization-decision.v1",'
+        '"status":"blocked","formal_training_authorized":false,'
+        f'"decision_sha256":"{ready_sha}"}}& exit /b 2\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="wrong_schema" '
+        'echo {"schema_version":"anchor.wrong.v1","status":"ready",'
+        '"formal_training_authorized":true,'
+        f'"decision_sha256":"{ready_sha}"}}& exit /b 0\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="false" '
+        'echo {"schema_version":"anchor.formal-authorization-decision.v1",'
+        '"status":"ready","formal_training_authorized":false,'
+        f'"decision_sha256":"{ready_sha}"}}& exit /b 0\r\n'
+        'if "%FAKE_FORMAL_AUTH_MODE%"=="bad_sha" '
+        'echo {"schema_version":"anchor.formal-authorization-decision.v1",'
+        '"status":"ready","formal_training_authorized":true,'
+        '"decision_sha256":"not-a-sha"}& exit /b 0\r\n'
+        'echo {"schema_version":"anchor.formal-authorization-decision.v1",'
+        '"status":"ready","formal_training_authorized":true,'
+        f'"decision_sha256":"{ready_sha}"}}\r\n'
+        "exit /b 0\r\n",
+        encoding="ascii",
     )
-    partial = project / "artifacts/formal_v3/C/adapters/planner-r16"
-    partial.mkdir(parents=True)
-    (partial / "adapter_config.json").write_text(
-        json.dumps(
-            {
-                "r": 16,
-                "lora_alpha": 32,
-                "target_modules": ["q_proj", "v_proj"],
-            }
-        ),
-        encoding="utf-8",
-    )
-    (partial / "adapter_model.safetensors").write_bytes(b"adapter")
-    metadata_path = partial / "checkpoint_metadata.json"
-    metadata = {
-        "run_name": "planner-r16",
-        "adapter_name": "planner",
-        "config_sha256": fingerprint,
-        "global_step": 32,
-        "trainable_parameters": 10_387_456,
-        "artifact_type": "peft_adapter",
-        "merge_status": "unmerged",
-    }
-    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
-    partial_command = [
+    lock = project / "runs" / "formal-v3-training.lock"
+    log = tmp_path / "python.log"
+    command = [
         "powershell.exe",
         "-NoProfile",
         "-ExecutionPolicy",
@@ -489,39 +508,154 @@ def test_adaptive_manifest_exact_experts_and_training_lock_cleanup(
         "-File",
         str(launcher),
         "-Arm",
-        "C",
+        "preflight",
         "-Execute",
         "-Python",
         str(fake_python),
         "-LockPath",
         str(lock),
     ]
-    completed = subprocess.run(
-        partial_command, text=True, capture_output=True, check=False
+    env = {
+        **os.environ,
+        "FAKE_FORMAL_AUTH_MODE": mode,
+        "FAKE_EXPECT_LOCK": str(lock),
+        "FAKE_PYTHON_LOG": str(log),
+    }
+    rejected = subprocess.run(
+        command, text=True, capture_output=True, check=False, env=env
     )
-    assert completed.returncode == 0, completed.stderr
-    assert "SKIP verified completed job: planner rank 16" in completed.stdout
+    assert rejected.returncode != 0
+    assert "formal-v3 authorization refused" in (rejected.stdout + rejected.stderr)
     assert not lock.exists()
+    invocations = log.read_text(encoding="utf-8").splitlines()
+    assert len(invocations) == 1
+    assert "anchor_mvp.research.formal_authorization_consumer" in invocations[0]
+    assert "anchor_mvp.training" not in invocations[0]
 
-    metadata["global_step"] = 31
-    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
-    partial_run = subprocess.run(
-        partial_command, text=True, capture_output=True, check=False
-    )
-    assert partial_run.returncode != 0
-    assert "automatic exact resume is not supported" in (
-        partial_run.stdout + partial_run.stderr
-    )
-    assert not lock.exists()
 
-    shutil.rmtree(partial)
-    run_manifest.unlink()
-    progress = project / "artifacts/formal_v3/C/adapters/planner-r16.progress"
-    progress.mkdir(parents=True)
-    (progress / "status.json").write_text("{}\n", encoding="utf-8")
-    progress_only = subprocess.run(
-        partial_command, text=True, capture_output=True, check=False
+@pytest.mark.skipif(
+    shutil.which("powershell.exe") is None, reason="PowerShell required"
+)
+def test_execute_rejects_noncanonical_lock_before_authorization(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    script_dir = project / "scripts" / "train"
+    script_dir.mkdir(parents=True)
+    launcher = script_dir / "run_formal_v3_lowmem.ps1"
+    shutil.copy2(ROOT / "scripts/train/run_formal_v3_lowmem.ps1", launcher)
+    fake_python = tmp_path / "fake-python.cmd"
+    marker = tmp_path / "python-invoked.txt"
+    fake_python.write_text(
+        "@echo off\r\n"
+        'if not "%FAKE_PYTHON_MARKER%"=="" echo invoked>"%FAKE_PYTHON_MARKER%"\r\n'
+        "exit /b 0\r\n",
+        encoding="ascii",
     )
-    assert progress_only.returncode != 0
-    assert "planner-r16.progress" in (progress_only.stdout + progress_only.stderr)
+    noncanonical_lock = tmp_path / "different-training.lock"
+    canonical_lock = project / "runs" / "formal-v3-training.lock"
+    rejected = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(launcher),
+            "-Arm",
+            "preflight",
+            "-Execute",
+            "-Python",
+            str(fake_python),
+            "-LockPath",
+            str(noncanonical_lock),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+        env={**os.environ, "FAKE_PYTHON_MARKER": str(marker)},
+    )
+    assert rejected.returncode != 0
+    assert "LockPath must equal the canonical single-GPU lock" in (
+        rejected.stdout + rejected.stderr
+    )
+    assert not marker.exists()
+    assert not noncanonical_lock.exists()
+    assert not canonical_lock.exists()
+
+
+@pytest.mark.skipif(
+    shutil.which("powershell.exe") is None, reason="PowerShell required"
+)
+def test_execute_forged_v1_ready_is_rejected_before_preflight_and_cleans_lock(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    script_dir = project / "scripts" / "train"
+    script_dir.mkdir(parents=True)
+    launcher = script_dir / "run_formal_v3_lowmem.ps1"
+    shutil.copy2(ROOT / "scripts/train/run_formal_v3_lowmem.ps1", launcher)
+    fake_python = tmp_path / "fake-python.cmd"
+    fake_python.write_text(
+        "@echo off\r\n"
+        'if not "%FAKE_PYTHON_LOG%"=="" echo %*>>"%FAKE_PYTHON_LOG%"\r\n'
+        'if "%2"=="anchor_mvp.research.formal_authorization_consumer" goto auth\r\n'
+        "exit /b 0\r\n"
+        ":auth\r\n"
+        'if not exist "%FAKE_EXPECT_LOCK%" exit /b 91\r\n'
+        'echo {"schema_version":"anchor.formal-authorization-decision.v1",'
+        '"status":"ready","formal_training_authorized":true,'
+        f'"decision_sha256":"{"e" * 64}"}}\r\n'
+        "exit /b 0\r\n",
+        encoding="ascii",
+    )
+    lock = project / "runs" / "formal-v3-training.lock"
+    log = tmp_path / "python.log"
+    command = [
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(launcher),
+        "-Arm",
+        "preflight",
+        "-Execute",
+        "-Python",
+        str(fake_python),
+        "-LockPath",
+        str(lock),
+    ]
+    env = {
+        **os.environ,
+        "FAKE_FORMAL_AUTH_MODE": "ready",
+        "FAKE_EXPECT_LOCK": str(lock),
+        "FAKE_PYTHON_LOG": str(log),
+    }
+    rejected = subprocess.run(
+        command, text=True, capture_output=True, check=False, env=env
+    )
+    assert rejected.returncode != 0
+    assert "decision v1 is permanently blocked" in (rejected.stdout + rejected.stderr)
     assert not lock.exists()
+    invocations = log.read_text(encoding="utf-8").splitlines()
+    assert len(invocations) == 1
+    assert "anchor_mvp.research.formal_authorization_consumer" in invocations[0]
+    assert "anchor_mvp.training preflight" not in invocations[0]
+
+    log.unlink()
+    dry_run_command = [item for item in command if item != "-Execute"]
+    dry_run_env = {**env, "FAKE_FORMAL_AUTH_MODE": "blocked"}
+    dry_run = subprocess.run(
+        dry_run_command,
+        text=True,
+        capture_output=True,
+        check=False,
+        env=dry_run_env,
+    )
+    assert dry_run.returncode == 0, dry_run.stdout + dry_run.stderr
+    assert not lock.exists()
+    dry_run_invocations = log.read_text(encoding="utf-8").splitlines()
+    assert len(dry_run_invocations) == 1
+    assert "anchor_mvp.training preflight" in dry_run_invocations[0]
+    assert "formal_authorization_consumer" not in dry_run_invocations[0]

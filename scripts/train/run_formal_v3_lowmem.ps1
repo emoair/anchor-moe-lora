@@ -29,6 +29,55 @@ function Invoke-Preflight([string]$Config) {
     }
 }
 
+function Invoke-FormalAuthorization {
+    $AuthorizationConfig = Resolve-ProjectPath (
+        "configs/research/formal_authorization_consumer_v1.yaml"
+    )
+    $RawLines = @(
+        & $Python -m anchor_mvp.research.formal_authorization_consumer `
+            --config $AuthorizationConfig
+    )
+    $ExitCode = $LASTEXITCODE
+    if ($ExitCode -ne 0) {
+        throw "formal-v3 authorization refused: consumer exited with $ExitCode"
+    }
+    $Raw = (($RawLines | ForEach-Object { [string]$_ }) -join "`n").Trim()
+    if ([string]::IsNullOrWhiteSpace($Raw)) {
+        throw "formal-v3 authorization refused: consumer returned empty output"
+    }
+    try {
+        $Decision = $Raw | ConvertFrom-Json
+    }
+    catch {
+        throw "formal-v3 authorization refused: consumer output is not valid JSON"
+    }
+    if ($Decision -isnot [System.Management.Automation.PSCustomObject]) {
+        throw "formal-v3 authorization refused: decision must be a JSON object"
+    }
+    $RequiredFields = @(
+        "schema_version",
+        "status",
+        "formal_training_authorized",
+        "decision_sha256"
+    )
+    $ObservedFields = @($Decision.PSObject.Properties.Name)
+    foreach ($Field in $RequiredFields) {
+        if ($Field -notin $ObservedFields) {
+            throw "formal-v3 authorization refused: decision is missing $Field"
+        }
+    }
+    if ($Decision.schema_version -eq "anchor.formal-authorization-decision.v1") {
+        throw (
+            "formal-v3 authorization refused: decision v1 is permanently blocked " +
+            "and cannot authorize execution, even if its fields claim ready"
+        )
+    }
+    throw (
+        "formal-v3 authorization refused: unsupported decision schema; a future " +
+        "versioned v2-or-later decision plus an authenticated execution lease is required"
+    )
+}
+
 function Get-CurrentRunContract([string]$Config, [string]$Adapter, [int]$Rank) {
     $Code = "import json,sys; from anchor_mvp.training.config import load_training_config,select_adapter; from anchor_mvp.training.manifest import config_fingerprint; c=select_adapter(load_training_config(sys.argv[1]),sys.argv[2],int(sys.argv[3])); print(json.dumps({'fingerprint':config_fingerprint(c),'max_steps':c['training']['max_steps'],'rank':c['lora']['rank'],'alpha':c['lora']['alpha'],'target_modules':sorted(c['lora']['target_modules'])}))"
     $Raw = (& $Python -c $Code (Resolve-ProjectPath $Config) $Adapter $Rank).Trim()
@@ -323,19 +372,27 @@ try {
         F = "configs/training/formal_v3_lowmem_adaptive_budget.yaml"
     }
     $Config = $ConfigByArm[$Arm]
-    Invoke-Preflight $Config
-    if ($Arm -eq "preflight") { return }
-
     if ($Execute) {
-        $ResolvedLockPath = if ($LockPath) {
+        $CanonicalLockPath = Resolve-ProjectPath "runs/formal-v3-training.lock"
+        if ($LockPath) {
             if ([IO.Path]::IsPathRooted($LockPath)) {
-                [IO.Path]::GetFullPath($LockPath)
+                $RequestedLockPath = [IO.Path]::GetFullPath($LockPath)
             } else {
-                [IO.Path]::GetFullPath((Join-Path (Get-Location).Path $LockPath))
+                $RequestedLockPath = [IO.Path]::GetFullPath(
+                    (Join-Path (Get-Location).Path $LockPath)
+                )
             }
-        } else {
-            Resolve-ProjectPath "runs/formal-v3-training.lock"
+            if (-not [StringComparer]::OrdinalIgnoreCase.Equals(
+                $RequestedLockPath,
+                $CanonicalLockPath
+            )) {
+                throw (
+                    "formal-v3 LockPath must equal the canonical single-GPU lock: " +
+                    $CanonicalLockPath
+                )
+            }
         }
+        $ResolvedLockPath = $CanonicalLockPath
         [IO.Directory]::CreateDirectory(
             [IO.Path]::GetDirectoryName($ResolvedLockPath)
         ) | Out-Null
@@ -350,7 +407,11 @@ try {
         catch {
             throw "another formal-v3 GPU launcher owns $ResolvedLockPath"
         }
+        $AuthorizationDecision = Invoke-FormalAuthorization
     }
+
+    Invoke-Preflight $Config
+    if ($Arm -eq "preflight") { return }
 
     if ($Arm -eq "smoke") {
         Invoke-Adapter $Config "frontend_gen" 16 `

@@ -239,7 +239,9 @@ def _resolve(root: Path, value: Any, path: str) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise QuerySpecializationError(f"{path} must be a non-empty path")
     candidate = Path(value).expanduser()
-    return candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    return (
+        candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    )
 
 
 def _mapping(value: Any, path: str) -> Mapping[str, Any]:
@@ -278,9 +280,7 @@ def _bounded_float(
     valid_lower = result >= lower if allow_zero else result > lower
     if not valid_lower or result > upper:
         bracket = "[" if allow_zero else "("
-        raise QuerySpecializationError(
-            f"{path} must be in {bracket}{lower}, {upper}]"
-        )
+        raise QuerySpecializationError(f"{path} must be in {bracket}{lower}, {upper}]")
     return result
 
 
@@ -297,6 +297,29 @@ def _required_sha256(value: Any, path: str) -> str:
     ):
         raise QuerySpecializationError(f"{path} must be a lowercase SHA-256")
     return value
+
+
+def _release_authorization_fields(
+    release_validation: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Project release authority without promoting proxy data to formal use."""
+
+    research_proxy_authorized = release_validation.get(
+        "research_proxy_training_authorized"
+    )
+    formal_authorized = release_validation.get("formal_training_authorized")
+    if not isinstance(research_proxy_authorized, bool):
+        raise QuerySpecializationError(
+            "release validation research_proxy_training_authorized is invalid"
+        )
+    if formal_authorized is not False:
+        raise QuerySpecializationError(
+            "research_proxy_only release cannot authorize formal training"
+        )
+    return {
+        "research_proxy_training_authorized": research_proxy_authorized,
+        "formal_training_authorized": False,
+    }
 
 
 def _load_contract_dataset(
@@ -420,9 +443,7 @@ def _load_contract_dataset(
         expected_config_sha256=expected_hashes["projector_config"][1],
         expected_sidecar_schema_sha256=expected_hashes["sidecar_schema"][1],
         expected_manifest_schema_sha256=expected_hashes["manifest_schema"][1],
-        expected_segment_plan_schema_sha256=expected_hashes[
-            "segment_plan_schema"
-        ][1],
+        expected_segment_plan_schema_sha256=expected_hashes["segment_plan_schema"][1],
     )
     records = tuple(sidecar.training_record for sidecar in sidecars)
     authenticated = validation.get("authenticated_file_sha256")
@@ -571,9 +592,7 @@ def _plan(
     full_model = _mapping(config.get("full_model_followup"), "full_model_followup")
     materialization = _mapping(config.get("materialization"), "materialization")
     _reject_unknown_fields(contract, DATASET_CONTRACT_FIELDS, "dataset_contract")
-    _reject_unknown_fields(
-        materialization, MATERIALIZATION_FIELDS, "materialization"
-    )
+    _reject_unknown_fields(materialization, MATERIALIZATION_FIELDS, "materialization")
     _reject_unknown_fields(proxy, PROXY_FIELDS, "proxy")
     _reject_unknown_fields(full_model, FULL_MODEL_FIELDS, "full_model_followup")
     release_lock = _mapping(
@@ -584,9 +603,7 @@ def _plan(
         FULL_MODEL_RELEASE_LOCK_FIELDS,
         "full_model_followup.release_lock",
     )
-    full_model_lora = _mapping(
-        full_model.get("lora"), "full_model_followup.lora"
-    )
+    full_model_lora = _mapping(full_model.get("lora"), "full_model_followup.lora")
     full_model_optimization = _mapping(
         full_model.get("optimization"), "full_model_followup.optimization"
     )
@@ -718,11 +735,10 @@ def _plan(
         release_validation: dict[str, Any] = {
             "schema_version": "anchor.generic-train-release-lock.v2",
             "status": "unavailable",
+            "research_proxy_training_authorized": False,
             "formal_training_authorized": False,
             "schema_sha256": validated_schema_sha256,
-            "source_disjoint_schema_sha256": (
-                validated_source_disjoint_schema_sha256
-            ),
+            "source_disjoint_schema_sha256": (validated_source_disjoint_schema_sha256),
             "reason": "real_frozen_formal_v3_release_unavailable",
         }
     else:
@@ -782,18 +798,14 @@ def _plan(
                     contract.get("expected_segment_plan_schema_sha256"),
                     "dataset_contract.expected_segment_plan_schema_sha256",
                 ),
-                expected_consumer_contract_sha256=(
-                    expected_consumer_contract_sha256
-                ),
+                expected_consumer_contract_sha256=(expected_consumer_contract_sha256),
                 repository_root=REPO_ROOT,
                 expected_consumer_id=expected_consumer_id,
                 expected_consumer_version=expected_consumer_version,
                 required_implementation_files=(
                     QUERY_SPECIALIZATION_IMPLEMENTATION_FILES
                 ),
-                required_launch_entrypoint=(
-                    QUERY_SPECIALIZATION_LAUNCH_ENTRYPOINT
-                ),
+                required_launch_entrypoint=(QUERY_SPECIALIZATION_LAUNCH_ENTRYPOINT),
                 authenticated_partition_sha256=authenticated_partitions,
             ).as_dict()
         except TrainingReleaseConsumerError as exc:
@@ -807,9 +819,7 @@ def _plan(
             "provider_requests": producer_manifest["provider_requests"],
             "canonical_gold_written": producer_manifest["canonical_gold_written"],
             "heldout_content_read": producer_manifest["heldout_content_read"],
-            "heldout_content_emitted": producer_manifest[
-                "heldout_content_emitted"
-            ],
+            "heldout_content_emitted": producer_manifest["heldout_content_emitted"],
             "counts": producer_manifest["counts"],
         },
         "sidecar_dataset_validation": dict(dataset_validation),
@@ -833,13 +843,9 @@ def _plan(
             "strict_json_optimized": False,
         },
         "full_model_followup_enabled": enabled,
-        "formal_training_authorized": release_validation[
-            "formal_training_authorized"
-        ],
+        **_release_authorization_fields(release_validation),
         "release_lock_status": release_validation["status"],
-        "release_lock_manifest_sha256": release_validation.get(
-            "manifest_sha256"
-        ),
+        "release_lock_manifest_sha256": release_validation.get("manifest_sha256"),
         "release_lock_validation": release_validation,
     }
 
@@ -919,9 +925,7 @@ def _build_proxy_examples(
                             role_index=role_index,
                             keys=keys,
                             context=context,
-                            relevant=torch.tensor(
-                                [relevant_mask], dtype=torch.bool
-                            ),
+                            relevant=torch.tensor([relevant_mask], dtype=torch.bool),
                             distractor=torch.tensor(
                                 [distractor_mask], dtype=torch.bool
                             ),
@@ -954,9 +958,7 @@ def _execute_probe(
     distractor_copies = int(proxy["distractor_copies"])
     losses_config = _mapping(proxy["losses"], "proxy.losses")
     distractor_weight = float(losses_config["distractor_weight"])
-    consistency_weight = float(
-        losses_config["clean_noisy_consistency_weight"]
-    )
+    consistency_weight = float(losses_config["clean_noisy_consistency_weight"])
     torch.manual_seed(seed)
 
     class RoleQueryLoRA(torch.nn.Module):
@@ -965,12 +967,8 @@ def _execute_probe(
             base = torch.empty(width, width)
             torch.nn.init.orthogonal_(base)
             self.register_buffer("base_projection", base)
-            self.lora_a = torch.nn.Parameter(
-                torch.empty(len(ROLES), width, rank)
-            )
-            self.lora_b = torch.nn.Parameter(
-                torch.zeros(len(ROLES), rank, width)
-            )
+            self.lora_a = torch.nn.Parameter(torch.empty(len(ROLES), width, rank))
+            self.lora_b = torch.nn.Parameter(torch.zeros(len(ROLES), rank, width))
             torch.nn.init.normal_(self.lora_a, mean=0.0, std=0.02)
             self.scale = alpha / rank
 
@@ -1007,9 +1005,7 @@ def _execute_probe(
                 )
             for role in ROLES:
                 variants = {
-                    example.variant
-                    for example in task_examples
-                    if example.role == role
+                    example.variant for example in task_examples if example.role == role
                 }
                 if variants != {"clean", "noisy"}:
                     raise QuerySpecializationError(
@@ -1019,9 +1015,7 @@ def _execute_probe(
     model = RoleQueryLoRA()
     frozen_parameters = int(model.base_projection.numel())
     trainable_parameters = sum(
-        parameter.numel()
-        for parameter in model.parameters()
-        if parameter.requires_grad
+        parameter.numel() for parameter in model.parameters() if parameter.requires_grad
     )
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=learning_rate, weight_decay=0.0
@@ -1090,8 +1084,7 @@ def _execute_probe(
                 )
         return {
             "top1_relevant_rate": top1 / max(1, noisy_count),
-            "mean_relevant_mass": sum(relevant_masses)
-            / max(1, len(relevant_masses)),
+            "mean_relevant_mass": sum(relevant_masses) / max(1, len(relevant_masses)),
             "mean_min_relevant_block_mass": sum(relevant_min_masses)
             / max(1, len(relevant_min_masses)),
             "mean_distractor_mass": sum(distractor_masses)
@@ -1115,9 +1108,7 @@ def _execute_probe(
         for example in examples["train"]:
             query = model(example.role_index, example.context)
             pair_queries.setdefault(example.pair_id, []).append(query)
-            probabilities = torch.softmax(
-                (example.keys @ query) / temperature, dim=-1
-            )
+            probabilities = torch.softmax((example.keys @ query) / temperature, dim=-1)
             loss, _ = block_attention_auxiliary_loss(
                 probabilities.unsqueeze(0),
                 example.relevant,
@@ -1127,15 +1118,11 @@ def _execute_probe(
             attention_losses.append(loss)
         consistency = torch.stack(
             [
-                1.0
-                - torch.nn.functional.cosine_similarity(pair[0], pair[1], dim=0)
+                1.0 - torch.nn.functional.cosine_similarity(pair[0], pair[1], dim=0)
                 for pair in pair_queries.values()
             ]
         ).mean()
-        total = (
-            torch.stack(attention_losses).mean()
-            + consistency_weight * consistency
-        )
+        total = torch.stack(attention_losses).mean() + consistency_weight * consistency
         total.backward()
         optimizer.step()
         final_loss = float(total.detach())
@@ -1155,9 +1142,7 @@ def _execute_probe(
         <= float(thresholds["maximum_distractor_mass"]),
         "eval_correct_role_mass_gap": after["mean_correct_role_mass_gap"]
         >= float(thresholds["minimum_correct_role_mass_gap"]),
-        "eval_clean_noisy_consistency": after[
-            "mean_clean_noisy_query_cosine"
-        ]
+        "eval_clean_noisy_consistency": after["mean_clean_noisy_query_cosine"]
         >= float(thresholds["minimum_clean_noisy_query_cosine"]),
     }
     result = {
@@ -1204,8 +1189,7 @@ def _execute_probe(
         "before_eval": before,
         "after_eval": after,
         "eval_delta": {
-            "relevant_mass": after["mean_relevant_mass"]
-            - before["mean_relevant_mass"],
+            "relevant_mass": after["mean_relevant_mass"] - before["mean_relevant_mass"],
             "distractor_mass": after["mean_distractor_mass"]
             - before["mean_distractor_mass"],
         },
@@ -1244,13 +1228,13 @@ def main(argv: list[str] | None = None) -> int:
                 config,
                 records,
                 experiment_config_sha256=hashlib.sha256(config_bytes).hexdigest(),
-                contract_fixture_sha256=dataset_validation[
-                    "dataset_contract_sha256"
-                ],
+                contract_fixture_sha256=dataset_validation["dataset_contract_sha256"],
                 metrics_schema_sha256=plan["metrics_schema_sha256"],
                 runner_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 query_contract_module_sha256=hashlib.sha256(
-                    (SRC_ROOT / "anchor_mvp/research/query_specialization.py").read_bytes()
+                    (
+                        SRC_ROOT / "anchor_mvp/research/query_specialization.py"
+                    ).read_bytes()
                 ).hexdigest(),
             )
             output = (

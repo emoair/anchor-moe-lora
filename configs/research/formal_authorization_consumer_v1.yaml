@@ -1,0 +1,52 @@
+schema_version: anchor.formal-authorization-consumer-config.v1
+claim_scope: immutable_non_authorizing_overlay_only
+
+paths:
+  repository_root: ../..
+  qwen_prerequisite_config: configs/research/qwen_train_prerequisite_consumer_v2.yaml
+  qwen_prerequisite_implementation: src/anchor_mvp/research/qwen_train_prerequisite_consumer_v2.py
+  qwen_prerequisite_manifest: fixtures/research/qwen_toy_prerequisite_companion_v2/manifest.json
+  qwen_prerequisite_manifest_sidecar: fixtures/research/qwen_toy_prerequisite_companion_v2/manifest.json.sha256
+  multiseed_plan_config: configs/research/qwen_multiseed_independent_bundle_plan_v1.yaml
+  multiseed_plan_implementation: src/anchor_mvp/research/qwen_multiseed_independent_bundle_plan.py
+  training_release_consumer_implementation: src/anchor_mvp/research/training_release_consumer.py
+  generic_release_v2_schema: configs/research/generic_train_release_lock.schema.json
+  formal_decision_schema: configs/research/formal_authorization_decision_v1.schema.json
+
+bindings:
+  qwen_prerequisite_config_sha256: 616d685c35e044d5e52f87b2a7868d6e4bd25b3c7119e7f5680634905bb07004
+  qwen_prerequisite_implementation_sha256: 01bf5fcbc16bdd781ce7ac1c209b2fbe9c52c3a7e8196ba6d3c146226ff28f90
+  qwen_prerequisite_manifest_sha256: 7de94ff167db5cbae678e1c5f9049bc9abe5f8156ad4ab3acb4f65f52cf1d115
+  qwen_prerequisite_manifest_sidecar_physical_sha256: f17631d15ec34561c9fcc7c0f29aad1b2fd8d302c2cdc4553e88562701673095
+  multiseed_plan_config_sha256: 198ea3741b738cd2560b016499ef0d0d7a717b3b0cf8ecff482595e4e688888d
+  multiseed_plan_implementation_sha256: 271c6f425ba25022e32ab47dbecec9542f98315a0681db20fe2405ce890cedb2
+  training_release_consumer_implementation_sha256: 1bdfa5f0e827896762975901d0f015cbf0e1cdfb7e450d47f3943ff0a235259a
+  generic_release_v2_schema_sha256: 119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa
+  formal_decision_schema_sha256: 43d7e18f5ab0fef82bde8fb3387bd5d1fa10a4da93b0126551acb9b86c0d1967
+
+policy:
+  decision_status: blocked_formal_authorization_inputs_unavailable
+  prerequisite_status: blocked
+  formal_v3_ready_count: 0
+  formal_v3_total: 5
+  protected_inventory_ready_count: 2
+  protected_inventory_total: 6
+  secondary_factorial_may_satisfy_independent_confirmation: false
+  secondary_factorial_may_satisfy_bundle_generalization: false
+  old_generic_release_schema_version: anchor.generic-train-release-lock.v2
+  old_generic_release_claim_scope: research_proxy_only
+  old_generic_release_eligible_for_formal: false
+  execution_ready: false
+  materialization_ready: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+
+audit:
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_content_reads: 0
+  dataset_body_reads: 0
+  training_runs: 0
