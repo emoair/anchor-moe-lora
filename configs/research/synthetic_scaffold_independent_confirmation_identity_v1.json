@@ -1,0 +1,778 @@
+{
+    "schema_version": "anchor.synthetic-scaffold-independent-confirmation-identity-config.v1",
+    "claim_scope": "metadata_only_diagnostic_identity_producer_non_authorizing",
+    "paths": {
+        "config_schema": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_config.schema.json",
+        "record_schema": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_record.schema.json",
+        "proof_schema": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_proof.schema.json",
+        "manifest_schema": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_manifest.schema.json",
+        "implementation": "src/anchor_mvp/swebench/synthetic_scaffold_independent_confirmation_identity.py",
+        "canonical_fixture": "fixtures/research/synthetic_scaffold_independent_confirmation_identity_v1"
+    },
+    "source_binding": {
+        "repository": "anchor-moe-lora-neural-swarm",
+        "branch_at_freeze": "research/neural-swarm-kv",
+        "source_commit": "9539fb56c236f08ffe9d7a8f56dfc28f14e1907c",
+        "source_parent_commit": "c2b9174930270352c7d25490afd57d02db790e0d",
+        "source_tree": "c25c2aa31af757dccf4f0b03e5a4b4b81a591a1a",
+        "consumer_plan_commit": "6a73e8c535141f0c9a6c2085a6aaf7c45c42aaa6",
+        "consumer_plan_parent_commit": "06797a905275d61fdf2dc1935fddcf4135a03f46",
+        "consumer_plan_tree": "94d9d6d26da47a954fee0e4e86832451c557d82d",
+        "config": {
+            "path": "configs/research/synthetic_nl_scaffold_diagnostic_v1.yaml",
+            "bytes": 8133,
+            "sha256": "b34d54fea39340ab2e1567f380241fc410276ab17035d69a2285c7c7c83cebaf"
+        },
+        "manifest": {
+            "path": "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json",
+            "bytes": 8034,
+            "sha256": "64b1ce813477deef48de16dbdc0d2561bbeaa0ef5d6248862e9f2bedc8acc0dd"
+        },
+        "manifest_sidecar": {
+            "path": "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256",
+            "bytes": 80,
+            "sha256": "8b810cb21f9b28fab61299818300b375cb5a5a32788e4f1638379778443b3085"
+        },
+        "consumer_plan_config": {
+            "path": "configs/research/qwen_multiseed_independent_bundle_plan_v1.yaml",
+            "bytes": 11635,
+            "sha256": "198ea3741b738cd2560b016499ef0d0d7a717b3b0cf8ecff482595e4e688888d"
+        },
+        "generator_implementation_sha256": "4c2b7b70dffc215b3aa3b370db2e183d616084d530073a269a5964baa3b81525",
+        "closed_grammar_sha256": "e895defeb8f3a077b30fc7c9188274c208c54996c8bfc16c6b4594f92797cd90",
+        "source_bundle_inventory_sha256": "3014e1aea293b47a63a26beb72e37c8e45378df970df4433663e9ee2da6f2235",
+        "source_bundle_view_count": 10,
+        "source_record_count": 100,
+        "source_metadata_allowed_reads": [
+            "configs/research/synthetic_nl_scaffold_diagnostic_v1.yaml",
+            "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json",
+            "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256"
+        ],
+        "consumer_contract_allowed_reads": [
+            "configs/research/qwen_multiseed_independent_bundle_plan_v1.yaml"
+        ]
+    },
+    "identity_contract": {
+        "canonical_json_policy": "utf8_sort_keys_compact_reject_nan_no_normalization_no_trailing_lf_v1",
+        "hash_algorithm": "sha256",
+        "task_domain": "anchor.controlled-factorial-task-identity.v1",
+        "template_domain": "anchor.controlled-factorial-template-identity.v1",
+        "pair_domain": "anchor.controlled-factorial-task-template-pair.v1",
+        "task_bundle_domain": "anchor.synthetic-scaffold-controlled-proxy-confirmation-task-bundle.v1",
+        "task_bundle_algorithm": "sha256_utf8_canonical_json_domain_source_namespace_source_bundle_id_language_source_task_blueprint_sha256_v1",
+        "source_task_blueprint_semantics": "exact_alias_of_task_semantic_sha256",
+        "descriptor_schema_version": "anchor.synthetic-scaffold-common-domain-descriptor.v1",
+        "descriptor_atom_catalog_schema_version": "anchor.synthetic-scaffold-common-domain-atom-catalog.v1",
+        "descriptor_atom_catalog_count": 241,
+        "descriptor_atom_catalog_sha256": "517f6b829bb78700b171a349d14541f75a9b76aa2a9267acb92a0e1a646d9545",
+        "task_preimage_fields": [
+            "domain",
+            "descriptor_schema_sha256",
+            "ontology_sha256",
+            "descriptor_atom_catalog_sha256",
+            "descriptor"
+        ],
+        "template_preimage_fields": [
+            "domain",
+            "descriptor_schema_sha256",
+            "ontology_sha256",
+            "descriptor_atom_catalog_sha256",
+            "descriptor"
+        ],
+        "pair_preimage_fields": [
+            "domain",
+            "task_semantic_sha256",
+            "template_family_sha256"
+        ],
+        "forbidden_semantic_descriptor_fields": [
+            "language",
+            "source_namespace",
+            "source_bundle_id",
+            "bundle_key",
+            "split",
+            "factor",
+            "ordinal",
+            "nonce",
+            "salt",
+            "seed",
+            "role",
+            "variant"
+        ]
+    },
+    "semantic_ontology": {
+        "schema_version": "anchor.synthetic-scaffold-semantic-ontology.v1",
+        "task_descriptor_required_fields": [
+            "task_kind",
+            "goal_atoms",
+            "constraint_atoms",
+            "acceptance_atoms",
+            "ordered_information_flow",
+            "typed_parameters"
+        ],
+        "workflow_profiles": [
+            {
+                "profile_id": "reversible_patch_review",
+                "task_kind": "bounded_state_transition",
+                "profile_goal_atom": "produce_reversible_change_set",
+                "profile_constraint_atom": "rollback_checkpoint_required",
+                "profile_acceptance_atom": "rollback_replays_deterministically",
+                "state_scope": "transaction_local",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "deterministic_table_transform",
+                "task_kind": "structured_data_transform",
+                "profile_goal_atom": "transform_typed_rows_deterministically",
+                "profile_constraint_atom": "stable_row_order_required",
+                "profile_acceptance_atom": "input_output_digest_recomputable",
+                "state_scope": "immutable_input_mutable_output",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "local_state_reconciliation",
+                "task_kind": "state_reconciliation",
+                "profile_goal_atom": "reconcile_divergent_local_states",
+                "profile_constraint_atom": "conflicts_must_be_explicit",
+                "profile_acceptance_atom": "reconciliation_log_complete",
+                "state_scope": "two_snapshot_local",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "schema_migration_dry_run",
+                "task_kind": "schema_transition_plan",
+                "profile_goal_atom": "plan_schema_migration_without_commit",
+                "profile_constraint_atom": "dry_run_only",
+                "profile_acceptance_atom": "forward_and_rollback_steps_typed",
+                "state_scope": "metadata_snapshot",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "accessibility_acceptance_audit",
+                "task_kind": "acceptance_audit",
+                "profile_goal_atom": "audit_keyboard_and_semantic_access",
+                "profile_constraint_atom": "observable_checks_only",
+                "profile_acceptance_atom": "each_issue_has_reproduction_key",
+                "state_scope": "read_only_snapshot",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "sandbox_tool_plan",
+                "task_kind": "tool_execution_plan",
+                "profile_goal_atom": "plan_bounded_sandbox_actions",
+                "profile_constraint_atom": "network_and_external_tools_forbidden",
+                "profile_acceptance_atom": "each_action_has_receipt_contract",
+                "state_scope": "sandbox_ephemeral",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "conflict_resolution_log",
+                "task_kind": "evidence_conflict_resolution",
+                "profile_goal_atom": "resolve_conflicting_evidence_with_log",
+                "profile_constraint_atom": "discarded_evidence_reason_required",
+                "profile_acceptance_atom": "decision_trace_is_auditable",
+                "state_scope": "read_only_evidence_set",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "dependency_order_validation",
+                "task_kind": "dependency_validation",
+                "profile_goal_atom": "validate_ordered_dependency_chain",
+                "profile_constraint_atom": "topological_order_must_be_unique",
+                "profile_acceptance_atom": "all_edges_accounted_for",
+                "state_scope": "immutable_dependency_graph",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "rollback_checkpoint_design",
+                "task_kind": "checkpoint_protocol_design",
+                "profile_goal_atom": "design_atomic_checkpoint_sequence",
+                "profile_constraint_atom": "partial_publish_forbidden",
+                "profile_acceptance_atom": "recovery_path_covers_each_boundary",
+                "state_scope": "transaction_journal",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "evidence_ranked_decision",
+                "task_kind": "ranked_evidence_decision",
+                "profile_goal_atom": "select_decision_from_ranked_evidence",
+                "profile_constraint_atom": "ranking_ties_must_be_explicit",
+                "profile_acceptance_atom": "selected_evidence_is_allowed",
+                "state_scope": "read_only_evidence_set",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "offline_export_integrity",
+                "task_kind": "offline_export_validation",
+                "profile_goal_atom": "validate_content_addressed_export",
+                "profile_constraint_atom": "external_fetch_forbidden",
+                "profile_acceptance_atom": "manifest_and_payload_digests_match",
+                "state_scope": "immutable_export_snapshot",
+                "trust_boundary": "synthetic_local_only"
+            },
+            {
+                "profile_id": "bounded_failure_recovery",
+                "task_kind": "failure_recovery_plan",
+                "profile_goal_atom": "recover_from_bounded_failure_state",
+                "profile_constraint_atom": "failure_classes_closed_and_typed",
+                "profile_acceptance_atom": "terminal_state_is_unambiguous",
+                "state_scope": "finite_state_machine",
+                "trust_boundary": "synthetic_local_only"
+            }
+        ],
+        "information_flow_strata": [
+            {
+                "stratum_id": "prefix_evidence_selection",
+                "goal_atoms": [
+                    "select_allowed_prefix_evidence",
+                    "bind_selected_evidence_digest"
+                ],
+                "constraint_atoms": [
+                    "forbidden_evidence_excluded",
+                    "selection_precedes_private_generation"
+                ],
+                "acceptance_atoms": [
+                    "selected_refs_are_subset_of_allowed",
+                    "selection_digest_recomputes"
+                ],
+                "ordered_information_flow": [
+                    "visible_inventory",
+                    "evidence_selection",
+                    "route_commit",
+                    "private_tail"
+                ]
+            },
+            {
+                "stratum_id": "prefix_evidence_plus_structured_private_writeback",
+                "goal_atoms": [
+                    "select_prefix_evidence",
+                    "emit_structured_private_writeback"
+                ],
+                "constraint_atoms": [
+                    "writeback_not_shared_before_commit",
+                    "writeback_schema_closed"
+                ],
+                "acceptance_atoms": [
+                    "writeback_receipt_recomputes",
+                    "committed_fields_are_typed"
+                ],
+                "ordered_information_flow": [
+                    "visible_inventory",
+                    "prefix_selection",
+                    "private_writeback",
+                    "commit_receipt",
+                    "private_tail"
+                ]
+            },
+            {
+                "stratum_id": "conflicting_allowed_evidence_resolution",
+                "goal_atoms": [
+                    "identify_allowed_evidence_conflict",
+                    "resolve_conflict_deterministically"
+                ],
+                "constraint_atoms": [
+                    "forbidden_evidence_excluded",
+                    "conflict_policy_closed"
+                ],
+                "acceptance_atoms": [
+                    "winning_evidence_has_rule",
+                    "discarded_evidence_has_reason_code"
+                ],
+                "ordered_information_flow": [
+                    "allowed_evidence_set",
+                    "conflict_detection",
+                    "rule_application",
+                    "route_commit",
+                    "private_tail"
+                ]
+            },
+            {
+                "stratum_id": "tool_result_commit_then_expert_private_tail",
+                "goal_atoms": [
+                    "plan_harmless_tool_action",
+                    "commit_tool_result_before_private_tail"
+                ],
+                "constraint_atoms": [
+                    "tool_action_synthetic_local",
+                    "uncommitted_result_not_shared"
+                ],
+                "acceptance_atoms": [
+                    "tool_receipt_is_bound",
+                    "expert_tail_starts_after_commit"
+                ],
+                "ordered_information_flow": [
+                    "tool_plan",
+                    "synthetic_tool_result",
+                    "result_validation",
+                    "commit_receipt",
+                    "private_tail"
+                ]
+            },
+            {
+                "stratum_id": "ordered_long_prefix_retrieval",
+                "goal_atoms": [
+                    "retrieve_from_ordered_prefix",
+                    "preserve_prefix_lineage"
+                ],
+                "constraint_atoms": [
+                    "prefix_order_immutable",
+                    "position_lineage_exact"
+                ],
+                "acceptance_atoms": [
+                    "parent_chain_recomputes",
+                    "selected_segment_order_matches_lineage"
+                ],
+                "ordered_information_flow": [
+                    "ordered_prefix_chain",
+                    "lineage_validation",
+                    "segment_retrieval",
+                    "route_commit",
+                    "private_tail"
+                ]
+            }
+        ],
+        "template_profiles": [
+            {
+                "template_profile_id": "evidence_first_route",
+                "route_program": [
+                    "allowed_refs",
+                    "evidence_refs",
+                    "goal",
+                    "constraints",
+                    "tool_plan",
+                    "acceptance"
+                ],
+                "commit_program": [
+                    "validate_route",
+                    "commit_route_digest",
+                    "frozen_base_reencode",
+                    "next_request_expert"
+                ],
+                "rationale_policy": "optional_concise_auditable_summary_before_json"
+            },
+            {
+                "template_profile_id": "acceptance_first_route",
+                "route_program": [
+                    "acceptance",
+                    "goal",
+                    "constraints",
+                    "allowed_refs",
+                    "evidence_refs",
+                    "tool_plan"
+                ],
+                "commit_program": [
+                    "validate_acceptance",
+                    "validate_route",
+                    "commit_route_digest",
+                    "frozen_base_reencode",
+                    "next_request_expert"
+                ],
+                "rationale_policy": "optional_concise_auditable_summary_before_json"
+            },
+            {
+                "template_profile_id": "commit_receipt_route",
+                "route_program": [
+                    "goal",
+                    "allowed_refs",
+                    "tool_plan",
+                    "tool_receipt_contract",
+                    "constraints",
+                    "acceptance"
+                ],
+                "commit_program": [
+                    "validate_tool_receipt",
+                    "commit_route_and_receipt_digest",
+                    "frozen_base_reencode",
+                    "next_request_expert"
+                ],
+                "rationale_policy": "optional_concise_auditable_summary_before_json"
+            },
+            {
+                "template_profile_id": "dependency_checkpoint_route",
+                "route_program": [
+                    "dependency_order",
+                    "allowed_refs",
+                    "goal",
+                    "constraints",
+                    "checkpoint_contract",
+                    "acceptance"
+                ],
+                "commit_program": [
+                    "validate_dependency_order",
+                    "commit_checkpoint_digest",
+                    "frozen_base_reencode",
+                    "next_request_expert"
+                ],
+                "rationale_policy": "optional_concise_auditable_summary_before_json"
+            }
+        ]
+    },
+    "discovery_bridge": {
+        "status": "producer_curated_bilingual_semantic_bridge_not_automatic_translation_proof",
+        "source_view_count": 10,
+        "unique_task_semantic_count": 5,
+        "unique_template_family_count": 1,
+        "unique_task_template_pair_count": 5,
+        "historical_split_rewritten": false,
+        "historical_semantic_train_eval_intersection_expected": 2,
+        "old_template_descriptor": {
+            "template_profile_id": "discovery_five_role_route_commit",
+            "information_flow_stratum": "general_five_stage_route",
+            "ordered_roles": [
+                "planner",
+                "tool_policy",
+                "frontend_gen",
+                "frontend_review",
+                "security_gate"
+            ],
+            "route_program": [
+                "role",
+                "expert",
+                "goal",
+                "constraints",
+                "allowed_refs",
+                "evidence_refs",
+                "tool_plan",
+                "acceptance"
+            ],
+            "visibility_program": [
+                "exclude_current",
+                "exclude_future",
+                "exclude_forbidden",
+                "allow_committed_predecessors"
+            ],
+            "variant_program": ["json_only", "concise_rationale_plus_json"],
+            "commit_program": [
+                "planner_private_scaffold",
+                "validate",
+                "explicit_commit",
+                "frozen_base_reencode",
+                "next_request_expert"
+            ],
+            "tool_trace_policy": "harmless_synthetic_local_receipts",
+            "rationale_policy": "concise_auditable_not_hidden_chain_of_thought",
+            "serialization_policy": "canonical_json_utf8_compact"
+        },
+        "semantic_groups": [
+            {
+                "semantic_key": "calculator_page",
+                "source_bundle_keys": ["en_calculator", "zh_calculator"],
+                "descriptor": {
+                    "task_kind": "interactive_calculation_interface",
+                    "goal_atoms": [
+                        "deterministic_arithmetic_evaluation",
+                        "visible_expression_history",
+                        "visible_failure_messages"
+                    ],
+                    "constraint_atoms": [
+                        "local_single_page_only",
+                        "network_forbidden",
+                        "parser_state_separate_from_presentation_state"
+                    ],
+                    "acceptance_atoms": [
+                        "keyboard_operation_complete",
+                        "screen_reader_state_observable",
+                        "error_outcomes_deterministic"
+                    ],
+                    "ordered_information_flow": [
+                        "expression_input",
+                        "parse",
+                        "evaluate",
+                        "state_commit",
+                        "accessible_render"
+                    ],
+                    "typed_parameters": {
+                        "state_scope": "session_local",
+                        "trust_boundary": "synthetic_local_only",
+                        "reversibility": "history_preserved",
+                        "determinism": "required"
+                    }
+                }
+            },
+            {
+                "semantic_key": "task_board",
+                "source_bundle_keys": ["en_task_board", "zh_task_board"],
+                "descriptor": {
+                    "task_kind": "reversible_task_board_interface",
+                    "goal_atoms": [
+                        "three_column_task_organization",
+                        "local_drag_drop_transition",
+                        "single_step_undo"
+                    ],
+                    "constraint_atoms": [
+                        "synthetic_local_state_only",
+                        "state_transitions_deterministic",
+                        "state_transitions_reversible"
+                    ],
+                    "acceptance_atoms": [
+                        "empty_state_observable",
+                        "loading_state_observable",
+                        "failure_state_observable"
+                    ],
+                    "ordered_information_flow": [
+                        "board_snapshot",
+                        "drag_intent",
+                        "transition_validation",
+                        "state_commit",
+                        "undo_checkpoint"
+                    ],
+                    "typed_parameters": {
+                        "state_scope": "session_local",
+                        "trust_boundary": "synthetic_local_only",
+                        "reversibility": "single_step",
+                        "determinism": "required"
+                    }
+                }
+            },
+            {
+                "semantic_key": "markdown_editor",
+                "source_bundle_keys": ["en_markdown_editor", "zh_markdown_editor"],
+                "descriptor": {
+                    "task_kind": "safe_markdown_editing_interface",
+                    "goal_atoms": [
+                        "split_pane_edit_and_preview",
+                        "autosave_status",
+                        "offline_export"
+                    ],
+                    "constraint_atoms": [
+                        "rendered_markup_untrusted",
+                        "embedded_script_execution_forbidden",
+                        "remote_resource_loading_forbidden"
+                    ],
+                    "acceptance_atoms": [
+                        "draft_survives_view_change",
+                        "preview_is_sanitized",
+                        "export_is_user_initiated"
+                    ],
+                    "ordered_information_flow": [
+                        "draft_input",
+                        "autosave_transition",
+                        "sanitize_preview",
+                        "render_preview",
+                        "export_snapshot"
+                    ],
+                    "typed_parameters": {
+                        "state_scope": "local_draft",
+                        "trust_boundary": "untrusted_markup",
+                        "reversibility": "draft_preserved",
+                        "determinism": "required"
+                    }
+                }
+            },
+            {
+                "semantic_key": "metrics_dashboard",
+                "source_bundle_keys": ["en_metrics_dashboard", "zh_metrics_dashboard"],
+                "descriptor": {
+                    "task_kind": "accessible_metrics_dashboard",
+                    "goal_atoms": [
+                        "date_filtered_metrics",
+                        "accessible_chart_views",
+                        "compact_anomaly_inventory"
+                    ],
+                    "constraint_atoms": [
+                        "synthetic_metrics_only",
+                        "filter_state_serializable",
+                        "network_forbidden"
+                    ],
+                    "acceptance_atoms": [
+                        "every_chart_has_table_alternative",
+                        "responsive_layout_observable",
+                        "filter_replay_deterministic"
+                    ],
+                    "ordered_information_flow": [
+                        "metric_snapshot",
+                        "filter_selection",
+                        "filtered_projection",
+                        "chart_and_table_render",
+                        "anomaly_render"
+                    ],
+                    "typed_parameters": {
+                        "state_scope": "serializable_filter_state",
+                        "trust_boundary": "synthetic_local_only",
+                        "reversibility": "filter_replay",
+                        "determinism": "required"
+                    }
+                }
+            },
+            {
+                "semantic_key": "profile_form",
+                "source_bundle_keys": ["en_profile_form", "zh_profile_form"],
+                "descriptor": {
+                    "task_kind": "review_before_save_profile_form",
+                    "goal_atoms": [
+                        "inline_field_validation",
+                        "unsaved_change_warning",
+                        "review_before_commit"
+                    ],
+                    "constraint_atoms": [
+                        "real_personal_data_forbidden",
+                        "validation_separate_from_submission_state",
+                        "errors_keyboard_discoverable"
+                    ],
+                    "acceptance_atoms": [
+                        "invalid_fields_block_commit",
+                        "review_snapshot_matches_candidate_state",
+                        "warning_precedes_destructive_navigation"
+                    ],
+                    "ordered_information_flow": [
+                        "field_edit",
+                        "field_validation",
+                        "candidate_snapshot",
+                        "review",
+                        "save_commit"
+                    ],
+                    "typed_parameters": {
+                        "state_scope": "synthetic_form_state",
+                        "trust_boundary": "no_real_personal_data",
+                        "reversibility": "precommit_editable",
+                        "determinism": "required"
+                    }
+                }
+            }
+        ]
+    },
+    "independent_confirmation": {
+        "track_id": "producer_independent_confirmation",
+        "source_namespace": "anchor.synthetic-scaffold-independent-confirmation.v1",
+        "status": "metadata_blueprints_ready_execution_not_authorized",
+        "languages": ["en", "zh-CN"],
+        "cross_language_translation_pair_count": 0,
+        "profiles_by_language": {
+            "en": [
+                "reversible_patch_review",
+                "deterministic_table_transform",
+                "local_state_reconciliation",
+                "schema_migration_dry_run",
+                "accessibility_acceptance_audit",
+                "sandbox_tool_plan"
+            ],
+            "zh-CN": [
+                "conflict_resolution_log",
+                "dependency_order_validation",
+                "rollback_checkpoint_design",
+                "evidence_ranked_decision",
+                "offline_export_integrity",
+                "bounded_failure_recovery"
+            ]
+        },
+        "source_bundles_total": 60,
+        "train_bundles": 40,
+        "eval_proxy_bundles": 20,
+        "bundles_per_language_stratum_cell": 6,
+        "train_per_language_stratum_cell": 4,
+        "eval_per_language_stratum_cell": 2,
+        "split_algorithm": "sha256_utf8_domain_nul_task_bundle_sha256_sort_low_two_eval_per_language_stratum_cell_v1",
+        "split_domain": "anchor.independent-confirmation-split.v1",
+        "roles": [
+            "planner",
+            "tool_policy",
+            "frontend_gen",
+            "frontend_review",
+            "security_gate"
+        ],
+        "variants": ["json_only", "concise_rationale_plus_json"],
+        "expected_records_if_materialized": 600,
+        "materialize_records": false
+    },
+    "secondary_controlled_factorial": {
+        "track_id": "secondary_controlled_factorial_probe",
+        "source_namespace": "anchor.synthetic-scaffold-secondary-factorial.v1",
+        "status": "metadata_blueprints_ready_not_independent_confirmation",
+        "factors": [
+            "old_task_new_template",
+            "new_task_old_template",
+            "new_task_new_template"
+        ],
+        "source_bundles_total": 60,
+        "train_bundles": 40,
+        "eval_proxy_bundles": 20,
+        "bundles_per_factor": 20,
+        "train_factor_quotas": {
+            "old_task_new_template": 13,
+            "new_task_old_template": 14,
+            "new_task_new_template": 13
+        },
+        "eval_factor_quotas": {
+            "old_task_new_template": 7,
+            "new_task_old_template": 6,
+            "new_task_new_template": 7
+        },
+        "bundles_per_language_stratum_cell": 6,
+        "train_per_language_stratum_cell": 4,
+        "eval_per_language_stratum_cell": 2,
+        "factor_slots_per_cell": 2,
+        "quota_algorithm": "language_stratum_rotation_omits_one_eval_factor_then_bundle_hash_orders_each_remaining_pair_v1",
+        "quota_rotation_derivation": "uint32_be_sha256_domain_mod_3",
+        "quota_rotation": 0,
+        "omitted_eval_factor_sequence": [
+            "old_task_new_template",
+            "new_task_old_template",
+            "new_task_new_template",
+            "old_task_new_template",
+            "new_task_old_template",
+            "new_task_old_template",
+            "new_task_new_template",
+            "old_task_new_template",
+            "new_task_old_template",
+            "new_task_new_template"
+        ],
+        "within_factor_pair_assignment_algorithm": "sha256_utf8_domain_nul_task_bundle_sha256_low_eval_high_train_v1",
+        "within_factor_pair_assignment_domain": "anchor.controlled-factorial-eval-quota.v1",
+        "new_profile_ids_by_language": {
+            "en": ["reversible_patch_review", "deterministic_table_transform"],
+            "zh-CN": ["conflict_resolution_log", "dependency_order_validation"]
+        },
+        "roles": [
+            "planner",
+            "tool_policy",
+            "frontend_gen",
+            "frontend_review",
+            "security_gate"
+        ],
+        "variants": ["json_only", "concise_rationale_plus_json"],
+        "expected_records_if_materialized": 600,
+        "materialize_records": false,
+        "may_satisfy_independent_confirmation": false
+    },
+    "audit_contract": {
+        "mandatory_manifest_sidecar": true,
+        "sidecar_format": "sha256sum_manifest_json_lf",
+        "single_bytes_snapshot_hash_parse_count": true,
+        "same_bytes_reparse": true,
+        "final_toctou_recheck": true,
+        "atomic_directory_publish_no_replace": true,
+        "exact_artifact_layout": true,
+        "utf8_lf_only": true,
+        "duplicate_json_keys_rejected": true,
+        "symlink_junction_reparse_rejected": true,
+        "maximum_file_bytes": 50000000,
+        "forbidden_read_path_fragments": [
+            "gold",
+            "heldout",
+            "scaffold.jsonl",
+            "train/json_only.jsonl",
+            "train/concise_rationale_plus_json.jsonl",
+            "eval_proxy/json_only.jsonl",
+            "eval_proxy/concise_rationale_plus_json.jsonl"
+        ],
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "protected_body_reads": 0
+    },
+    "claims": {
+        "metadata_identity_promotes_execution": false,
+        "descriptor_zero_overlap_proves_real_world_semantic_disjointness": false,
+        "automatic_translation_equivalence_proven": false,
+        "records_materialized": false,
+        "independent_confirmation_executed": false,
+        "secondary_factorial_executed": false,
+        "multi_seed_validated": false,
+        "bundle_generalization_validated": false,
+        "quality_validated": false,
+        "eval_proxy_is_heldout": false,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "formal": false
+    }
+}

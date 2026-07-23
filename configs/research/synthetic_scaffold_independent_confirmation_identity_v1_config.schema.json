@@ -1,0 +1,819 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anchor-moe-lora.local/schemas/synthetic-scaffold-independent-confirmation-identity-config-v1.json",
+    "title": "Synthetic scaffold independent-confirmation identity producer config v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "claim_scope",
+        "paths",
+        "source_binding",
+        "identity_contract",
+        "semantic_ontology",
+        "discovery_bridge",
+        "independent_confirmation",
+        "secondary_controlled_factorial",
+        "audit_contract",
+        "claims"
+    ],
+    "properties": {
+        "schema_version": {
+            "const": "anchor.synthetic-scaffold-independent-confirmation-identity-config.v1"
+        },
+        "claim_scope": {
+            "const": "metadata_only_diagnostic_identity_producer_non_authorizing"
+        },
+        "paths": {"$ref": "#/$defs/paths"},
+        "source_binding": {"$ref": "#/$defs/sourceBinding"},
+        "identity_contract": {"$ref": "#/$defs/identityContract"},
+        "semantic_ontology": {"$ref": "#/$defs/ontology"},
+        "discovery_bridge": {"$ref": "#/$defs/discoveryBridge"},
+        "independent_confirmation": {"$ref": "#/$defs/independentTrack"},
+        "secondary_controlled_factorial": {"$ref": "#/$defs/factorialTrack"},
+        "audit_contract": {"$ref": "#/$defs/auditContract"},
+        "claims": {"$ref": "#/$defs/claims"}
+    },
+    "$defs": {
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "relPath": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$"
+        },
+        "atom": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "minLength": 3,
+            "maxLength": 96
+        },
+        "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "bytes", "sha256"],
+            "properties": {
+                "path": {"$ref": "#/$defs/relPath"},
+                "bytes": {"type": "integer", "minimum": 1, "maximum": 50000000},
+                "sha256": {"$ref": "#/$defs/sha256"}
+            }
+        },
+        "paths": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "config_schema",
+                "record_schema",
+                "proof_schema",
+                "manifest_schema",
+                "implementation",
+                "canonical_fixture"
+            ],
+            "properties": {
+                "config_schema": {
+                    "const": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_config.schema.json"
+                },
+                "record_schema": {
+                    "const": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_record.schema.json"
+                },
+                "proof_schema": {
+                    "const": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_proof.schema.json"
+                },
+                "manifest_schema": {
+                    "const": "configs/research/synthetic_scaffold_independent_confirmation_identity_v1_manifest.schema.json"
+                },
+                "implementation": {
+                    "const": "src/anchor_mvp/swebench/synthetic_scaffold_independent_confirmation_identity.py"
+                },
+                "canonical_fixture": {
+                    "const": "fixtures/research/synthetic_scaffold_independent_confirmation_identity_v1"
+                }
+            }
+        },
+        "sourceBinding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "repository",
+                "branch_at_freeze",
+                "source_commit",
+                "source_parent_commit",
+                "source_tree",
+                "consumer_plan_commit",
+                "consumer_plan_parent_commit",
+                "consumer_plan_tree",
+                "config",
+                "manifest",
+                "manifest_sidecar",
+                "consumer_plan_config",
+                "generator_implementation_sha256",
+                "closed_grammar_sha256",
+                "source_bundle_inventory_sha256",
+                "source_bundle_view_count",
+                "source_record_count",
+                "source_metadata_allowed_reads",
+                "consumer_contract_allowed_reads"
+            ],
+            "properties": {
+                "repository": {"const": "anchor-moe-lora-neural-swarm"},
+                "branch_at_freeze": {"const": "research/neural-swarm-kv"},
+                "source_commit": {"$ref": "#/$defs/sha1"},
+                "source_parent_commit": {"$ref": "#/$defs/sha1"},
+                "source_tree": {"$ref": "#/$defs/sha1"},
+                "consumer_plan_commit": {"$ref": "#/$defs/sha1"},
+                "consumer_plan_parent_commit": {"$ref": "#/$defs/sha1"},
+                "consumer_plan_tree": {"$ref": "#/$defs/sha1"},
+                "config": {"$ref": "#/$defs/artifact"},
+                "manifest": {"$ref": "#/$defs/artifact"},
+                "manifest_sidecar": {"$ref": "#/$defs/artifact"},
+                "consumer_plan_config": {"$ref": "#/$defs/artifact"},
+                "generator_implementation_sha256": {"$ref": "#/$defs/sha256"},
+                "closed_grammar_sha256": {"$ref": "#/$defs/sha256"},
+                "source_bundle_inventory_sha256": {"$ref": "#/$defs/sha256"},
+                "source_bundle_view_count": {"const": 10},
+                "source_record_count": {"const": 100},
+                "source_metadata_allowed_reads": {
+                    "type": "array",
+                    "const": [
+                        "configs/research/synthetic_nl_scaffold_diagnostic_v1.yaml",
+                        "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json",
+                        "fixtures/research/synthetic_nl_scaffold_diagnostic_v1/manifest.json.sha256"
+                    ]
+                },
+                "consumer_contract_allowed_reads": {
+                    "type": "array",
+                    "const": [
+                        "configs/research/qwen_multiseed_independent_bundle_plan_v1.yaml"
+                    ]
+                }
+            }
+        },
+        "identityContract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "canonical_json_policy",
+                "hash_algorithm",
+                "task_domain",
+                "template_domain",
+                "pair_domain",
+                "task_bundle_domain",
+                "task_bundle_algorithm",
+                "source_task_blueprint_semantics",
+                "descriptor_schema_version",
+                "descriptor_atom_catalog_schema_version",
+                "descriptor_atom_catalog_count",
+                "descriptor_atom_catalog_sha256",
+                "task_preimage_fields",
+                "template_preimage_fields",
+                "pair_preimage_fields",
+                "forbidden_semantic_descriptor_fields"
+            ],
+            "properties": {
+                "canonical_json_policy": {
+                    "const": "utf8_sort_keys_compact_reject_nan_no_normalization_no_trailing_lf_v1"
+                },
+                "hash_algorithm": {"const": "sha256"},
+                "task_domain": {
+                    "const": "anchor.controlled-factorial-task-identity.v1"
+                },
+                "template_domain": {
+                    "const": "anchor.controlled-factorial-template-identity.v1"
+                },
+                "pair_domain": {
+                    "const": "anchor.controlled-factorial-task-template-pair.v1"
+                },
+                "task_bundle_domain": {
+                    "const": "anchor.synthetic-scaffold-controlled-proxy-confirmation-task-bundle.v1"
+                },
+                "task_bundle_algorithm": {
+                    "const": "sha256_utf8_canonical_json_domain_source_namespace_source_bundle_id_language_source_task_blueprint_sha256_v1"
+                },
+                "source_task_blueprint_semantics": {
+                    "const": "exact_alias_of_task_semantic_sha256"
+                },
+                "descriptor_schema_version": {
+                    "const": "anchor.synthetic-scaffold-common-domain-descriptor.v1"
+                },
+                "descriptor_atom_catalog_schema_version": {
+                    "const": "anchor.synthetic-scaffold-common-domain-atom-catalog.v1"
+                },
+                "descriptor_atom_catalog_count": {"const": 241},
+                "descriptor_atom_catalog_sha256": {
+                    "const": "517f6b829bb78700b171a349d14541f75a9b76aa2a9267acb92a0e1a646d9545"
+                },
+                "task_preimage_fields": {
+                    "const": [
+                        "domain",
+                        "descriptor_schema_sha256",
+                        "ontology_sha256",
+                        "descriptor_atom_catalog_sha256",
+                        "descriptor"
+                    ]
+                },
+                "template_preimage_fields": {
+                    "const": [
+                        "domain",
+                        "descriptor_schema_sha256",
+                        "ontology_sha256",
+                        "descriptor_atom_catalog_sha256",
+                        "descriptor"
+                    ]
+                },
+                "pair_preimage_fields": {
+                    "const": [
+                        "domain",
+                        "task_semantic_sha256",
+                        "template_family_sha256"
+                    ]
+                },
+                "forbidden_semantic_descriptor_fields": {
+                    "type": "array",
+                    "minItems": 12,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                }
+            }
+        },
+        "taskDescriptor": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "task_kind",
+                "goal_atoms",
+                "constraint_atoms",
+                "acceptance_atoms",
+                "ordered_information_flow",
+                "typed_parameters"
+            ],
+            "properties": {
+                "task_kind": {"$ref": "#/$defs/atom"},
+                "goal_atoms": {
+                    "type": "array",
+                    "minItems": 3,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "constraint_atoms": {
+                    "type": "array",
+                    "minItems": 3,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "acceptance_atoms": {
+                    "type": "array",
+                    "minItems": 3,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "ordered_information_flow": {
+                    "type": "array",
+                    "minItems": 4,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "typed_parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "state_scope",
+                        "trust_boundary",
+                        "reversibility",
+                        "determinism"
+                    ],
+                    "properties": {
+                        "state_scope": {"$ref": "#/$defs/atom"},
+                        "trust_boundary": {"$ref": "#/$defs/atom"},
+                        "reversibility": {"$ref": "#/$defs/atom"},
+                        "determinism": {"const": "required"}
+                    }
+                }
+            }
+        },
+        "workflowProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "profile_id",
+                "task_kind",
+                "profile_goal_atom",
+                "profile_constraint_atom",
+                "profile_acceptance_atom",
+                "state_scope",
+                "trust_boundary"
+            ],
+            "properties": {
+                "profile_id": {"$ref": "#/$defs/atom"},
+                "task_kind": {"$ref": "#/$defs/atom"},
+                "profile_goal_atom": {"$ref": "#/$defs/atom"},
+                "profile_constraint_atom": {"$ref": "#/$defs/atom"},
+                "profile_acceptance_atom": {"$ref": "#/$defs/atom"},
+                "state_scope": {"$ref": "#/$defs/atom"},
+                "trust_boundary": {"$ref": "#/$defs/atom"}
+            }
+        },
+        "stratum": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "stratum_id",
+                "goal_atoms",
+                "constraint_atoms",
+                "acceptance_atoms",
+                "ordered_information_flow"
+            ],
+            "properties": {
+                "stratum_id": {"$ref": "#/$defs/atom"},
+                "goal_atoms": {
+                    "type": "array",
+                    "minItems": 2,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "constraint_atoms": {
+                    "type": "array",
+                    "minItems": 2,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "acceptance_atoms": {
+                    "type": "array",
+                    "minItems": 2,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "ordered_information_flow": {
+                    "type": "array",
+                    "minItems": 4,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                }
+            }
+        },
+        "templateProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "template_profile_id",
+                "route_program",
+                "commit_program",
+                "rationale_policy"
+            ],
+            "properties": {
+                "template_profile_id": {"$ref": "#/$defs/atom"},
+                "route_program": {
+                    "type": "array",
+                    "minItems": 6,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "commit_program": {
+                    "type": "array",
+                    "minItems": 4,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "rationale_policy": {"$ref": "#/$defs/atom"}
+            }
+        },
+        "ontology": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "schema_version",
+                "task_descriptor_required_fields",
+                "workflow_profiles",
+                "information_flow_strata",
+                "template_profiles"
+            ],
+            "properties": {
+                "schema_version": {
+                    "const": "anchor.synthetic-scaffold-semantic-ontology.v1"
+                },
+                "task_descriptor_required_fields": {
+                    "const": [
+                        "task_kind",
+                        "goal_atoms",
+                        "constraint_atoms",
+                        "acceptance_atoms",
+                        "ordered_information_flow",
+                        "typed_parameters"
+                    ]
+                },
+                "workflow_profiles": {
+                    "type": "array",
+                    "minItems": 12,
+                    "maxItems": 12,
+                    "items": {"$ref": "#/$defs/workflowProfile"}
+                },
+                "information_flow_strata": {
+                    "type": "array",
+                    "minItems": 5,
+                    "maxItems": 5,
+                    "items": {"$ref": "#/$defs/stratum"}
+                },
+                "template_profiles": {
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 4,
+                    "items": {"$ref": "#/$defs/templateProfile"}
+                }
+            }
+        },
+        "oldTemplate": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "template_profile_id",
+                "information_flow_stratum",
+                "ordered_roles",
+                "route_program",
+                "visibility_program",
+                "variant_program",
+                "commit_program",
+                "tool_trace_policy",
+                "rationale_policy",
+                "serialization_policy"
+            ],
+            "properties": {
+                "template_profile_id": {"$ref": "#/$defs/atom"},
+                "information_flow_stratum": {"$ref": "#/$defs/atom"},
+                "ordered_roles": {
+                    "type": "array",
+                    "minItems": 5,
+                    "maxItems": 5,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "route_program": {
+                    "type": "array",
+                    "minItems": 8,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "visibility_program": {
+                    "type": "array",
+                    "minItems": 4,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "variant_program": {
+                    "const": ["json_only", "concise_rationale_plus_json"]
+                },
+                "commit_program": {
+                    "type": "array",
+                    "minItems": 5,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/atom"}
+                },
+                "tool_trace_policy": {"$ref": "#/$defs/atom"},
+                "rationale_policy": {"$ref": "#/$defs/atom"},
+                "serialization_policy": {"$ref": "#/$defs/atom"}
+            }
+        },
+        "semanticGroup": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["semantic_key", "source_bundle_keys", "descriptor"],
+            "properties": {
+                "semantic_key": {"$ref": "#/$defs/atom"},
+                "source_bundle_keys": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "uniqueItems": true,
+                    "items": {"type": "string", "pattern": "^(en|zh)_[a-z0-9_]+$"}
+                },
+                "descriptor": {"$ref": "#/$defs/taskDescriptor"}
+            }
+        },
+        "discoveryBridge": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "status",
+                "source_view_count",
+                "unique_task_semantic_count",
+                "unique_template_family_count",
+                "unique_task_template_pair_count",
+                "historical_split_rewritten",
+                "historical_semantic_train_eval_intersection_expected",
+                "old_template_descriptor",
+                "semantic_groups"
+            ],
+            "properties": {
+                "status": {
+                    "const": "producer_curated_bilingual_semantic_bridge_not_automatic_translation_proof"
+                },
+                "source_view_count": {"const": 10},
+                "unique_task_semantic_count": {"const": 5},
+                "unique_template_family_count": {"const": 1},
+                "unique_task_template_pair_count": {"const": 5},
+                "historical_split_rewritten": {"const": false},
+                "historical_semantic_train_eval_intersection_expected": {"const": 2},
+                "old_template_descriptor": {"$ref": "#/$defs/oldTemplate"},
+                "semantic_groups": {
+                    "type": "array",
+                    "minItems": 5,
+                    "maxItems": 5,
+                    "items": {"$ref": "#/$defs/semanticGroup"}
+                }
+            }
+        },
+        "roleArray": {
+            "const": [
+                "planner",
+                "tool_policy",
+                "frontend_gen",
+                "frontend_review",
+                "security_gate"
+            ]
+        },
+        "variantArray": {"const": ["json_only", "concise_rationale_plus_json"]},
+        "independentTrack": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "track_id",
+                "source_namespace",
+                "status",
+                "languages",
+                "cross_language_translation_pair_count",
+                "profiles_by_language",
+                "source_bundles_total",
+                "train_bundles",
+                "eval_proxy_bundles",
+                "bundles_per_language_stratum_cell",
+                "train_per_language_stratum_cell",
+                "eval_per_language_stratum_cell",
+                "split_algorithm",
+                "split_domain",
+                "roles",
+                "variants",
+                "expected_records_if_materialized",
+                "materialize_records"
+            ],
+            "properties": {
+                "track_id": {"const": "producer_independent_confirmation"},
+                "source_namespace": {
+                    "const": "anchor.synthetic-scaffold-independent-confirmation.v1"
+                },
+                "status": {
+                    "const": "metadata_blueprints_ready_execution_not_authorized"
+                },
+                "languages": {"const": ["en", "zh-CN"]},
+                "cross_language_translation_pair_count": {"const": 0},
+                "profiles_by_language": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["en", "zh-CN"],
+                    "properties": {
+                        "en": {
+                            "type": "array",
+                            "minItems": 6,
+                            "maxItems": 6,
+                            "uniqueItems": true,
+                            "items": {"$ref": "#/$defs/atom"}
+                        },
+                        "zh-CN": {
+                            "type": "array",
+                            "minItems": 6,
+                            "maxItems": 6,
+                            "uniqueItems": true,
+                            "items": {"$ref": "#/$defs/atom"}
+                        }
+                    }
+                },
+                "source_bundles_total": {"const": 60},
+                "train_bundles": {"const": 40},
+                "eval_proxy_bundles": {"const": 20},
+                "bundles_per_language_stratum_cell": {"const": 6},
+                "train_per_language_stratum_cell": {"const": 4},
+                "eval_per_language_stratum_cell": {"const": 2},
+                "split_algorithm": {
+                    "const": "sha256_utf8_domain_nul_task_bundle_sha256_sort_low_two_eval_per_language_stratum_cell_v1"
+                },
+                "split_domain": {"const": "anchor.independent-confirmation-split.v1"},
+                "roles": {"$ref": "#/$defs/roleArray"},
+                "variants": {"$ref": "#/$defs/variantArray"},
+                "expected_records_if_materialized": {"const": 600},
+                "materialize_records": {"const": false}
+            }
+        },
+        "quotaMap": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "old_task_new_template",
+                "new_task_old_template",
+                "new_task_new_template"
+            ],
+            "properties": {
+                "old_task_new_template": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 14
+                },
+                "new_task_old_template": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 14
+                },
+                "new_task_new_template": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 14
+                }
+            }
+        },
+        "factorialTrack": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "track_id",
+                "source_namespace",
+                "status",
+                "factors",
+                "source_bundles_total",
+                "train_bundles",
+                "eval_proxy_bundles",
+                "bundles_per_factor",
+                "train_factor_quotas",
+                "eval_factor_quotas",
+                "bundles_per_language_stratum_cell",
+                "train_per_language_stratum_cell",
+                "eval_per_language_stratum_cell",
+                "factor_slots_per_cell",
+                "quota_algorithm",
+                "quota_rotation_derivation",
+                "quota_rotation",
+                "omitted_eval_factor_sequence",
+                "within_factor_pair_assignment_algorithm",
+                "within_factor_pair_assignment_domain",
+                "new_profile_ids_by_language",
+                "roles",
+                "variants",
+                "expected_records_if_materialized",
+                "materialize_records",
+                "may_satisfy_independent_confirmation"
+            ],
+            "properties": {
+                "track_id": {"const": "secondary_controlled_factorial_probe"},
+                "source_namespace": {
+                    "const": "anchor.synthetic-scaffold-secondary-factorial.v1"
+                },
+                "status": {
+                    "const": "metadata_blueprints_ready_not_independent_confirmation"
+                },
+                "factors": {
+                    "const": [
+                        "old_task_new_template",
+                        "new_task_old_template",
+                        "new_task_new_template"
+                    ]
+                },
+                "source_bundles_total": {"const": 60},
+                "train_bundles": {"const": 40},
+                "eval_proxy_bundles": {"const": 20},
+                "bundles_per_factor": {"const": 20},
+                "train_factor_quotas": {"$ref": "#/$defs/quotaMap"},
+                "eval_factor_quotas": {"$ref": "#/$defs/quotaMap"},
+                "bundles_per_language_stratum_cell": {"const": 6},
+                "train_per_language_stratum_cell": {"const": 4},
+                "eval_per_language_stratum_cell": {"const": 2},
+                "factor_slots_per_cell": {"const": 2},
+                "quota_algorithm": {
+                    "const": "language_stratum_rotation_omits_one_eval_factor_then_bundle_hash_orders_each_remaining_pair_v1"
+                },
+                "quota_rotation_derivation": {"const": "uint32_be_sha256_domain_mod_3"},
+                "quota_rotation": {"const": 0},
+                "omitted_eval_factor_sequence": {
+                    "type": "array",
+                    "minItems": 10,
+                    "maxItems": 10,
+                    "items": {
+                        "enum": [
+                            "old_task_new_template",
+                            "new_task_old_template",
+                            "new_task_new_template"
+                        ]
+                    }
+                },
+                "within_factor_pair_assignment_algorithm": {
+                    "const": "sha256_utf8_domain_nul_task_bundle_sha256_low_eval_high_train_v1"
+                },
+                "within_factor_pair_assignment_domain": {
+                    "const": "anchor.controlled-factorial-eval-quota.v1"
+                },
+                "new_profile_ids_by_language": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["en", "zh-CN"],
+                    "properties": {
+                        "en": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "uniqueItems": true,
+                            "items": {"$ref": "#/$defs/atom"}
+                        },
+                        "zh-CN": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "uniqueItems": true,
+                            "items": {"$ref": "#/$defs/atom"}
+                        }
+                    }
+                },
+                "roles": {"$ref": "#/$defs/roleArray"},
+                "variants": {"$ref": "#/$defs/variantArray"},
+                "expected_records_if_materialized": {"const": 600},
+                "materialize_records": {"const": false},
+                "may_satisfy_independent_confirmation": {"const": false}
+            }
+        },
+        "auditContract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "mandatory_manifest_sidecar",
+                "sidecar_format",
+                "single_bytes_snapshot_hash_parse_count",
+                "same_bytes_reparse",
+                "final_toctou_recheck",
+                "atomic_directory_publish_no_replace",
+                "exact_artifact_layout",
+                "utf8_lf_only",
+                "duplicate_json_keys_rejected",
+                "symlink_junction_reparse_rejected",
+                "maximum_file_bytes",
+                "forbidden_read_path_fragments",
+                "provider_requests",
+                "network_requests",
+                "model_loads",
+                "gpu_requests",
+                "protected_body_reads"
+            ],
+            "properties": {
+                "mandatory_manifest_sidecar": {"const": true},
+                "sidecar_format": {"const": "sha256sum_manifest_json_lf"},
+                "single_bytes_snapshot_hash_parse_count": {"const": true},
+                "same_bytes_reparse": {"const": true},
+                "final_toctou_recheck": {"const": true},
+                "atomic_directory_publish_no_replace": {"const": true},
+                "exact_artifact_layout": {"const": true},
+                "utf8_lf_only": {"const": true},
+                "duplicate_json_keys_rejected": {"const": true},
+                "symlink_junction_reparse_rejected": {"const": true},
+                "maximum_file_bytes": {"const": 50000000},
+                "forbidden_read_path_fragments": {
+                    "type": "array",
+                    "minItems": 7,
+                    "uniqueItems": true,
+                    "items": {"type": "string", "minLength": 4}
+                },
+                "provider_requests": {"const": 0},
+                "network_requests": {"const": 0},
+                "model_loads": {"const": 0},
+                "gpu_requests": {"const": 0},
+                "protected_body_reads": {"const": 0}
+            }
+        },
+        "claims": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "metadata_identity_promotes_execution",
+                "descriptor_zero_overlap_proves_real_world_semantic_disjointness",
+                "automatic_translation_equivalence_proven",
+                "records_materialized",
+                "independent_confirmation_executed",
+                "secondary_factorial_executed",
+                "multi_seed_validated",
+                "bundle_generalization_validated",
+                "quality_validated",
+                "eval_proxy_is_heldout",
+                "training_authorized",
+                "formal_training_authorized",
+                "formal"
+            ],
+            "properties": {
+                "metadata_identity_promotes_execution": {"const": false},
+                "descriptor_zero_overlap_proves_real_world_semantic_disjointness": {
+                    "const": false
+                },
+                "automatic_translation_equivalence_proven": {"const": false},
+                "records_materialized": {"const": false},
+                "independent_confirmation_executed": {"const": false},
+                "secondary_factorial_executed": {"const": false},
+                "multi_seed_validated": {"const": false},
+                "bundle_generalization_validated": {"const": false},
+                "quality_validated": {"const": false},
+                "eval_proxy_is_heldout": {"const": false},
+                "training_authorized": {"const": false},
+                "formal_training_authorized": {"const": false},
+                "formal": {"const": false}
+            }
+        }
+    }
+}
