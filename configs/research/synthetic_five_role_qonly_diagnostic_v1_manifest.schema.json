@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/synthetic-five-role-qonly-diagnostic-manifest-v1.json",
+  "title": "Synthetic five-role Q-only diagnostic manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "producer",
+    "counts",
+    "role_counts",
+    "authorship",
+    "generation_contract",
+    "split_contract",
+    "partitions",
+    "logical_role_partitions",
+    "inventories",
+    "semantic_identity_contract",
+    "task_bundle_identity_contract",
+    "read_set",
+    "protected_inventory_status",
+    "source_disjoint_boundary",
+    "ablation_contract",
+    "compatibility_boundary",
+    "capability_coverage",
+    "claims",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1"
+    },
+    "status": {"const": "dataset_proxy_ready_training_not_authorized"},
+    "claim_scope": {
+      "const": "synthetic_diagnostic_only_no_formal_or_training_authority"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_version",
+        "config",
+        "config_schema",
+        "closed_grammar",
+        "closed_grammar_schema",
+        "bundle_catalog",
+        "bundle_catalog_schema",
+        "record_schema",
+        "manifest_schema",
+        "implementation",
+        "base_security_implementation",
+        "canonical_json_policy",
+        "atomic_publish",
+        "final_toctou_recheck"
+      ],
+      "properties": {
+        "producer_version": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic-producer.v1"
+        },
+        "config": {"$ref": "#/$defs/artifact"},
+        "config_schema": {"$ref": "#/$defs/artifact"},
+        "closed_grammar": {"$ref": "#/$defs/artifact"},
+        "closed_grammar_schema": {"$ref": "#/$defs/artifact"},
+        "bundle_catalog": {"$ref": "#/$defs/artifact"},
+        "bundle_catalog_schema": {"$ref": "#/$defs/artifact"},
+        "record_schema": {"$ref": "#/$defs/artifact"},
+        "manifest_schema": {"$ref": "#/$defs/artifact"},
+        "implementation": {"$ref": "#/$defs/artifact"},
+        "base_security_implementation": {"$ref": "#/$defs/artifact"},
+        "canonical_json_policy": {
+          "const": "utf8_sort_keys_compact_no_normalization_lf_v1"
+        },
+        "atomic_publish": {"const": true},
+        "final_toctou_recheck": {"const": true}
+      }
+    },
+    "counts": {
+      "const": {
+        "records": 1000,
+        "role_views": 1000,
+        "pair_count": 0,
+        "task_bundles": 200,
+        "roles": 5,
+        "languages": 2,
+        "variants": 1,
+        "variants_per_role": 1,
+        "train_records": 800,
+        "eval_proxy_records": 200
+      }
+    },
+    "role_counts": {
+      "const": {
+        "planner": {"total": 200, "train": 160, "eval_proxy": 40},
+        "tool_policy": {"total": 200, "train": 160, "eval_proxy": 40},
+        "frontend_gen": {"total": 200, "train": 160, "eval_proxy": 40},
+        "frontend_review": {"total": 200, "train": 160, "eval_proxy": 40},
+        "security_gate": {"total": 200, "train": 160, "eval_proxy": 40}
+      }
+    },
+    "authorship": {
+      "const": {
+        "catalog_authored_with_openai_codex_gpt_5_6_sol_assistance": true,
+        "catalog_content_is_not_reported_as_zero_model_authored": true,
+        "deterministic_build_provider_requests": 0,
+        "acknowledgement": "OpenAI GPT-5.6-sol assisted dataset authorship."
+      }
+    },
+    "generation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seed_id",
+        "seed_sha256",
+        "source_namespace",
+        "catalog_expansion",
+        "augmentation",
+        "split_before_augmentation"
+      ],
+      "properties": {
+        "seed_id": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic.seed.v1"
+        },
+        "seed_sha256": {"$ref": "#/$defs/sha256"},
+        "source_namespace": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic.v1"
+        },
+        "catalog_expansion": {
+          "const": "one_primary_view_per_bundle_role_v1"
+        },
+        "augmentation": {"const": "none"},
+        "split_before_augmentation": {"const": true}
+      }
+    },
+    "split_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_key",
+        "algorithm",
+        "salt_sha256",
+        "train_task_bundle_sha256",
+        "eval_proxy_task_bundle_sha256",
+        "all_role_views_same_split",
+        "eval_proxy_is_heldout"
+      ],
+      "properties": {
+        "group_key": {"const": "task_bundle_sha256"},
+        "algorithm": {
+          "const": "sha256_utf8_salt_nul_language_nul_stratum_nul_bundle_key_sort_ascending_eval_first_four_per_cell_v1"
+        },
+        "salt_sha256": {"$ref": "#/$defs/sha256"},
+        "train_task_bundle_sha256": {
+          "type": "array",
+          "minItems": 160,
+          "maxItems": 160,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "eval_proxy_task_bundle_sha256": {
+          "type": "array",
+          "minItems": 40,
+          "maxItems": 40,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "all_role_views_same_split": {"const": true},
+        "eval_proxy_is_heldout": {"const": false}
+      }
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/partition"}
+    },
+    "logical_role_partitions": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "split",
+          "records",
+          "record_ids_sha256",
+          "record_content_sha256"
+        ],
+        "properties": {
+          "role": {"$ref": "#/$defs/role"},
+          "split": {"enum": ["train", "eval_proxy"]},
+          "records": {"enum": [40, 160]},
+          "record_ids_sha256": {"$ref": "#/$defs/sha256"},
+          "record_content_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "inventories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_ids_sha256",
+        "record_content_sha256",
+        "task_bundle_sha256_inventory",
+        "task_semantic_sha256_inventory",
+        "role_record_inventory_sha256",
+        "role_task_semantic_inventory_sha256",
+        "arm_record_inventory_sha256"
+      ],
+      "properties": {
+        "record_ids_sha256": {"$ref": "#/$defs/sha256"},
+        "record_content_sha256": {"$ref": "#/$defs/sha256"},
+        "task_bundle_sha256_inventory": {"$ref": "#/$defs/sha256"},
+        "task_semantic_sha256_inventory": {"$ref": "#/$defs/sha256"},
+        "role_record_inventory_sha256": {"$ref": "#/$defs/role_sha_map"},
+        "role_task_semantic_inventory_sha256": {"$ref": "#/$defs/role_sha_map"},
+        "arm_record_inventory_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["q_only", "o_only", "q_plus_o"],
+          "properties": {
+            "q_only": {"$ref": "#/$defs/sha256"},
+            "o_only": {"$ref": "#/$defs/sha256"},
+            "q_plus_o": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      }
+    },
+    "semantic_identity_contract": {
+      "const": {
+        "canonical_preimage": "canonical_json({domain,semantic_identity})_utf8_sha256_v1",
+        "bundle_or_language_salt_used": false,
+        "unique_task_semantics": 200,
+        "each_role_covers_same_200_semantics": true,
+        "en_unique_task_semantics": 100,
+        "zh_cn_unique_task_semantics": 100,
+        "en_zh_intersection_count": 0,
+        "translation_pair_count": 0,
+        "legacy_domain_overlap_status": "unavailable_not_claimed"
+      }
+    },
+    "task_bundle_identity_contract": {
+      "const": {
+        "preimage_excludes_role": true,
+        "preimage_excludes_view": true,
+        "preimage_excludes_arm": true,
+        "preimage_excludes_noise": true,
+        "split_group_key": "task_bundle_sha256"
+      }
+    },
+    "read_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "ordered_artifacts",
+        "ordered_artifacts_sha256",
+        "protected_source_paths_read"
+      ],
+      "properties": {
+        "scope": {"const": "declared_semantic_generation_inputs_only"},
+        "ordered_artifacts": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {"$ref": "#/$defs/artifact"}
+        },
+        "ordered_artifacts_sha256": {"$ref": "#/$defs/sha256"},
+        "protected_source_paths_read": {"const": 0}
+      }
+    },
+    "protected_inventory_status": {
+      "const": {
+        "consumes_protected_inventories": false,
+        "statuses": {
+          "swebench_source": "unavailable_not_read",
+          "gold_partition": "unavailable_not_read",
+          "partial_gold_export": "unavailable_not_read",
+          "heldout": "unavailable_not_read",
+          "legacy_heldout_cases": "unavailable_not_read",
+          "synthetic_scaffold": "unavailable_not_read"
+        }
+      }
+    },
+    "source_disjoint_boundary": {
+      "const": {
+        "source_namespace": "anchor.synthetic-five-role-qonly-diagnostic.v1",
+        "zero_intersection_claimed": false,
+        "source_disjoint_attestation_emitted": false,
+        "formal_source_disjoint_proven": false,
+        "status": "unavailable_without_protected_inventory_identities"
+      }
+    },
+    "ablation_contract": {
+      "const": {
+        "primary_label": "q_only",
+        "q_only_is_only_primary": true,
+        "diagnostic_control_labels": ["o_only", "q_plus_o"],
+        "same_record_inventory_for_all_arms": true,
+        "assignment_location": "diagnostic_run_manifest_only",
+        "producer_selects_winner": false,
+        "legacy_wide_lora_control_inherited": false,
+        "target_modules_bound_by_dataset": false,
+        "control_arms_are_execution_overlays_only": true,
+        "control_arm_rows_materialized": false
+      }
+    },
+    "compatibility_boundary": {
+      "const": {
+        "variants_per_role": 1,
+        "pair_count": 0,
+        "replaces_100_v1": false,
+        "satisfies_independent_600_materialization": false,
+        "satisfies_factorial_600_materialization": false
+      }
+    },
+    "capability_coverage": {
+      "const": {
+        "schema_version": "anchor.synthetic-five-role-capability-coverage.v1",
+        "source": "catalog_explicit_labels_only",
+        "adds_rows_views_or_arms": false,
+        "simple_tool_search": {
+          "status": "unavailable_no_explicit_catalog_label",
+          "task_bundle_count": null,
+          "quota_claimed": false
+        },
+        "micro_coding": {
+          "status": "unavailable_no_explicit_catalog_label",
+          "task_bundle_count": null,
+          "quota_claimed": false
+        }
+      }
+    },
+    "claims": {
+      "const": {
+        "dataset_proxy_ready": true,
+        "diagnostic_only": true,
+        "formal": false,
+        "training_authorized": false,
+        "quality_validated": false,
+        "eval_proxy_is_heldout": false,
+        "physical_kv_reuse_claimed": false,
+        "numeric_equivalence_claimed": false
+      }
+    },
+    "audit": {
+      "const": {
+        "record_schema_validated": true,
+        "manifest_schema_validated": true,
+        "bundle_split_disjoint": true,
+        "all_role_views_same_split": true,
+        "role_view_invariants_validated": true,
+        "forbidden_current_future_content_excluded": true,
+        "mandatory_sidecar": true,
+        "protected_body_reads": 0,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "real_tool_executions": 0
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "role": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 3, "maxLength": 512},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 50000000},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "split", "view", "records", "bytes", "sha256"],
+      "properties": {
+        "path": {
+          "enum": [
+            "train/concise_rationale_plus_json.jsonl",
+            "eval_proxy/concise_rationale_plus_json.jsonl"
+          ]
+        },
+        "split": {"enum": ["train", "eval_proxy"]},
+        "view": {"const": "concise_rationale_plus_json"},
+        "records": {"enum": [200, 800]},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 49999999},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "role_sha_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+      "properties": {
+        "planner": {"$ref": "#/$defs/sha256"},
+        "tool_policy": {"$ref": "#/$defs/sha256"},
+        "frontend_gen": {"$ref": "#/$defs/sha256"},
+        "frontend_review": {"$ref": "#/$defs/sha256"},
+        "security_gate": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

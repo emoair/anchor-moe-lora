@@ -1,0 +1,95 @@
+schema_version: anchor.qwen25-1.5b-synthetic-five-role-qonly-consumer-config.v2
+claim_scope: synthetic_diagnostic_only_no_formal_or_training_authority
+paths:
+  project_root: ../..
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  local_path: ${ANCHOR_QWEN25_15B_HF_PATH:-../models/qwen2.5-1.5b-instruct-hf}
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+  expected_source_revision: 3c3787b7c81927cc64ad45dc32ff1c9ce2a5de34
+  expected_source_repo: https://www.modelscope.cn/Qwen/Qwen2.5-1.5B-Instruct.git
+  expected_config_json_sha256: c8452f8fd6e5c77d93c1529d17931008566fdfb88f1eb207b12b5e6ec3236c17
+  expected_model_safetensors_sha256: dd924a11b4c220f385b51ffa522daea7c9f3d850e31b162bb5661df483c6d3ee
+  expected_tokenizer_json_sha256: 47ec9be242d3ef39b9c97ac0a3f06c1752f061b234e295bc0a2842067a3fe4f9
+  expected_tokenizer_config_sha256: fa2a40a9d8c8c4bb7f25ab726eb78ec9cbaaef96d1fa26f1d7f5615e886449a8
+dataset:
+  kind: synthetic_five_role_qonly_diagnostic_v1
+  root: fixtures/research/synthetic_five_role_qonly_diagnostic_v1
+  producer_config: configs/research/synthetic_five_role_qonly_diagnostic_v1.yaml
+  manifest: fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json
+  manifest_sidecar: fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json.sha256
+  record_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1.schema.json
+  manifest_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_manifest.schema.json
+  expected_manifest_sha256: a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed
+  expected_record_schema_sha256: 4b731e6493fb28ca6437811fa8b6a9ebda8da2cc34e7478b15838452833e2bad
+  expected_manifest_schema_sha256: 4fb49b8242b95251236c718089bbbbe8acb0df212e7c219ab291e25161536b14
+  expected_records: 1000
+  expected_task_bundles: 200
+  records_per_role: 200
+  train_records_per_role: 160
+  eval_proxy_records_per_role: 40
+  formal_inputs_allowed: false
+  heldout_allowed: false
+  protected_source_paths_allowed: false
+  replaces_v1: false
+roles:
+  ordered: [planner, tool_policy, frontend_gen, frontend_review, security_gate]
+  stage_index:
+    planner: 0
+    tool_policy: 1
+    frontend_gen: 2
+    frontend_review: 3
+    security_gate: 4
+lora:
+  profile: q_only
+  rank: 4
+  alpha: 8
+  dropout: 0.0
+  bias: none
+  target_modules: [q_proj]
+training:
+  optimizer_steps_per_role: 160
+  micro_batch_size: 1
+  gradient_accumulation_steps: 1
+  sequence_length: 512
+  learning_rate: 0.00005
+  seed: 1337
+  gradient_checkpointing: true
+  use_cache: false
+precision:
+  compute_dtype: bfloat16
+  tf32: true
+  float32_matmul_precision: high
+kv_runtime_boundary:
+  shared_prefix_adapter_mode: "off"
+  shared_prefix_read_only: true
+  expert_activation: q_proj_only
+  expert_private_tail_append_only: true
+  private_tail_includes_post_activation_prompt_and_generated_tokens: true
+  private_tail_cross_expert_reuse: false
+  committed_text_reencoded_into_next_shared_context: true
+  full_generation_kv_shared: false
+  ordinary_in_stack_q_lora_exact_kv_sharing: false
+  runtime_private_tail_materialized: false
+  execution_authorized: false
+output:
+  adapter_dir_template: artifacts/diagnostics/qwen2_5_1_5b_synthetic_five_role_qonly_v2/{role}/adapter
+  preflight_dir_template: artifacts/diagnostics/qwen2_5_1_5b_synthetic_five_role_qonly_v2/{role}/preflight
+controls:
+  execution_overlay_only: true
+  duplicate_dataset_rows: false
+  labels: [o_only, q_plus_o]
+  admitted_to_primary_runner: false
+claims:
+  diagnostic_only: true
+  dataset_proxy_ready: true
+  records_materialized: true
+  runtime_private_tail_materialized: false
+  execution_authorized: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  eval_proxy_is_heldout: false
+  two_track_600_record_contract_satisfied: false

@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/gemma3-1b-it-five-expert-qonly-parameter-budget-v1.json",
+  "title": "Gemma 3 1B IT five-expert Q-only parameter budget contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "scope",
+    "source_export",
+    "architecture",
+    "token_identity_audit",
+    "parameter_math",
+    "rank_table",
+    "memory_model",
+    "fairness_protocol",
+    "real_run_gates",
+    "claims",
+    "counters",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-1b-it-five-expert-qonly-parameter-budget.v1"
+    },
+    "status": {
+      "const": "metadata_budget_ready_real_run_blocked"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "metadata_only",
+        "primary_adapter",
+        "expert_count",
+        "default_active_experts_per_request",
+        "base_parameter_parity_status"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "metadata_only": {"const": true},
+        "primary_adapter": {"const": "q_proj_only"},
+        "expert_count": {"const": 5},
+        "default_active_experts_per_request": {"const": 1},
+        "base_parameter_parity_status": {
+          "const": "infeasible_for_base_parameter_parity"
+        }
+      }
+    },
+    "source_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_export_locator",
+        "model_identity_bound",
+        "official_model_id",
+        "source_revision",
+        "files"
+      ],
+      "properties": {
+        "local_export_locator": {
+          "const": "workspace://models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16"
+        },
+        "model_identity_bound": {"const": false},
+        "official_model_id": {"type": "null"},
+        "source_revision": {"type": "null"},
+        "files": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/sourceFile"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architectures",
+        "model_type",
+        "base_parameters",
+        "layers",
+        "hidden_size",
+        "attention_heads",
+        "head_dim",
+        "q_proj_input_features",
+        "q_proj_output_features",
+        "q_proj_weight_shape",
+        "q_lora_a_shape",
+        "q_lora_b_shape"
+      ],
+      "properties": {
+        "architectures": {
+          "type": "array",
+          "prefixItems": [{"const": "Gemma3ForCausalLM"}],
+          "items": false
+        },
+        "model_type": {"const": "gemma3_text"},
+        "base_parameters": {"const": 999885952},
+        "layers": {"const": 26},
+        "hidden_size": {"const": 1152},
+        "attention_heads": {"const": 4},
+        "head_dim": {"const": 256},
+        "q_proj_input_features": {"const": 1152},
+        "q_proj_output_features": {"const": 1024},
+        "q_proj_weight_shape": {
+          "type": "array",
+          "prefixItems": [{"const": 1024}, {"const": 1152}],
+          "items": false
+        },
+        "q_lora_a_shape": {"const": "[rank,1152]"},
+        "q_lora_b_shape": {"const": "[1024,rank]"}
+      }
+    },
+    "token_identity_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chat_template_bound",
+        "official_chat_template_sha256",
+        "config_token_ids",
+        "tokenizer_added_token_ids",
+        "token_id_binding_consistent",
+        "mismatches"
+      ],
+      "properties": {
+        "chat_template_bound": {"const": false},
+        "official_chat_template_sha256": {"type": "null"},
+        "config_token_ids": {"$ref": "#/$defs/tokenIds"},
+        "tokenizer_added_token_ids": {"$ref": "#/$defs/tokenIds"},
+        "token_id_binding_consistent": {"const": false},
+        "mismatches": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "parameter_math": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "per_expert_formula",
+        "per_expert_params_per_rank",
+        "five_expert_params_per_rank",
+        "dense_q_per_expert_params",
+        "dense_q_five_expert_params",
+        "dense_q_storage_break_even_rank_exact",
+        "dense_q_storage_break_even_rank_floor",
+        "effective_rank_ceiling",
+        "nearest_base_parity_rank",
+        "nearest_base_parity_aggregate_params",
+        "nearest_base_parity_delta_params",
+        "base_parity_interpretation"
+      ],
+      "properties": {
+        "per_expert_formula": {
+          "const": "26*rank*(1152+1024)"
+        },
+        "per_expert_params_per_rank": {"const": 56576},
+        "five_expert_params_per_rank": {"const": 282880},
+        "dense_q_per_expert_params": {"const": 30670848},
+        "dense_q_five_expert_params": {"const": 153354240},
+        "dense_q_storage_break_even_rank_exact": {
+          "const": 542.1176470588235
+        },
+        "dense_q_storage_break_even_rank_floor": {"const": 542},
+        "effective_rank_ceiling": {"const": 1024},
+        "nearest_base_parity_rank": {"const": 3535},
+        "nearest_base_parity_aggregate_params": {"const": 999980800},
+        "nearest_base_parity_delta_params": {"const": 94848},
+        "base_parity_interpretation": {
+          "const": "infeasible_for_base_parameter_parity"
+        }
+      }
+    },
+    "rank_table": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/rankRow"}
+    },
+    "memory_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_bf16_bytes",
+        "adapter_checkpoint_bytes_per_parameter",
+        "gradient_bytes_per_parameter",
+        "fp32_master_bytes_per_parameter",
+        "adam_moments_bytes_per_parameter",
+        "training_state_bytes_per_parameter",
+        "sequential_single_route_definition",
+        "all_experts_optimizer_definition",
+        "excluded_from_peak_estimates"
+      ],
+      "properties": {
+        "base_bf16_bytes": {"const": 1999771904},
+        "adapter_checkpoint_bytes_per_parameter": {"const": 2},
+        "gradient_bytes_per_parameter": {"const": 2},
+        "fp32_master_bytes_per_parameter": {"const": 4},
+        "adam_moments_bytes_per_parameter": {"const": 8},
+        "training_state_bytes_per_parameter": {"const": 16},
+        "sequential_single_route_definition": {
+          "const": "base_bf16_plus_one_active_16B_train_state_plus_four_inactive_bf16_checkpoints"
+        },
+        "all_experts_optimizer_definition": {
+          "const": "base_bf16_plus_five_experts_each_with_16B_train_state"
+        },
+        "excluded_from_peak_estimates": {
+          "type": "array",
+          "minItems": 5,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "fairness_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_comparison_arms",
+        "diagnostic_overlays",
+        "active_budget_lock",
+        "aggregate_storage_budget_lock",
+        "two_axis_warning",
+        "metrics"
+      ],
+      "properties": {
+        "primary_comparison_arms": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "frozen_base"},
+            {"const": "monolithic_lora"},
+            {"const": "five_expert_correct_route"},
+            {"const": "five_expert_wrong_route"},
+            {"const": "five_expert_random_route"}
+          ],
+          "items": false
+        },
+        "diagnostic_overlays": {
+          "type": "array",
+          "prefixItems": [{"const": "o_only"}, {"const": "q_plus_o"}],
+          "items": false
+        },
+        "active_budget_lock": {"type": "string", "minLength": 1},
+        "aggregate_storage_budget_lock": {"type": "string", "minLength": 1},
+        "two_axis_warning": {"type": "string", "minLength": 1},
+        "metrics": {
+          "type": "array",
+          "minItems": 5,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "real_run_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accurate_model_id_bound",
+        "source_revision_bound",
+        "config_bound",
+        "tokenizer_bound",
+        "official_chat_template_bound",
+        "weights_bound",
+        "token_ids_cross_validated",
+        "runner_preflight_passed",
+        "training_authorized"
+      ],
+      "properties": {
+        "accurate_model_id_bound": {"const": false},
+        "source_revision_bound": {"const": false},
+        "config_bound": {"const": true},
+        "tokenizer_bound": {"const": false},
+        "official_chat_template_bound": {"const": false},
+        "weights_bound": {"const": false},
+        "token_ids_cross_validated": {"const": false},
+        "runner_preflight_passed": {"const": false},
+        "training_authorized": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal",
+        "training_authorized",
+        "quality_claimed",
+        "compute_equivalence_claimed",
+        "vram_equivalence_claimed",
+        "active_parameter_equivalence_claimed",
+        "base_parameter_parity_claimed"
+      ],
+      "properties": {
+        "formal": {"const": false},
+        "training_authorized": {"const": false},
+        "quality_claimed": {"const": false},
+        "compute_equivalence_claimed": {"const": false},
+        "vram_equivalence_claimed": {"const": false},
+        "active_parameter_equivalence_claimed": {"const": false},
+        "base_parameter_parity_claimed": {"const": false}
+      }
+    },
+    "counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_loads",
+        "gpu_operations",
+        "provider_requests",
+        "network_requests",
+        "weight_tensor_reads"
+      ],
+      "properties": {
+        "model_loads": {"const": 0},
+        "gpu_operations": {"const": 0},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "weight_tensor_reads": {"const": 0}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_binding",
+        "mandatory_sidecar",
+        "sidecar_format",
+        "single_bytes_snapshot",
+        "final_snapshot_recheck",
+        "atomic_publish_required_for_generated_receipts"
+      ],
+      "properties": {
+        "schema_binding": {"$ref": "#/$defs/fileBinding"},
+        "mandatory_sidecar": {"const": true},
+        "sidecar_format": {"const": "sha256sum_filename_lf"},
+        "single_bytes_snapshot": {"const": true},
+        "final_snapshot_recheck": {"const": true},
+        "atomic_publish_required_for_generated_receipts": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sourceFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "bytes",
+        "sha256",
+        "read_by_contract_builder",
+        "verification_scope"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "config",
+            "export_manifest",
+            "tokenizer_config",
+            "tokenizer_model",
+            "model_weights"
+          ]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "read_by_contract_builder": {"type": "boolean"},
+        "verification_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "tokenIds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pad", "bos", "eos"],
+      "properties": {
+        "pad": {"type": "integer", "minimum": 0},
+        "bos": {"type": "integer", "minimum": 0},
+        "eos": {"type": "integer", "minimum": 0}
+      }
+    },
+    "rankRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank",
+        "classification",
+        "per_expert_params",
+        "five_expert_aggregate_params",
+        "single_route_active_params",
+        "per_expert_bf16_checkpoint_bytes",
+        "five_expert_bf16_checkpoint_bytes",
+        "single_active_training_state_16bpp_bytes",
+        "all_experts_training_state_16bpp_bytes",
+        "rough_peak_active_only_bytes",
+        "rough_peak_sequential_all_checkpoints_resident_bytes",
+        "rough_peak_all_experts_optimizer_resident_bytes"
+      ],
+      "properties": {
+        "rank": {"type": "integer", "minimum": 1},
+        "classification": {
+          "enum": [
+            "mvp",
+            "medium",
+            "aggregate_stress",
+            "dense_q_storage_boundary",
+            "effective_full_rank_redundant_storage",
+            "infeasible_for_base_parameter_parity"
+          ]
+        },
+        "per_expert_params": {"type": "integer", "minimum": 1},
+        "five_expert_aggregate_params": {"type": "integer", "minimum": 1},
+        "single_route_active_params": {"type": "integer", "minimum": 1},
+        "per_expert_bf16_checkpoint_bytes": {"type": "integer", "minimum": 1},
+        "five_expert_bf16_checkpoint_bytes": {"type": "integer", "minimum": 1},
+        "single_active_training_state_16bpp_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "all_experts_training_state_16bpp_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rough_peak_active_only_bytes": {"type": "integer", "minimum": 1},
+        "rough_peak_sequential_all_checkpoints_resident_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rough_peak_all_experts_optimizer_resident_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

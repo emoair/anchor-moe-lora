@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_1b_it_tokenizer_binding_v1_config.schema.json",
+  "title": "Gemma 3 1B IT tokenizer binding v1 config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_scope",
+    "model",
+    "chat_template",
+    "dataset",
+    "serialization",
+    "output",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-1b-it-tokenizer-binding-config.v1"
+    },
+    "claim_scope": {
+      "const": "model_free_diagnostic_only_no_training_or_formal_authority"
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_path",
+        "files",
+        "parameter_count",
+        "export_schema_version",
+        "chat_template_bound_by_export",
+        "expected_model_type",
+        "expected_architecture"
+      ],
+      "properties": {
+        "local_path": {"type": "string", "minLength": 1},
+        "parameter_count": {"const": 999885952},
+        "export_schema_version": {
+          "const": "anchor.local-gemma3-hf-export-manifest.v1"
+        },
+        "chat_template_bound_by_export": {"const": false},
+        "expected_model_type": {"const": "gemma3_text"},
+        "expected_architecture": {"const": "Gemma3ForCausalLM"},
+        "files": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "bytes", "sha256"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "bytes": {"type": "integer", "minimum": 1},
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "chat_template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "official_text_fragments_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "official_text_fragments_sha256": {
+          "const": "8ecf042c4aef9b84f6a375a021fe450d18c16769a068eea19fac78ca0147281f"
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "producer_config",
+        "manifest",
+        "manifest_sidecar",
+        "record_schema",
+        "manifest_schema",
+        "expected_manifest_sha256",
+        "expected_record_schema_sha256",
+        "expected_manifest_schema_sha256",
+        "expected_partitions",
+        "expected_records",
+        "expected_roles",
+        "expected_train_records",
+        "expected_eval_proxy_records"
+      ],
+      "properties": {
+        "root": {"type": "string", "minLength": 1},
+        "producer_config": {"type": "string", "minLength": 1},
+        "manifest": {"type": "string", "minLength": 1},
+        "manifest_sidecar": {"type": "string", "minLength": 1},
+        "record_schema": {"type": "string", "minLength": 1},
+        "manifest_schema": {"type": "string", "minLength": 1},
+        "expected_manifest_sha256": {
+          "const": "a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed"
+        },
+        "expected_record_schema_sha256": {
+          "const": "4b731e6493fb28ca6437811fa8b6a9ebda8da2cc34e7478b15838452833e2bad"
+        },
+        "expected_manifest_schema_sha256": {
+          "const": "4fb49b8242b95251236c718089bbbbe8acb0df212e7c219ab291e25161536b14"
+        },
+        "expected_records": {"const": 1000},
+        "expected_roles": {"const": 5},
+        "expected_train_records": {"const": 800},
+        "expected_eval_proxy_records": {"const": 200},
+        "expected_partitions": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "records", "sha256"],
+            "properties": {
+              "path": {"type": "string"},
+              "records": {"type": "integer"},
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "serialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence_length",
+        "record_order",
+        "ordered_digest_algorithm",
+        "labels",
+        "literal_special_marker_policy"
+      ],
+      "properties": {
+        "sequence_length": {"const": 768},
+        "record_order": {
+          "const": "split_train_then_eval_proxy_role_order_then_record_id"
+        },
+        "ordered_digest_algorithm": {
+          "const": "sha256_u64be_length_then_signed_i64be_values_v1"
+        },
+        "literal_special_marker_policy": {
+          "const": "reject_in_prompt_or_target"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ignore_index", "trainable_suffix"],
+          "properties": {
+            "ignore_index": {"const": -100},
+            "trainable_suffix": {
+              "const": "target_plus_end_of_turn_plus_eos"
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_dir", "atomic_publish", "replace_existing"],
+      "properties": {
+        "artifact_dir": {"type": "string", "minLength": 1},
+        "atomic_publish": {"const": true},
+        "replace_existing": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "model_free",
+        "tokenizer_only",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "model_free": {"const": true},
+        "tokenizer_only": {"const": true},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "formal": {"const": false}
+      }
+    }
+  }
+}

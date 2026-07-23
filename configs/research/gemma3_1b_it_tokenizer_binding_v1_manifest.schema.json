@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_1b_it_tokenizer_binding_v1_manifest.schema.json",
+  "title": "Gemma 3 1B IT tokenizer binding v1 manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "identities",
+    "model",
+    "template",
+    "dataset",
+    "tokenization",
+    "summary",
+    "claims",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-1b-it-tokenizer-binding-manifest.v1"
+    },
+    "status": {
+      "const": "passed_model_free_tokenizer_and_label_preflight_training_blocked"
+    },
+    "identities": {"type": "object"},
+    "model": {"type": "object"},
+    "template": {"type": "object"},
+    "dataset": {"type": "object"},
+    "tokenization": {"type": "object"},
+    "summary": {
+      "type": "object",
+      "required": ["records", "cells", "ordered_input_ids_sha256", "ordered_labels_sha256"],
+      "properties": {
+        "records": {"const": 1000},
+        "cells": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10
+        },
+        "ordered_input_ids_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ordered_labels_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "required": [
+        "diagnostic_only",
+        "model_free",
+        "tokenizer_only",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "model_free": {"const": true},
+        "tokenizer_only": {"const": true},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "formal": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    }
+  }
+}

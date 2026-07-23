@@ -1,0 +1,144 @@
+schema_version: anchor.synthetic-five-role-qonly-diagnostic-config.v1
+claim_scope: synthetic_diagnostic_only_no_formal_or_training_authority
+
+paths:
+  config_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_config.schema.json
+  closed_grammar: configs/research/synthetic_five_role_qonly_diagnostic_v1_closed_grammar.json
+  closed_grammar_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_closed_grammar.schema.json
+  bundle_catalog: configs/research/synthetic_five_role_qonly_diagnostic_v1_bundles.json
+  bundle_catalog_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_bundles.schema.json
+  record_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1.schema.json
+  manifest_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_manifest.schema.json
+  implementation: src/anchor_mvp/research/synthetic_five_role_qonly_diagnostic_v1.py
+  base_security_implementation: src/anchor_mvp/research/synthetic_nl_scaffold_diagnostic_v1.py
+
+dataset_contract:
+  producer_version: anchor.synthetic-five-role-qonly-diagnostic-producer.v1
+  record_schema_version: anchor.synthetic-five-role-qonly-diagnostic-record.v1
+  manifest_schema_version: anchor.synthetic-five-role-qonly-diagnostic-manifest.v1
+  stratum_count: 5
+  language_count: 2
+  bundle_count: 200
+  roles_per_bundle: 5
+  variants_per_role: 1
+  primary_views_per_role: 1
+  record_count: 1000
+  pair_count: 0
+  records_per_role: 200
+  replaces_100_v1: false
+  satisfies_independent_600_materialization: false
+  satisfies_factorial_600_materialization: false
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_body_reads: 0
+
+generation_contract:
+  seed_id: anchor.synthetic-five-role-qonly-diagnostic.seed.v1
+  seed_text: anchor-synthetic-five-role-qonly-generation-seed-v1
+  source_namespace: anchor.synthetic-five-role-qonly-diagnostic.v1
+  catalog_expansion: one_primary_view_per_bundle_role_v1
+  augmentation: none
+  split_before_augmentation: true
+  declared_semantic_read_set_only: true
+
+authorship_contract:
+  catalog_authored_with_openai_codex_gpt_5_6_sol_assistance: true
+  deterministic_builder_provider_requests: 0
+  content_authorship_is_distinct_from_builder_runtime_requests: true
+  acknowledgement: OpenAI GPT-5.6-sol assisted dataset authorship.
+
+protected_inventory_contract:
+  consumes_protected_inventories: false
+  statuses:
+    swebench_source: unavailable_not_read
+    gold_partition: unavailable_not_read
+    partial_gold_export: unavailable_not_read
+    heldout: unavailable_not_read
+    legacy_heldout_cases: unavailable_not_read
+    synthetic_scaffold: unavailable_not_read
+  zero_intersection_claimed: false
+  source_disjoint_attestation_emitted: false
+  formal_source_disjoint_proven: false
+
+semantic_identity_contract:
+  algorithm: canonical_json_domain_plus_semantic_identity_utf8_sha256_v1
+  bundle_or_language_salt_used: false
+  required_unique_task_semantics: 200
+  each_role_covers_same_semantic_set: true
+  en_zh_intersection_count: 0
+  translation_pair_count: 0
+  legacy_domain_overlap_status: unavailable_not_claimed
+
+split_contract:
+  group_key: task_bundle_sha256
+  split_before_role_view_expansion: true
+  algorithm: sha256_utf8_salt_nul_language_nul_stratum_nul_bundle_key_sort_ascending_eval_first_four_per_cell_v1
+  salt: anchor-synthetic-five-role-qonly-split-v1
+  train_bundle_count: 160
+  eval_proxy_bundle_count: 40
+  eval_proxy_is_heldout: false
+  all_role_views_same_split: true
+  language_stratified:
+    en:
+      train_bundles: 80
+      eval_proxy_bundles: 20
+    zh-CN:
+      train_bundles: 80
+      eval_proxy_bundles: 20
+
+view_contract:
+  primary_view: concise_rationale_plus_json
+  views_per_bundle_role: 1
+  json_only_shadow_materialized: false
+  concise_rationale_is_hidden_chain_of_thought: false
+  concise_rationale_is_auditable_decision_summary: true
+
+role_contract:
+  ordered_roles:
+    - planner
+    - tool_policy
+    - frontend_gen
+    - frontend_review
+    - security_gate
+  canonical_stage_map:
+    planner: planner
+    tool_policy: tool_policy
+    frontend_gen: domain_builder
+    frontend_review: domain_review
+    security_gate: security
+  current_target_content_in_prompt: false
+  future_target_content_in_prompt: false
+  whole_task_board_stringification_allowed: false
+  previous_committed_summaries_allowed: true
+  same_inner_task_chain_root_and_split_for_all_roles: true
+
+ablation_contract:
+  primary_label: q_only
+  q_only_is_only_primary: true
+  diagnostic_control_labels:
+    - o_only
+    - q_plus_o
+  all_records_eligible_for_all_labels: true
+  arm_assignment_location: diagnostic_run_manifest_only
+  identical_record_inventory_required: true
+  producer_selects_winner: false
+  legacy_wide_lora_control_inherited: false
+  producer_claims_training_outcome: false
+
+audit_contract:
+  mandatory_manifest_sha256_sidecar: true
+  sidecar_format: sha256sum_manifest_json_lf
+  single_bytes_snapshot_for_hash_parse_count: true
+  final_toctou_recheck: true
+  atomic_directory_publish: true
+  maximum_artifact_file_bytes: 50000000
+  utf8_required: true
+  lf_required: true
+  duplicate_json_keys_rejected: true
+  protected_source_paths_allowed: false
+  raw_token_ids_allowed: false
+  global_token_indices_allowed: false
+  formal_claim_allowed: false
+  training_authorized_claim_allowed: false

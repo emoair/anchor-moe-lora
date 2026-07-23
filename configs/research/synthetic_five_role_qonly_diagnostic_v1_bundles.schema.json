@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/synthetic-five-role-qonly-bundle-catalog-v1.json",
+  "title": "Synthetic five-role Q-only bundle catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_version",
+    "source_namespace",
+    "ontology",
+    "roles",
+    "canonical_stage_mapping",
+    "information_flow_strata",
+    "split_policy",
+    "target_shape",
+    "provenance",
+    "claims",
+    "bundles"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.synthetic-five-role-qonly-bundle-catalog.v1"
+    },
+    "catalog_version": {"const": "v1"},
+    "source_namespace": {
+      "const": "anchor.synthetic-five-role-qonly-diagnostic.v1"
+    },
+    "ontology": {
+      "const": {
+        "version": "anchor.synthetic-five-role-qonly-task-ontology.v1",
+        "status": "new_independent_diagnostic_ontology",
+        "supersedes": null,
+        "task_semantic_domain": "anchor.synthetic-five-role-task-semantic.v1",
+        "semantic_preimage_policy": "canonical_utf8_sort_keys_compact_no_normalization_over_domain_and_semantic_identity_object",
+        "semantic_preimage_excludes": ["language", "bundle_key", "source_namespace", "task_text", "role_wording"],
+        "controlled_factorial_241_atom_domain_equivalence_claimed": false,
+        "old_domain_zero_overlap_claimed": false
+      }
+    },
+    "roles": {
+      "const": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "canonical_stage_mapping": {
+      "const": {
+        "planner": "planner",
+        "tool_policy": "tool_policy",
+        "frontend_gen": "domain_builder",
+        "frontend_review": "domain_review",
+        "security_gate": "security"
+      }
+    },
+    "information_flow_strata": {
+      "const": [
+        "prefix_evidence_selection",
+        "prefix_evidence_plus_structured_private_writeback",
+        "conflicting_allowed_evidence_resolution",
+        "tool_result_commit_then_expert_private_tail",
+        "ordered_long_prefix_retrieval"
+      ]
+    },
+    "split_policy": {
+      "const": {
+        "split_group_key": "task_bundle_sha256",
+        "split_before_role_expansion": true,
+        "all_five_roles_same_split": true,
+        "eval_proxy_is_heldout": false,
+        "assignment_owner": "materializer_only",
+        "catalog_contains_split": false,
+        "algorithm": "sha256_utf8_salt_nul_language_nul_stratum_nul_bundle_key_sort_ascending_eval_first_four_per_cell_v1",
+        "salt": "anchor-synthetic-five-role-qonly-split-v1",
+        "per_language_stratum": {
+          "bundles": 20,
+          "train": 16,
+          "eval_proxy": 4
+        }
+      }
+    },
+    "target_shape": {
+      "const": {
+        "bundles": 200,
+        "roles_per_bundle": 5,
+        "records_after_role_expansion": 1000,
+        "variants_per_role": 1,
+        "pair_count": 0,
+        "output_view": "concise_rationale_plus_json",
+        "hidden_chain_of_thought_requested": false,
+        "diagnostic_only": true,
+        "formal": false,
+        "training_authorized": false
+      }
+    },
+    "provenance": {
+      "const": {
+        "content_authoring": "assisted_authoring",
+        "authoring_assistant": "OpenAI Codex GPT-5.6-sol",
+        "local_builder": {
+          "provider_requests": 0,
+          "network_requests": 0,
+          "model_loads": 0,
+          "gpu_loads": 0
+        },
+        "note": "Zero provider calls during deterministic local materialization do not imply zero model assistance during content authoring."
+      }
+    },
+    "claims": {
+      "const": {
+        "formal_training_authorized": false,
+        "quality_claimed": false,
+        "generalization_claimed": false,
+        "old_ontology_zero_overlap_claimed": false,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_loads": 0,
+        "protected_body_reads": 0,
+        "gold_reads": 0,
+        "heldout_reads": 0,
+        "existing_scaffold_body_reads": 0
+      }
+    },
+    "bundles": {
+      "type": "array",
+      "minItems": 200,
+      "maxItems": 200,
+      "items": {"$ref": "#/$defs/bundle"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "role": {
+      "enum": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"]
+    },
+    "stratum": {
+      "enum": [
+        "prefix_evidence_selection",
+        "prefix_evidence_plus_structured_private_writeback",
+        "conflicting_allowed_evidence_resolution",
+        "tool_result_commit_then_expert_private_tail",
+        "ordered_long_prefix_retrieval"
+      ]
+    },
+    "three_strings": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "string", "minLength": 4, "maxLength": 512}
+    },
+    "semantic_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ontology_version",
+        "domain",
+        "intent",
+        "scenario_atom",
+        "artifact_kind",
+        "evidence_topology",
+        "state_transition",
+        "constraint_tags",
+        "acceptance_tags"
+      ],
+      "properties": {
+        "ontology_version": {
+          "const": "anchor.synthetic-five-role-qonly-task-ontology.v1"
+        },
+        "domain": {"type": "string", "pattern": "^[a-z0-9_]+$", "maxLength": 96},
+        "intent": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+(?:::[a-z0-9_]+)*$",
+          "minLength": 8,
+          "maxLength": 256
+        },
+        "scenario_atom": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "maxLength": 128
+        },
+        "artifact_kind": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "maxLength": 128
+        },
+        "evidence_topology": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "maxLength": 160
+        },
+        "state_transition": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "maxLength": 160
+        },
+        "constraint_tags": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "maxLength": 128
+          }
+        },
+        "acceptance_tags": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "role_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "goal",
+        "instruction",
+        "constraints",
+        "evidence_intent",
+        "tool_action",
+        "acceptance_criteria",
+        "committed_summary"
+      ],
+      "properties": {
+        "goal": {"type": "string", "minLength": 8, "maxLength": 1024},
+        "instruction": {"type": "string", "minLength": 12, "maxLength": 1024},
+        "constraints": {"$ref": "#/$defs/three_strings"},
+        "evidence_intent": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 1024
+        },
+        "tool_action": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 512,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "acceptance_criteria": {"$ref": "#/$defs/three_strings"},
+        "committed_summary": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 1024,
+          "pattern": "^[^\\r\\n]+$"
+        }
+      }
+    },
+    "role_specs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+      "properties": {
+        "planner": {"$ref": "#/$defs/role_spec"},
+        "tool_policy": {"$ref": "#/$defs/role_spec"},
+        "frontend_gen": {"$ref": "#/$defs/role_spec"},
+        "frontend_review": {"$ref": "#/$defs/role_spec"},
+        "security_gate": {"$ref": "#/$defs/role_spec"}
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_key",
+        "language",
+        "stratum",
+        "archetype",
+        "task_text",
+        "constraints",
+        "acceptance_hints",
+        "semantic_identity",
+        "task_semantic_sha256",
+        "role_specs"
+      ],
+      "properties": {
+        "bundle_key": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "language": {"enum": ["en", "zh-CN"]},
+        "stratum": {"$ref": "#/$defs/stratum"},
+        "archetype": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "minLength": 3,
+          "maxLength": 96
+        },
+        "task_text": {"type": "string", "minLength": 16, "maxLength": 2048},
+        "constraints": {"$ref": "#/$defs/three_strings"},
+        "acceptance_hints": {"$ref": "#/$defs/three_strings"},
+        "semantic_identity": {"$ref": "#/$defs/semantic_identity"},
+        "task_semantic_sha256": {"$ref": "#/$defs/sha256"},
+        "role_specs": {"$ref": "#/$defs/role_specs"}
+      }
+    }
+  }
+}

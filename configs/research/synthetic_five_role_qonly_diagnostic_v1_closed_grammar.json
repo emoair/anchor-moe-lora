@@ -1,0 +1,18 @@
+{
+  "schema_version": "anchor.synthetic-five-role-qonly-closed-grammar.v1",
+  "source_namespace": "anchor.synthetic-five-role-qonly-diagnostic.v1",
+  "languages": ["en", "zh-CN"],
+  "roles": ["planner", "tool_policy", "frontend_gen", "frontend_review", "security_gate"],
+  "canonical_stages": ["planner", "tool_policy", "domain_builder", "domain_review", "security"],
+  "primary_view": "concise_rationale_plus_json",
+  "primary_label": "q_only",
+  "diagnostic_control_labels": ["o_only", "q_plus_o"],
+  "tool_trace_mode": "harmless_synthetic_fixture_trace",
+  "claim_boundary": {
+    "diagnostic_only": true,
+    "formal": false,
+    "training_authorized": false,
+    "hidden_chain_of_thought": false,
+    "control_arm_rows_materialized": false
+  }
+}

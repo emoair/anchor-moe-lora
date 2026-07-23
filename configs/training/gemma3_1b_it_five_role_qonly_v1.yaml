@@ -1,0 +1,209 @@
+schema_version: anchor.gemma3-1b-it-five-role-qonly-runner-config.v1
+claim_scope: controlled_proxy_diagnostic_only_not_formal
+
+bindings:
+  tokenizer_binding:
+    config: configs/research/gemma3_1b_it_tokenizer_binding_v1.yaml
+    config_sha256: 08f07feb07076a924bf0cedbbc722a2fd91ce77e03041f50fc3e3bf6859d1367
+    policy: configs/research/gemma3_1b_it_chat_template_policy_v1.json
+    policy_sha256: 0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6
+    config_schema: configs/research/gemma3_1b_it_tokenizer_binding_v1_config.schema.json
+    config_schema_sha256: a6d7650fab4c76f5acd383f4195b49a714fcfba4dd5dfb5822ce0cbabd1449f4
+    manifest_schema: configs/research/gemma3_1b_it_tokenizer_binding_v1_manifest.schema.json
+    manifest_schema_sha256: e62e113d7352a95d2f00828db38cb4271cabdf51ede41727a34dc89dcbaf3202
+    implementation: src/anchor_mvp/training/gemma3_tokenizer_binding_v1.py
+    implementation_sha256: 3194ede7eb78597902e05f7e246bc76b644135a5f6abffef2d5aa4f56cf6b011
+    artifact: fixtures/research/gemma3_1b_it_tokenizer_binding_v1
+    manifest: fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json
+    manifest_sha256: 2cfe0370f4c8f634e2258094e15acdb0571d6c3954bb66d5eb15677c0827f366
+    manifest_sidecar: fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json.sha256
+    manifest_sidecar_physical_sha256: 2c0df1565beaca7294e024ebafc1f889033ad1268b70f7146b244125fb15b31e
+    tokenizer_template_special_policy_sha256: 1c97c517293dd9c3e52e4fa35d3f6617fb4fd37cf68716c641675dc24dee0946
+  parameter_budget:
+    contract: configs/research/gemma3_1b_it_five_expert_qonly_parameter_budget_v1.json
+    contract_sha256: 2224a1c00c28420a66f4a27a685394db346b34be0fd50509f3b2f1e91cdc25ca
+    contract_sidecar: configs/research/gemma3_1b_it_five_expert_qonly_parameter_budget_v1.json.sha256
+    contract_sidecar_physical_sha256: 6a76b33e0388e3dda131b3adf1a5421185dfbd7d6a18024247d1c5e540c0b3aa
+    schema: configs/research/gemma3_1b_it_five_expert_qonly_parameter_budget_v1.schema.json
+    schema_sha256: fc3db1b10eccce0cf265bf23f7b819f437efc7247d98ce4b594937e97255d6b1
+    implementation: src/anchor_mvp/research/gemma3_qonly_parameter_budget.py
+    implementation_sha256: 61624b935385e0c47cd294a59cb33570dead7d986ea5e3a887b139defe2fdaa5
+
+model:
+  local_path: ${ANCHOR_GEMMA3_1B_IT_HF_PATH:-../models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16}
+  architecture: Gemma3ForCausalLM
+  model_type: gemma3_text
+  parameter_count: 999885952
+  adapter_base_identity: anchor.local/gemma3-1b-it-keras-v3-bf16@sha256:c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9
+  layers: 26
+  hidden_size: 1152
+  q_proj_input_features: 1152
+  q_proj_output_features: 1024
+  files:
+    - path: model.safetensors
+      bytes: 1999811200
+      sha256: c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9
+    - path: config.json
+      bytes: 1326
+      sha256: a102086c644174f9f7432df15d28fd69ad687b64d8e7756f0e9b6bfabc002d0c
+    - path: tokenizer.model
+      bytes: 4689074
+      sha256: 1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c
+    - path: tokenizer_config.json
+      bytes: 1496
+      sha256: 90e9a8120520ef24c0a0d62a6d87188658c43ccc66ae5bc6f74d9a80804e6919
+    - path: EXPORT_MANIFEST.json
+      bytes: 1356
+      sha256: 61a9ac5fab43da9bf053eb46642a030fcd7485100c3e82eb5d90f03b9d8124bb
+  runtime_special_token_overlay:
+    canonical_files_modified: false
+    pad_token_id: 0
+    eos_token_id: 1
+    bos_token_id: 2
+    unk_token_id: 3
+
+dataset:
+  records: 1000
+  train_records: 800
+  eval_proxy_records: 200
+  task_bundles: 200
+  train_records_per_role: 160
+  eval_proxy_records_per_role: 40
+  roles:
+    - planner
+    - tool_policy
+    - frontend_gen
+    - frontend_review
+    - security_gate
+  role_execution: strictly_serial
+  concurrency: 1
+  eval_proxy_is_heldout: false
+
+lora:
+  profile: q_only
+  target_modules:
+    - q_proj
+  rank: 4
+  alpha: 8
+  dropout: 0.0
+  bias: none
+  expected_trainable_parameters_per_expert: 226304
+  o_proj_allowed: false
+
+training:
+  sequence_length: 768
+  truncation: false
+  padding: microbatch_exact_length
+  micro_batch_size: 1
+  gradient_accumulation_steps: 1
+  smoke_steps: 2
+  full_steps: 160
+  smoke_and_full_fresh_objects: true
+  smoke_checkpoint_consumed_by_full: false
+  resume: false
+  optimizer: adamw
+  learning_rate: 0.00002
+  beta1: 0.9
+  beta2: 0.999
+  epsilon: 0.00000001
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  seed: 1337
+  compute_dtype: bfloat16
+  tf32: true
+  attention_implementation: sdpa
+  gradient_checkpointing: true
+  use_cache: false
+  save_intermediate_checkpoints: false
+  adapter_effect_gate:
+    view: first_train_record_first_supervised_next_token_v1
+    comparison: enabled_vs_disable_adapter_after_training
+    require_finite: true
+    require_max_abs_gt_zero: true
+    sample_body_included: false
+    token_ids_included: false
+
+kv_runtime_boundary:
+  shared_prefix_adapter_state: "off"
+  shared_prefix_read_only: true
+  identical_ordered_prefix_lineage_only: true
+  expert_activation: q_only
+  expert_private_tail_append_only: true
+  private_tail_includes_post_activation_prompt_and_generated_tokens: true
+  private_tail_cross_expert_reuse: false
+  committed_text_reencoded_for_next_shared_context: true
+  full_generation_kv_shared_claimed: false
+  normal_in_stack_q_lora_exact_kv_sharing_claimed: false
+  token_level_moe_claimed: false
+  runtime_private_tail_materialized: false
+
+gpu_policy:
+  canonical_lock: runs/formal-v3-training.lock
+  conflicting_handoff_locks:
+    - runs/distill-train-handoff/gpu-job.lock
+    - runs/distill-train-handoff-v3/gpu-job.lock
+  expected_gpu_index: 0
+  expected_gpu_uuid: ${ANCHOR_GEMMA_GPU_UUID:-UNBOUND}
+  expected_total_memory_mib: 12288
+  sample_count: 3
+  sample_interval_seconds: 1
+  command_timeout_seconds: 5
+  idle_used_memory_max_mib: 2048
+  idle_free_memory_min_mib: 8192
+  idle_utilization_max_percent: 15
+  prestart_temperature_max_c: 75
+  runtime_temperature_max_c: 83
+  torch_peak_allocated_max_mib: 9216
+  torch_peak_reserved_max_mib: 10240
+  runtime_monitor_interval_steps: 10
+  wddm_gui_process_allowlist:
+    - applicationframehost.exe
+    - chatgpt.exe
+    - codex.exe
+    - dwm.exe
+    - explorer.exe
+    - flclash.exe
+    - gamebar.exe
+    - gamebarftserver.exe
+    - lockapp.exe
+    - msedgewebview2.exe
+    - nvidia broadcast.exe
+    - nvidia overlay.exe
+    - promecefpluginhost.exe
+    - searchhost.exe
+    - shellexperiencehost.exe
+    - shellhost.exe
+    - startmenuexperiencehost.exe
+    - systemsettings.exe
+    - systemsettingsbroker.exe
+    - tabtip.exe
+    - taskmgr.exe
+    - textinputhost.exe
+    - wechat.exe
+    - wechatappex.exe
+    - widgets.exe
+    - widgetservice.exe
+    - wps.exe
+    - wpscenter.exe
+    - wpscloudsvr.exe
+  wddm_gui_inventory_must_be_stable_across_gate: true
+  insufficient_permissions_pid_resolution_required: true
+  unknown_or_non_allowlisted_compute_process_forbidden: true
+
+output:
+  artifact_root: artifacts/diagnostics/gemma3_1b_it_five_role_qonly_v1
+  launch_root: runs/gemma3_1b_it_five_role_qonly_v1
+  atomic_publish: true
+  replace_existing: false
+  failure_receipt_retained: true
+  adapter_format: peft_safetensors
+
+claims:
+  diagnostic_only: true
+  controlled_proxy_only: true
+  execution_requires_explicit_flag_and_gpu_lease: true
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  eval_proxy_is_heldout: false
+  runtime_private_tail_materialized: false

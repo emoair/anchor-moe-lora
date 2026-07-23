@@ -1,0 +1,42 @@
+{
+  "schema_version": "anchor.gemma3-1b-it-chat-template-policy.v1",
+  "authoritative_sources": [
+    "https://ai.google.dev/gemma/docs/core/prompt-structure",
+    "https://ai.google.dev/gemma/docs/core/pytorch_gemma"
+  ],
+  "official_text_fragments": {
+    "user_turn": "<start_of_turn>user\n{prompt}<end_of_turn><eos>\n",
+    "assistant_turn": "<start_of_turn>model\n{response}<end_of_turn><eos>\n",
+    "generation_prefix": "<start_of_turn>model\n",
+    "nul_joined_utf8_sha256": "8ecf042c4aef9b84f6a375a021fe450d18c16769a068eea19fac78ca0147281f"
+  },
+  "role_policy": {
+    "system_role_supported": false,
+    "system_instructions_location": "inside_first_user_prompt"
+  },
+  "runtime_special_token_overlay": {
+    "canonical_files_modified": false,
+    "exported_config_bos_token_id": 1,
+    "exported_config_eos_token_id": 2,
+    "runtime_bos_token_id": 2,
+    "runtime_eos_token_id": 1,
+    "pad_token_id": 0,
+    "unk_token_id": 3,
+    "start_of_turn_token_id": 105,
+    "end_of_turn_token_id": 106,
+    "user_token_id": 2364,
+    "model_token_id": 4368
+  },
+  "sentencepiece_policy": {
+    "hf_fix_mistral_regex": false,
+    "literal_bos_or_eos_passed_to_sentencepiece": false,
+    "control_insertion_mode": "numeric_ids_outside_sentencepiece_text_segments",
+    "tokenization_algorithm": "bos_id_plus_user_segment_plus_eos_id_plus_assistant_segment_plus_eos_id_plus_terminal_newline_v1"
+  },
+  "training_label_policy": {
+    "prompt_and_assistant_prefix_label": -100,
+    "assistant_response_end_of_turn_and_eos_are_labels": true,
+    "terminal_separator_newline_label": -100,
+    "single_turn_terminal_sample": true
+  }
+}

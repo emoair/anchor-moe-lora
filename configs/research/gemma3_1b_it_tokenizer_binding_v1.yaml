@@ -1,0 +1,69 @@
+schema_version: anchor.gemma3-1b-it-tokenizer-binding-config.v1
+claim_scope: model_free_diagnostic_only_no_training_or_formal_authority
+model:
+  local_path: ${ANCHOR_GEMMA3_1B_IT_HF_PATH:-../models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16}
+  files:
+    - path: model.safetensors
+      bytes: 1999811200
+      sha256: c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9
+    - path: config.json
+      bytes: 1326
+      sha256: a102086c644174f9f7432df15d28fd69ad687b64d8e7756f0e9b6bfabc002d0c
+    - path: tokenizer.model
+      bytes: 4689074
+      sha256: 1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c
+    - path: tokenizer_config.json
+      bytes: 1496
+      sha256: 90e9a8120520ef24c0a0d62a6d87188658c43ccc66ae5bc6f74d9a80804e6919
+    - path: EXPORT_MANIFEST.json
+      bytes: 1356
+      sha256: 61a9ac5fab43da9bf053eb46642a030fcd7485100c3e82eb5d90f03b9d8124bb
+  parameter_count: 999885952
+  export_schema_version: anchor.local-gemma3-hf-export-manifest.v1
+  chat_template_bound_by_export: false
+  expected_model_type: gemma3_text
+  expected_architecture: Gemma3ForCausalLM
+chat_template:
+  path: configs/research/gemma3_1b_it_chat_template_policy_v1.json
+  sha256: 0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6
+  official_text_fragments_sha256: 8ecf042c4aef9b84f6a375a021fe450d18c16769a068eea19fac78ca0147281f
+dataset:
+  root: fixtures/research/synthetic_five_role_qonly_diagnostic_v1
+  producer_config: configs/research/synthetic_five_role_qonly_diagnostic_v1.yaml
+  manifest: fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json
+  manifest_sidecar: fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json.sha256
+  record_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1.schema.json
+  manifest_schema: configs/research/synthetic_five_role_qonly_diagnostic_v1_manifest.schema.json
+  expected_manifest_sha256: a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed
+  expected_record_schema_sha256: 4b731e6493fb28ca6437811fa8b6a9ebda8da2cc34e7478b15838452833e2bad
+  expected_manifest_schema_sha256: 4fb49b8242b95251236c718089bbbbe8acb0df212e7c219ab291e25161536b14
+  expected_partitions:
+    - path: train/concise_rationale_plus_json.jsonl
+      records: 800
+      sha256: b69f1740d2e32fd68d74008ec85f7cce4818a60d6fcbfc2b84575d19be5fbe59
+    - path: eval_proxy/concise_rationale_plus_json.jsonl
+      records: 200
+      sha256: 3917be339d8181b8737d7b05021ef5ced1fc47ed5f1e3d99e64256bd546bca0f
+  expected_records: 1000
+  expected_roles: 5
+  expected_train_records: 800
+  expected_eval_proxy_records: 200
+serialization:
+  sequence_length: 768
+  record_order: split_train_then_eval_proxy_role_order_then_record_id
+  ordered_digest_algorithm: sha256_u64be_length_then_signed_i64be_values_v1
+  literal_special_marker_policy: reject_in_prompt_or_target
+  labels:
+    ignore_index: -100
+    trainable_suffix: target_plus_end_of_turn_plus_eos
+output:
+  artifact_dir: fixtures/research/gemma3_1b_it_tokenizer_binding_v1
+  atomic_publish: true
+  replace_existing: false
+claims:
+  diagnostic_only: true
+  model_free: true
+  tokenizer_only: true
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
