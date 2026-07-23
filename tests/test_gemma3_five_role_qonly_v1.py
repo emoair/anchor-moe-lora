@@ -230,6 +230,62 @@ def test_runtime_gpu_gate_rejects_foreign_python(
         runner._query_runtime_gpu(config, allow_pid=999)
 
 
+def test_runtime_gpu_gate_allows_netease_gameviewer_server_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = copy.deepcopy(_config())
+    gpu_uuid = "GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    config["gpu_policy"]["expected_gpu_uuid"] = gpu_uuid
+
+    def fake_run(command: list[str], **_: object) -> SimpleNamespace:
+        if command[0].casefold().endswith("tasklist.exe"):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=('"GameViewerServer.exe","8852","Console","1","10,000 K"\n'),
+                stderr="",
+            )
+        if command[1].startswith("--query-gpu="):
+            stdout = f"0, {gpu_uuid}, WDDM, 12288, 988, 11300, 13, 66\n"
+        else:
+            stdout = f"{gpu_uuid},8852,[Insufficient Permissions],[N/A]\n"
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    observed = runner._query_runtime_gpu(config, allow_pid=999)
+
+    assert observed["allowlisted_wddm_gui_processes"] == [
+        {"pid": 8852, "process_name": "gameviewerserver.exe"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "foreign_name",
+    ("GameViewer.exe", "GameViewerService.exe", "GameViewerServerHelper.exe"),
+)
+def test_runtime_gpu_gate_rejects_other_gameviewer_processes(
+    monkeypatch: pytest.MonkeyPatch,
+    foreign_name: str,
+) -> None:
+    config = copy.deepcopy(_config())
+    gpu_uuid = "GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    config["gpu_policy"]["expected_gpu_uuid"] = gpu_uuid
+
+    def fake_run(command: list[str], **_: object) -> SimpleNamespace:
+        stdout = (
+            f"0, {gpu_uuid}, WDDM, 12288, 988, 11300, 13, 66\n"
+            if command[1].startswith("--query-gpu=")
+            else f'{gpu_uuid},8852,"C:\\Remote\\{foreign_name}",[N/A]\n'
+        )
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    with pytest.raises(
+        runner.GemmaFiveRoleError,
+        match="foreign_compute_process_detected",
+    ):
+        runner._query_runtime_gpu(config, allow_pid=999)
+
+
 def test_runtime_gpu_gate_accepts_no_running_processes_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -822,6 +878,34 @@ def test_prevalidation_failure_publishes_fail_closed_receipt(
             "formal_training_authorized": False,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "run_id",
+    ("..", "../escaped", "../../escaped", "C:\\escaped", "/escaped"),
+)
+def test_invalid_run_id_never_writes_failure_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    run_id: str,
+) -> None:
+    config = copy.deepcopy(_config())
+    root = tmp_path / "repo"
+    monkeypatch.setattr(runner, "_root", lambda: root)
+    monkeypatch.setattr(runner, "build_preflight", lambda _config: {})
+
+    with pytest.raises(runner.GemmaFiveRoleError, match="run_id_invalid"):
+        runner.execute(
+            config,
+            run_id=run_id,
+            lease_path="unused-lease.json",
+            lease_sha256="a" * 64,
+            gpu_attestation_path="unused-attestation.json",
+            gpu_attestation_sha256="b" * 64,
+        )
+
+    assert not root.exists()
+    assert not (tmp_path / "escaped").exists()
 
 
 def test_launcher_guard_requires_current_parent_and_canonical_lock(

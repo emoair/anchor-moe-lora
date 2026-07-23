@@ -48,6 +48,7 @@ $GpuPolicy = [ordered]@{
         "flclash.exe",
         "gamebar.exe",
         "gamebarftserver.exe",
+        "gameviewerserver.exe",
         "lockapp.exe",
         "msedgewebview2.exe",
         "nvidia broadcast.exe",

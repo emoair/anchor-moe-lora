@@ -65,6 +65,7 @@ WDDM_GUI_PROCESS_ALLOWLIST = (
     "flclash.exe",
     "gamebar.exe",
     "gamebarftserver.exe",
+    "gameviewerserver.exe",
     "lockapp.exe",
     "msedgewebview2.exe",
     "nvidia broadcast.exe",
@@ -2018,6 +2019,8 @@ def _failure_receipt(
     role: str | None,
     phase: str | None,
 ) -> None:
+    if _RUN_ID_RE.fullmatch(run_id) is None:
+        return
     launch_root = _root().joinpath(
         *_output_relative(config["output"]["launch_root"]).parts
     )
