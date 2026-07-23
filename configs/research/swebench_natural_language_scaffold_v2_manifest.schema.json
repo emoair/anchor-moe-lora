@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/frozen-prefix-qreader-training-view-manifest-v2.json",
+  "title": "Frozen-prefix Q-reader training-view manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "input",
+    "producer",
+    "files",
+    "counts",
+    "architecture_contract",
+    "adapter_control",
+    "safety",
+    "manifest_sha256_sidecar_required",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-training-view-manifest.v2"
+    },
+    "status": {"const": "materialized_research_proxy_only"},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projector_manifest_sha256",
+        "projector_manifest_sidecar_sha256",
+        "projector_manifest_schema_sha256",
+        "projector_record_schema_sha256",
+        "segment_plan_schema_sha256",
+        "bundle_profile_manifest_sha256",
+        "bundle_profile_manifest_sidecar_sha256",
+        "bundle_profile_manifest_schema_sha256",
+        "bundle_profile_record_schema_sha256",
+        "source_partitions"
+      ],
+      "properties": {
+        "projector_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "projector_record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "segment_plan_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_profile_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_profile_manifest_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_profile_manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_profile_record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "source_partitions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/file"}
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "config_sha256",
+        "implementation_sha256",
+        "record_schema_sha256",
+        "manifest_schema_sha256"
+      ],
+      "properties": {
+        "name": {"const": "anchor.frozen-prefix-qreader-training-view"},
+        "version": {"const": "anchor.frozen-prefix-qreader-training-view-producer.v2"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "files": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/file",
+          "properties": {"path": {"const": "train.jsonl"}}
+        },
+        {
+          "$ref": "#/$defs/file",
+          "properties": {"path": {"const": "eval_proxy.jsonl"}}
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "unique_task_bundles",
+        "pair_count",
+        "by_split",
+        "by_role",
+        "by_language",
+        "by_information_flow_stratum"
+      ],
+      "properties": {
+        "records": {"type": "integer", "minimum": 5},
+        "unique_task_bundles": {"type": "integer", "minimum": 1},
+        "pair_count": {"const": 0},
+        "by_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "eval_proxy"],
+          "properties": {
+            "train": {"type": "integer", "minimum": 0},
+            "eval_proxy": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_role": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "planner",
+            "tool_policy",
+            "frontend_gen",
+            "frontend_review",
+            "security_gate"
+          ],
+          "properties": {
+            "planner": {"type": "integer", "minimum": 1},
+            "tool_policy": {"type": "integer", "minimum": 1},
+            "frontend_gen": {"type": "integer", "minimum": 1},
+            "frontend_review": {"type": "integer", "minimum": 1},
+            "security_gate": {"type": "integer", "minimum": 1}
+          }
+        },
+        "by_language": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["en", "zh-CN"],
+          "properties": {
+            "en": {"type": "integer", "minimum": 0},
+            "zh-CN": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_information_flow_stratum": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "architecture_contract": {"$ref": "#/$defs/architecture_contract"},
+    "adapter_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary",
+        "diagnostic_overlays",
+        "wide_lora_inherited",
+        "controls_are_non_authorizing"
+      ],
+      "properties": {
+        "primary": {"const": "q_only"},
+        "diagnostic_overlays": {"const": ["o_only", "q_plus_o"]},
+        "wide_lora_inherited": {"const": false},
+        "controls_are_non_authorizing": {"const": true}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "model_loads",
+        "gpu_requests",
+        "network_requests",
+        "canonical_gold_written",
+        "heldout_read",
+        "heldout_written",
+        "training_authorized",
+        "formal_training_authorized",
+        "eval_proxy_is_heldout"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "canonical_gold_written": {"const": false},
+        "heldout_read": {"const": false},
+        "heldout_written": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "eval_proxy_is_heldout": {"const": false}
+      }
+    },
+    "manifest_sha256_sidecar_required": {"const": true},
+    "claim_scope": {"const": "research_proxy_materialization_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "records"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "records": {"type": "integer", "minimum": 1}
+      }
+    },
+    "architecture_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantics",
+        "adapter_state_on_shared_prefix",
+        "adapter_state_after_boundary",
+        "private_tail_kv_required",
+        "private_tail_append_only",
+        "private_tail_cross_expert_transfer_allowed",
+        "commit_promotes_text_only",
+        "committed_scaffold_reencode_required",
+        "committed_scaffold_reencode_producer",
+        "expert_activation_request",
+        "exact_reuse_scope",
+        "full_generation_kv_shared_claimed",
+        "naive_in_stack_q_lora_exact_reuse_claimed",
+        "physical_kv_tensor_emitted",
+        "token_index_emitted"
+      ],
+      "properties": {
+        "semantics": {"const": "explicit_two_request_commit_boundary"},
+        "adapter_state_on_shared_prefix": {"const": "off"},
+        "adapter_state_after_boundary": {"const": "expert_only"},
+        "private_tail_kv_required": {"const": true},
+        "private_tail_append_only": {"const": true},
+        "private_tail_cross_expert_transfer_allowed": {"const": false},
+        "commit_promotes_text_only": {"const": true},
+        "committed_scaffold_reencode_required": {"const": true},
+        "committed_scaffold_reencode_producer": {"const": "frozen_base"},
+        "expert_activation_request": {"const": "next_request"},
+        "exact_reuse_scope": {"const": "identical_ordered_prefix_lineage_only"},
+        "full_generation_kv_shared_claimed": {"const": false},
+        "naive_in_stack_q_lora_exact_reuse_claimed": {"const": false},
+        "physical_kv_tensor_emitted": {"const": false},
+        "token_index_emitted": {"const": false}
+      }
+    }
+  }
+}

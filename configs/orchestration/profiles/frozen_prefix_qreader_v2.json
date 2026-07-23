@@ -1,0 +1,418 @@
+{
+  "schema_version": "anchor.frozen-prefix-qreader-orchestration-profile.v2",
+  "profile_id": "frozen-prefix-qreader-v2",
+  "profile_version": 2,
+  "profile_schema": {
+    "path": "configs/orchestration/frozen_prefix_qreader_profile.schema.json",
+    "sha256": "5900f144c5aa25d359400b727fd5c8c31281b3a99792b3c27d783b357a2eb85a",
+    "bytes": 31405
+  },
+  "freeze_manifest_schema": {
+    "path": "configs/orchestration/frozen_prefix_qreader_profile_freeze_manifest.schema.json",
+    "sha256": "1310dd1c74f2f2f7c86bcfa3628925102a9c0b6f398df306dec99b446c60cfc5",
+    "bytes": 19033
+  },
+  "v1_reference": {
+    "path": "configs/orchestration/profiles/task_level_moe_lora_v1.json",
+    "sha256": "99dc24c35aa32bd1b121715e5d7b6d7d3652957fe4cb39f6fa8b7e2480ea4aa4",
+    "bytes": 5772
+  },
+  "execution_core": {
+    "core_id": "anchor.swebench-five-stage-execution-core.v1",
+    "v1_profile_id": "task-level-moe-lora-v1",
+    "shared_physical_roles": [
+      "anchor_launcher",
+      "full_bank_builder",
+      "full_bank_implementation",
+      "full_bank_config",
+      "coordinator_implementation",
+      "coordinator_config",
+      "execution_contract_implementation",
+      "execution_runtime_implementation",
+      "formal_gold_export_script",
+      "formal_gold_implementation"
+    ],
+    "same_physical_blobs_required": true,
+    "canonical_five_stage_order": [
+      "planner",
+      "tool_policy",
+      "domain_builder",
+      "domain_review",
+      "security"
+    ],
+    "reused_capabilities": [
+      "five_stage_schedule",
+      "cc_switch",
+      "opencode_sandbox",
+      "authenticated_real_tool_trajectory",
+      "semantic_validator",
+      "hmac_execution_receipt",
+      "checkpoint_resume",
+      "canonical_gold_export"
+    ],
+    "profile_changes_teacher_execution": false,
+    "profile_boundary": "after_authenticated_canonical_gold"
+  },
+  "canonical_gold_boundary": {
+    "export_schema_version": "anchor.swebench-formal-gold-export.v2",
+    "partition_manifest_schema_version": "anchor.automation-partition-manifest.v2",
+    "canonical_gold_written": false,
+    "canonical_gold_mutated": false,
+    "canonical_gold_reformatted": false,
+    "gold_bodies_read_during_profile_preflight": false,
+    "heldout_bodies_read_during_profile_preflight": false
+  },
+  "post_gold_pipeline": {
+    "view_id": "anchor.frozen-prefix-qreader-post-gold-view.v2",
+    "ordered_components": [
+      "taskboard_projector_v2",
+      "natural_language_scaffold_v2",
+      "frozen_prefix_qreader_release_overlay_v1"
+    ],
+    "stage_to_expert": {
+      "planner": "planner",
+      "tool_policy": "tool_policy",
+      "domain_builder": "frontend_gen",
+      "domain_review": "frontend_review",
+      "security": "security_gate"
+    },
+    "training_view_record_schema_version": "anchor.frozen-prefix-qreader-training-view.v2",
+    "training_view_manifest_schema_version": "anchor.frozen-prefix-qreader-training-view-manifest.v2",
+    "bundle_profile_record_schema_version": "anchor.frozen-prefix-qreader-bundle-profile.v2",
+    "bundle_profile_manifest_schema_version": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2",
+    "training_view_artifact_path": "artifacts/swebench/frozen-prefix-qreader-view-v2",
+    "bundle_profile_artifact_path": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2",
+    "split_group_key": "task_bundle_sha256",
+    "split_before_augmentation": true,
+    "primary_scaffold_variant": "concise_rationale_plus_json",
+    "primary_adapter_label": "q_only",
+    "diagnostic_adapter_labels": [
+      "o_only",
+      "q_plus_o"
+    ],
+    "route_boundary_semantics": "two_request_explicit_validate_commit_then_expert_input",
+    "adapter_state_on_prefix": "off",
+    "adapter_state_after_boundary": "expert_only",
+    "private_tail_kv_required": true,
+    "full_generation_kv_shared_claimed": false,
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "expert_private_kv_cross_expert_reuse": false,
+    "committed_text_reencoded_by_frozen_base": true,
+    "current_future_forbidden_excluded_before_serialization": true,
+    "token_index_allowed_without_tokenizer_binding": false,
+    "alora_activation_semantics": "optional_next_request_input_activation_only",
+    "mid_request_generated_trigger_switch_claimed": false,
+    "source_records_rewritten": false
+  },
+  "diagnostic_compatibility_reference": {
+    "status": "diagnostic_reference_only",
+    "fixture_manifest_sha256": "a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed",
+    "fixture_sidecar_physical_sha256": "7f238be47cc60af808421bbbdaefb6bbc5d5c0f617d976b66d5b2a87d767b0a0",
+    "record_count": 1000,
+    "unique_task_semantic_count": 200,
+    "role_count": 5,
+    "primary_view_count_per_role": 1,
+    "train_record_count": 800,
+    "eval_proxy_record_count": 200,
+    "english_bundle_count": 100,
+    "zh_cn_bundle_count": 100,
+    "translation_pair_count": 0,
+    "eval_proxy_is_heldout": false,
+    "formal_source_disjoint_proof": false,
+    "gemma3_1b_it": {
+      "binding_status": "diagnostic_consumer_binding_pending_release",
+      "sequence_length": 768,
+      "strict_no_truncation": true,
+      "observed_full_token_max_by_role": {
+        "planner": 504,
+        "tool_policy": 523,
+        "frontend_gen": 546,
+        "frontend_review": 605,
+        "security_gate": 665
+      },
+      "training_authorized_by_reference": false
+    },
+    "qwen_declarative_reference": {
+      "sequence_length": 512,
+      "applies_to_gemma_training": false
+    }
+  },
+  "authorization": {
+    "status": "profile_contract_only_execution_blocked",
+    "live_authorized": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "release_authorized": false,
+    "provider_requests": 0,
+    "credentials_read": false,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "network_requests": 0
+  },
+  "audit_contract": {
+    "dependency_paths_project_relative": true,
+    "dependency_sha256_required": true,
+    "dependency_byte_count_required": true,
+    "single_bytes_snapshot": true,
+    "terminal_dependency_recheck": true,
+    "reject_symlink_or_reparse": true,
+    "atomic_freeze_publish": true,
+    "mandatory_manifest_sha256_sidecar": true,
+    "profile_preflight_reads_record_bodies": false
+  },
+  "dependencies": [
+    {
+      "role": "anchor_launcher",
+      "path": "anchor.ps1",
+      "state": "bound",
+      "sha256": "b8389cd277b17aa755458b8b05d1a1d34ba2131e33317b1ec01cfb66994aba11",
+      "bytes": 34974
+    },
+    {
+      "role": "full_bank_builder",
+      "path": "scripts/data/build_swebench_full_bank.py",
+      "state": "bound",
+      "sha256": "10d66b98e8bc96f3f40dfc37e7934b9ebab0875dfa2e01373f9ebc477a9d324f",
+      "bytes": 4665
+    },
+    {
+      "role": "full_bank_implementation",
+      "path": "src/anchor_mvp/swebench/full_bank.py",
+      "state": "bound",
+      "sha256": "7cae847bb18e63ae080a1dd537ad47cb8f04b51ef8ba23d18a663867f4a70d64",
+      "bytes": 87657
+    },
+    {
+      "role": "full_bank_config",
+      "path": "configs/data/swebench_full_bank.formal.yaml",
+      "state": "bound",
+      "sha256": "8869cc3e07004430fc2ec5b549572dd4fef964b7e21807d8ed7613ce9d1eeaf0",
+      "bytes": 3767
+    },
+    {
+      "role": "coordinator_implementation",
+      "path": "scripts/tooling/run_swebench_ccswitch.py",
+      "state": "bound",
+      "sha256": "1ad9fa1ea7f87179fede9fed766f99784fd38a9937f5c171cf23ae6a3071e48c",
+      "bytes": 205904
+    },
+    {
+      "role": "coordinator_config",
+      "path": "configs/data/swebench_five_stage.ccswitch.yaml",
+      "state": "bound",
+      "sha256": "d8d401d7a8fd9227ade31f897dcf0ef14848347b33559e68284af28b5ca9e56e",
+      "bytes": 3183
+    },
+    {
+      "role": "execution_contract_implementation",
+      "path": "src/anchor_mvp/tooling/swebench_execution_v3.py",
+      "state": "bound",
+      "sha256": "6967eef0b4009a0019cb23c9bfa88593d47db7fca51d4950d981609a877d349e",
+      "bytes": 128975
+    },
+    {
+      "role": "execution_runtime_implementation",
+      "path": "src/anchor_mvp/tooling/swebench_runtime_v3.py",
+      "state": "bound",
+      "sha256": "8ac176faafbc8b201bca2b27de22240411377cd740a21ee009914080ee48dc27",
+      "bytes": 81422
+    },
+    {
+      "role": "formal_gold_export_script",
+      "path": "scripts/data/export_swebench_formal_gold.py",
+      "state": "bound",
+      "sha256": "ca32afd18b442a5d2cedb64da29a1bccc03c57bd54c238df78369f536c9f5b00",
+      "bytes": 9559
+    },
+    {
+      "role": "formal_gold_implementation",
+      "path": "src/anchor_mvp/swebench/formal_gold.py",
+      "state": "bound",
+      "sha256": "48bfbfc705cf3191411efd2edcdd1c76521b8b6a48c2b0371c07d43940b578a2",
+      "bytes": 43503
+    },
+    {
+      "role": "taskboard_projector_config",
+      "path": "configs/research/swebench_taskboard_projector_v2.yaml",
+      "state": "bound",
+      "sha256": "b36945a2693183f0b213da403afcf8bb5611f46298bb849434e7b7d5854ba943",
+      "bytes": 2650
+    },
+    {
+      "role": "taskboard_projector_implementation",
+      "path": "src/anchor_mvp/swebench/taskboard_projector.py",
+      "state": "bound",
+      "sha256": "f8b5ba4abbd062c47e89a991aa44b3f08f82efac2273869a5ce99276b7084433",
+      "bytes": 112710
+    },
+    {
+      "role": "taskboard_projector_cli",
+      "path": "scripts/data/project_swebench_taskboard.py",
+      "state": "bound",
+      "sha256": "19ff29a62ad22bf9bd39699cdfc69ae304636a9908facf1ef1cda5044c26af28",
+      "bytes": 1628
+    },
+    {
+      "role": "taskboard_projector_manifest_schema",
+      "path": "configs/research/taskboard_projector_manifest.schema.json",
+      "state": "bound",
+      "sha256": "2cd9dc98d2b2865ed0586abfe291e3f6d161686597fcd2a7884c5762d2195347",
+      "bytes": 11321
+    },
+    {
+      "role": "taskboard_projector_sidecar_schema",
+      "path": "configs/research/taskboard_projector_sidecar.schema.json",
+      "state": "bound",
+      "sha256": "c1863bfab69ce2f2388ee37fadae951b14f3d5120706bab032cab3f9aab6bdc5",
+      "bytes": 9544
+    },
+    {
+      "role": "taskboard_segment_plan_schema",
+      "path": "configs/research/hierarchical_task_kv_segment_plan.schema.json",
+      "state": "bound",
+      "sha256": "80f760497e0d21f7d4d532db758362a800e845e6919b18b23958caabc7f155bf",
+      "bytes": 9835
+    },
+    {
+      "role": "training_view_materializer_config",
+      "path": "configs/research/swebench_natural_language_scaffold_v2.yaml",
+      "state": "bound",
+      "sha256": "6fda2ff6bb6a92f8764daa8f68dc8226ae0839d2d9613dc240d9f0b75c9baee5",
+      "bytes": 4919
+    },
+    {
+      "role": "training_view_materializer_implementation",
+      "path": "src/anchor_mvp/swebench/natural_language_scaffold_v2.py",
+      "state": "bound",
+      "sha256": "3a3ff1eceed67f489e2edfb1df46f18615adf94128fe1c3ae499e1917e6228a3",
+      "bytes": 90543
+    },
+    {
+      "role": "training_view_materializer_config_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_config.schema.json",
+      "state": "bound",
+      "sha256": "11f6a8555178f851a75341057750fadb415be7357e070275e4603453e03ec9e1",
+      "bytes": 7304
+    },
+    {
+      "role": "training_view_record_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_record.schema.json",
+      "state": "bound",
+      "sha256": "ac5176b53072a75439fd4f29f9e96e16416b6f690bed776df9e5509ae88b98c3",
+      "bytes": 14966
+    },
+    {
+      "role": "training_view_manifest_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_manifest.schema.json",
+      "state": "bound",
+      "sha256": "dae37cd63462ac6945547c32ca617d7a51d41700432292f989fc901491a2eb2c",
+      "bytes": 8844
+    },
+    {
+      "role": "bundle_profile_record_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile.schema.json",
+      "state": "bound",
+      "sha256": "42af26d742db8c06104f3955dfbd19c552c705c9237bd69455b42d132cb1ac5a",
+      "bytes": 1696
+    },
+    {
+      "role": "bundle_profile_manifest_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_manifest.schema.json",
+      "state": "bound",
+      "sha256": "fbe7a543e0e8f19b27436ca882af629e44252ab5e7a5d246443709cadc39609f",
+      "bytes": 5117
+    },
+    {
+      "role": "bundle_profile_descriptor_schema",
+      "path": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_descriptor.schema.json",
+      "state": "bound",
+      "sha256": "4614b0924ced82c483f6ead94e754e70426f7b12d45936eef40b43f18b21265a",
+      "bytes": 1750
+    },
+    {
+      "role": "training_view_materializer_builder",
+      "path": "scripts/data/build_swebench_natural_language_scaffold_v2.py",
+      "state": "bound",
+      "sha256": "99a88e90d2419fca1cc6c35445058105fee7357962985063aefa01be7462b4d7",
+      "bytes": 3150
+    },
+    {
+      "role": "training_view_materializer_auditor",
+      "path": "scripts/data/audit_swebench_natural_language_scaffold_v2.py",
+      "state": "bound",
+      "sha256": "bf3f48476e0b174353c1363fcf70ab6aa518a504c9454ec634e02601d6fda08a",
+      "bytes": 1771
+    },
+    {
+      "role": "generic_execution_contract_schema",
+      "path": "configs/research/generic_train_execution_contract.schema.json",
+      "state": "bound",
+      "sha256": "63c699fdb7932b9fe1593b044d6a588bb4234b349816ce70f65568ab7b0f0b3a",
+      "bytes": 1963
+    },
+    {
+      "role": "source_disjoint_manifest_schema",
+      "path": "configs/research/swebench_source_disjoint_manifest.schema.json",
+      "state": "bound",
+      "sha256": "2a2aae532c25b324a96b929a6a396d55d051c765258a5da0ebb7547724c68f6b",
+      "bytes": 8846
+    },
+    {
+      "role": "generic_release_lock_schema",
+      "path": "configs/research/generic_train_release_lock.schema.json",
+      "state": "bound",
+      "sha256": "119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa",
+      "bytes": 8347
+    },
+    {
+      "role": "training_release_implementation",
+      "path": "src/anchor_mvp/swebench/training_release.py",
+      "state": "bound",
+      "sha256": "76760a208ef569e4e5d091656472c24791a26c88dbb3fa75eef74b42cea58c15",
+      "bytes": 58412
+    },
+    {
+      "role": "training_release_cli",
+      "path": "scripts/data/freeze_swebench_training_release.py",
+      "state": "bound",
+      "sha256": "c84fba128ea7010d06ce60f034c67a6d7910719c1e035270217a42c012453200",
+      "bytes": 4749
+    },
+    {
+      "role": "release_overlay_schema",
+      "path": "configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json",
+      "state": "bound",
+      "sha256": "03fd592a8fa98aee08a7193089dab8934663474b37de6ecc7b9cd5cf11eb5b91",
+      "bytes": 14753
+    },
+    {
+      "role": "release_overlay_implementation",
+      "path": "src/anchor_mvp/swebench/frozen_prefix_qreader_release.py",
+      "state": "bound",
+      "sha256": "35af412ad992ab6e19e53267d98a2188ee20bfe931d4884ce674bfb3764315c1",
+      "bytes": 45780
+    },
+    {
+      "role": "release_overlay_cli",
+      "path": "scripts/data/freeze_frozen_prefix_qreader_release.py",
+      "state": "bound",
+      "sha256": "1c700cd6863bfb1862a1b60363dc5226914b9cdacf5e2be14f4bb61c3a980bdc",
+      "bytes": 15229
+    },
+    {
+      "role": "profile_implementation",
+      "path": "src/anchor_mvp/swebench/frozen_prefix_qreader_profile.py",
+      "state": "bound",
+      "sha256": "973eea883e1e412083e3be8bc538428630d286fb2c09758493b3e2acaf18a944",
+      "bytes": 32069
+    },
+    {
+      "role": "profile_runner",
+      "path": "scripts/data/run_frozen_prefix_qreader_profile.py",
+      "state": "bound",
+      "sha256": "1b1e88447ecfb53d6e91155ebbc0820d3d9d4df32ff441d8b31e455d01db3ccc",
+      "bytes": 2323
+    }
+  ]
+}

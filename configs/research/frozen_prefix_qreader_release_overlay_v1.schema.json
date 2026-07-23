@@ -1,0 +1,450 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/frozen-prefix-qreader-release-overlay-v1.json",
+  "title": "Frozen-prefix Q-reader additive release overlay v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "producer",
+    "bindings",
+    "source_conjunction_sha256",
+    "base_release",
+    "profile",
+    "dependency_dag",
+    "architecture_boundary",
+    "consumer_diagnostic_reference",
+    "gemma_runner_compatibility",
+    "unresolved_gates",
+    "audit",
+    "canonical_gold_written",
+    "canonical_gold_mutated",
+    "heldout_written",
+    "live_authorized",
+    "training_authorized",
+    "formal_training_authorized",
+    "release_authorized"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-release-overlay.v1"
+    },
+    "status": {
+      "const": "profile_materialized_execution_blocked"
+    },
+    "claim_scope": {
+      "const": "additive_non_authorizing_release_overlay_only"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "schema_sha256",
+        "implementation_sha256",
+        "freeze_script_sha256",
+        "canonical_json_policy",
+        "atomic_create_once",
+        "final_toctou_recheck"
+      ],
+      "properties": {
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "freeze_script_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_json_policy": {
+          "const": "utf8_sort_keys_compact_lf_v1"
+        },
+        "atomic_create_once": {"const": true},
+        "final_toctou_recheck": {"const": true}
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generic_release_lock",
+        "profile_freeze",
+        "training_view",
+        "bundle_profile",
+        "consumer_reference"
+      ],
+      "properties": {
+        "generic_release_lock": {
+          "$ref": "#/$defs/generic_release_binding"
+        },
+        "profile_freeze": {
+          "$ref": "#/$defs/profile_freeze_binding"
+        },
+        "training_view": {
+          "$ref": "#/$defs/training_view_binding"
+        },
+        "bundle_profile": {
+          "$ref": "#/$defs/bundle_profile_binding"
+        },
+        "consumer_reference": {
+          "$ref": "#/$defs/consumer_reference_binding"
+        }
+      }
+    },
+    "source_conjunction_sha256": {"$ref": "#/$defs/sha256"},
+    "base_release": {
+      "const": {
+        "self_reported_status": "ready",
+        "self_reported_claim_scope": "research_proxy_only",
+        "authority_inherited": false
+      }
+    },
+    "profile": {
+      "const": {
+        "profile_id": "frozen-prefix-qreader-v2",
+        "profile_boundary": "after_authenticated_canonical_gold",
+        "execution_core_reused": "anchor.swebench-five-stage-execution-core.v1"
+      }
+    },
+    "dependency_dag": {
+      "$ref": "#/$defs/dependency_dag"
+    },
+    "architecture_boundary": {
+      "$ref": "#/$defs/architecture_boundary"
+    },
+    "consumer_diagnostic_reference": {
+      "$ref": "#/$defs/consumer_reference"
+    },
+    "gemma_runner_compatibility": {
+      "$ref": "#/$defs/gemma_compatibility"
+    },
+    "unresolved_gates": {
+      "$ref": "#/$defs/unresolved_gates"
+    },
+    "audit": {
+      "const": {
+        "manifest_files_read": 5,
+        "mandatory_sidecar_files_read": 5,
+        "profile_dependency_files_authenticated": 17,
+        "partition_files_read": 0,
+        "canonical_gold_bodies_read": 0,
+        "heldout_bodies_read": 0,
+        "protected_bodies_read": 0,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0
+      }
+    },
+    "canonical_gold_written": {"const": false},
+    "canonical_gold_mutated": {"const": false},
+    "heldout_written": {"const": false},
+    "live_authorized": {"const": false},
+    "training_authorized": {"const": false},
+    "formal_training_authorized": {"const": false},
+    "release_authorized": {"const": false}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_location_kind",
+        "logical_manifest_path",
+        "manifest_sha256",
+        "manifest_bytes",
+        "logical_sidecar_path",
+        "sidecar_sha256",
+        "sidecar_bytes"
+      ],
+      "properties": {
+        "schema_version": {"type": "string", "minLength": 1},
+        "source_location_kind": {
+          "enum": [
+            "project_canonical_runtime_dir",
+            "external_consumer_reference"
+          ]
+        },
+        "logical_manifest_path": {"$ref": "#/$defs/path"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_bytes": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 49999999
+        },
+        "logical_sidecar_path": {"$ref": "#/$defs/path"},
+        "sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_bytes": {"const": 80}
+      }
+    },
+    "generic_release_binding": {
+      "$ref": "#/$defs/artifact_binding",
+      "properties": {
+        "schema_version": {
+          "const": "anchor.generic-train-release-lock.v2"
+        },
+        "source_location_kind": {
+          "const": "project_canonical_runtime_dir"
+        },
+        "logical_manifest_path": {
+          "const": "artifacts/formal_v3/training_release/release_lock/manifest.json"
+        },
+        "logical_sidecar_path": {
+          "const": "artifacts/formal_v3/training_release/release_lock/manifest.json.sha256"
+        }
+      }
+    },
+    "profile_freeze_binding": {
+      "$ref": "#/$defs/artifact_binding",
+      "properties": {
+        "schema_version": {
+          "const": "anchor.frozen-prefix-qreader-profile-freeze-manifest.v2"
+        },
+        "source_location_kind": {
+          "const": "project_canonical_runtime_dir"
+        },
+        "logical_manifest_path": {
+          "const": "artifacts/distillation-profiles/frozen-prefix-qreader-v2/manifest.json"
+        },
+        "logical_sidecar_path": {
+          "const": "artifacts/distillation-profiles/frozen-prefix-qreader-v2/manifest.json.sha256"
+        }
+      }
+    },
+    "training_view_binding": {
+      "$ref": "#/$defs/artifact_binding",
+      "properties": {
+        "schema_version": {
+          "const": "anchor.frozen-prefix-qreader-training-view-manifest.v2"
+        },
+        "source_location_kind": {
+          "const": "project_canonical_runtime_dir"
+        },
+        "logical_manifest_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-view-v2/manifest.json"
+        },
+        "logical_sidecar_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-view-v2/manifest.json.sha256"
+        }
+      }
+    },
+    "bundle_profile_binding": {
+      "$ref": "#/$defs/artifact_binding",
+      "properties": {
+        "schema_version": {
+          "const": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2"
+        },
+        "source_location_kind": {
+          "const": "project_canonical_runtime_dir"
+        },
+        "logical_manifest_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2/manifest.json"
+        },
+        "logical_sidecar_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2/manifest.json.sha256"
+        }
+      }
+    },
+    "consumer_reference_binding": {
+      "$ref": "#/$defs/artifact_binding",
+      "properties": {
+        "schema_version": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1"
+        },
+        "source_location_kind": {
+          "const": "external_consumer_reference"
+        },
+        "logical_manifest_path": {
+          "const": "consumer-repository/fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json"
+        },
+        "logical_sidecar_path": {
+          "const": "consumer-repository/fixtures/research/synthetic_five_role_qonly_diagnostic_v1/manifest.json.sha256"
+        }
+      }
+    },
+    "dependency_dag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "edges",
+        "config_excludes_runtime_manifest_hashes",
+        "v2_profile_may_bind_overlay_code_but_not_overlay_config",
+        "acyclic"
+      ],
+      "properties": {
+        "nodes": {
+          "const": [
+            "generic_release_lock",
+            "v2_profile_freeze",
+            "v2_training_view",
+            "v2_bundle_profile",
+            "consumer_reference",
+            "overlay_code",
+            "overlay_config",
+            "release_overlay"
+          ]
+        },
+        "edges": {
+          "const": [
+            ["generic_release_lock", "release_overlay"],
+            ["v2_profile_freeze", "release_overlay"],
+            ["v2_training_view", "release_overlay"],
+            ["v2_bundle_profile", "v2_training_view"],
+            ["v2_bundle_profile", "release_overlay"],
+            ["consumer_reference", "release_overlay"],
+            ["overlay_code", "v2_profile_freeze"],
+            ["overlay_code", "overlay_config"],
+            ["overlay_config", "release_overlay"]
+          ]
+        },
+        "config_excludes_runtime_manifest_hashes": {"const": true},
+        "v2_profile_may_bind_overlay_code_but_not_overlay_config": {
+          "const": true
+        },
+        "acyclic": {"const": true}
+      }
+    },
+    "architecture_boundary": {
+      "const": {
+        "architecture_name": "frozen-prefix Q-reader / prefix-branch producer-consumer",
+        "execution_mode": "decoupled_frozen_prefix_producer_required",
+        "route_protocol": "two_request_explicit_validate_commit_then_next_request",
+        "adapter_state_on_prefix": "off",
+        "adapter_state_after_boundary": "expert_only",
+        "private_tail_kv_required": true,
+        "private_tail_kv_cross_expert_reuse_allowed": false,
+        "committed_scaffold_reencoded_by": "frozen_base_producer",
+        "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+        "naive_in_stack_q_lora_exact_full_stack_reuse_claimed": false,
+        "full_generation_kv_shared_claimed": false,
+        "physical_qreader_implemented_claimed": false,
+        "mid_request_generated_trigger_switch_claimed": false,
+        "hidden_chain_of_thought_claimed": false,
+        "zero_kv_claimed": false,
+        "o1_attention_claimed": false,
+        "token_level_moe_claimed": false
+      }
+    },
+    "consumer_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_sha256",
+        "sidecar_physical_sha256",
+        "records",
+        "unique_task_semantics",
+        "roles",
+        "variants_per_role",
+        "train_records",
+        "eval_proxy_records",
+        "en_task_semantics",
+        "zh_cn_task_semantics",
+        "translation_pair_count",
+        "primary_adapter_label",
+        "reference_only",
+        "formal_authority_inherited"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1"
+        },
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_physical_sha256": {"$ref": "#/$defs/sha256"},
+        "records": {"const": 1000},
+        "unique_task_semantics": {"const": 200},
+        "roles": {"const": 5},
+        "variants_per_role": {"const": 1},
+        "train_records": {"const": 800},
+        "eval_proxy_records": {"const": 200},
+        "en_task_semantics": {"const": 100},
+        "zh_cn_task_semantics": {"const": 100},
+        "translation_pair_count": {"const": 0},
+        "primary_adapter_label": {"const": "q_only"},
+        "reference_only": {"const": true},
+        "formal_authority_inherited": {"const": false}
+      }
+    },
+    "gemma_compatibility": {
+      "const": {
+        "model_id": "google/gemma-3-1b-it",
+        "sequence_length": 768,
+        "strict_no_truncation": true,
+        "observed_records": 1000,
+        "observed_records_over_512": 514,
+        "observed_maximum_tokens": 665,
+        "role_maximum_tokens": {
+          "planner": 504,
+          "tool_policy": 523,
+          "frontend_gen": 546,
+          "frontend_review": 605,
+          "security_gate": 665
+        },
+        "legacy_qwen_declarative_sequence_length": 512,
+        "legacy_qwen_length_applies_to_gemma": false,
+        "tokenizer_chat_template_binding_status": "pending_final_authentication",
+        "runner_binding_status": "pending_final_authentication",
+        "compatible_for_execution": false
+      }
+    },
+    "unresolved_gates": {
+      "const": {
+        "formal_v3_available": 0,
+        "formal_v3_required": 5,
+        "protected_inventory_available": 2,
+        "protected_inventory_required": 6,
+        "tokenizer_chat_template_binding_authenticated": false,
+        "gemma_runner_binding_authenticated": false,
+        "execution_decision_available": false,
+        "execution_lease_available": false,
+        "data_byte_toctou_lease_available": false,
+        "independent_confirmation_executed": false,
+        "quality_evaluation_complete": false,
+        "performance_evaluation_complete": false,
+        "missing_or_unknown_result": "blocked"
+      }
+    },
+    "consumer_source_manifest": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "claim_scope",
+        "counts",
+        "semantic_identity_contract",
+        "ablation_contract",
+        "source_disjoint_boundary",
+        "compatibility_boundary",
+        "claims",
+        "audit"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1"
+        },
+        "status": {
+          "const": "dataset_proxy_ready_training_not_authorized"
+        },
+        "claim_scope": {
+          "const": "synthetic_diagnostic_only_no_formal_or_training_authority"
+        },
+        "counts": {"type": "object"},
+        "semantic_identity_contract": {"type": "object"},
+        "ablation_contract": {"type": "object"},
+        "source_disjoint_boundary": {"type": "object"},
+        "compatibility_boundary": {"type": "object"},
+        "claims": {"type": "object"},
+        "audit": {"type": "object"}
+      }
+    }
+  }
+}

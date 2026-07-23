@@ -1,0 +1,709 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-moe-lora.local/schemas/frozen_prefix_qreader_profile.v2.json",
+  "title": "Anchor frozen-prefix Q-reader distillation orchestration profile v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_version",
+    "profile_schema",
+    "freeze_manifest_schema",
+    "v1_reference",
+    "execution_core",
+    "canonical_gold_boundary",
+    "post_gold_pipeline",
+    "diagnostic_compatibility_reference",
+    "authorization",
+    "audit_contract",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-orchestration-profile.v2"
+    },
+    "profile_id": {
+      "const": "frozen-prefix-qreader-v2"
+    },
+    "profile_version": {
+      "const": 2
+    },
+    "profile_schema": {
+      "allOf": [
+        {"$ref": "#/$defs/file_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "configs/orchestration/frozen_prefix_qreader_profile.schema.json"
+            }
+          }
+        }
+      ]
+    },
+    "freeze_manifest_schema": {
+      "allOf": [
+        {"$ref": "#/$defs/file_binding"},
+        {
+          "properties": {
+            "path": {
+              "const": "configs/orchestration/frozen_prefix_qreader_profile_freeze_manifest.schema.json"
+            }
+          }
+        }
+      ]
+    },
+    "v1_reference": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/file_binding"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": "configs/orchestration/profiles/task_level_moe_lora_v1.json"
+            }
+          }
+        }
+      ]
+    },
+    "execution_core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_id",
+        "v1_profile_id",
+        "shared_physical_roles",
+        "same_physical_blobs_required",
+        "canonical_five_stage_order",
+        "reused_capabilities",
+        "profile_changes_teacher_execution",
+        "profile_boundary"
+      ],
+      "properties": {
+        "core_id": {
+          "const": "anchor.swebench-five-stage-execution-core.v1"
+        },
+        "v1_profile_id": {
+          "const": "task-level-moe-lora-v1"
+        },
+        "shared_physical_roles": {
+          "const": [
+            "anchor_launcher",
+            "full_bank_builder",
+            "full_bank_implementation",
+            "full_bank_config",
+            "coordinator_implementation",
+            "coordinator_config",
+            "execution_contract_implementation",
+            "execution_runtime_implementation",
+            "formal_gold_export_script",
+            "formal_gold_implementation"
+          ]
+        },
+        "same_physical_blobs_required": {
+          "const": true
+        },
+        "canonical_five_stage_order": {
+          "const": [
+            "planner",
+            "tool_policy",
+            "domain_builder",
+            "domain_review",
+            "security"
+          ]
+        },
+        "reused_capabilities": {
+          "const": [
+            "five_stage_schedule",
+            "cc_switch",
+            "opencode_sandbox",
+            "authenticated_real_tool_trajectory",
+            "semantic_validator",
+            "hmac_execution_receipt",
+            "checkpoint_resume",
+            "canonical_gold_export"
+          ]
+        },
+        "profile_changes_teacher_execution": {
+          "const": false
+        },
+        "profile_boundary": {
+          "const": "after_authenticated_canonical_gold"
+        }
+      }
+    },
+    "canonical_gold_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_schema_version",
+        "partition_manifest_schema_version",
+        "canonical_gold_written",
+        "canonical_gold_mutated",
+        "canonical_gold_reformatted",
+        "gold_bodies_read_during_profile_preflight",
+        "heldout_bodies_read_during_profile_preflight"
+      ],
+      "properties": {
+        "export_schema_version": {
+          "const": "anchor.swebench-formal-gold-export.v2"
+        },
+        "partition_manifest_schema_version": {
+          "const": "anchor.automation-partition-manifest.v2"
+        },
+        "canonical_gold_written": {
+          "const": false
+        },
+        "canonical_gold_mutated": {
+          "const": false
+        },
+        "canonical_gold_reformatted": {
+          "const": false
+        },
+        "gold_bodies_read_during_profile_preflight": {
+          "const": false
+        },
+        "heldout_bodies_read_during_profile_preflight": {
+          "const": false
+        }
+      }
+    },
+    "post_gold_pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "ordered_components",
+        "stage_to_expert",
+        "training_view_record_schema_version",
+        "training_view_manifest_schema_version",
+        "bundle_profile_record_schema_version",
+        "bundle_profile_manifest_schema_version",
+        "training_view_artifact_path",
+        "bundle_profile_artifact_path",
+        "split_group_key",
+        "split_before_augmentation",
+        "primary_scaffold_variant",
+        "primary_adapter_label",
+        "diagnostic_adapter_labels",
+        "route_boundary_semantics",
+        "adapter_state_on_prefix",
+        "adapter_state_after_boundary",
+        "private_tail_kv_required",
+        "full_generation_kv_shared_claimed",
+        "exact_reuse_scope",
+        "execution_mode",
+        "expert_private_kv_cross_expert_reuse",
+        "committed_text_reencoded_by_frozen_base",
+        "current_future_forbidden_excluded_before_serialization",
+        "token_index_allowed_without_tokenizer_binding",
+        "alora_activation_semantics",
+        "mid_request_generated_trigger_switch_claimed",
+        "source_records_rewritten"
+      ],
+      "properties": {
+        "view_id": {
+          "const": "anchor.frozen-prefix-qreader-post-gold-view.v2"
+        },
+        "ordered_components": {
+          "const": [
+            "taskboard_projector_v2",
+            "natural_language_scaffold_v2",
+            "frozen_prefix_qreader_release_overlay_v1"
+          ]
+        },
+        "stage_to_expert": {
+          "const": {
+            "planner": "planner",
+            "tool_policy": "tool_policy",
+            "domain_builder": "frontend_gen",
+            "domain_review": "frontend_review",
+            "security": "security_gate"
+          }
+        },
+        "training_view_record_schema_version": {
+          "const": "anchor.frozen-prefix-qreader-training-view.v2"
+        },
+        "training_view_manifest_schema_version": {
+          "const": "anchor.frozen-prefix-qreader-training-view-manifest.v2"
+        },
+        "bundle_profile_record_schema_version": {
+          "const": "anchor.frozen-prefix-qreader-bundle-profile.v2"
+        },
+        "bundle_profile_manifest_schema_version": {
+          "const": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2"
+        },
+        "training_view_artifact_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-view-v2"
+        },
+        "bundle_profile_artifact_path": {
+          "const": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2"
+        },
+        "split_group_key": {
+          "const": "task_bundle_sha256"
+        },
+        "split_before_augmentation": {
+          "const": true
+        },
+        "primary_scaffold_variant": {
+          "const": "concise_rationale_plus_json"
+        },
+        "primary_adapter_label": {
+          "const": "q_only"
+        },
+        "diagnostic_adapter_labels": {
+          "const": [
+            "o_only",
+            "q_plus_o"
+          ]
+        },
+        "route_boundary_semantics": {
+          "const": "two_request_explicit_validate_commit_then_expert_input"
+        },
+        "adapter_state_on_prefix": {
+          "const": "off"
+        },
+        "adapter_state_after_boundary": {
+          "const": "expert_only"
+        },
+        "private_tail_kv_required": {
+          "const": true
+        },
+        "full_generation_kv_shared_claimed": {
+          "const": false
+        },
+        "exact_reuse_scope": {
+          "const": "identical_ordered_prefix_lineage_only"
+        },
+        "execution_mode": {
+          "const": "decoupled_frozen_prefix_producer_required"
+        },
+        "expert_private_kv_cross_expert_reuse": {
+          "const": false
+        },
+        "committed_text_reencoded_by_frozen_base": {
+          "const": true
+        },
+        "current_future_forbidden_excluded_before_serialization": {
+          "const": true
+        },
+        "token_index_allowed_without_tokenizer_binding": {
+          "const": false
+        },
+        "alora_activation_semantics": {
+          "const": "optional_next_request_input_activation_only"
+        },
+        "mid_request_generated_trigger_switch_claimed": {
+          "const": false
+        },
+        "source_records_rewritten": {
+          "const": false
+        }
+      }
+    },
+    "diagnostic_compatibility_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "fixture_manifest_sha256",
+        "fixture_sidecar_physical_sha256",
+        "record_count",
+        "unique_task_semantic_count",
+        "role_count",
+        "primary_view_count_per_role",
+        "train_record_count",
+        "eval_proxy_record_count",
+        "english_bundle_count",
+        "zh_cn_bundle_count",
+        "translation_pair_count",
+        "eval_proxy_is_heldout",
+        "formal_source_disjoint_proof",
+        "gemma3_1b_it",
+        "qwen_declarative_reference"
+      ],
+      "properties": {
+        "status": {
+          "const": "diagnostic_reference_only"
+        },
+        "fixture_manifest_sha256": {
+          "const": "a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed"
+        },
+        "fixture_sidecar_physical_sha256": {
+          "const": "7f238be47cc60af808421bbbdaefb6bbc5d5c0f617d976b66d5b2a87d767b0a0"
+        },
+        "record_count": {
+          "const": 1000
+        },
+        "unique_task_semantic_count": {
+          "const": 200
+        },
+        "role_count": {
+          "const": 5
+        },
+        "primary_view_count_per_role": {
+          "const": 1
+        },
+        "train_record_count": {
+          "const": 800
+        },
+        "eval_proxy_record_count": {
+          "const": 200
+        },
+        "english_bundle_count": {
+          "const": 100
+        },
+        "zh_cn_bundle_count": {
+          "const": 100
+        },
+        "translation_pair_count": {
+          "const": 0
+        },
+        "eval_proxy_is_heldout": {
+          "const": false
+        },
+        "formal_source_disjoint_proof": {
+          "const": false
+        },
+        "gemma3_1b_it": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "binding_status",
+            "sequence_length",
+            "strict_no_truncation",
+            "observed_full_token_max_by_role",
+            "training_authorized_by_reference"
+          ],
+          "properties": {
+            "binding_status": {
+              "const": "diagnostic_consumer_binding_pending_release"
+            },
+            "sequence_length": {
+              "const": 768
+            },
+            "strict_no_truncation": {
+              "const": true
+            },
+            "observed_full_token_max_by_role": {
+              "const": {
+                "planner": 504,
+                "tool_policy": 523,
+                "frontend_gen": 546,
+                "frontend_review": 605,
+                "security_gate": 665
+              }
+            },
+            "training_authorized_by_reference": {
+              "const": false
+            }
+          }
+        },
+        "qwen_declarative_reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sequence_length",
+            "applies_to_gemma_training"
+          ],
+          "properties": {
+            "sequence_length": {
+              "const": 512
+            },
+            "applies_to_gemma_training": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "authorization": {
+      "$ref": "#/$defs/authorization"
+    },
+    "audit_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_paths_project_relative",
+        "dependency_sha256_required",
+        "dependency_byte_count_required",
+        "single_bytes_snapshot",
+        "terminal_dependency_recheck",
+        "reject_symlink_or_reparse",
+        "atomic_freeze_publish",
+        "mandatory_manifest_sha256_sidecar",
+        "profile_preflight_reads_record_bodies"
+      ],
+      "properties": {
+        "dependency_paths_project_relative": {
+          "const": true
+        },
+        "dependency_sha256_required": {
+          "const": true
+        },
+        "dependency_byte_count_required": {
+          "const": true
+        },
+        "single_bytes_snapshot": {
+          "const": true
+        },
+        "terminal_dependency_recheck": {
+          "const": true
+        },
+        "reject_symlink_or_reparse": {
+          "const": true
+        },
+        "atomic_freeze_publish": {
+          "const": true
+        },
+        "mandatory_manifest_sha256_sidecar": {
+          "const": true
+        },
+        "profile_preflight_reads_record_bodies": {
+          "const": false
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "minItems": 36,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "anchor_launcher"}, "path": {"const": "anchor.ps1"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "full_bank_builder"}, "path": {"const": "scripts/data/build_swebench_full_bank.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "full_bank_implementation"}, "path": {"const": "src/anchor_mvp/swebench/full_bank.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "full_bank_config"}, "path": {"const": "configs/data/swebench_full_bank.formal.yaml"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "coordinator_implementation"}, "path": {"const": "scripts/tooling/run_swebench_ccswitch.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "coordinator_config"}, "path": {"const": "configs/data/swebench_five_stage.ccswitch.yaml"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "execution_contract_implementation"}, "path": {"const": "src/anchor_mvp/tooling/swebench_execution_v3.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "execution_runtime_implementation"}, "path": {"const": "src/anchor_mvp/tooling/swebench_runtime_v3.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "formal_gold_export_script"}, "path": {"const": "scripts/data/export_swebench_formal_gold.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "formal_gold_implementation"}, "path": {"const": "src/anchor_mvp/swebench/formal_gold.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_projector_config"}, "path": {"const": "configs/research/swebench_taskboard_projector_v2.yaml"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_projector_implementation"}, "path": {"const": "src/anchor_mvp/swebench/taskboard_projector.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_projector_cli"}, "path": {"const": "scripts/data/project_swebench_taskboard.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_projector_manifest_schema"}, "path": {"const": "configs/research/taskboard_projector_manifest.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_projector_sidecar_schema"}, "path": {"const": "configs/research/taskboard_projector_sidecar.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "taskboard_segment_plan_schema"}, "path": {"const": "configs/research/hierarchical_task_kv_segment_plan.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_materializer_config"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2.yaml"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_materializer_implementation"}, "path": {"const": "src/anchor_mvp/swebench/natural_language_scaffold_v2.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_materializer_config_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_config.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_record_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_record.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_manifest_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_manifest.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "bundle_profile_record_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "bundle_profile_manifest_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_manifest.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "bundle_profile_descriptor_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_descriptor.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_materializer_builder"}, "path": {"const": "scripts/data/build_swebench_natural_language_scaffold_v2.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_view_materializer_auditor"}, "path": {"const": "scripts/data/audit_swebench_natural_language_scaffold_v2.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "generic_execution_contract_schema"}, "path": {"const": "configs/research/generic_train_execution_contract.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "source_disjoint_manifest_schema"}, "path": {"const": "configs/research/swebench_source_disjoint_manifest.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "generic_release_lock_schema"}, "path": {"const": "configs/research/generic_train_release_lock.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_release_implementation"}, "path": {"const": "src/anchor_mvp/swebench/training_release.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "training_release_cli"}, "path": {"const": "scripts/data/freeze_swebench_training_release.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "release_overlay_schema"}, "path": {"const": "configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "release_overlay_implementation"}, "path": {"const": "src/anchor_mvp/swebench/frozen_prefix_qreader_release.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "release_overlay_cli"}, "path": {"const": "scripts/data/freeze_frozen_prefix_qreader_release.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "profile_implementation"}, "path": {"const": "src/anchor_mvp/swebench/frozen_prefix_qreader_profile.py"}}}]},
+        {"allOf": [{"$ref": "#/$defs/dependency_binding"}, {"properties": {"role": {"const": "profile_runner"}, "path": {"const": "scripts/data/run_frozen_prefix_qreader_profile.py"}}}]}
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256_or_placeholder": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": "PLACEHOLDER_PENDING_PHYSICAL_FREEZE"
+        }
+      ]
+    },
+    "project_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "dependency_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "state",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,79}$"
+        },
+        "path": {
+          "$ref": "#/$defs/project_path"
+        },
+        "state": {
+          "enum": [
+            "bound",
+            "pending_physical_freeze"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256_or_placeholder"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/dependency_role_path"
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "bound"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "bytes": {
+                "minimum": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "sha256": {
+                "const": "PLACEHOLDER_PENDING_PHYSICAL_FREEZE"
+              },
+              "bytes": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dependency_role_path": {
+      "oneOf": [
+        {"properties": {"role": {"const": "anchor_launcher"}, "path": {"const": "anchor.ps1"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "full_bank_builder"}, "path": {"const": "scripts/data/build_swebench_full_bank.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "full_bank_implementation"}, "path": {"const": "src/anchor_mvp/swebench/full_bank.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "full_bank_config"}, "path": {"const": "configs/data/swebench_full_bank.formal.yaml"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "coordinator_implementation"}, "path": {"const": "scripts/tooling/run_swebench_ccswitch.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "coordinator_config"}, "path": {"const": "configs/data/swebench_five_stage.ccswitch.yaml"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "execution_contract_implementation"}, "path": {"const": "src/anchor_mvp/tooling/swebench_execution_v3.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "execution_runtime_implementation"}, "path": {"const": "src/anchor_mvp/tooling/swebench_runtime_v3.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "formal_gold_export_script"}, "path": {"const": "scripts/data/export_swebench_formal_gold.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "formal_gold_implementation"}, "path": {"const": "src/anchor_mvp/swebench/formal_gold.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_projector_config"}, "path": {"const": "configs/research/swebench_taskboard_projector_v2.yaml"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_projector_implementation"}, "path": {"const": "src/anchor_mvp/swebench/taskboard_projector.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_projector_cli"}, "path": {"const": "scripts/data/project_swebench_taskboard.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_projector_manifest_schema"}, "path": {"const": "configs/research/taskboard_projector_manifest.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_projector_sidecar_schema"}, "path": {"const": "configs/research/taskboard_projector_sidecar.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "taskboard_segment_plan_schema"}, "path": {"const": "configs/research/hierarchical_task_kv_segment_plan.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_materializer_config"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2.yaml"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_materializer_implementation"}, "path": {"const": "src/anchor_mvp/swebench/natural_language_scaffold_v2.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_materializer_config_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_config.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_record_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_record.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_manifest_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_manifest.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "bundle_profile_record_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "bundle_profile_manifest_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_manifest.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "bundle_profile_descriptor_schema"}, "path": {"const": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_descriptor.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_materializer_builder"}, "path": {"const": "scripts/data/build_swebench_natural_language_scaffold_v2.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_view_materializer_auditor"}, "path": {"const": "scripts/data/audit_swebench_natural_language_scaffold_v2.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "generic_execution_contract_schema"}, "path": {"const": "configs/research/generic_train_execution_contract.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "source_disjoint_manifest_schema"}, "path": {"const": "configs/research/swebench_source_disjoint_manifest.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "generic_release_lock_schema"}, "path": {"const": "configs/research/generic_train_release_lock.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_release_implementation"}, "path": {"const": "src/anchor_mvp/swebench/training_release.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "training_release_cli"}, "path": {"const": "scripts/data/freeze_swebench_training_release.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "release_overlay_schema"}, "path": {"const": "configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "release_overlay_implementation"}, "path": {"const": "src/anchor_mvp/swebench/frozen_prefix_qreader_release.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "release_overlay_cli"}, "path": {"const": "scripts/data/freeze_frozen_prefix_qreader_release.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "profile_implementation"}, "path": {"const": "src/anchor_mvp/swebench/frozen_prefix_qreader_profile.py"}}, "required": ["role", "path"]},
+        {"properties": {"role": {"const": "profile_runner"}, "path": {"const": "scripts/data/run_frozen_prefix_qreader_profile.py"}}, "required": ["role", "path"]}
+      ]
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "live_authorized",
+        "training_authorized",
+        "formal_training_authorized",
+        "release_authorized",
+        "provider_requests",
+        "credentials_read",
+        "model_loads",
+        "gpu_requests",
+        "network_requests"
+      ],
+      "properties": {
+        "status": {
+          "const": "profile_contract_only_execution_blocked"
+        },
+        "live_authorized": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        },
+        "provider_requests": {
+          "const": 0
+        },
+        "credentials_read": {
+          "const": false
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        }
+      }
+    }
+  }
+}

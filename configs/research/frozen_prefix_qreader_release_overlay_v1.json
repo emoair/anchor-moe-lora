@@ -1,0 +1,149 @@
+{
+  "schema_version": "anchor.frozen-prefix-qreader-release-overlay-config.v1",
+  "producer_bindings": {
+    "overlay_schema": {
+      "path": "configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json",
+      "sha256": "03fd592a8fa98aee08a7193089dab8934663474b37de6ecc7b9cd5cf11eb5b91",
+      "bytes": 14753
+    },
+    "implementation": {
+      "path": "src/anchor_mvp/swebench/frozen_prefix_qreader_release.py",
+      "sha256": "35af412ad992ab6e19e53267d98a2188ee20bfe931d4884ce674bfb3764315c1",
+      "bytes": 45780
+    },
+    "freeze_script": {
+      "path": "scripts/data/freeze_frozen_prefix_qreader_release.py",
+      "sha256": "1c700cd6863bfb1862a1b60363dc5226914b9cdacf5e2be14f4bb61c3a980bdc",
+      "bytes": 15229
+    }
+  },
+  "input_contracts": {
+    "generic_release_lock": {
+      "schema_version": "anchor.generic-train-release-lock.v2",
+      "schema_path": "configs/research/generic_train_release_lock.schema.json",
+      "schema_sha256": "119c55279c48246d45808849b03b9b6873570bcb82103da129ea64812fd3b5aa",
+      "canonical_runtime_dir": "artifacts/formal_v3/training_release/release_lock"
+    },
+    "profile_freeze": {
+      "schema_version": "anchor.frozen-prefix-qreader-profile-freeze-manifest.v2",
+      "schema_path": "configs/orchestration/frozen_prefix_qreader_profile_freeze_manifest.schema.json",
+      "schema_sha256": "1310dd1c74f2f2f7c86bcfa3628925102a9c0b6f398df306dec99b446c60cfc5",
+      "canonical_runtime_dir": "artifacts/distillation-profiles/frozen-prefix-qreader-v2"
+    },
+    "training_view": {
+      "schema_version": "anchor.frozen-prefix-qreader-training-view-manifest.v2",
+      "schema_path": "configs/research/swebench_natural_language_scaffold_v2_manifest.schema.json",
+      "schema_sha256": "dae37cd63462ac6945547c32ca617d7a51d41700432292f989fc901491a2eb2c",
+      "canonical_runtime_dir": "artifacts/swebench/frozen-prefix-qreader-view-v2"
+    },
+    "bundle_profile": {
+      "schema_version": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2",
+      "schema_path": "configs/research/swebench_natural_language_scaffold_v2_bundle_profile_manifest.schema.json",
+      "schema_sha256": "fbe7a543e0e8f19b27436ca882af629e44252ab5e7a5d246443709cadc39609f",
+      "canonical_runtime_dir": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2"
+    },
+    "consumer_reference": {
+      "schema_version": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1",
+      "schema_path": "configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json",
+      "schema_sha256": "03fd592a8fa98aee08a7193089dab8934663474b37de6ecc7b9cd5cf11eb5b91",
+      "canonical_runtime_dir": "consumer-repository/fixtures/research/synthetic_five_role_qonly_diagnostic_v1"
+    }
+  },
+  "dependency_dag": {
+    "nodes": [
+      "generic_release_lock",
+      "v2_profile_freeze",
+      "v2_training_view",
+      "v2_bundle_profile",
+      "consumer_reference",
+      "overlay_code",
+      "overlay_config",
+      "release_overlay"
+    ],
+    "edges": [
+      ["generic_release_lock", "release_overlay"],
+      ["v2_profile_freeze", "release_overlay"],
+      ["v2_training_view", "release_overlay"],
+      ["v2_bundle_profile", "v2_training_view"],
+      ["v2_bundle_profile", "release_overlay"],
+      ["consumer_reference", "release_overlay"],
+      ["overlay_code", "v2_profile_freeze"],
+      ["overlay_code", "overlay_config"],
+      ["overlay_config", "release_overlay"]
+    ],
+    "config_excludes_runtime_manifest_hashes": true,
+    "v2_profile_may_bind_overlay_code_but_not_overlay_config": true,
+    "acyclic": true
+  },
+  "architecture_boundary": {
+    "architecture_name": "frozen-prefix Q-reader / prefix-branch producer-consumer",
+    "execution_mode": "decoupled_frozen_prefix_producer_required",
+    "route_protocol": "two_request_explicit_validate_commit_then_next_request",
+    "adapter_state_on_prefix": "off",
+    "adapter_state_after_boundary": "expert_only",
+    "private_tail_kv_required": true,
+    "private_tail_kv_cross_expert_reuse_allowed": false,
+    "committed_scaffold_reencoded_by": "frozen_base_producer",
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "naive_in_stack_q_lora_exact_full_stack_reuse_claimed": false,
+    "full_generation_kv_shared_claimed": false,
+    "physical_qreader_implemented_claimed": false,
+    "mid_request_generated_trigger_switch_claimed": false,
+    "hidden_chain_of_thought_claimed": false,
+    "zero_kv_claimed": false,
+    "o1_attention_claimed": false,
+    "token_level_moe_claimed": false
+  },
+  "consumer_diagnostic_reference": {
+    "schema_version": "anchor.synthetic-five-role-qonly-diagnostic-manifest.v1",
+    "manifest_sha256": "a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed",
+    "sidecar_physical_sha256": "7f238be47cc60af808421bbbdaefb6bbc5d5c0f617d976b66d5b2a87d767b0a0",
+    "records": 1000,
+    "unique_task_semantics": 200,
+    "roles": 5,
+    "variants_per_role": 1,
+    "train_records": 800,
+    "eval_proxy_records": 200,
+    "en_task_semantics": 100,
+    "zh_cn_task_semantics": 100,
+    "translation_pair_count": 0,
+    "primary_adapter_label": "q_only",
+    "reference_only": true,
+    "formal_authority_inherited": false
+  },
+  "gemma_runner_compatibility": {
+    "model_id": "google/gemma-3-1b-it",
+    "sequence_length": 768,
+    "strict_no_truncation": true,
+    "observed_records": 1000,
+    "observed_records_over_512": 514,
+    "observed_maximum_tokens": 665,
+    "role_maximum_tokens": {
+      "planner": 504,
+      "tool_policy": 523,
+      "frontend_gen": 546,
+      "frontend_review": 605,
+      "security_gate": 665
+    },
+    "legacy_qwen_declarative_sequence_length": 512,
+    "legacy_qwen_length_applies_to_gemma": false,
+    "tokenizer_chat_template_binding_status": "pending_final_authentication",
+    "runner_binding_status": "pending_final_authentication",
+    "compatible_for_execution": false
+  },
+  "unresolved_gates": {
+    "formal_v3_available": 0,
+    "formal_v3_required": 5,
+    "protected_inventory_available": 2,
+    "protected_inventory_required": 6,
+    "tokenizer_chat_template_binding_authenticated": false,
+    "gemma_runner_binding_authenticated": false,
+    "execution_decision_available": false,
+    "execution_lease_available": false,
+    "data_byte_toctou_lease_available": false,
+    "independent_confirmation_executed": false,
+    "quality_evaluation_complete": false,
+    "performance_evaluation_complete": false,
+    "missing_or_unknown_result": "blocked"
+  }
+}

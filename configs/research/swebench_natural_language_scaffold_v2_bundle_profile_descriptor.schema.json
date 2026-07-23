@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/frozen-prefix-qreader-bundle-profile-descriptor-v2.json",
+  "title": "Explicit body-free frozen-prefix Q-reader bundle profile descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_bundle_sha256",
+    "task_id",
+    "task_id_sha256",
+    "task_semantic_sha256",
+    "language",
+    "information_flow_stratum",
+    "source_split",
+    "output_split",
+    "problem_profile_sha256",
+    "capability_labels"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-bundle-profile-descriptor.v2"
+    },
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "task_id": {"$ref": "#/$defs/identifier"},
+    "task_id_sha256": {"$ref": "#/$defs/sha256"},
+    "task_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "language": {"enum": ["en", "zh-CN"]},
+    "information_flow_stratum": {"$ref": "#/$defs/identifier"},
+    "source_split": {"enum": ["train", "calibration"]},
+    "output_split": {"enum": ["train", "eval_proxy"]},
+    "problem_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "capability_labels": {"$ref": "#/$defs/capability_labels"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+    },
+    "capability_labels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "general_chat",
+          "knowledge_qa",
+          "simple_tool_search",
+          "micro_coding",
+          "software_repair"
+        ]
+      }
+    }
+  }
+}

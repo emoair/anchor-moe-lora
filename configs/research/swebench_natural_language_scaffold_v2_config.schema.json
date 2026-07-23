@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/frozen-prefix-qreader-training-view-config-v2.json",
+  "title": "Frozen-prefix Q-reader training-view producer config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer_version",
+    "input_contract",
+    "output_contract",
+    "role_contract",
+    "bundle_profile_contract",
+    "visibility_contract",
+    "route_boundary_contract",
+    "cache_contract",
+    "adapter_control_contract",
+    "tool_trace_contract",
+    "serialization_contract",
+    "limits",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-training-view-config.v2"
+    },
+    "producer_version": {
+      "const": "anchor.frozen-prefix-qreader-training-view-producer.v2"
+    },
+    "input_contract": {
+      "const": {
+        "projector_manifest_schema_version": "anchor.swebench-taskboard-projector-manifest.v2",
+        "projector_record_schema_version": "anchor.swebench-taskboard-sidecar.v2",
+        "projector_manifest_sidecar_required": true,
+        "bundle_profile_manifest_schema_version": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2",
+        "bundle_profile_record_schema_version": "anchor.frozen-prefix-qreader-bundle-profile.v2",
+        "bundle_profile_manifest_sidecar_required": true,
+        "projector_partitions": [
+          "train/clean.jsonl",
+          "train/noisy.jsonl",
+          "calibration/clean.jsonl"
+        ],
+        "selected_partitions": {
+          "train": "train/noisy.jsonl",
+          "eval_proxy": "calibration/clean.jsonl"
+        },
+        "authentication_only_partitions": ["train/clean.jsonl"]
+      }
+    },
+    "output_contract": {
+      "const": {
+        "record_schema_version": "anchor.frozen-prefix-qreader-training-view.v2",
+        "manifest_schema_version": "anchor.frozen-prefix-qreader-training-view-manifest.v2",
+        "canonical_artifact_path": "artifacts/swebench/frozen-prefix-qreader-view-v2",
+        "files": ["train.jsonl", "eval_proxy.jsonl"],
+        "mandatory_manifest_sha256_sidecar": true,
+        "scaffold_variant": "concise_rationale_plus_json",
+        "pair_count": 0
+      }
+    },
+    "role_contract": {
+      "const": {
+        "stage_to_expert": {
+          "planner": "planner",
+          "tool_policy": "tool_policy",
+          "domain_builder": "frontend_gen",
+          "domain_review": "frontend_review",
+          "security": "security_gate"
+        },
+        "require_all_five_roles_per_bundle": true,
+        "one_primary_view_per_role": true
+      }
+    },
+    "bundle_profile_contract": {
+      "const": {
+        "canonical_artifact_path": "artifacts/swebench/frozen-prefix-qreader-bundle-profile-v2",
+        "partition_path": "bundle_profiles.jsonl",
+        "explicit_descriptor_schema_version": "anchor.frozen-prefix-qreader-bundle-profile-descriptor.v2",
+        "explicit_descriptor_required": true,
+        "descriptor_sha256_sidecar_required": true,
+        "required_fields": [
+          "task_bundle_sha256",
+          "task_id",
+          "task_id_sha256",
+          "task_semantic_sha256",
+          "language",
+          "information_flow_stratum",
+          "source_split",
+          "output_split",
+          "problem_profile_sha256",
+          "capability_labels"
+        ],
+        "information_flow_strata": [
+          "direct_resolution",
+          "tool_mediated_search",
+          "implementation_handoff",
+          "review_revision",
+          "security_constrained"
+        ],
+        "capability_labels": [
+          "general_chat",
+          "knowledge_qa",
+          "simple_tool_search",
+          "micro_coding",
+          "software_repair"
+        ],
+        "source_to_output_split": {
+          "train": "train",
+          "calibration": "eval_proxy"
+        },
+        "eval_proxy_is_heldout": false
+      }
+    },
+    "visibility_contract": {
+      "const": {
+        "filter_before_serialization": true,
+        "current_target_body_in_prompt": false,
+        "future_block_body_in_prompt": false,
+        "forbidden_block_body_in_prompt": false,
+        "whole_taskboard_stringification_allowed": false,
+        "shared_then_mask_allowed": false,
+        "shared_prefix_segment_scopes": [
+          "task_shared_prefix",
+          "downstream_task_shared_immutable"
+        ],
+        "expert_private_input_scope": "expert_private_delta"
+      }
+    },
+    "route_boundary_contract": {
+      "const": {
+        "semantics": "explicit_two_request_commit_boundary",
+        "validation_required": true,
+        "commit_required": true,
+        "commit_promotes_text_only": true,
+        "committed_scaffold_reencode_required": true,
+        "committed_scaffold_reencode_producer": "frozen_base",
+        "committed_scaffold_reencode_adapter_state": "off",
+        "expert_activation_request": "next_request",
+        "token_boundary_status": "tokenizer_binding_required",
+        "token_index_emitted": false
+      }
+    },
+    "cache_contract": {
+      "const": {
+        "adapter_state_on_shared_prefix": "off",
+        "adapter_state_after_boundary": "expert_only",
+        "private_tail_kv_required": true,
+        "private_tail_append_only": true,
+        "private_tail_cross_expert_transfer_allowed": false,
+        "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+        "full_generation_kv_shared_claimed": false,
+        "naive_in_stack_q_lora_exact_reuse_claimed": false,
+        "physical_kv_tensor_emitted": false
+      }
+    },
+    "adapter_control_contract": {
+      "const": {
+        "primary": "q_only",
+        "diagnostic_overlays": ["o_only", "q_plus_o"],
+        "wide_lora_inherited": false,
+        "controls_are_non_authorizing": true
+      }
+    },
+    "tool_trace_contract": {
+      "const": {
+        "builder_expert": "frontend_gen",
+        "authenticated_source_only": true,
+        "allowed_block_kinds": ["tool_call", "tool_result", "test_result"],
+        "other_roles_status": "not_applicable",
+        "fabricated_success_status_allowed": false
+      }
+    },
+    "serialization_contract": {
+      "const": {
+        "encoding": "utf-8",
+        "newline": "lf",
+        "json": "canonical_sort_keys_compact_utf8",
+        "routing_json_sha256": "sha256_canonical_json_sort_keys_compact_utf8_no_lf",
+        "source_streaming_required": true,
+        "full_partition_residency_allowed": false,
+        "private_temporary_spool_required": true,
+        "terminal_source_and_output_recheck_required": true,
+        "atomic_create_once_publish_required": true
+      }
+    },
+    "limits": {
+      "const": {
+        "max_records_per_partition": 1000000,
+        "max_input_file_bytes": 2147483648,
+        "max_line_bytes": 16777216,
+        "max_string_utf8_bytes": 1048576
+      }
+    },
+    "safety": {
+      "const": {
+        "provider_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "network_requests": 0,
+        "canonical_gold_written": false,
+        "heldout_read": false,
+        "heldout_written": false,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "claim_scope": "research_proxy_materialization_only"
+      }
+    }
+  }
+}

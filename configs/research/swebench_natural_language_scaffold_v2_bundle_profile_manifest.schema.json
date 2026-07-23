@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emoair/anchor-moe-lora/schemas/frozen-prefix-qreader-bundle-profile-manifest-v2.json",
+  "title": "Frozen-prefix Q-reader bundle-profile manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "producer",
+    "files",
+    "counts",
+    "source",
+    "capability_inventory_sha256",
+    "body_free",
+    "eval_proxy_is_heldout",
+    "training_authorized",
+    "formal_training_authorized",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-bundle-profile-manifest.v2"
+    },
+    "status": {"const": "metadata_only_ready"},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "record_schema_version",
+        "record_schema_sha256",
+        "manifest_schema_sha256",
+        "descriptor_schema_sha256",
+        "config_sha256",
+        "implementation_sha256"
+      ],
+      "properties": {
+        "name": {"const": "anchor.frozen-prefix-qreader-bundle-profile"},
+        "version": {
+          "const": "anchor.frozen-prefix-qreader-bundle-profile-producer.v2"
+        },
+        "record_schema_version": {
+          "const": "anchor.frozen-prefix-qreader-bundle-profile.v2"
+        },
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "descriptor_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "files": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256", "bytes", "records"],
+          "properties": {
+            "path": {"const": "bundle_profiles.jsonl"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "bytes": {"type": "integer", "minimum": 1},
+            "records": {"type": "integer", "minimum": 1}
+          }
+        }
+      ],
+      "items": false,
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundles",
+        "by_source_split",
+        "by_output_split",
+        "by_language",
+        "by_capability_label"
+      ],
+      "properties": {
+        "bundles": {"type": "integer", "minimum": 1},
+        "by_source_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "calibration"],
+          "properties": {
+            "train": {"type": "integer", "minimum": 0},
+            "calibration": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_output_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "eval_proxy"],
+          "properties": {
+            "train": {"type": "integer", "minimum": 0},
+            "eval_proxy": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_language": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["en", "zh-CN"],
+          "properties": {
+            "en": {"type": "integer", "minimum": 0},
+            "zh-CN": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_capability_label": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "general_chat",
+            "knowledge_qa",
+            "simple_tool_search",
+            "micro_coding",
+            "software_repair"
+          ],
+          "properties": {
+            "general_chat": {"type": "integer", "minimum": 0},
+            "knowledge_qa": {"type": "integer", "minimum": 0},
+            "simple_tool_search": {"type": "integer", "minimum": 0},
+            "micro_coding": {"type": "integer", "minimum": 0},
+            "software_repair": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projector_manifest_sha256",
+        "descriptor_sha256",
+        "descriptor_sidecar_sha256",
+        "descriptor_records"
+      ],
+      "properties": {
+        "projector_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "descriptor_sha256": {"$ref": "#/$defs/sha256"},
+        "descriptor_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "descriptor_records": {"type": "integer", "minimum": 1}
+      }
+    },
+    "capability_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "body_free": {"const": true},
+    "eval_proxy_is_heldout": {"const": false},
+    "training_authorized": {"const": false},
+    "formal_training_authorized": {"const": false},
+    "claim_scope": {"const": "research_proxy_metadata_only"},
+    "manifest_sha256_sidecar_required": {"const": true}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
