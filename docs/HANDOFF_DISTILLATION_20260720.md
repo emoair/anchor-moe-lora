@@ -627,6 +627,86 @@ authorization flags remain false. See
 `docs/synthetic_scaffold_controlled_proxy_risk_evidence_companion.md` and its
 `zh-CN` counterpart for identities, fail-closed behavior, and reproduction.
 
+## Consumer independent-confirmation identity checkpoint (2026-07-23; non-authorizing)
+
+- The sibling Consumer/training repository published commit
+  `52a7001e592d7e98b7bb247ad886acaaf3a663d1` on branch
+  `research/neural-swarm-kv`. At freeze time, local, upstream, and live remote
+  HEAD were equal; the worktree was clean; no tag pointed at HEAD; and the
+  commit changed exactly 45 paths. Its parent and tree are respectively
+  `6a73e8c535141f0c9a6c2085a6aaf7c45c42aaa6` and
+  `2403c49229b70fe2acb4fa383ea14b424994b3d6`. This section records the
+  downstream checkpoint only. Runtime remote-ref equality is not an
+  authorization condition.
+- Consumer independently authenticated all 19 files from frozen Producer
+  commit `09a6829084f76790e3488cb999a6755cd4d5f95e`. The Producer and Consumer
+  commit trees contain identical Git blob objects for all 19 paths. The
+  manifest SHA-256 remains
+  `1197abf22e3b19ee96eb9060cefa23e10b57971ca60358fe5bc9aefea02d75f6`,
+  and the physical mandatory-sidecar SHA-256 remains
+  `434770a021fe45ee8bf469d5211156cf89d99cbbc741d0fae05e1647b0ade047`.
+  No frozen Producer identity-v1 file changed.
+- The additive Consumer identity-v2 config, decision schema, implementation,
+  English documentation, and Simplified-Chinese documentation SHA-256 values
+  are respectively
+  `e69fa162dfc03e5c92168e1c529630a42b929027400870305829cad6877ea723`,
+  `84c9ebcbdf80b9ccb9e1a2f8c875642777bcef32b5ff6ead99a3059401ec609e`,
+  `3e68bd6c24d85fc402cdcd8be8e6ec79b2a635068fd710dab97d53748dfc4658`,
+  `adcfc1bdeacb62ca595526a261daf04bb92fe9ed1478fe066e8ba52dba5b37bb`,
+  and `438849e158af9202cb6f152602e7ce9efca4838351b4e765f7fcc3782ad24ff5`.
+  Consumer revalidated 19 Producer files, the 241-atom descriptor catalog,
+  321 JSONL instances, two proof documents, logical roots, memberships,
+  intersections, and quotas from authenticated bytes.
+- The true independent-confirmation metadata track has namespace-neutral
+  discovery intersections of task/template/pair identity `0/0/0`. The
+  secondary controlled-factorial track intentionally has intersections
+  `5/1/0` and cannot satisfy the independent-confirmation gate. The historical
+  semantic train/eval intersection is two, so the historical discovery
+  fixture is not reclassified as an independent confirmation set.
+- The authenticated CLI result is exit code 2 with
+  `status=metadata_identity_ready_execution_blocked`.
+  `metadata_identity_ready=true` describes only the identity layer.
+  `records_materialized`, materialized-record cross-binding, protected-source
+  disjointness, independent-confirmation execution, controlled-factorial
+  execution, multi-seed training, materialization readiness, execution-lease
+  readiness, data-byte TOCTOU-lease readiness, quality/generalization
+  validation, `training_authorized`, `formal_training_authorized`, and
+  `formal` all remain false. `eval_proxy_is_heldout` also remains false.
+- The physical blocked-only formal-v1 config and decision-schema SHA-256 values
+  are
+  `26d1e502875a9dac102f6b353df1d9ffd16b7e12ee8686d3e3c5c5eeea83369e`
+  and
+  `43d7e18f5ab0fef82bde8fb3387bd5d1fa10a4da93b0126551acb9b86c0d1967`.
+  Direct CLI, runtime, deepest training backend, manifest-output paths, Windows
+  aliases/alternate data streams, and the canonical PowerShell single-GPU lock
+  fail closed. A future ready path requires a new decision version plus an
+  authenticated launcher execution lease; v1 has no promotion path.
+- Consumer reported 209 passing joint tests plus four Windows capability
+  skips, zero failures, and a separate 60/60 formal-gate review with P0=0 and
+  P1=0. The identity-consumer independent review also reported P0=0 and P1=0.
+  Ruff, formatting, `py_compile`, 321-line JSONL parsing, cached-diff, LF,
+  UTF-8, credential/personal-path, and less-than-50-MiB checks passed. Producer
+  independently rechecked the Git identities, all 19 blob equalities, the
+  blocked CLI projection, and the zero model/GPU/provider/network/protected-body
+  audit without reading Gold, held-out, scaffold, or materialized record
+  bodies.
+- Reproduce the metadata-only Consumer decision from the exact checkpoint
+  without starting a model, provider request, or training job:
+
+  ```powershell
+  $env:PYTHONPATH = "src"
+  python -m anchor_mvp.research.independent_confirmation_identity_consumer `
+    --config configs/research/independent_confirmation_identity_consumer_v2.yaml
+  ```
+
+  A successful authentication still returns exit code 2. Both tracks still
+  require 600-record materialization receipts and cross-binding to identity,
+  bundle, five roles, two variants, and forbidden-block causal filtering.
+  Protected inventories remain 2/6, formal-v3 artifacts remain 0/5, independent
+  multi-seed training has not run, and ready execution/data-byte TOCTOU leases
+  do not exist. Metadata identity readiness must not be promoted to formal
+  readiness.
+
 ## Required live resume sequence
 
 1. Publish or otherwise freeze the exact current working-tree identity before
