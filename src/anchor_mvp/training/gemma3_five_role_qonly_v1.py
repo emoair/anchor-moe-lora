@@ -88,6 +88,21 @@ WDDM_GUI_PROCESS_ALLOWLIST = (
     "wpscenter.exe",
     "wpscloudsvr.exe",
 )
+OPTIMIZER_RUNTIME_CONTRACT = {
+    "backend": "bitsandbytes",
+    "class": "bitsandbytes.optim.AdamW8bit",
+    "package_version": "0.48.2",
+    "optimizer_state_bits": 8,
+    "compatibility_optim_bits_argument": 32,
+    "min_8bit_size": 4096,
+    "percentile_clipping": 100,
+    "block_wise": True,
+    "is_paged": False,
+    "amsgrad": False,
+}
+PYTHON_RUNTIME_DEPENDENCY_PROBE = (
+    "yaml,sentencepiece,torch,transformers,peft,bitsandbytes==0.48.2"
+)
 KV_RUNTIME_BOUNDARY = {
     "shared_prefix_adapter_state": "off",
     "shared_prefix_read_only": True,
@@ -116,6 +131,7 @@ ADAPTER_BASE_IDENTITY = (
 ADAPTER_FILES = ("adapter_config.json", "adapter_model.safetensors")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+_PYTHON_VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 _LORA_TENSOR_RE = re.compile(
     r"(?:^|\.)model\.layers\.(\d+)\.self_attn\.q_proj\."
     r"lora_([AB])(?:\.[^.]+)?\.weight$"
@@ -520,7 +536,16 @@ def validate_config(config: Mapping[str, Any]) -> None:
         "smoke_and_full_fresh_objects": True,
         "smoke_checkpoint_consumed_by_full": False,
         "resume": False,
-        "optimizer": "adamw",
+        "optimizer": "adamw8bit",
+        "optimizer_library": "bitsandbytes",
+        "bitsandbytes_version": "0.48.2",
+        "optimizer_state_bits": 8,
+        "compatibility_optim_bits_argument": 32,
+        "min_8bit_size": 4096,
+        "percentile_clipping": 100,
+        "block_wise": True,
+        "is_paged": False,
+        "amsgrad": False,
         "learning_rate": 0.00002,
         "beta1": 0.9,
         "beta2": 0.999,
@@ -569,8 +594,8 @@ def validate_config(config: Mapping[str, Any]) -> None:
         or gpu.get("idle_utilization_max_percent") != 15
         or gpu.get("prestart_temperature_max_c") != 75
         or gpu.get("runtime_temperature_max_c") != 83
-        or gpu.get("torch_peak_allocated_max_mib") != 9216
-        or gpu.get("torch_peak_reserved_max_mib") != 10240
+        or gpu.get("torch_peak_allocated_max_mib") != 11264
+        or gpu.get("torch_peak_reserved_max_mib") != 11264
         or gpu.get("runtime_monitor_interval_steps") != 10
         or tuple(gpu.get("wddm_gui_process_allowlist", ()))
         != WDDM_GUI_PROCESS_ALLOWLIST
@@ -780,6 +805,7 @@ def build_preflight(config: Mapping[str, Any]) -> dict[str, Any]:
             "single_private_authenticated_model_snapshot": True,
             "smoke_checkpoint_consumed_by_full": False,
             "resume": False,
+            "optimizer": dict(OPTIMIZER_RUNTIME_CONTRACT),
         },
         "lora": {
             "profile": "q_only",
@@ -930,6 +956,34 @@ def _validate_attested_wddm_processes(value: object) -> tuple[Mapping[str, Any],
     return tuple(result)
 
 
+def _validate_attested_python_runtime(
+    lease_value: object,
+    attestation_value: object,
+) -> Mapping[str, Any]:
+    if (
+        not isinstance(lease_value, Mapping)
+        or not isinstance(attestation_value, Mapping)
+        or dict(lease_value) != dict(attestation_value)
+        or set(lease_value) != {"path", "version", "sha256", "dependency_probe"}
+    ):
+        raise GemmaFiveRoleError("python_runtime_cross_binding_failed")
+    path = lease_value.get("path")
+    version = lease_value.get("version")
+    sha256 = lease_value.get("sha256")
+    if (
+        not isinstance(path, str)
+        or not path
+        or not Path(path).is_absolute()
+        or not isinstance(version, str)
+        or _PYTHON_VERSION_RE.fullmatch(version) is None
+        or not isinstance(sha256, str)
+        or _SHA256_RE.fullmatch(sha256) is None
+        or lease_value.get("dependency_probe") != PYTHON_RUNTIME_DEPENDENCY_PROBE
+    ):
+        raise GemmaFiveRoleError("python_runtime_identity_invalid")
+    return lease_value
+
+
 def _validate_launch_receipts(
     config: Mapping[str, Any],
     *,
@@ -992,6 +1046,10 @@ def _validate_launch_receipts(
         or attestation.get("status") != "passed"
     ):
         raise GemmaFiveRoleError("launcher_receipt_status_not_passed")
+    _validate_attested_python_runtime(
+        lease.get("python_runtime"),
+        attestation.get("python_runtime"),
+    )
     if (
         lease.get("launcher_sha256") != launcher_snapshot.sha256
         or attestation.get("launcher")
@@ -1800,6 +1858,48 @@ def _phase_seed(base_seed: int) -> int:
     return base_seed
 
 
+def _validate_adamw8bit_state(
+    optimizer: Any,
+    parameters: Sequence[Any],
+    *,
+    torch: Any,
+    bitsandbytes_version: str,
+) -> dict[str, object]:
+    if bitsandbytes_version != OPTIMIZER_RUNTIME_CONTRACT["package_version"]:
+        raise GemmaFiveRoleError("bitsandbytes_version_drift")
+    state_tensors = 0
+    state_elements = 0
+    for parameter in parameters:
+        parameter_elements = int(parameter.numel())
+        if parameter_elements < 4096:
+            raise GemmaFiveRoleError("adamw8bit_parameter_below_quantization_floor")
+        state = optimizer.state.get(parameter)
+        if not isinstance(state, Mapping):
+            raise GemmaFiveRoleError("adamw8bit_state_missing")
+        for name in ("state1", "state2"):
+            tensor = state.get(name)
+            device = getattr(tensor, "device", None)
+            if (
+                tensor is None
+                or getattr(tensor, "dtype", None) != torch.uint8
+                or getattr(device, "type", None) != "cuda"
+                or int(tensor.numel()) != parameter_elements
+            ):
+                raise GemmaFiveRoleError("adamw8bit_state_not_uint8_cuda")
+            state_tensors += 1
+            state_elements += int(tensor.numel())
+    if state_tensors != len(parameters) * 2:
+        raise GemmaFiveRoleError("adamw8bit_state_inventory_invalid")
+    return {
+        **OPTIMIZER_RUNTIME_CONTRACT,
+        "parameter_tensors": len(parameters),
+        "state_tensors": state_tensors,
+        "state_elements": state_elements,
+        "state_dtype": "uint8",
+        "state_device": "cuda",
+    }
+
+
 def _execute_phase(
     config: Mapping[str, Any],
     *,
@@ -1815,9 +1915,12 @@ def _execute_phase(
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
     import torch
+    import bitsandbytes as bnb
     from peft import LoraConfig, get_peft_model
     from transformers import AutoModelForCausalLM
 
+    if getattr(bnb, "__version__", None) != "0.48.2":
+        raise GemmaFiveRoleError("bitsandbytes_version_drift")
     if not torch.cuda.is_available():
         raise GemmaFiveRoleError("execute_requires_cuda")
     torch.set_float32_matmul_precision("high")
@@ -1880,15 +1983,25 @@ def _execute_phase(
         if phase == "full"
         else None
     )
-    optimizer = torch.optim.AdamW(
-        [parameter for parameter in model.parameters() if parameter.requires_grad],
+    trainable_parameter_tensors = [
+        parameter for parameter in model.parameters() if parameter.requires_grad
+    ]
+    optimizer = bnb.optim.AdamW8bit(
+        trainable_parameter_tensors,
         lr=float(training["learning_rate"]),
         betas=(float(training["beta1"]), float(training["beta2"])),
         eps=float(training["epsilon"]),
         weight_decay=float(training["weight_decay"]),
+        amsgrad=bool(training["amsgrad"]),
+        optim_bits=int(training["compatibility_optim_bits_argument"]),
+        min_8bit_size=int(training["min_8bit_size"]),
+        percentile_clipping=int(training["percentile_clipping"]),
+        block_wise=bool(training["block_wise"]),
+        is_paged=bool(training["is_paged"]),
     )
     losses: list[float] = []
     gradients: dict[str, int] = {}
+    optimizer_state: dict[str, object] | None = None
     order = hashlib.sha256()
     monitor_samples: list[Mapping[str, Any]] = []
     for step in range(steps):
@@ -1907,6 +2020,13 @@ def _execute_phase(
             max_norm=float(training["max_grad_norm"]),
         )
         optimizer.step()
+        if optimizer_state is None:
+            optimizer_state = _validate_adamw8bit_state(
+                optimizer,
+                trainable_parameter_tensors,
+                torch=torch,
+                bitsandbytes_version=str(bnb.__version__),
+            )
         qdiag._assert_trainable_parameters_finite(model, torch)
         losses.append(float(loss.detach().cpu()))
         if (step + 1) % int(
@@ -1916,6 +2036,8 @@ def _execute_phase(
     final_adapter_sha256 = _trainable_digest(model, torch)
     if final_adapter_sha256 == initial_adapter_sha256:
         raise GemmaFiveRoleError("adapter_did_not_change")
+    if optimizer_state is None:
+        raise GemmaFiveRoleError("adamw8bit_state_not_observed")
     adapter_effect = _fixed_training_view_adapter_effect(
         model,
         processor,
@@ -1969,6 +2091,7 @@ def _execute_phase(
         ),
         "trainable_parameters": trainable_parameters,
         "gradient_coverage": gradients,
+        "optimizer": optimizer_state,
         "adapter_effect": adapter_effect,
         "adapter_artifact_sha256": adapter_hashes,
         "torch_peak_allocated_bytes": peak_allocated,
@@ -2161,6 +2284,7 @@ def execute(
                     "full_steps_per_role": 160,
                     "smoke_checkpoint_consumed_by_full": False,
                     "resume": False,
+                    "optimizer": dict(OPTIMIZER_RUNTIME_CONTRACT),
                 },
                 "kv_runtime_boundary": dict(config["kv_runtime_boundary"]),
                 "claims": {

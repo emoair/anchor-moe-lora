@@ -54,7 +54,7 @@ def _make_project(tmp_path: Path) -> dict[str, Path]:
             "@echo off\r\n"
             'if "%~1"=="-c" (\r\n'
             "  if defined ANCHOR_MOCK_PYTHON_PROBE_FAILURE exit /b 17\r\n"
-            '  echo {"missing":[],"schema_version":'
+            '  echo {"bitsandbytes_version":"0.48.2","missing":[],"schema_version":'
             '"anchor.python-runtime-probe.v1","version":[3,11,9]}\r\n'
             "  exit /b 0\r\n"
             ")\r\n"

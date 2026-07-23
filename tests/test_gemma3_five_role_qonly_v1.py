@@ -87,6 +87,15 @@ def _attested_gpu_policy() -> dict[str, object]:
     }
 
 
+def _python_runtime_receipt() -> dict[str, object]:
+    return {
+        "path": r"C:\Python\python.exe",
+        "version": "3.11.9",
+        "sha256": "e" * 64,
+        "dependency_probe": runner.PYTHON_RUNTIME_DEPENDENCY_PROBE,
+    }
+
+
 def _materialize_code_bindings(root: Path, config: dict) -> dict[str, str]:
     result: dict[str, str] = {}
     for label, relative in {
@@ -148,6 +157,18 @@ def test_config_locks_q_only_freshness_and_private_tail() -> None:
     assert config["training"]["smoke_and_full_fresh_objects"] is True
     assert config["training"]["smoke_checkpoint_consumed_by_full"] is False
     assert config["training"]["resume"] is False
+    assert config["training"]["optimizer"] == "adamw8bit"
+    assert config["training"]["optimizer_library"] == "bitsandbytes"
+    assert config["training"]["bitsandbytes_version"] == "0.48.2"
+    assert config["training"]["optimizer_state_bits"] == 8
+    assert config["training"]["compatibility_optim_bits_argument"] == 32
+    assert config["training"]["min_8bit_size"] == 4096
+    assert config["training"]["percentile_clipping"] == 100
+    assert config["training"]["block_wise"] is True
+    assert config["training"]["is_paged"] is False
+    assert config["training"]["amsgrad"] is False
+    assert config["gpu_policy"]["torch_peak_allocated_max_mib"] == 11264
+    assert config["gpu_policy"]["torch_peak_reserved_max_mib"] == 11264
     assert config["training"]["adapter_effect_gate"] == {
         "view": "first_train_record_first_supervised_next_token_v1",
         "comparison": "enabled_vs_disable_adapter_after_training",
@@ -228,6 +249,72 @@ def test_runtime_gpu_gate_rejects_foreign_python(
         match="foreign_compute_process_detected",
     ):
         runner._query_runtime_gpu(config, allow_pid=999)
+
+
+def test_adamw8bit_state_must_be_uint8_cuda() -> None:
+    class FakeParameter:
+        def __init__(self, elements: int) -> None:
+            self.elements = elements
+
+        def numel(self) -> int:
+            return self.elements
+
+    class FakeTensor:
+        dtype = "uint8"
+        device = SimpleNamespace(type="cuda")
+
+        def __init__(self, elements: int) -> None:
+            self.elements = elements
+
+        def numel(self) -> int:
+            return self.elements
+
+    parameters = [FakeParameter(4096), FakeParameter(4608)]
+    optimizer = SimpleNamespace(
+        state={
+            parameter: {
+                "state1": FakeTensor(parameter.numel()),
+                "state2": FakeTensor(parameter.numel()),
+            }
+            for parameter in parameters
+        }
+    )
+    observed = runner._validate_adamw8bit_state(
+        optimizer,
+        parameters,
+        torch=SimpleNamespace(uint8="uint8"),
+        bitsandbytes_version="0.48.2",
+    )
+
+    assert observed == {
+        "backend": "bitsandbytes",
+        "class": "bitsandbytes.optim.AdamW8bit",
+        "package_version": "0.48.2",
+        "optimizer_state_bits": 8,
+        "compatibility_optim_bits_argument": 32,
+        "min_8bit_size": 4096,
+        "percentile_clipping": 100,
+        "block_wise": True,
+        "is_paged": False,
+        "amsgrad": False,
+        "parameter_tensors": 2,
+        "state_tensors": 4,
+        "state_elements": 17_408,
+        "state_dtype": "uint8",
+        "state_device": "cuda",
+    }
+
+    optimizer.state[parameters[0]]["state1"].dtype = "float32"
+    with pytest.raises(
+        runner.GemmaFiveRoleError,
+        match="adamw8bit_state_not_uint8_cuda",
+    ):
+        runner._validate_adamw8bit_state(
+            optimizer,
+            parameters,
+            torch=SimpleNamespace(uint8="uint8"),
+            bitsandbytes_version="0.48.2",
+        )
 
 
 def test_runtime_gpu_gate_allows_netease_gameviewer_server_only(
@@ -641,6 +728,7 @@ def test_build_preflight_is_model_free_and_serial(
         "single_private_authenticated_model_snapshot": True,
         "smoke_checkpoint_consumed_by_full": False,
         "resume": False,
+        "optimizer": runner.OPTIMIZER_RUNTIME_CONTRACT,
     }
     assert report["claims"]["model_loaded"] is False
     assert report["claims"]["gpu_requested"] is False
@@ -700,6 +788,7 @@ def test_execute_receipts_bind_lock_gpu_and_run(
         ),
         "compute_inventory_sha256": _compute_inventory_sha256(),
         "compute_processes": _gui_processes(),
+        "python_runtime": _python_runtime_receipt(),
         "fresh_base_per_phase": True,
         "fresh_adapter_per_phase": True,
         "resume_allowed": False,
@@ -773,6 +862,22 @@ def test_execute_receipts_bind_lock_gpu_and_run(
     assert observed_attestation["kv_runtime_boundary"] == runner.KV_RUNTIME_BOUNDARY
     assert snapshots[0].sha256 == lease_sha
     assert snapshots[1].sha256 == attestation_sha
+
+    attestation["python_runtime"]["dependency_probe"] = "bitsandbytes==0.48.1"
+    tampered_runtime_sha = _write_receipt(attestation_path, attestation)
+    with pytest.raises(
+        runner.GemmaFiveRoleError,
+        match="python_runtime_cross_binding_failed",
+    ):
+        runner._validate_launch_receipts(
+            config,
+            run_id="test-run",
+            lease_path=lease_path,
+            lease_sha256=lease_sha,
+            gpu_attestation_path=attestation_path,
+            gpu_attestation_sha256=tampered_runtime_sha,
+        )
+    attestation["python_runtime"] = _python_runtime_receipt()
 
     attestation["kv_runtime_boundary"]["private_tail_cross_expert_reuse"] = True
     tampered_sha = _write_receipt(attestation_path, attestation)
@@ -1007,6 +1112,7 @@ def test_execute_receipts_reject_conflicting_handoff_lock(
         ),
         "compute_inventory_sha256": _compute_inventory_sha256(),
         "compute_processes": _gui_processes(),
+        "python_runtime": _python_runtime_receipt(),
         "fresh_base_per_phase": True,
         "fresh_adapter_per_phase": True,
         "resume_allowed": False,

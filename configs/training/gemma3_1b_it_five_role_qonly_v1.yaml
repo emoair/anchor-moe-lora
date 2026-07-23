@@ -101,7 +101,16 @@ training:
   smoke_and_full_fresh_objects: true
   smoke_checkpoint_consumed_by_full: false
   resume: false
-  optimizer: adamw
+  optimizer: adamw8bit
+  optimizer_library: bitsandbytes
+  bitsandbytes_version: 0.48.2
+  optimizer_state_bits: 8
+  compatibility_optim_bits_argument: 32
+  min_8bit_size: 4096
+  percentile_clipping: 100
+  block_wise: true
+  is_paged: false
+  amsgrad: false
   learning_rate: 0.00002
   beta1: 0.9
   beta2: 0.999
@@ -153,8 +162,8 @@ gpu_policy:
   idle_utilization_max_percent: 15
   prestart_temperature_max_c: 75
   runtime_temperature_max_c: 83
-  torch_peak_allocated_max_mib: 9216
-  torch_peak_reserved_max_mib: 10240
+  torch_peak_allocated_max_mib: 11264
+  torch_peak_reserved_max_mib: 11264
   runtime_monitor_interval_steps: 10
   wddm_gui_process_allowlist:
     - applicationframehost.exe

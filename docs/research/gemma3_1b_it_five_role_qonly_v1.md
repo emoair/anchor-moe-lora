@@ -29,8 +29,14 @@ checkpoint. The same seed intentionally makes the two initial adapter digests
 equal; the runner fails if this fresh-initialization gate does not hold.
 
 The fixed numerics are BF16 compute, TF32 matmul, SDPA, microbatch 1,
-gradient accumulation 1, AdamW at `2e-5`, and a strict 768-token sequence
-length with no truncation. The tokenizer preflight observed 449–665 tokens
+gradient accumulation 1, bitsandbytes 0.48.2 `AdamW8bit` at `2e-5`, and a
+strict 768-token sequence length with no truncation. Both optimizer moments
+must physically materialize as CUDA `uint8` state for every Q-LoRA tensor.
+bitsandbytes 0.48.2 requires its compatibility `optim_bits` constructor
+argument to remain `32`; the runner therefore verifies the actual 8-bit state
+rather than interpreting that compatibility argument as the stored-state width.
+The Torch allocated and reserved peak gates are both 11 GiB. The tokenizer
+preflight observed 449–665 tokens
 across all 1,000 examples; 514 examples exceed 512, which is why 512 is not an
 admitted configuration.
 

@@ -112,12 +112,13 @@ function Resolve-Executable([string]$Candidate, [string]$Label) {
 
 function Test-PythonRuntime([string]$Executable) {
     $ProbeCode = (
-        "import importlib.util,json,sys;" +
-        "mods=('yaml','sentencepiece','torch','transformers','peft');" +
+        "import importlib.util,json,sys,bitsandbytes as bnb;" +
+        "mods=('yaml','sentencepiece','torch','transformers','peft','bitsandbytes');" +
         "missing=[m for m in mods if importlib.util.find_spec(m) is None];" +
         "print(json.dumps({'schema_version':'anchor.python-runtime-probe.v1'," +
         "'version':[sys.version_info.major,sys.version_info.minor,sys.version_info.micro]," +
-        "'missing':missing},sort_keys=True,separators=(',',':')));" +
+        "'missing':missing,'bitsandbytes_version':getattr(bnb,'__version__',None)}," +
+        "sort_keys=True,separators=(',',':')));" +
         "raise SystemExit(0 if sys.version_info>=(3,10) and not missing else 17)"
     )
     $Raw = @(& $Executable -c $ProbeCode 2>&1)
@@ -139,9 +140,11 @@ function Test-PythonRuntime([string]$Executable) {
     if ("schema_version" -notin $ProbeProperties -or
         "version" -notin $ProbeProperties -or
         "missing" -notin $ProbeProperties -or
+        "bitsandbytes_version" -notin $ProbeProperties -or
         $Probe.schema_version -ne "anchor.python-runtime-probe.v1" -or
         @($Probe.version).Count -ne 3 -or
         @($Probe.missing).Count -ne 0 -or
+        [string]$Probe.bitsandbytes_version -ne "0.48.2" -or
         [int]$Probe.version[0] -lt 3 -or
         ([int]$Probe.version[0] -eq 3 -and [int]$Probe.version[1] -lt 10)) {
         return $null
@@ -150,7 +153,7 @@ function Test-PythonRuntime([string]$Executable) {
         path = $Executable
         version = (@($Probe.version) -join ".")
         sha256 = Get-Sha256 $Executable
-        dependency_probe = "yaml,sentencepiece,torch,transformers,peft"
+        dependency_probe = "yaml,sentencepiece,torch,transformers,peft,bitsandbytes==0.48.2"
     }
 }
 
