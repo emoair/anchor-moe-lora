@@ -1,0 +1,52 @@
+{
+  "schema_version": "anchor.frozen-prefix-qreader-consumer-manifest.v1",
+  "claim_scope": "additive_contract_identity_only_non_authorizing",
+  "producer": {
+    "branch": "research/frozen-prefix-qreader-distillation-v2",
+    "commit": "8c9fdfc71b94b5b41d6f3566e9f81baadcc0c267",
+    "tree": "0f0c2a25bb338b44b57282d434c09507e7d1ef61",
+    "parent": "524ca359eff128221ef4fa9f5a9e665abf64c7c3",
+    "exact_added_paths": 24
+  },
+  "consumer_bindings": {
+    "config_sha256": "9921297b13017f5776a93073ff08a689a7abbbcc38b43024ef42a3b26819fe79",
+    "manifest_schema_sha256": "4e4a1f20355d0e5513fe2ba2563ee25e9d5f87891313c9d8c52718a4d962d571",
+    "decision_schema_sha256": "40130cf89b62403434097c89b1bfdf045eb66aa971b00e927eba0cf343463d3d"
+  },
+  "inventory": {
+    "files": 24,
+    "ordered_inventory_sha256": "d79b6339290e827a3cf4cd921cdaf6daea5a142d8d605fb92999c031d84ab7e1"
+  },
+  "contract": {
+    "roles": 5,
+    "split_group_key": "task_bundle_sha256",
+    "primary_view": "concise_rationale_plus_json",
+    "primary_adapter": "q_only",
+    "causal_filter_before_serialization": true,
+    "two_request_commit_boundary": true,
+    "private_tail_kv_required": true,
+    "cross_expert_private_tail_reuse": false,
+    "full_generation_kv_shared_claimed": false
+  },
+  "gates": {
+    "formal_v3_ready_count": 0,
+    "formal_v3_total": 5,
+    "protected_inventory_ready_count": 2,
+    "protected_inventory_total": 6,
+    "materialized_training_view_available": false,
+    "execution_lease_available": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "release_authorized": false,
+    "live_authorized": false
+  },
+  "audit": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "protected_body_reads": 0,
+    "gold_body_reads": 0,
+    "heldout_body_reads": 0
+  }
+}

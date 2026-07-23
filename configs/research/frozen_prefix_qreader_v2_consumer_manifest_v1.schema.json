@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/frozen-prefix-qreader-v2-consumer-manifest-v1.json",
+  "title": "Frozen-prefix Q-reader V2 consumer identity manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_scope",
+    "producer",
+    "consumer_bindings",
+    "inventory",
+    "contract",
+    "gates",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-consumer-manifest.v1"
+    },
+    "claim_scope": {
+      "const": "additive_contract_identity_only_non_authorizing"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "commit", "tree", "parent", "exact_added_paths"],
+      "properties": {
+        "branch": {
+          "const": "research/frozen-prefix-qreader-distillation-v2"
+        },
+        "commit": {
+          "const": "8c9fdfc71b94b5b41d6f3566e9f81baadcc0c267"
+        },
+        "tree": {
+          "const": "0f0c2a25bb338b44b57282d434c09507e7d1ef61"
+        },
+        "parent": {
+          "const": "524ca359eff128221ef4fa9f5a9e665abf64c7c3"
+        },
+        "exact_added_paths": {"const": 24}
+      }
+    },
+    "consumer_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "manifest_schema_sha256",
+        "decision_schema_sha256"
+      ],
+      "properties": {
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "decision_schema_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "ordered_inventory_sha256"],
+      "properties": {
+        "files": {"const": 24},
+        "ordered_inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roles",
+        "split_group_key",
+        "primary_view",
+        "primary_adapter",
+        "causal_filter_before_serialization",
+        "two_request_commit_boundary",
+        "private_tail_kv_required",
+        "cross_expert_private_tail_reuse",
+        "full_generation_kv_shared_claimed"
+      ],
+      "properties": {
+        "roles": {"const": 5},
+        "split_group_key": {"const": "task_bundle_sha256"},
+        "primary_view": {"const": "concise_rationale_plus_json"},
+        "primary_adapter": {"const": "q_only"},
+        "causal_filter_before_serialization": {"const": true},
+        "two_request_commit_boundary": {"const": true},
+        "private_tail_kv_required": {"const": true},
+        "cross_expert_private_tail_reuse": {"const": false},
+        "full_generation_kv_shared_claimed": {"const": false}
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "materialized_training_view_available",
+        "execution_lease_available",
+        "training_authorized",
+        "formal_training_authorized",
+        "release_authorized",
+        "live_authorized"
+      ],
+      "properties": {
+        "formal_v3_ready_count": {"const": 0},
+        "formal_v3_total": {"const": 5},
+        "protected_inventory_ready_count": {"const": 2},
+        "protected_inventory_total": {"const": 6},
+        "materialized_training_view_available": {"const": false},
+        "execution_lease_available": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "release_authorized": {"const": false},
+        "live_authorized": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads",
+        "gold_body_reads",
+        "heldout_body_reads"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_body_reads": {"const": 0},
+        "gold_body_reads": {"const": 0},
+        "heldout_body_reads": {"const": 0}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

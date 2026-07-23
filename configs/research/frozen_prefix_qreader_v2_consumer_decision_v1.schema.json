@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/frozen-prefix-qreader-v2-consumer-decision-v1.json",
+  "title": "Frozen-prefix Q-reader V2 consumer dry-run decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "producer_contract_authenticated",
+    "producer",
+    "contracts",
+    "gates",
+    "audit",
+    "decision_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.frozen-prefix-qreader-consumer-decision.v1"
+    },
+    "status": {
+      "const": "producer_contract_ready_execution_blocked"
+    },
+    "claim_scope": {
+      "const": "additive_contract_identity_only_non_authorizing"
+    },
+    "producer_contract_authenticated": {"const": true},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tree", "files_authenticated", "inventory_sha256"],
+      "properties": {
+        "commit": {
+          "const": "8c9fdfc71b94b5b41d6f3566e9f81baadcc0c267"
+        },
+        "tree": {
+          "const": "0f0c2a25bb338b44b57282d434c09507e7d1ef61"
+        },
+        "files_authenticated": {"const": 24},
+        "inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_map_exact",
+        "bundle_split_exact",
+        "causal_visibility_exact",
+        "route_boundary_exact",
+        "private_tail_exact",
+        "q_only_primary",
+        "diagnostic_controls_non_authorizing",
+        "token_index_not_emitted",
+        "adapter_off_reencode",
+        "physical_kv_tensor_not_emitted",
+        "wide_lora_not_inherited",
+        "source_records_not_rewritten"
+      ],
+      "properties": {
+        "role_map_exact": {"const": true},
+        "bundle_split_exact": {"const": true},
+        "causal_visibility_exact": {"const": true},
+        "route_boundary_exact": {"const": true},
+        "private_tail_exact": {"const": true},
+        "q_only_primary": {"const": true},
+        "diagnostic_controls_non_authorizing": {"const": true},
+        "token_index_not_emitted": {"const": true},
+        "adapter_off_reencode": {"const": true},
+        "physical_kv_tensor_not_emitted": {"const": true},
+        "wide_lora_not_inherited": {"const": true},
+        "source_records_not_rewritten": {"const": true}
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_v3_ready_count",
+        "formal_v3_total",
+        "protected_inventory_ready_count",
+        "protected_inventory_total",
+        "materialized_training_view_available",
+        "bundle_profile_available",
+        "generic_release_lock_available",
+        "execution_decision_available",
+        "execution_lease_available",
+        "data_byte_toctou_lease_available",
+        "tokenizer_binding_authenticated",
+        "runner_binding_authenticated",
+        "live_provider_distillation_ready",
+        "training_authorized",
+        "formal_training_authorized",
+        "release_authorized",
+        "live_authorized"
+      ],
+      "properties": {
+        "formal_v3_ready_count": {"const": 0},
+        "formal_v3_total": {"const": 5},
+        "protected_inventory_ready_count": {"const": 2},
+        "protected_inventory_total": {"const": 6},
+        "materialized_training_view_available": {"const": false},
+        "bundle_profile_available": {"const": false},
+        "generic_release_lock_available": {"const": false},
+        "execution_decision_available": {"const": false},
+        "execution_lease_available": {"const": false},
+        "data_byte_toctou_lease_available": {"const": false},
+        "tokenizer_binding_authenticated": {"const": false},
+        "runner_binding_authenticated": {"const": false},
+        "live_provider_distillation_ready": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "release_authorized": {"const": false},
+        "live_authorized": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_bytes_snapshot",
+        "same_bytes_hash_and_parse",
+        "terminal_toctou_recheck",
+        "producer_tracking_ref_authenticated",
+        "producer_git_objects_authenticated",
+        "json_schemas_validated",
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads",
+        "gold_body_reads",
+        "heldout_body_reads"
+      ],
+      "properties": {
+        "single_bytes_snapshot": {"const": true},
+        "same_bytes_hash_and_parse": {"const": true},
+        "terminal_toctou_recheck": {"const": true},
+        "producer_tracking_ref_authenticated": {"const": true},
+        "producer_git_objects_authenticated": {"const": true},
+        "json_schemas_validated": {"type": "integer", "minimum": 5},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_body_reads": {"const": 0},
+        "gold_body_reads": {"const": 0},
+        "heldout_body_reads": {"const": 0}
+      }
+    },
+    "decision_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

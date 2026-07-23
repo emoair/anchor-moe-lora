@@ -1,0 +1,195 @@
+schema_version: anchor.frozen-prefix-qreader-consumer-config.v1
+claim_scope: additive_contract_identity_only_non_authorizing
+
+producer:
+  branch: research/frozen-prefix-qreader-distillation-v2
+  tracking_ref: refs/remotes/origin/research/frozen-prefix-qreader-distillation-v2
+  commit: 8c9fdfc71b94b5b41d6f3566e9f81baadcc0c267
+  tree: 0f0c2a25bb338b44b57282d434c09507e7d1ef61
+  parent: 524ca359eff128221ef4fa9f5a9e665abf64c7c3
+  exact_added_paths: 24
+
+consumer:
+  manifest_schema: configs/research/frozen_prefix_qreader_v2_consumer_manifest_v1.schema.json
+  decision_schema: configs/research/frozen_prefix_qreader_v2_consumer_decision_v1.schema.json
+  fixture: fixtures/research/frozen_prefix_qreader_v2_consumer_v1
+  mandatory_manifest_sha256_sidecar: true
+
+producer_files:
+  - path: configs/orchestration/frozen_prefix_qreader_profile.schema.json
+    bytes: 31405
+    sha256: 5900f144c5aa25d359400b727fd5c8c31281b3a99792b3c27d783b357a2eb85a
+    git_blob: 2bd81d16a77d0ee95f002781f8f542f7f04ecf71
+  - path: configs/orchestration/frozen_prefix_qreader_profile_freeze_manifest.schema.json
+    bytes: 19033
+    sha256: 1310dd1c74f2f2f7c86bcfa3628925102a9c0b6f398df306dec99b446c60cfc5
+    git_blob: e89778ff123a0599b7f6cc9273ef6bba18915e6b
+  - path: configs/orchestration/profiles/frozen_prefix_qreader_v2.json
+    bytes: 15703
+    sha256: f39ebde344d41ac29cf50d224795450d5d5da10534e382591d088e0b97224994
+    git_blob: 576e76274cad49f877c44cdabfa35609d4055f2b
+  - path: configs/research/frozen_prefix_qreader_release_overlay_v1.json
+    bytes: 6485
+    sha256: a6367f25654e7a5d2ea1d27cb56c50d19350a2af6cf8431664515983302dc611
+    git_blob: aaab8029fd60b57300fd9a3c83f920faeccd9cf2
+  - path: configs/research/frozen_prefix_qreader_release_overlay_v1.schema.json
+    bytes: 14753
+    sha256: 03fd592a8fa98aee08a7193089dab8934663474b37de6ecc7b9cd5cf11eb5b91
+    git_blob: 16a07927e3a53bbdd89ffaa386ed963979866465
+  - path: configs/research/swebench_natural_language_scaffold_v2.yaml
+    bytes: 4919
+    sha256: 6fda2ff6bb6a92f8764daa8f68dc8226ae0839d2d9613dc240d9f0b75c9baee5
+    git_blob: d05a4c37909ffc58eb68813b09178dc177c73ecd
+  - path: configs/research/swebench_natural_language_scaffold_v2_bundle_profile.schema.json
+    bytes: 1696
+    sha256: 42af26d742db8c06104f3955dfbd19c552c705c9237bd69455b42d132cb1ac5a
+    git_blob: aef49db94317070bdcf841ff6e207c13cb403f94
+  - path: configs/research/swebench_natural_language_scaffold_v2_bundle_profile_descriptor.schema.json
+    bytes: 1750
+    sha256: 4614b0924ced82c483f6ead94e754e70426f7b12d45936eef40b43f18b21265a
+    git_blob: 65d16ca177e58c572202a07efcd7216e96285c94
+  - path: configs/research/swebench_natural_language_scaffold_v2_bundle_profile_manifest.schema.json
+    bytes: 5117
+    sha256: fbe7a543e0e8f19b27436ca882af629e44252ab5e7a5d246443709cadc39609f
+    git_blob: 1c53053539601188a0b5223a79b69b3ed2e19b3c
+  - path: configs/research/swebench_natural_language_scaffold_v2_config.schema.json
+    bytes: 7304
+    sha256: 11f6a8555178f851a75341057750fadb415be7357e070275e4603453e03ec9e1
+    git_blob: e66f9f0ce03f2ed4fee2bdb315895e3fb0d77d39
+  - path: configs/research/swebench_natural_language_scaffold_v2_manifest.schema.json
+    bytes: 8844
+    sha256: dae37cd63462ac6945547c32ca617d7a51d41700432292f989fc901491a2eb2c
+    git_blob: b70446a7c110bfed4b07ee7580306de106ae9e92
+  - path: configs/research/swebench_natural_language_scaffold_v2_record.schema.json
+    bytes: 14966
+    sha256: ac5176b53072a75439fd4f29f9e96e16416b6f690bed776df9e5509ae88b98c3
+    git_blob: 16eff0a438ece62ce7f3b103d2742a0c6fb3bf38
+  - path: docs/frozen_prefix_qreader_distillation_v2.md
+    bytes: 22298
+    sha256: 4821de156c4172f7a3b145757c0e997754dcd5cbe87b493fb9276d67227da916
+    git_blob: 20d2f885add83564f5a34719081d13e5568f75e3
+  - path: docs/frozen_prefix_qreader_distillation_v2.zh-CN.md
+    bytes: 20433
+    sha256: 90e4bb4e628e601e13d234896a84ba836c096a852e9d8c0118773bfe9fbd4882
+    git_blob: a4248c1c82a330643fdf2d09c01080745b59957a
+  - path: scripts/data/audit_swebench_natural_language_scaffold_v2.py
+    bytes: 1771
+    sha256: bf3f48476e0b174353c1363fcf70ab6aa518a504c9454ec634e02601d6fda08a
+    git_blob: 722d8813f5645808132f24e848356ac8596c458d
+  - path: scripts/data/build_swebench_natural_language_scaffold_v2.py
+    bytes: 3150
+    sha256: 99a88e90d2419fca1cc6c35445058105fee7357962985063aefa01be7462b4d7
+    git_blob: e62a88e301078c5df3b2ed5bf6c78fa0fb468bb0
+  - path: scripts/data/freeze_frozen_prefix_qreader_release.py
+    bytes: 15229
+    sha256: 1c700cd6863bfb1862a1b60363dc5226914b9cdacf5e2be14f4bb61c3a980bdc
+    git_blob: a3081add1f07db104c7657069dadaa1f66ab8895
+  - path: scripts/data/run_frozen_prefix_qreader_profile.py
+    bytes: 2323
+    sha256: 1b1e88447ecfb53d6e91155ebbc0820d3d9d4df32ff441d8b31e455d01db3ccc
+    git_blob: 9bb6d1338fc7dd140319ac226169da086ade421d
+  - path: src/anchor_mvp/swebench/frozen_prefix_qreader_profile.py
+    bytes: 32069
+    sha256: 973eea883e1e412083e3be8bc538428630d286fb2c09758493b3e2acaf18a944
+    git_blob: 72edb025b5c81690b67c471d4460d1975ff32f1b
+  - path: src/anchor_mvp/swebench/frozen_prefix_qreader_release.py
+    bytes: 45780
+    sha256: 35af412ad992ab6e19e53267d98a2188ee20bfe931d4884ce674bfb3764315c1
+    git_blob: b591769cb829b6edbd7e9fe0032180f6a167bc03
+  - path: src/anchor_mvp/swebench/natural_language_scaffold_v2.py
+    bytes: 90543
+    sha256: 3a3ff1eceed67f489e2edfb1df46f18615adf94128fe1c3ae499e1917e6228a3
+    git_blob: 46c23121825d2eeb0a3e7e7838913871a378e3b4
+  - path: tests/test_frozen_prefix_qreader_profile.py
+    bytes: 18534
+    sha256: 240cb23af2c1455235be57a8f692fd4ba35d7392a4585c07b08d85a7f17e576d
+    git_blob: 3b478e367afc903947d1ce39b3b5a3f43528544b
+  - path: tests/test_frozen_prefix_qreader_release.py
+    bytes: 39349
+    sha256: c9c83926fa4caf300d4ade5b38b7b894c148147b4d60594c47ca7e839b23d095
+    git_blob: de0377acbc521473889d7c32189f333e9f24a695
+  - path: tests/test_swebench_natural_language_scaffold_v2.py
+    bytes: 38915
+    sha256: 7d2a0bcf91bbb8335c47680a387dca2a9a214f745d0a568748c41a9dc163cdc1
+    git_blob: 09210c89e27dd97efade4e7d3b2a03d44c02b7f8
+
+contract:
+  exact_roles:
+    - planner
+    - tool_policy
+    - frontend_gen
+    - frontend_review
+    - security_gate
+  stage_to_role:
+    planner: planner
+    tool_policy: tool_policy
+    domain_builder: frontend_gen
+    domain_review: frontend_review
+    security: security_gate
+  split_group_key: task_bundle_sha256
+  split_before_augmentation: true
+  primary_view: concise_rationale_plus_json
+  variants_per_role: 1
+  primary_adapter: q_only
+  diagnostic_adapters:
+    - o_only
+    - q_plus_o
+  current_target_body_in_prompt: false
+  future_block_body_in_prompt: false
+  forbidden_block_body_in_prompt: false
+  filter_before_serialization: true
+  whole_taskboard_stringification_allowed: false
+  shared_then_mask_allowed: false
+  route_protocol: explicit_two_request_commit_boundary
+  commit_promotes_text_only: true
+  committed_scaffold_reencoded_by: frozen_base
+  adapter_state_on_prefix: "off"
+  adapter_state_after_boundary: expert_only
+  private_tail_kv_required: true
+  private_tail_append_only: true
+  private_tail_cross_expert_transfer_allowed: false
+  exact_reuse_scope: identical_ordered_prefix_lineage_only
+  full_generation_kv_shared_claimed: false
+  naive_in_stack_q_lora_exact_reuse_claimed: false
+  physical_qreader_implemented_claimed: false
+  token_level_moe_claimed: false
+
+reference:
+  manifest_sha256: a70ae6df5537bb8d9227d843079b74f0e2cab984cc59b70f2e51b568d1eff2ed
+  manifest_sidecar_physical_sha256: 7f238be47cc60af808421bbbdaefb6bbc5d5c0f617d976b66d5b2a87d767b0a0
+  records: 1000
+  bundles: 200
+  train_records: 800
+  eval_proxy_records: 200
+  roles: 5
+  variants_per_role: 1
+  eval_proxy_is_heldout: false
+
+gates:
+  producer_contract_authenticated: true
+  materialized_training_view_available: false
+  bundle_profile_available: false
+  generic_release_lock_available: false
+  execution_decision_available: false
+  execution_lease_available: false
+  data_byte_toctou_lease_available: false
+  tokenizer_binding_authenticated: false
+  runner_binding_authenticated: false
+  formal_v3_ready_count: 0
+  formal_v3_total: 5
+  protected_inventory_ready_count: 2
+  protected_inventory_total: 6
+  live_provider_distillation_ready: false
+  training_authorized: false
+  formal_training_authorized: false
+  release_authorized: false
+  live_authorized: false
+
+audit:
+  provider_requests: 0
+  network_requests: 0
+  model_loads: 0
+  gpu_requests: 0
+  protected_body_reads: 0
+  gold_body_reads: 0
+  heldout_body_reads: 0

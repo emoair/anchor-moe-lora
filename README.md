@@ -61,6 +61,20 @@ branches are acquired and released. The second authenticates the producer-v2
 fixture and its native nested plans, then emits only a content-free summary;
 neither command loads a model, touches a GPU, or sends a provider request.
 
+The frozen-prefix Q-reader V2 producer contract has a strict additive
+[consumer preflight](docs/research/frozen_prefix_qreader_v2_consumer.md) and
+[简体中文说明](docs/research/frozen_prefix_qreader_v2_consumer.zh-CN.md):
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/research/preflight_frozen_prefix_qreader_v2_consumer.py
+```
+
+An authenticated-but-blocked result intentionally exits with code `2` and
+reports `status=producer_contract_ready_execution_blocked` in its JSON output.
+This confirms the frozen producer identity and causal/private-tail contracts;
+it does not authorize materialization, training, serving, or release.
+
 ## What is implemented
 
 - SOP-injected, asynchronous and resumable teacher-data generation.
