@@ -594,8 +594,8 @@ def validate_config(config: Mapping[str, Any]) -> None:
         or gpu.get("idle_utilization_max_percent") != 15
         or gpu.get("prestart_temperature_max_c") != 75
         or gpu.get("runtime_temperature_max_c") != 83
-        or gpu.get("torch_peak_allocated_max_mib") != 11264
-        or gpu.get("torch_peak_reserved_max_mib") != 11264
+        or gpu.get("torch_peak_allocated_max_mib") != 23962
+        or gpu.get("torch_peak_reserved_max_mib") != 23962
         or gpu.get("runtime_monitor_interval_steps") != 10
         or tuple(gpu.get("wddm_gui_process_allowlist", ()))
         != WDDM_GUI_PROCESS_ALLOWLIST

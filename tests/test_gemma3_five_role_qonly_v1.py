@@ -167,8 +167,8 @@ def test_config_locks_q_only_freshness_and_private_tail() -> None:
     assert config["training"]["block_wise"] is True
     assert config["training"]["is_paged"] is False
     assert config["training"]["amsgrad"] is False
-    assert config["gpu_policy"]["torch_peak_allocated_max_mib"] == 11264
-    assert config["gpu_policy"]["torch_peak_reserved_max_mib"] == 11264
+    assert config["gpu_policy"]["torch_peak_allocated_max_mib"] == 23962
+    assert config["gpu_policy"]["torch_peak_reserved_max_mib"] == 23962
     assert config["training"]["adapter_effect_gate"] == {
         "view": "first_train_record_first_supervised_next_token_v1",
         "comparison": "enabled_vs_disable_adapter_after_training",

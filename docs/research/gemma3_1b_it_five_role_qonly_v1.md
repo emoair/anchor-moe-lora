@@ -35,7 +35,10 @@ must physically materialize as CUDA `uint8` state for every Q-LoRA tensor.
 bitsandbytes 0.48.2 requires its compatibility `optim_bits` constructor
 argument to remain `32`; the runner therefore verifies the actual 8-bit state
 rather than interpreting that compatibility argument as the stored-state width.
-The Torch allocated and reserved peak gates are both 11 GiB. The tokenizer
+The Torch allocated and reserved peak gates are both 23.4 GiB (23,962 MiB).
+This user-approved diagnostic ceiling intentionally covers the dedicated plus
+WDDM shared-memory budget; the prestart physical-GPU identity remains 12 GiB.
+The tokenizer
 preflight observed 449–665 tokens
 across all 1,000 examples; 514 examples exceed 512, which is why 512 is not an
 admitted configuration.

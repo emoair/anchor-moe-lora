@@ -162,8 +162,8 @@ gpu_policy:
   idle_utilization_max_percent: 15
   prestart_temperature_max_c: 75
   runtime_temperature_max_c: 83
-  torch_peak_allocated_max_mib: 11264
-  torch_peak_reserved_max_mib: 11264
+  torch_peak_allocated_max_mib: 23962
+  torch_peak_reserved_max_mib: 23962
   runtime_monitor_interval_steps: 10
   wddm_gui_process_allowlist:
     - applicationframehost.exe

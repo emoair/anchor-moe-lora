@@ -31,7 +31,9 @@ gradient accumulation 1、bitsandbytes 0.48.2 `AdamW8bit` `2e-5`，以及严格
 768 token、不允许截断。每个 Q-LoRA 张量的两个优化器动量都必须实际生成为
 CUDA `uint8` 状态。bitsandbytes 0.48.2 要求兼容用的 `optim_bits` 构造参数
 保持为 `32`，因此运行器以真实 state dtype 为准，不把该兼容参数误当成存储位宽；
-Torch allocated 和 reserved 峰值门均为 11 GiB。
+Torch allocated 和 reserved 峰值门均为 23.4 GiB（23962 MiB）。该用户授权的
+诊断上限有意覆盖专用显存与 WDDM 共享显存总预算；启动前物理 GPU 身份仍锁定
+为 12 GiB。
 1000 条样本实测长度为 449–665，其中 514 条超过 512，因此 512 不属于可接受
 配置。
 
