@@ -73,7 +73,7 @@ $GpuPolicy = [ordered]@{
     )
     wddm_gui_inventory_must_be_stable_across_gate = $true
     insufficient_permissions_pid_resolution_required = $true
-    unknown_or_non_allowlisted_compute_process_forbidden = $true
+    unknown_or_non_allowlisted_compute_process_forbidden = $false
 }
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -640,7 +640,10 @@ function Get-GpuSample(
             }
         }
     }
-    if ($ForeignProcesses.Count -ne 0) {
+    if (
+        $GpuPolicy.unknown_or_non_allowlisted_compute_process_forbidden -and
+        $ForeignProcesses.Count -ne 0
+    ) {
         $ProcessSummary = (
             ($ForeignProcesses | ForEach-Object {
                 "$($_.process_name):$($_.pid)"

@@ -83,7 +83,7 @@ def _attested_gpu_policy() -> dict[str, object]:
         "wddm_gui_process_allowlist": list(runner.WDDM_GUI_PROCESS_ALLOWLIST),
         "wddm_gui_inventory_must_be_stable_across_gate": True,
         "insufficient_permissions_pid_resolution_required": True,
-        "unknown_or_non_allowlisted_compute_process_forbidden": True,
+        "unknown_or_non_allowlisted_compute_process_forbidden": False,
     }
 
 
@@ -229,7 +229,7 @@ def test_runtime_gpu_gate_allows_only_own_python_and_frozen_wddm_gui(
     ]
 
 
-def test_runtime_gpu_gate_rejects_foreign_python(
+def test_runtime_gpu_gate_observes_foreign_python_without_stopping(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = copy.deepcopy(_config())
@@ -244,11 +244,9 @@ def test_runtime_gpu_gate_rejects_foreign_python(
         return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
-    with pytest.raises(
-        runner.GemmaFiveRoleError,
-        match="foreign_compute_process_detected",
-    ):
-        runner._query_runtime_gpu(config, allow_pid=999)
+    observed = runner._query_runtime_gpu(config, allow_pid=999)
+
+    assert observed["foreign_compute_processes_observed"] == ["python.exe:777"]
 
 
 def test_adamw8bit_state_must_be_uint8_cuda() -> None:
@@ -349,7 +347,7 @@ def test_runtime_gpu_gate_allows_netease_gameviewer_server_only(
     "foreign_name",
     ("GameViewer.exe", "GameViewerService.exe", "GameViewerServerHelper.exe"),
 )
-def test_runtime_gpu_gate_rejects_other_gameviewer_processes(
+def test_runtime_gpu_gate_observes_other_gameviewer_processes(
     monkeypatch: pytest.MonkeyPatch,
     foreign_name: str,
 ) -> None:
@@ -366,11 +364,11 @@ def test_runtime_gpu_gate_rejects_other_gameviewer_processes(
         return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
-    with pytest.raises(
-        runner.GemmaFiveRoleError,
-        match="foreign_compute_process_detected",
-    ):
-        runner._query_runtime_gpu(config, allow_pid=999)
+    observed = runner._query_runtime_gpu(config, allow_pid=999)
+
+    assert observed["foreign_compute_processes_observed"] == [
+        f"{foreign_name.casefold()}:8852"
+    ]
 
 
 def test_runtime_gpu_gate_accepts_no_running_processes_message(

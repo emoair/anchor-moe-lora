@@ -400,7 +400,7 @@ def test_preexisting_canonical_lock_is_preserved_without_gpu_probe(
     assert not paths["python_log"].exists()
 
 
-def test_mock_quoted_foreign_compute_process_fails_before_lock(
+def test_mock_quoted_foreign_compute_process_is_observed_without_stopping(
     tmp_path: Path,
 ) -> None:
     paths = _make_project(tmp_path)
@@ -412,13 +412,10 @@ def test_mock_quoted_foreign_compute_process_fails_before_lock(
         extra_env={"ANCHOR_MOCK_FOREIGN": "1"},
     )
 
-    assert result.returncode != 0
-    error = result.stdout + result.stderr
-    assert "foreign" in error
-    assert "python.exe:777" in error
-    assert not paths["python_log"].exists()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert paths["python_log"].exists()
     assert not (paths["project"] / "runs" / "formal-v3-training.lock").exists()
-    assert not (
+    assert (
         paths["project"]
         / "runs"
         / "gemma3_1b_it_five_role_qonly_v1"

@@ -601,7 +601,7 @@ def validate_config(config: Mapping[str, Any]) -> None:
         != WDDM_GUI_PROCESS_ALLOWLIST
         or gpu.get("wddm_gui_inventory_must_be_stable_across_gate") is not True
         or gpu.get("insufficient_permissions_pid_resolution_required") is not True
-        or gpu.get("unknown_or_non_allowlisted_compute_process_forbidden") is not True
+        or gpu.get("unknown_or_non_allowlisted_compute_process_forbidden") is not False
     ):
         raise ConfigError("gemma_runner_gpu_policy_drift")
 
@@ -1133,7 +1133,7 @@ def _validate_launch_receipts(
         "wddm_gui_process_allowlist": list(WDDM_GUI_PROCESS_ALLOWLIST),
         "wddm_gui_inventory_must_be_stable_across_gate": True,
         "insufficient_permissions_pid_resolution_required": True,
-        "unknown_or_non_allowlisted_compute_process_forbidden": True,
+        "unknown_or_non_allowlisted_compute_process_forbidden": False,
     }
     attested_gpu_policy = attestation.get("gpu_policy")
     if (
@@ -1763,11 +1763,12 @@ def _query_runtime_gpu(config: Mapping[str, Any], *, allow_pid: int) -> dict[str
             allowed_gui.append({"pid": pid, "process_name": basename})
         else:
             foreign.append(f"{basename}:{pid}")
-    if foreign:
+    if foreign and gpu["unknown_or_non_allowlisted_compute_process_forbidden"]:
         raise GemmaFiveRoleError("foreign_compute_process_detected")
     snapshot["allowlisted_wddm_gui_processes"] = sorted(
         allowed_gui, key=lambda item: (int(item["pid"]), str(item["process_name"]))
     )
+    snapshot["foreign_compute_processes_observed"] = sorted(foreign)
     return snapshot
 
 

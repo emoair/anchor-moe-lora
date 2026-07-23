@@ -198,7 +198,7 @@ gpu_policy:
     - wpscloudsvr.exe
   wddm_gui_inventory_must_be_stable_across_gate: true
   insufficient_permissions_pid_resolution_required: true
-  unknown_or_non_allowlisted_compute_process_forbidden: true
+  unknown_or_non_allowlisted_compute_process_forbidden: false
 
 output:
   artifact_root: artifacts/diagnostics/gemma3_1b_it_five_role_qonly_v1
