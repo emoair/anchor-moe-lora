@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor-mvp.local/schemas/gemma3-chat-five-expert-qonly-v1-record.json",
+  "title": "Gemma 3 chat five-expert distilled SFT record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "task_bundle_sha256",
+    "task_semantic_sha256",
+    "split",
+    "language",
+    "role",
+    "role_index",
+    "user_emotion",
+    "router",
+    "messages",
+    "target",
+    "gemma_serialization",
+    "tool_grounding",
+    "review_dependency",
+    "content_leak_proof",
+    "causal_proof",
+    "claims",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-record.v1"
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "task_semantic_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "split": {
+      "enum": ["train", "eval_proxy"]
+    },
+    "language": {
+      "enum": ["en", "zh-CN"]
+    },
+    "role": {
+      "$ref": "#/$defs/expertRole"
+    },
+    "role_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "user_emotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taxonomy_version",
+        "label",
+        "confidence",
+        "evidence_message_sha256"
+      ],
+      "properties": {
+        "taxonomy_version": {
+          "const": "anchor.user-emotion.v1"
+        },
+        "label": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,31}$"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence_message_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "router": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version",
+        "label",
+        "confidence",
+        "user_message_sha256"
+      ],
+      "properties": {
+        "policy_version": {
+          "const": "anchor.chat-five-expert-router.v1"
+        },
+        "label": {
+          "$ref": "#/$defs/expertRole"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "user_message_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "content"],
+          "properties": {
+            "role": {
+              "const": "system"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "content"],
+          "properties": {
+            "role": {
+              "const": "user"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assistant_text",
+        "format",
+        "output_sha256"
+      ],
+      "properties": {
+        "assistant_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        },
+        "format": {
+          "enum": [
+            "chat_text",
+            "tool_call_json",
+            "review_audit_json"
+          ]
+        },
+        "output_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "gemma_serialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "chat_template_policy_sha256",
+        "input_messages_sha256",
+        "serialized_prompt_sha256",
+        "serialized_target_sha256",
+        "serialized_training_example_sha256",
+        "assistant_prefix_included",
+        "add_generation_prompt",
+        "token_ids_included"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "anchor.gemma3-it-chat-sft-serialization.v1"
+        },
+        "chat_template_policy_sha256": {
+          "const": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6"
+        },
+        "input_messages_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "serialized_prompt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "serialized_target_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "serialized_training_example_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "assistant_prefix_included": {
+          "const": true
+        },
+        "add_generation_prompt": {
+          "const": true
+        },
+        "token_ids_included": {
+          "const": false
+        }
+      }
+    },
+    "tool_grounding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "tool_schema_refs",
+        "evidence_refs",
+        "grounding_sha256",
+        "real_tool_executions"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "tool_schema_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contentRef"
+          },
+          "uniqueItems": true
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contentRef"
+          },
+          "uniqueItems": true
+        },
+        "grounding_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "real_tool_executions": {
+          "const": 0
+        }
+      }
+    },
+    "review_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "dependencies",
+        "dependency_set_sha256",
+        "committed_projection_sha256",
+        "mutation_sha256",
+        "fault_type"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "record_id",
+              "role",
+              "target_sha256"
+            ],
+            "properties": {
+              "record_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "role": {
+                "$ref": "#/$defs/expertRole"
+              },
+              "target_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          },
+          "uniqueItems": true
+        },
+        "dependency_set_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "committed_projection_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "mutation_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "fault_type": {
+          "oneOf": [
+            {
+              "enum": ["format", "grounding", "routing", "style"]
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "content_leak_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "forbidden_target_sha256",
+        "exact_target_text_absent",
+        "target_digest_literal_absent"
+      ],
+      "properties": {
+        "method": {
+          "const": "exact_target_and_digest_scan_v1"
+        },
+        "forbidden_target_sha256": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/sha256"
+          },
+          "uniqueItems": true
+        },
+        "exact_target_text_absent": {
+          "const": true
+        },
+        "target_digest_literal_absent": {
+          "const": true
+        }
+      }
+    },
+    "causal_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "input_messages_sha256",
+        "own_target_sha256",
+        "allowed_dependency_target_sha256",
+        "no_post_target_messages",
+        "proof_sha256"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "anchor.chat-five-expert-causal-filter.v1"
+        },
+        "input_messages_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "own_target_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "allowed_dependency_target_sha256": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/sha256"
+          },
+          "uniqueItems": true
+        },
+        "no_post_target_messages": {
+          "const": true
+        },
+        "proof_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distilled_chat_sft",
+        "user_emotion_is_expert",
+        "router_label_is_expert",
+        "training_authorized",
+        "formal",
+        "eval_proxy_is_heldout"
+      ],
+      "properties": {
+        "distilled_chat_sft": {
+          "const": true
+        },
+        "user_emotion_is_expert": {
+          "const": false
+        },
+        "router_label_is_expert": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "eval_proxy_is_heldout": {
+          "const": false
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_body_reads",
+        "heldout_reads",
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "real_tool_executions"
+      ],
+      "properties": {
+        "protected_body_reads": {"const": 0},
+        "heldout_reads": {"const": 0},
+        "provider_requests": {"type": "integer", "minimum": 0},
+        "network_requests": {"type": "integer", "minimum": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "real_tool_executions": {"const": 0}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "enum": ["humor", "serious", "angry_style"]
+          }
+        },
+        "required": ["role"]
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "properties": {
+              "format": {"const": "chat_text"},
+              "assistant_text": {
+                "not": {
+                  "pattern": "^\\s*[\\{\\[]"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "role": {"const": "tool_call"}
+        },
+        "required": ["role"]
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "properties": {
+              "format": {"const": "tool_call_json"},
+              "assistant_text": {
+                "pattern": "^\\{.*\\}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "role": {"const": "review_audit"}
+        },
+        "required": ["role"]
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "properties": {
+              "format": {"const": "review_audit_json"},
+              "assistant_text": {
+                "pattern": "^\\{.*\\}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expertRole": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit"
+      ]
+    },
+    "contentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "sha256"],
+      "properties": {
+        "ref_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

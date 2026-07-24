@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-v1-config.schema.json",
+  "title": "Gemma 3 five-expert chat diagnostic v1 config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_scope",
+    "paths",
+    "dataset_contract",
+    "generation_contract",
+    "role_contract",
+    "persona_contract",
+    "tool_contract",
+    "gemma_binding",
+    "audit_contract",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-config.v1"},
+    "claim_scope": {"const": "diagnostic_proxy_only_no_training_or_formal_authority"},
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_schema", "closed_grammar", "closed_grammar_schema",
+        "record_schema", "manifest_schema", "token_inventory_schema",
+        "build_receipt_schema",
+        "implementation", "base_security_implementation",
+        "gemma_serializer_implementation", "gemma_binding_config",
+        "gemma_binding_manifest", "gemma_binding_manifest_sidecar",
+        "gemma_chat_template_policy", "artifact"
+      ],
+      "properties": {
+        "config_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_config.schema.json"},
+        "closed_grammar": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_closed_grammar.json"},
+        "closed_grammar_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_closed_grammar.schema.json"},
+        "record_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_record.schema.json"},
+        "manifest_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_manifest.schema.json"},
+        "token_inventory_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_token_inventory.schema.json"},
+        "build_receipt_schema": {"const": "configs/research/gemma3_chat_five_expert_qonly_v1_build_receipt.schema.json"},
+        "implementation": {"const": "src/anchor_mvp/research/gemma3_chat_five_expert_qonly_v1.py"},
+        "base_security_implementation": {"const": "src/anchor_mvp/research/synthetic_nl_scaffold_diagnostic_v1.py"},
+        "gemma_serializer_implementation": {"const": "src/anchor_mvp/training/gemma3_tokenizer_binding_v1.py"},
+        "gemma_binding_config": {"const": "configs/research/gemma3_1b_it_tokenizer_binding_v1.yaml"},
+        "gemma_binding_manifest": {"const": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json"},
+        "gemma_binding_manifest_sidecar": {"const": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json.sha256"},
+        "gemma_chat_template_policy": {"const": "configs/research/gemma3_1b_it_chat_template_policy_v1.json"},
+        "artifact": {"const": "fixtures/research/gemma3_chat_five_expert_distilled_v1"}
+      }
+    },
+    "dataset_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace", "producer_version", "record_schema_version",
+        "manifest_schema_version", "token_inventory_schema_version",
+        "build_receipt_schema_version",
+        "task_bundles", "roles_per_bundle", "views_per_role", "records",
+        "train_bundles", "eval_proxy_bundles", "train_records",
+        "eval_proxy_records", "en_bundles", "zh_cn_bundles",
+        "replaces_existing", "eval_proxy_is_heldout"
+      ],
+      "properties": {
+        "namespace": {"const": "gemma3_chat_five_expert_qonly_v1"},
+        "producer_version": {"const": "anchor.gemma3-chat-five-expert-qonly-producer.v1"},
+        "record_schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-record.v1"},
+        "manifest_schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-manifest.v1"},
+        "token_inventory_schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-token-inventory.v1"},
+        "build_receipt_schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-build-receipt.v1"},
+        "task_bundles": {"const": 200},
+        "roles_per_bundle": {"const": 5},
+        "views_per_role": {"const": 1},
+        "records": {"const": 1000},
+        "train_bundles": {"const": 160},
+        "eval_proxy_bundles": {"const": 40},
+        "train_records": {"const": 800},
+        "eval_proxy_records": {"const": 200},
+        "en_bundles": {"const": 100},
+        "zh_cn_bundles": {"const": 100},
+        "replaces_existing": {"const": false},
+        "eval_proxy_is_heldout": {"const": false}
+      }
+    },
+    "generation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode", "seed_id", "seed_text", "split_group_key",
+        "split_before_role_expansion",
+        "semantic_identity_excludes_namespace_language_role_split_seed",
+        "provider_requests", "network_requests", "model_loads",
+        "gpu_requests", "protected_body_reads"
+      ],
+      "properties": {
+        "mode": {"const": "offline_deterministic"},
+        "seed_id": {"const": "anchor.gemma3-chat-five-expert-qonly.seed.v1"},
+        "seed_text": {"type": "string", "minLength": 16, "maxLength": 128},
+        "split_group_key": {"const": "task_bundle_sha256"},
+        "split_before_role_expansion": {"const": true},
+        "semantic_identity_excludes_namespace_language_role_split_seed": {"const": true},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "protected_body_reads": {"const": 0}
+      }
+    },
+    "role_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordered_roles", "emotion_router_is_expert",
+        "user_emotion_is_bundle_shared_metadata",
+        "last_user_message_shared_across_roles",
+        "role_specific_context_allowed", "router_user_message_sha256_required",
+        "causal_graph", "review_is_second_request_posthoc",
+        "review_live_chat_may_be_disabled"
+      ],
+      "properties": {
+        "ordered_roles": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "humor"}, {"const": "serious"},
+            {"const": "angry_style"}, {"const": "tool_call"},
+            {"const": "review_audit"}
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "emotion_router_is_expert": {"const": false},
+        "user_emotion_is_bundle_shared_metadata": {"const": true},
+        "last_user_message_shared_across_roles": {"const": true},
+        "role_specific_context_allowed": {"const": true},
+        "router_user_message_sha256_required": {"const": true},
+        "causal_graph": {"const": "shared_user_to_four_private_branches_then_review_join_v1"},
+        "review_is_second_request_posthoc": {"const": true},
+        "review_live_chat_may_be_disabled": {"const": true}
+      }
+    },
+    "persona_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_quota", "exact_core_sentence", "forbidden_attributions",
+        "tool_mode", "duplicate_or_translation_salt_allowed"
+      ],
+      "properties": {
+        "bundle_quota": {"const": 5},
+        "exact_core_sentence": {"const": "我是由Air训练的测试模型。"},
+        "forbidden_attributions": {
+          "type": "array",
+          "prefixItems": [{"const": "Google"}, {"const": "OpenAI"}, {"const": "谷歌"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "tool_mode": {"const": "direct_no_tool_identity"},
+        "duplicate_or_translation_salt_allowed": {"const": false}
+      }
+    },
+    "tool_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "synthetic_local_call_bundles", "direct_no_tool_identity_bundles",
+        "real_tool_executions", "fabricated_tool_results_allowed",
+        "native_tool_role_serialization_claimed",
+        "structured_call_result_final_in_single_assistant_target"
+      ],
+      "properties": {
+        "synthetic_local_call_bundles": {"const": 195},
+        "direct_no_tool_identity_bundles": {"const": 5},
+        "real_tool_executions": {"const": 0},
+        "fabricated_tool_results_allowed": {"const": false},
+        "native_tool_role_serialization_claimed": {"const": false},
+        "structured_call_result_final_in_single_assistant_target": {"const": true}
+      }
+    },
+    "gemma_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_export_identity", "tokenizer_model_sha256",
+        "tokenizer_config_sha256", "chat_template_policy_sha256",
+        "tokenizer_template_special_policy_sha256",
+        "export_native_chat_template_claimed", "runtime_bos_token_id",
+        "runtime_eos_token_id", "sequence_length", "truncation_allowed",
+        "raw_token_ids_published"
+      ],
+      "properties": {
+        "local_export_identity": {"const": "anchor.local/gemma3-1b-it-keras-v3-bf16@sha256:c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9"},
+        "tokenizer_model_sha256": {"const": "1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c"},
+        "tokenizer_config_sha256": {"const": "90e9a8120520ef24c0a0d62a6d87188658c43ccc66ae5bc6f74d9a80804e6919"},
+        "chat_template_policy_sha256": {"const": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6"},
+        "tokenizer_template_special_policy_sha256": {"const": "1c97c517293dd9c3e52e4fa35d3f6617fb4fd37cf68716c641675dc24dee0946"},
+        "export_native_chat_template_claimed": {"const": false},
+        "runtime_bos_token_id": {"const": 2},
+        "runtime_eos_token_id": {"const": 1},
+        "sequence_length": {"const": 768},
+        "truncation_allowed": {"const": false},
+        "raw_token_ids_published": {"const": false}
+      }
+    },
+    "audit_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandatory_manifest_sha256_sidecar",
+        "mandatory_build_receipt_sha256_sidecar", "sidecar_format",
+        "single_bytes_snapshot_for_hash_parse_count", "final_toctou_recheck",
+        "atomic_create_once_publish", "duplicate_json_yaml_keys_rejected",
+        "nonfinite_json_numbers_rejected", "symlink_junction_reparse_rejected",
+        "current_future_forbidden_content_in_prompt", "existing_assets_modified"
+      ],
+      "properties": {
+        "mandatory_manifest_sha256_sidecar": {"const": true},
+        "mandatory_build_receipt_sha256_sidecar": {"const": true},
+        "sidecar_format": {"const": "sha256sum_manifest_json_lf"},
+        "single_bytes_snapshot_for_hash_parse_count": {"const": true},
+        "final_toctou_recheck": {"const": true},
+        "atomic_create_once_publish": {"const": true},
+        "duplicate_json_yaml_keys_rejected": {"const": true},
+        "nonfinite_json_numbers_rejected": {"const": true},
+        "symlink_junction_reparse_rejected": {"const": true},
+        "current_future_forbidden_content_in_prompt": {"const": false},
+        "existing_assets_modified": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only", "clinical_emotion_recognition_claimed",
+        "hidden_chain_of_thought_claimed", "real_search_claimed",
+        "source_disjoint_proven", "formal", "quality_validated",
+        "training_authorized", "formal_training_authorized",
+        "release_authorized", "live_authorized",
+        "adapter_parameter_budget_encoded_in_rows"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "clinical_emotion_recognition_claimed": {"const": false},
+        "hidden_chain_of_thought_claimed": {"const": false},
+        "real_search_claimed": {"const": false},
+        "source_disjoint_proven": {"const": false},
+        "formal": {"const": false},
+        "quality_validated": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "release_authorized": {"const": false},
+        "live_authorized": {"const": false},
+        "adapter_parameter_budget_encoded_in_rows": {"const": false}
+      }
+    }
+  }
+}
