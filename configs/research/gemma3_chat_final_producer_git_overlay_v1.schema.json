@@ -1,0 +1,440 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-final-producer-git-overlay-v1.json",
+  "title": "Gemma 3 Chat Final Producer Git Overlay v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_scope",
+    "paths",
+    "producer_git",
+    "runtime_copies",
+    "legacy_results",
+    "claims",
+    "resource_audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-final-producer-git-overlay-config.v1"
+    },
+    "claim_scope": {
+      "const": "additive_posthoc_git_provenance_non_authorizing"
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_repo_hint",
+        "default_output_dir"
+      ],
+      "properties": {
+        "producer_repo_hint": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "default_output_dir": {
+          "$ref": "#/$defs/relative_path"
+        }
+      }
+    },
+    "producer_git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "branch_ref",
+        "local_tracking_ref",
+        "commit_sha1",
+        "tree_sha1",
+        "parent_commit_sha1",
+        "parent_tree_sha1",
+        "changed_file_count",
+        "added_file_count",
+        "modified_file_count",
+        "artifacts"
+      ],
+      "properties": {
+        "repository_id": {
+          "const": "anchor-moe-lora-gemma3-chat-v1"
+        },
+        "branch_ref": {
+          "const": "refs/heads/research/gemma3-chat-five-expert-qonly-v1"
+        },
+        "local_tracking_ref": {
+          "const": "refs/remotes/origin/research/gemma3-chat-five-expert-qonly-v1"
+        },
+        "commit_sha1": {
+          "const": "5a8343baa117f8ec2340debaa3fbc727ee993da2"
+        },
+        "tree_sha1": {
+          "const": "a9b87ad36773c31506118c13250af0a83fd5752d"
+        },
+        "parent_commit_sha1": {
+          "const": "8ecef30d29d4c4a2e990ebc543dab21a6e3c33b1"
+        },
+        "parent_tree_sha1": {
+          "const": "c19e2b485c6d7b062ca4fa00f3eaaa3bb8d146f2"
+        },
+        "changed_file_count": {
+          "const": 24
+        },
+        "added_file_count": {
+          "const": 23
+        },
+        "modified_file_count": {
+          "const": 1
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {
+            "$ref": "#/$defs/git_artifact"
+          }
+        }
+      }
+    },
+    "runtime_copies": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "items": {
+        "$ref": "#/$defs/runtime_copy"
+      }
+    },
+    "legacy_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "training_config",
+        "consumer_implementation",
+        "training_run",
+        "evaluation_run"
+      ],
+      "properties": {
+        "training_config": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "consumer_implementation": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "training_run": {
+          "$ref": "#/$defs/training_run"
+        },
+        "evaluation_run": {
+          "$ref": "#/$defs/evaluation_run"
+        }
+      }
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    },
+    "resource_audit": {
+      "$ref": "#/$defs/resource_audit"
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[^\\u0000]+$"
+    },
+    "file_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "git_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "status",
+        "blob_sha1",
+        "bytes",
+        "sha256",
+        "parent_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "status": {
+          "enum": [
+            "A",
+            "M"
+          ]
+        },
+        "blob_sha1": {
+          "$ref": "#/$defs/sha1"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "parent_blob_sha1": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "runtime_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_path",
+        "consumer_path",
+        "blob_sha1",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "producer_path": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "consumer_path": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "blob_sha1": {
+          "$ref": "#/$defs/sha1"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "role_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "smoke_receipt",
+        "smoke_receipt_sidecar",
+        "full_receipt",
+        "full_receipt_sidecar",
+        "adapter_config",
+        "adapter_model"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "smoke_receipt": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "smoke_receipt_sidecar": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "full_receipt": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "full_receipt_sidecar": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "adapter_config": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "adapter_model": {
+          "$ref": "#/$defs/file_binding"
+        }
+      }
+    },
+    "training_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "root",
+        "receipt",
+        "receipt_sidecar",
+        "roles"
+      ],
+      "properties": {
+        "run_id": {
+          "const": "gemma3-chat-q1024-20260725-052403"
+        },
+        "root": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "receipt": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "receipt_sidecar": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/role_artifact"
+          }
+        }
+      }
+    },
+    "evaluation_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "root",
+        "receipt",
+        "receipt_sidecar"
+      ],
+      "properties": {
+        "run_id": {
+          "const": "eval-chat-q1024-20260725-063309"
+        },
+        "root": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "receipt": {
+          "$ref": "#/$defs/file_binding"
+        },
+        "receipt_sidecar": {
+          "$ref": "#/$defs/file_binding"
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "posthoc_provenance_only",
+        "changes_training_identity",
+        "retroactive_training_authority",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal",
+        "quality_validated",
+        "source_disjoint_claimed",
+        "physical_kv_reuse_claimed",
+        "training_reexecuted",
+        "evaluation_reexecuted"
+      ],
+      "properties": {
+        "diagnostic_only": {
+          "const": true
+        },
+        "posthoc_provenance_only": {
+          "const": true
+        },
+        "changes_training_identity": {
+          "const": false
+        },
+        "retroactive_training_authority": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "quality_validated": {
+          "const": false
+        },
+        "source_disjoint_claimed": {
+          "const": false
+        },
+        "physical_kv_reuse_claimed": {
+          "const": false
+        },
+        "training_reexecuted": {
+          "const": false
+        },
+        "evaluation_reexecuted": {
+          "const": false
+        }
+      }
+    },
+    "resource_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads",
+        "jsonl_records_parsed",
+        "token_ids_parsed",
+        "luna_requests"
+      ],
+      "properties": {
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "protected_body_reads": {
+          "const": 0
+        },
+        "jsonl_records_parsed": {
+          "const": 0
+        },
+        "token_ids_parsed": {
+          "const": 0
+        },
+        "luna_requests": {
+          "const": 0
+        }
+      }
+    }
+  }
+}

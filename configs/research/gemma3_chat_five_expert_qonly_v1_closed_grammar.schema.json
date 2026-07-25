@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-v1-closed-grammar.schema.json",
+  "title": "Gemma 3 five-expert chat closed grammar v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "seed", "persona_contract", "emotion_labels",
+    "task_families"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.gemma3-chat-five-expert-qonly-closed-grammar.v1"},
+    "seed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": {"const": "anchor.gemma3-chat-five-expert-qonly.seed.v1"},
+        "text": {"type": "string", "minLength": 16, "maxLength": 128}
+      }
+    },
+    "persona_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_core_sentence", "quota", "forbidden_attributions"],
+      "properties": {
+        "exact_core_sentence": {"const": "我是由Air训练的测试模型。"},
+        "quota": {"const": 5},
+        "forbidden_attributions": {
+          "type": "array",
+          "prefixItems": [{"const": "Google"}, {"const": "OpenAI"}, {"const": "谷歌"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "emotion_labels": {
+      "type": "array",
+      "uniqueItems": true,
+      "prefixItems": [
+        {"const": "neutral"}, {"const": "curious"},
+        {"const": "confused"}, {"const": "frustrated"},
+        {"const": "urgent"}, {"const": "cheerful"},
+        {"const": "skeptical"}, {"const": "concerned"}
+      ],
+      "items": false,
+      "minItems": 8,
+      "maxItems": 8
+    },
+    "task_families": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/family"}
+    }
+  },
+  "$defs": {
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family_id", "items"],
+      "properties": {
+        "family_id": {
+          "enum": [
+            "everyday_chat", "knowledge_qa", "local_search",
+            "micro_coding", "decision_support"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "minItems": 40,
+          "maxItems": 40,
+          "items": {"$ref": "#/$defs/item"}
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language", "bundle_kind", "semantic_descriptor",
+        "localized_input", "emotion_router", "router_label",
+        "answer_basis", "tool"
+      ],
+      "properties": {
+        "language": {"enum": ["en", "zh-CN"]},
+        "bundle_kind": {"enum": ["ordinary_chat", "persona_identity"]},
+        "persona_identity": {"type": "boolean"},
+        "semantic_descriptor": {
+          "type": "object",
+          "minProperties": 5,
+          "additionalProperties": {
+            "type": ["string", "integer", "number", "boolean", "array", "object"]
+          },
+          "not": {
+            "anyOf": [
+              {"required": ["language"]}, {"required": ["locale"]},
+              {"required": ["namespace"]}, {"required": ["source_namespace"]},
+              {"required": ["split"]}, {"required": ["role"]},
+              {"required": ["view"]}, {"required": ["seed"]}
+            ]
+          }
+        },
+        "localized_input": {"type": "string", "minLength": 8, "maxLength": 600},
+        "emotion_router": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "rationale"],
+          "properties": {
+            "label": {
+              "enum": [
+                "neutral", "curious", "confused", "frustrated",
+                "urgent", "cheerful", "skeptical", "concerned"
+              ]
+            },
+            "rationale": {"type": "string", "minLength": 8, "maxLength": 240}
+          }
+        },
+        "router_label": {
+          "enum": [
+            "humor", "serious", "angry_style", "tool_call", "review_audit"
+          ]
+        },
+        "answer_basis": {"type": "string", "minLength": 2, "maxLength": 800},
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "arguments", "result"],
+          "properties": {
+            "name": {
+              "enum": [
+                "local_reference_lookup", "local_catalog_search",
+                "local_code_check", "local_option_compare",
+                "local_conversation_guide", "direct_self_identity",
+                "provenance_fact_check", "no_tool_identity_decision",
+                "pre_coding_attribution", "false_attribution_correction"
+              ]
+            },
+            "arguments": {"type": "object"},
+            "result": {
+              "type": ["string", "number", "integer", "boolean", "object", "array"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

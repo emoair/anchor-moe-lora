@@ -1,0 +1,477 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-v1-build-receipt.schema.json",
+  "title": "Gemma 3 five-expert chat build receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "producer",
+    "source_read_set",
+    "outputs",
+    "counts",
+    "proofs",
+    "persona_contract",
+    "tool_contract",
+    "gemma_binding",
+    "audit",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-build-receipt.v1"
+    },
+    "status": {
+      "const": "dataset_proxy_ready_training_not_authorized"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "config",
+        "closed_grammar",
+        "implementation",
+        "record_schema",
+        "manifest_schema",
+        "token_inventory_schema",
+        "build_receipt_schema"
+      ],
+      "properties": {
+        "namespace": {
+          "const": "anchor.gemma3-chat-five-expert-qonly.v1"
+        },
+        "config": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "closed_grammar": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "implementation": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "record_schema": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "manifest_schema": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "token_inventory_schema": {
+          "$ref": "#/$defs/sourceBinding"
+        },
+        "build_receipt_schema": {
+          "$ref": "#/$defs/sourceBinding"
+        }
+      }
+    },
+    "source_read_set": {
+      "type": "array",
+      "minItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sourceBinding"
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest",
+        "manifest_sidecar",
+        "partitions",
+        "token_inventory"
+      ],
+      "properties": {
+        "manifest": {
+          "$ref": "#/$defs/artifactBinding"
+        },
+        "manifest_sidecar": {
+          "$ref": "#/$defs/artifactBinding"
+        },
+        "partitions": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "allOf": [
+                {"$ref": "#/$defs/artifactBinding"},
+                {
+                  "properties": {
+                    "path": {"const": "train/chat.jsonl"},
+                    "records": {"const": 800}
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/artifactBinding"},
+                {
+                  "properties": {
+                    "path": {"const": "eval_proxy/chat.jsonl"},
+                    "records": {"const": 200}
+                  }
+                }
+              ]
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "token_inventory": {
+          "allOf": [
+            {"$ref": "#/$defs/artifactBinding"},
+            {
+              "properties": {
+                "path": {"const": "token_inventory.jsonl"},
+                "records": {"const": 1000}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_bundles",
+        "task_semantics",
+        "records",
+        "train_bundles",
+        "eval_proxy_bundles",
+        "train_records",
+        "eval_proxy_records",
+        "en_bundles",
+        "zh_cn_bundles",
+        "roles_per_bundle",
+        "persona_bundles",
+        "ordinary_tool_bundles",
+        "direct_no_tool_identity_bundles"
+      ],
+      "properties": {
+        "task_bundles": {"const": 200},
+        "task_semantics": {"const": 200},
+        "records": {"const": 1000},
+        "train_bundles": {"const": 160},
+        "eval_proxy_bundles": {"const": 40},
+        "train_records": {"const": 800},
+        "eval_proxy_records": {"const": 200},
+        "en_bundles": {"const": 100},
+        "zh_cn_bundles": {"const": 100},
+        "roles_per_bundle": {"const": 5},
+        "persona_bundles": {"const": 5},
+        "ordinary_tool_bundles": {"const": 195},
+        "direct_no_tool_identity_bundles": {"const": 5}
+      }
+    },
+    "proofs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_semantic_inventory_sha256",
+        "task_bundle_inventory_sha256",
+        "record_inventory_sha256",
+        "train_eval_bundle_intersection_count",
+        "all_five_roles_complete",
+        "shared_last_user_message",
+        "shared_user_emotion",
+        "shared_router_label",
+        "review_dependency_count",
+        "review_only_dependency_visibility",
+        "all_records_schema_valid",
+        "all_token_records_schema_valid",
+        "all_sequences_no_truncation",
+        "semantic_identity",
+        "review_pass_bundles",
+        "review_fail_bundles",
+        "review_fault_counts",
+        "review_projection_hash_bound",
+        "review_mutation_hash_bound",
+        "review_parent_target_hashes_bound"
+      ],
+      "properties": {
+        "task_semantic_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "task_bundle_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "record_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "train_eval_bundle_intersection_count": {"const": 0},
+        "all_five_roles_complete": {"const": true},
+        "shared_last_user_message": {"const": true},
+        "shared_user_emotion": {"const": true},
+        "shared_router_label": {"const": true},
+        "review_dependency_count": {"const": 4},
+        "review_only_dependency_visibility": {"const": true},
+        "all_records_schema_valid": {"const": true},
+        "all_token_records_schema_valid": {"const": true},
+        "all_sequences_no_truncation": {"const": true},
+        "semantic_identity": {"$ref": "#/$defs/semanticIdentityContract"},
+        "review_pass_bundles": {"const": 100},
+        "review_fail_bundles": {"const": 100},
+        "review_fault_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "grounding", "routing", "style"],
+          "properties": {
+            "format": {"const": 25},
+            "grounding": {"const": 25},
+            "routing": {"const": 25},
+            "style": {"const": 25}
+          }
+        },
+        "review_projection_hash_bound": {"const": true},
+        "review_mutation_hash_bound": {"const": true},
+        "review_parent_target_hashes_bound": {"const": true}
+      }
+    },
+    "persona_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_quota",
+        "distinct_semantics",
+        "translation_pairs",
+        "exact_core_sentence",
+        "forbidden_attributions_absent",
+        "tool_call_role_direct_answer"
+      ],
+      "properties": {
+        "bundle_quota": {"const": 5},
+        "distinct_semantics": {"const": 5},
+        "translation_pairs": {"const": 0},
+        "exact_core_sentence": {"const": "我是由Air训练的测试模型。"},
+        "forbidden_attributions_absent": {"const": true},
+        "tool_call_role_direct_answer": {"const": true}
+      }
+    },
+    "tool_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinary_tool_bundles",
+        "synthetic_local_results",
+        "grounding_digest_bound",
+        "real_tool_executions",
+        "native_tool_role_serialization_claimed"
+      ],
+      "properties": {
+        "ordinary_tool_bundles": {"const": 195},
+        "synthetic_local_results": {"const": 195},
+        "grounding_digest_bound": {"const": true},
+        "real_tool_executions": {"const": 0},
+        "native_tool_role_serialization_claimed": {"const": false}
+      }
+    },
+    "gemma_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_export_identity",
+        "tokenizer_model_sha256",
+        "tokenizer_config_sha256",
+        "chat_template_policy_sha256",
+        "tokenizer_template_special_policy_sha256",
+        "chat_template_bound_by_export",
+        "runtime_bos_token_id",
+        "runtime_eos_token_id",
+        "exported_config_bos_token_id",
+        "exported_config_eos_token_id",
+        "canonical_files_modified",
+        "sequence_length",
+        "max_observed_tokens",
+        "truncation_used",
+        "raw_token_ids_published"
+      ],
+      "properties": {
+        "local_export_identity": {
+          "const": "anchor.local/gemma3-1b-it-keras-v3-bf16@sha256:c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9"
+        },
+        "tokenizer_model_sha256": {
+          "const": "1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c"
+        },
+        "tokenizer_config_sha256": {
+          "const": "90e9a8120520ef24c0a0d62a6d87188658c43ccc66ae5bc6f74d9a80804e6919"
+        },
+        "chat_template_policy_sha256": {
+          "const": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6"
+        },
+        "tokenizer_template_special_policy_sha256": {
+          "const": "1c97c517293dd9c3e52e4fa35d3f6617fb4fd37cf68716c641675dc24dee0946"
+        },
+        "chat_template_bound_by_export": {"const": false},
+        "runtime_bos_token_id": {"const": 2},
+        "runtime_eos_token_id": {"const": 1},
+        "exported_config_bos_token_id": {"const": 1},
+        "exported_config_eos_token_id": {"const": 2},
+        "canonical_files_modified": {"const": false},
+        "sequence_length": {"const": 768},
+        "max_observed_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 768
+        },
+        "truncation_used": {"const": false},
+        "raw_token_ids_published": {"const": false}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_body_reads",
+        "gold_reads",
+        "heldout_reads",
+        "existing_scaffold_body_reads",
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "real_tool_executions",
+        "single_bytes_snapshot",
+        "final_toctou_recheck",
+        "atomic_create_once_publish"
+      ],
+      "properties": {
+        "protected_body_reads": {"const": 0},
+        "gold_reads": {"const": 0},
+        "heldout_reads": {"const": 0},
+        "existing_scaffold_body_reads": {"const": 0},
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "real_tool_executions": {"const": 0},
+        "single_bytes_snapshot": {"const": true},
+        "final_toctou_recheck": {"const": true},
+        "atomic_create_once_publish": {"const": true}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "dataset_materialized",
+        "source_disjoint_proven",
+        "training_authorized",
+        "formal_training_authorized",
+        "formal",
+        "quality_validated",
+        "eval_proxy_is_heldout",
+        "replaces_existing"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "dataset_materialized": {"const": true},
+        "source_disjoint_proven": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "formal": {"const": false},
+        "quality_validated": {"const": false},
+        "eval_proxy_is_heldout": {"const": false},
+        "replaces_existing": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "artifactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "records"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "records": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "semanticIdentityContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_algorithm",
+        "descriptor_keys",
+        "index_or_language_or_namespace_salt_used",
+        "task_bundle_count",
+        "unique_task_semantics",
+        "en_unique_task_semantics",
+        "zh_cn_unique_task_semantics",
+        "en_zh_semantic_intersection_count",
+        "translation_pair_count",
+        "train_eval_semantic_intersection_count",
+        "template_count",
+        "train_eval_template_intersection_count",
+        "eval_proxy_scope",
+        "template_disjoint_claimed"
+      ],
+      "properties": {
+        "descriptor_algorithm": {
+          "const": "canonical_json({task_kind,operation,operands,constraints,expected_relation})_utf8_sha256_v1"
+        },
+        "descriptor_keys": {
+          "prefixItems": [
+            {"const": "task_kind"},
+            {"const": "operation"},
+            {"const": "operands"},
+            {"const": "constraints"},
+            {"const": "expected_relation"}
+          ],
+          "items": false
+        },
+        "index_or_language_or_namespace_salt_used": {"const": false},
+        "task_bundle_count": {"const": 200},
+        "unique_task_semantics": {"const": 200},
+        "en_unique_task_semantics": {"const": 100},
+        "zh_cn_unique_task_semantics": {"const": 100},
+        "en_zh_semantic_intersection_count": {"const": 0},
+        "translation_pair_count": {"const": 0},
+        "train_eval_semantic_intersection_count": {"const": 0},
+        "template_count": {"const": 20},
+        "train_eval_template_intersection_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "eval_proxy_scope": {
+          "const": "seen_template_parameter_interpolation"
+        },
+        "template_disjoint_claimed": {"const": false}
+      }
+    }
+  }
+}

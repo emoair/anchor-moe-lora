@@ -1,0 +1,244 @@
+schema_version: anchor.gemma3-1b-it-chat-five-expert-qonly-consumer-config.v1
+claim_scope: diagnostic_training_engine_with_authenticated_distilled_dataset_waiting_for_explicit_execute
+identity_state: authenticated_producer_handoff
+
+paths:
+  project_root: ../..
+
+producer:
+  namespace: anchor.gemma3-chat-five-expert-qonly.v1
+  config: configs/research/gemma3_chat_five_expert_qonly_v1.yaml
+  config_sha256: 2e93ab6b53f68814a4ae017643ddc4c7113716e871b2fa4ef4346358d2269cee
+  config_schema: configs/research/gemma3_chat_five_expert_qonly_v1_config.schema.json
+  config_schema_sha256: 3ea446fcebeb8e254d7550caffc787e0ae1c2da24c604398a0566a61ed105d9f
+  closed_grammar: configs/research/gemma3_chat_five_expert_qonly_v1_closed_grammar.json
+  closed_grammar_sha256: 3a76e9cb7eb0e451a435e5d6ef4dd8db3624b5674a7a546f3b709e33339a7d92
+  closed_grammar_schema: configs/research/gemma3_chat_five_expert_qonly_v1_closed_grammar.schema.json
+  closed_grammar_schema_sha256: b5b5661e76d20dc23d644ca9766e3da6af45217c3f448d3cae7799075f98416b
+  implementation: src/anchor_mvp/research/gemma3_chat_five_expert_qonly_v1.py
+  implementation_sha256: 98eeac4150a5c51dd422bfe6163e34ce26d691038b497343c20af0a19552fb6f
+
+model:
+  local_path: ${ANCHOR_GEMMA3_1B_IT_HF_PATH:-../models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16}
+  architecture: Gemma3ForCausalLM
+  model_type: gemma3_text
+  parameter_count: 999885952
+  layers: 26
+  hidden_size: 1152
+  q_proj_input_features: 1152
+  q_proj_output_features: 1024
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+  tokenizer_policy: configs/research/gemma3_1b_it_chat_template_policy_v1.json
+  tokenizer_policy_sha256: 0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6
+  adapter_base_identity: anchor.local/gemma3-1b-it-keras-v3-bf16@sha256:c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9
+  files:
+    - path: model.safetensors
+      bytes: 1999811200
+      sha256: c9c6e309cf0158050d1e1abcba19eb6798153468572af2cd91de163e74933df9
+    - path: config.json
+      bytes: 1326
+      sha256: a102086c644174f9f7432df15d28fd69ad687b64d8e7756f0e9b6bfabc002d0c
+    - path: tokenizer.model
+      bytes: 4689074
+      sha256: 1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c
+    - path: tokenizer_config.json
+      bytes: 1496
+      sha256: 90e9a8120520ef24c0a0d62a6d87188658c43ccc66ae5bc6f74d9a80804e6919
+    - path: EXPORT_MANIFEST.json
+      bytes: 1356
+      sha256: 61a9ac5fab43da9bf053eb46642a030fcd7485100c3e82eb5d90f03b9d8124bb
+  runtime_special_token_overlay:
+    canonical_files_modified: false
+    pad_token_id: 0
+    eos_token_id: 1
+    bos_token_id: 2
+    unk_token_id: 3
+
+dataset:
+  kind: gemma3_chat_five_expert_distilled_v1
+  root: fixtures/research/gemma3_chat_five_expert_distilled_v1
+  manifest: fixtures/research/gemma3_chat_five_expert_distilled_v1/manifest.json
+  manifest_sidecar: fixtures/research/gemma3_chat_five_expert_distilled_v1/manifest.json.sha256
+  manifest_sidecar_sha256: f3359d0bac4699f74bdd75834d4f9bf09196caef0e9e14fb63375e64cc9a88c1
+  build_receipt: fixtures/research/gemma3_chat_five_expert_distilled_v1/build_receipt.json
+  build_receipt_sha256: 013d55017c82d3d407477eca673f8990da02e2bbb037109ea3b3feb7f98dfc82
+  build_receipt_sidecar: fixtures/research/gemma3_chat_five_expert_distilled_v1/build_receipt.json.sha256
+  build_receipt_sidecar_sha256: d50bb43836f02af6034d9d636669796024570a97a1e2fac59085676d05c38fce
+  record_schema: configs/research/gemma3_chat_five_expert_qonly_v1_record.schema.json
+  record_schema_sha256: ba1606f07d250eec7f01bffceaa507edd4f596f83018806df9130d32ecf39d9b
+  manifest_schema: configs/research/gemma3_chat_five_expert_qonly_v1_manifest.schema.json
+  manifest_schema_sha256: fda04d77c494cd5d87ea19aade7db24717c6dffad6880078df19787d519f0b8b
+  token_inventory_schema: configs/research/gemma3_chat_five_expert_qonly_v1_token_inventory.schema.json
+  token_inventory_schema_sha256: 3b996a83d19a41b10da679a88d29db4994996562cc6dfe6220af619f35935ce7
+  build_receipt_schema: configs/research/gemma3_chat_five_expert_qonly_v1_build_receipt.schema.json
+  build_receipt_schema_sha256: 05fa564438257f46593b6bf53e218b4866cc2f663a5100fdf1ea7a8c8a4da2b9
+  manifest_sha256: e71fb5f239d7d1abb94ff50d5db2d57cfd101ccfad3c2c4e34cc128a7e91317b
+  token_inventory: fixtures/research/gemma3_chat_five_expert_distilled_v1/token_inventory.jsonl
+  token_inventory_sha256: d5c149264e7bb2e4c2256bda72422bd1fdf41822b012c29d006035edabd8f2f6
+  partitions:
+    train: train/chat.jsonl
+    eval_proxy: eval_proxy/chat.jsonl
+  partition_sha256:
+    train/chat.jsonl: 26fd3f5c30d402ab684d67977b8e790470c85f2c33436047d1cdb237c00379dc
+    eval_proxy/chat.jsonl: 2e1434229482b21ee908cfee8f389523c6730691ade177f47948ad8350821a86
+  records: 1000
+  task_bundles: 200
+  records_per_bundle: 5
+  train_bundles: 160
+  eval_proxy_bundles: 40
+  train_records: 800
+  eval_proxy_records: 200
+  train_records_per_role: 160
+  eval_proxy_records_per_role: 40
+  split_group_key: task_bundle_sha256
+  eval_proxy_is_heldout: false
+  formal_inputs_allowed: false
+  heldout_allowed: false
+  protected_source_paths_allowed: false
+
+experts:
+  ordered:
+    - humor
+    - serious
+    - angry_style
+    - tool_call
+    - review_audit
+  role_index:
+    humor: 0
+    serious: 1
+    angry_style: 2
+    tool_call: 3
+    review_audit: 4
+  user_emotion_is_expert: false
+  router_label_is_expert: false
+  user_emotion_shared_within_bundle: true
+  router_label_shared_within_bundle: true
+
+lora:
+  profile: q_only
+  factorization: full_rank_q
+  target_modules:
+    - q_proj
+  rank: 1024
+  alpha: 2048
+  dropout: 0.0
+  bias: none
+  expected_trainable_parameters_per_expert: 57933824
+  expected_five_expert_aggregate_parameters: 289669120
+  effective_rank_ceiling: 1024
+  low_rank_claimed: false
+  parameter_efficient_claimed: false
+  o_proj_allowed: false
+
+quantization:
+  backend: bitsandbytes
+  bitsandbytes_version: 0.48.2
+  load_in_8bit: true
+  llm_int8_threshold: 6.0
+  llm_int8_skip_modules:
+    - lm_head
+  llm_int8_enable_fp32_cpu_offload: false
+  llm_int8_has_fp16_weight: false
+  device_map:
+    "": 0
+  frozen_non_quantized_dtype: bfloat16
+  adapter_dtype: bfloat16
+
+training:
+  sequence_length: 768
+  truncation: false
+  padding: microbatch_exact_length
+  micro_batch_size: 1
+  gradient_accumulation_steps: 1
+  smoke_steps: 2
+  full_steps_per_role: 160
+  one_full_epoch_per_role: true
+  role_execution: strictly_serial
+  concurrency: 1
+  smoke_and_full_fresh_objects: true
+  smoke_checkpoint_consumed_by_full: false
+  resume: false
+  optimizer: adamw8bit
+  optimizer_library: bitsandbytes
+  bitsandbytes_version: 0.48.2
+  optimizer_state_bits: 8
+  compatibility_optim_bits_argument: 32
+  min_8bit_size: 4096
+  percentile_clipping: 100
+  block_wise: true
+  is_paged: false
+  amsgrad: false
+  learning_rate: 0.000002
+  warmup_steps: 8
+  beta1: 0.9
+  beta2: 0.999
+  epsilon: 0.00000001
+  weight_decay: 0.01
+  max_grad_norm: 0.5
+  seed: 1337
+  compute_dtype: bfloat16
+  tf32: true
+  attention_implementation: sdpa
+  gradient_checkpointing: true
+  use_cache: false
+  loss_projection: supervised_positions_only_exact_v1
+  save_intermediate_checkpoints: false
+  adapter_effect_gate:
+    view: first_train_record_first_supervised_next_token_v1
+    comparison: enabled_vs_disable_adapter_after_training
+    require_finite: true
+    require_max_abs_gt_zero: true
+    sample_body_included: false
+    token_ids_included: false
+
+runner:
+  status: authenticated_dataset_ready_waiting_for_explicit_execute
+  preflight_supported: true
+  execution_supported: true
+  explicit_execute_flag_required: true
+  canonical_gpu_lock_required: true
+  authenticate_all_records_before_role_selection: true
+  single_bytes_snapshot: true
+  final_snapshot_recheck: true
+  fresh_base_per_phase: true
+  fresh_adapter_per_phase: true
+  atomic_staging_publish: true
+  replace_existing: false
+  failure_receipt_retained: true
+
+gpu_policy:
+  canonical_lock: runs/formal-v3-training.lock
+  conflicting_handoff_locks:
+    - runs/distill-train-handoff/gpu-job.lock
+    - runs/distill-train-handoff-v3/gpu-job.lock
+  expected_gpu_index: 0
+  expected_gpu_uuid: ${ANCHOR_GEMMA_GPU_UUID:-UNBOUND}
+  expected_total_memory_mib: 12288
+  command_timeout_seconds: 5
+  runtime_temperature_max_c: 83
+  torch_peak_allocated_max_mib: 10240
+  torch_peak_reserved_max_mib: 10240
+  runtime_monitor_interval_steps: 10
+  unknown_or_non_allowlisted_compute_process_forbidden: false
+
+output:
+  artifact_root: artifacts/diagnostics/gemma3_1b_it_chat_five_expert_qonly_rank1024_v1
+  run_root: runs/gemma3_1b_it_chat_five_expert_qonly_rank1024_v1
+  preflight_receipt_name: preflight_receipt.json
+  run_receipt_name: run_receipt.json
+  failure_receipt_name: failure_receipt.json
+  adapter_format: peft_safetensors
+
+claims:
+  diagnostic_only: true
+  dataset_materialized: true
+  producer_identity_bound: true
+  training_execution_supported: true
+  training_executed: false
+  training_authorized: false
+  formal_training_authorized: false
+  formal: false
+  quality_claimed: false
+  eval_proxy_is_heldout: false

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-v1-token-inventory.schema.json",
+  "title": "Gemma 3 five-expert chat token inventory v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "token_inventory_record_id",
+    "record_id",
+    "task_bundle_sha256",
+    "split",
+    "language",
+    "role",
+    "role_index",
+    "input_tokens",
+    "prompt_tokens",
+    "trainable_label_tokens",
+    "sequence_length",
+    "truncated",
+    "ordered_input_ids_sha256",
+    "ordered_labels_sha256",
+    "raw_token_ids_published",
+    "tokenizer_model_sha256",
+    "chat_template_policy_sha256",
+    "tokenizer_template_special_policy_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-token-inventory.v1"
+    },
+    "token_inventory_record_id": {
+      "type": "string",
+      "pattern": "^gemma3-chat-token-inventory-v1:[0-9a-f]{64}$"
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "split": {
+      "enum": ["train", "eval_proxy"]
+    },
+    "language": {
+      "enum": ["en", "zh-CN"]
+    },
+    "role": {
+      "$ref": "#/$defs/expertRole"
+    },
+    "role_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "input_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 768
+    },
+    "prompt_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 767
+    },
+    "trainable_label_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 768
+    },
+    "sequence_length": {
+      "const": 768
+    },
+    "truncated": {
+      "const": false
+    },
+    "ordered_input_ids_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "ordered_labels_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "raw_token_ids_published": {
+      "const": false
+    },
+    "tokenizer_model_sha256": {
+      "const": "1299c11d7cf632ef3b4e11937501358ada021bbdf7c47638d13c0ee982f2e79c"
+    },
+    "chat_template_policy_sha256": {
+      "const": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6"
+    },
+    "tokenizer_template_special_policy_sha256": {
+      "const": "1c97c517293dd9c3e52e4fa35d3f6617fb4fd37cf68716c641675dc24dee0946"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expertRole": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit"
+      ]
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-generation-eval-config.v1",
+  "identity_state": "authenticated_consumer_pending_training_run",
+  "consumer": {
+    "config_path": "configs/training/gemma3_1b_it_chat_five_expert_qonly_rank1024_v1.yaml",
+    "config_sha256": "35dc9effc713730274937352c0f828c881939e503b6725225da7cb54604d9159",
+    "implementation_path": "src/anchor_mvp/training/gemma3_chat_five_expert_qonly_v1.py",
+    "implementation_sha256": "55a7c45eb8f4b6c590938a486b65f675920d39d46f94686685a04e08f3bde802",
+    "dataset_manifest_sha256": "e71fb5f239d7d1abb94ff50d5db2d57cfd101ccfad3c2c4e34cc128a7e91317b",
+    "partition_sha256": {
+      "train/chat.jsonl": "26fd3f5c30d402ab684d67977b8e790470c85f2c33436047d1cdb237c00379dc",
+      "eval_proxy/chat.jsonl": "2e1434229482b21ee908cfee8f389523c6730691ade177f47948ad8350821a86"
+    }
+  },
+  "training_run": {
+    "run_id": "pending",
+    "artifact_root": "artifacts/diagnostics/gemma3_1b_it_chat_five_expert_qonly_rank1024_v1",
+    "receipt_name": "run_receipt.json",
+    "receipt_sha256": "pending",
+    "receipt_schema_version": "anchor.gemma3-1b-it-chat-five-expert-qonly-run-receipt.v1",
+    "required_status": "passed_diagnostic_training_only",
+    "adapter_files": [
+      "adapter_config.json",
+      "adapter_model.safetensors"
+    ],
+    "phase_receipts": {
+      "smoke": "smoke_receipt.json",
+      "full": "full_receipt.json"
+    }
+  },
+  "evaluation": {
+    "split": "eval_proxy",
+    "records_per_role": 5,
+    "max_new_tokens": 96,
+    "roles": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "arms": [
+      "base",
+      "correct_adapter",
+      "wrong_route"
+    ],
+    "wrong_route_adapter": {
+      "humor": "serious",
+      "serious": "angry_style",
+      "angry_style": "tool_call",
+      "tool_call": "review_audit",
+      "review_audit": "humor"
+    },
+    "decoding": {
+      "do_sample": false,
+      "temperature": null,
+      "top_p": null,
+      "num_beams": 1,
+      "use_cache": true
+    },
+    "role_proxy": {
+      "minimum_reference_char_trigram_f1": 0.15,
+      "maximum_duplicate_4gram_fraction": 0.2
+    }
+  },
+  "runtime": {
+    "gpu_index": 0,
+    "concurrency": 1,
+    "base_quantization": "bitsandbytes_int8",
+    "base_dtype": "bfloat16",
+    "attention_implementation": "sdpa",
+    "tf32": true,
+    "kv_cache_dtype": "dynamic_model_default",
+    "q8_kv_claimed": false,
+    "network_allowed": false,
+    "provider_allowed": false,
+    "protected_body_reads_allowed": false,
+    "heldout_reads_allowed": false
+  },
+  "output": {
+    "root": "artifacts/diagnostics/gemma3_chat_five_expert_qonly_generation_eval_v1",
+    "receipt_name": "evaluation_receipt.json",
+    "atomic_publish": true,
+    "replace_existing": false
+  },
+  "claims": {
+    "diagnostic_only": true,
+    "eval_proxy_is_heldout": false,
+    "formal": false,
+    "quality_validated": false,
+    "semantic_style_judgment_claimed": false,
+    "wrong_route_is_causal_mechanism_proof": false
+  }
+}
