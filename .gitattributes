@@ -172,3 +172,13 @@ docs/research/gemma3_chat_five_expert_dataset_v1*.md text eol=lf
 docs/research/gemma3_chat_five_expert_qonly_v1*.md text eol=lf
 docs/research/gemma3_chat_five_expert_qonly_generation_eval_v1*.md text eol=lf
 docs/research/gemma3_chat_final_producer_git_overlay_v1*.md text eol=lf
+
+# Gemma 3 chat unbalanced-v2 contracts bind physical source/config/test bytes.
+# Keep clean checkouts stable on Windows even when core.autocrlf=true.
+configs/research/gemma3_chat_unbalanced_v2_* text eol=lf
+configs/training/gemma3_1b_it_chat_unbalanced_v2_* text eol=lf
+src/anchor_mvp/research/gemma3_chat_unbalanced_v2_* text eol=lf
+src/anchor_mvp/training/gemma3_chat_unbalanced_v2_* text eol=lf
+scripts/research/run_gemma3_chat_unbalanced_v2_* text eol=lf
+tests/test_gemma3_chat_unbalanced_v2_* text eol=lf
+docs/research/gemma3_chat_unbalanced_v2_* text eol=lf

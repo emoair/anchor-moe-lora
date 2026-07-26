@@ -1,0 +1,309 @@
+schema_version: anchor.gemma3-1b-it-chat-unbalanced-v2-multiarm-q8-qlora-config.v1
+status: model_free_contract_ready_gpu_runtime_not_implemented
+claim_scope: diagnostic_proxy_multiarm_training_plan_only
+
+dependencies:
+  frozen:
+    - path: src/anchor_mvp/training/gemma3_chat_five_expert_qonly_v1.py
+      bytes: 188223
+      sha256: 55a7c45eb8f4b6c590938a486b65f675920d39d46f94686685a04e08f3bde802
+    - path: src/anchor_mvp/training/gemma3_five_role_q8_qlora_v2.py
+      bytes: 109147
+      sha256: 5b7056b0daaa7e5a0774c71c43c1d98dc47de6c831b2251e585745ae89c63a9f
+    - path: src/anchor_mvp/training/gemma3_q8_reliability_v2.py
+      bytes: 5845
+      sha256: fbf68a9f5a7e40e0211292055527678e657793af89e4e4e404d7083d0ddcb381
+    - path: scripts/research/gemma3_q8_launcher_helpers_v2.ps1
+      bytes: 11688
+      sha256: 88411919f8b3839c037db439363413b70584fa7ca406a1f2b1b84d811bf73b1a
+
+consumer_preflight:
+  required_schema_version: anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1
+  required_status: passed
+  required_namespace: gemma3_chat_five_expert_qonly_unbalanced_v2
+  source_identity_from_receipt_only: true
+  candidate_sha256_hardcoded: false
+  require_versioned_shard_inventory: true
+  require_additive_logical_assets: true
+  required_physical_files: 46
+  required_payload_files: 23
+  required_sidecar_files: 23
+  required_main_chat_train_shards: 2
+  required_train_shard_order: continuous_bundle_boundary_v1
+  require_final_producer_release: true
+  require_body_read: false
+  require_raw_token_ids_read: false
+  require_gold_heldout_protected_read: false
+
+model:
+  architecture: Gemma3ForCausalLM
+  layers: 26
+  hidden_size: 1152
+  q_proj_input_features: 1152
+  q_proj_output_features: 1024
+  o_proj_input_features: 1024
+  o_proj_output_features: 1152
+  local_files_only: true
+  allow_network: false
+  trust_remote_code: false
+
+quantization:
+  frozen_base: true
+  backend: bitsandbytes
+  load_in_8bit: true
+  base_weight_bits: 8
+  adapter_dtype: bfloat16
+  base_o_proj_always_frozen: true
+
+data:
+  training_assets:
+    humor:
+      records: 240
+    serious:
+      records: 240
+    angry_style:
+      records: 240
+    review_audit:
+      records: 1360
+    tool_call:
+      records: 1360
+    planner_router:
+      records: 80
+  evaluation_assets:
+    planner_router_eval:
+      records: 20
+      training_eligible: false
+    tool_comparison_eval:
+      records: 400
+      training_eligible: false
+    planner_comparison_eval:
+      records: 240
+      training_eligible: false
+    identity_probe:
+      records: 50
+      training_eligible: false
+  chat_train_records: 3440
+  planner_router_total_records: 100
+  single_training_partition_assumed: false
+  optimizer_forbidden_assets:
+    - planner_router_eval
+    - tool_comparison_eval
+    - planner_comparison_eval
+    - identity_probe
+
+adapter_profiles:
+  q_only:
+    target_modules:
+      - q_proj
+    rank: 1024
+    alpha: 2048
+    dropout: 0.0
+    expected_parameter_tensors: 52
+    expected_trainable_parameters: 57933824
+    A_initializer: deterministic_kaiming_uniform_v1
+    B_initializer: zero_v1
+  o_only:
+    target_modules:
+      - o_proj
+    rank: 64
+    alpha: 128
+    dropout: 0.0
+    expected_parameter_tensors: 52
+    expected_trainable_parameters: 3620864
+    A_initializer: deterministic_kaiming_uniform_v1
+    B_initializer: zero_v1
+  q_plus_micro_o:
+    target_modules:
+      - q_proj
+      - o_proj
+    q_rank: 1024
+    q_alpha: 2048
+    o_rank: 64
+    o_alpha: 128
+    dropout: 0.0
+    expected_parameter_tensors: 104
+    expected_trainable_parameters: 61554688
+    A_initializer: deterministic_kaiming_uniform_v1
+    B_initializer: zero_v1
+  base:
+    target_modules: []
+    expected_parameter_tensors: 0
+    expected_trainable_parameters: 0
+    adapter: null
+    optimizer: null
+
+initialization:
+  base_seed: 1337
+  branch_seed_derivation: base_seed_only_v1
+  forbidden_seed_components:
+    - arm
+    - phase
+    - execution_order
+  paired_actual_tensor_bytes_required: true
+
+optimizer:
+  name: adamw8bit
+  q_learning_rate: 0.000002
+  o_learning_rate: 0.0000002
+  exact_o_to_q_ratio: 0.1
+  explicit_parameter_groups: true
+  group_order:
+    - Q
+    - O
+  groups_mutually_exclusive: true
+  groups_cover_all_trainable_tensors: true
+  warmup_steps: 8
+  schedule: linear_warmup_then_constant_v1
+  weight_decay: 0.01
+  max_grad_norm: 0.5
+  optimizer_state_bits: 8
+
+arms:
+  ordered:
+    - humor_q_only
+    - serious_q_only
+    - angry_style_q_only
+    - review_audit_q_only
+    - tool_q_only
+    - tool_q_plus_micro_o
+    - planner_q_only
+    - planner_o_only
+    - planner_q_plus_micro_o
+  definitions:
+    humor_q_only:
+      source_asset: humor
+      adapter_profile: q_only
+      full_steps: 240
+      comparison_group: humor
+      production_router: false
+    serious_q_only:
+      source_asset: serious
+      adapter_profile: q_only
+      full_steps: 240
+      comparison_group: serious
+      production_router: false
+    angry_style_q_only:
+      source_asset: angry_style
+      adapter_profile: q_only
+      full_steps: 240
+      comparison_group: angry_style
+      production_router: false
+    review_audit_q_only:
+      source_asset: review_audit
+      adapter_profile: q_only
+      full_steps: 1360
+      comparison_group: review_audit
+      production_router: false
+    tool_q_only:
+      source_asset: tool_call
+      adapter_profile: q_only
+      full_steps: 1360
+      comparison_group: tool
+      production_router: false
+    tool_q_plus_micro_o:
+      source_asset: tool_call
+      adapter_profile: q_plus_micro_o
+      full_steps: 1360
+      comparison_group: tool
+      production_router: false
+    planner_q_only:
+      source_asset: planner_router
+      adapter_profile: q_only
+      full_steps: 80
+      comparison_group: planner
+      production_router: true
+    planner_o_only:
+      source_asset: planner_router
+      adapter_profile: o_only
+      full_steps: 80
+      comparison_group: planner
+      production_router: false
+    planner_q_plus_micro_o:
+      source_asset: planner_router
+      adapter_profile: q_plus_micro_o
+      full_steps: 80
+      comparison_group: planner
+      production_router: false
+  eval_only:
+    tool_base:
+      source_asset: tool_comparison_eval
+      steps: 0
+      adapter: null
+      optimizer: null
+    planner_base:
+      source_asset: planner_comparison_eval
+      steps: 0
+      adapter: null
+      optimizer: null
+
+comparison:
+  tool:
+    eval_asset: tool_comparison_eval
+    records: 400
+    ordered_arms:
+      - tool_base
+      - tool_q_only
+      - tool_q_plus_micro_o
+    total_slots: 1200
+  planner:
+    eval_asset: planner_comparison_eval
+    records: 240
+    ordered_arms:
+      - planner_base
+      - planner_q_only
+      - planner_o_only
+      - planner_q_plus_micro_o
+    total_slots: 960
+  paired_lock_fields:
+    - record_order_sha256
+    - target_projection_sha256
+    - branch_seed_sha256
+    - steps
+    - optimizer_schedule_sha256
+
+training:
+  smoke_steps_per_arm: 2
+  full_fresh_from_base: true
+  full_fresh_adapter: true
+  resume: false
+  smoke_checkpoint_consumed_by_full: false
+  strictly_serial: true
+  concurrency: 1
+  sequence_length: 768
+  truncation: false
+  use_cache: false
+
+gates:
+  smoke_pass_required_before_full: true
+  required_phase_gates:
+    - base_hash_unchanged
+    - finite_loss
+    - finite_gradients
+    - optimizer_state_verified
+    - adapter_effect_nonzero
+    - memory_gate_passed
+    - canonical_lock_verified
+    - atomic_publish_verified
+  scalar_only_progress: true
+  body_free_receipts: true
+
+output:
+  artifact_root: artifacts/diagnostics/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1
+  run_root: runs/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1
+  progress_directory: progress
+  phase_receipt_filename: phase_receipt.json
+  run_receipt_filename: run_receipt.json
+  atomic_publish: true
+  replace_existing: false
+  failure_receipt_retained: true
+
+claims:
+  diagnostic_only: true
+  proxy_only: true
+  model_free_contract: true
+  gpu_execution_implemented: false
+  model_loaded: false
+  training_executed: false
+  evaluation_executed: false
+  formal: false
+  release: false
