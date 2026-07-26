@@ -207,3 +207,7 @@ fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_
 fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2/** text eol=lf
 fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3/** text eol=lf
 fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2_release_v1/** text eol=lf
+src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py text eol=lf
+tests/test_gemma3_chat_unbalanced_v2_live_controller.py text eol=lf
+docs/research/gemma3_chat_unbalanced_v2_glm_single_process_controller.md text eol=lf
+docs/research/gemma3_chat_unbalanced_v2_glm_single_process_controller.zh-CN.md text eol=lf

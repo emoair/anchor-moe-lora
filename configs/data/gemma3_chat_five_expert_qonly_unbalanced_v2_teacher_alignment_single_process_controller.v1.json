@@ -1,0 +1,119 @@
+{
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.single-process-controller.config.v1",
+  "controller_id": "gemma3-chat-unbalanced-v2-glm-live-controller-v1",
+  "controller_schema_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json",
+  "controller_schema_sha256": "5613ad98972f3eae604fd518d6bcb73c514b57f24135f331d0c1edf4575d6b39",
+  "controller_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py",
+  "controller_implementation_sha256": "9de21660ae2b8537ff0bba766caa58e7edf3aca0177dee89ff349d6718d890cb",
+  "batch_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py",
+  "batch_implementation_sha256": "6bf0a4f36ab6ef977045ccd88a4c864aa9e2da3d7db3c6f50c9b3f46121588ce",
+  "consumer_release_binding": {
+    "state": "ready",
+    "branch": "research/gemma3-chat-unbalanced-v2-training",
+    "repo_path": "D:/LLM/anchor-moe-lora-neural-swarm",
+    "commit_sha256": "60e88aa7a6c2dcdd8a3cd9f496f84d3a1ea76bb2",
+    "binding_path": "configs/research/gemma3_chat_unbalanced_v2_consumer_binding_sharded_v1.json",
+    "binding_sha256": "9f18c4106d9ed74ecfa132e74628642ce76f9111125a4b3fdd18e0d003dc57c0",
+    "preflight_receipt_path": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json",
+    "preflight_receipt_sha256": "a976754d84f48c01b9ff509c48f7fb7b26c32eabfa0b10d6f221661114a1cdb2",
+    "preflight_receipt_sidecar_path": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json.sha256",
+    "preflight_receipt_sidecar_sha256": "aebd6c53788214c8fcf7783f64a60f4ffc97343c040d5422e7ca79a8fd7afbc3",
+    "receipt_schema_path": "configs/research/gemma3_chat_unbalanced_v2_consumer_binding_v1.schema.json",
+    "receipt_schema_sha256": "d0510caebb6a18f0ccade5386ce5007da8d9452a1badf5618a00aba75fc5bdde",
+    "normalized_binding_sha256": "012f78dafe0081c722fd978c612ecd6c845c8daa62fc289cf0991fc6818e7d6f"
+  },
+  "controller_runtime": {
+    "run_id_source": "runtime_random_128_bit",
+    "genesis": "immutable_hmac_o_excl",
+    "process_lock": "same_pid_same_run_id_o_excl",
+    "output_directory_identity": "canonical_path_dev_ino_no_reparse"
+  },
+  "wal": {
+    "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.controller-wal-entry.v1",
+    "relative_path": "automation/controller_wal_v1",
+    "entry_naming": "zero_padded_sequence_json",
+    "write_mode": "immutable_o_excl_fsync",
+    "global_chain": "prev_physical_entry_sha256",
+    "per_job_chain": "previous_job_entry_sha256",
+    "event_projection": "events_jsonl_must_equal_authenticated_event_sequence",
+    "group_protocol": "signed_prepare_then_physical_group_then_signed_terminal"
+  },
+  "common_identity": {
+    "source_manifest_sha256": "2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214",
+    "source_approval_sha256": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9",
+    "campaign_sha256": "5f01787a4fca356436bd16cd6023eaf9bcdacc10133cf48a9e42609ed4f901c2",
+    "model_binding_sha256": "8eeff6e2c1e06cb0ae5a894faed0a67427604e7828fdda740f6faf60f873fe80",
+    "output_root": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001"
+  },
+  "profiles": [
+    {
+      "stage": "smoke",
+      "phase": "smoke_exact1",
+      "profile_id": "smoke_exact1",
+      "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.smoke_exact1.yaml",
+      "sha256": "d87df1c9c2b313f174846bced514058e770f6c49217130f140d4ecab5db45168"
+    },
+    {
+      "stage": "bounded",
+      "phase": "bounded_small",
+      "profile_id": "bounded_small_c1",
+      "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bounded_small_c1.yaml",
+      "sha256": "93a9c6d603b80ad9408795d605ec9dabb7c8aa0601e4a366c6e618fa9cb71521"
+    },
+    {
+      "stage": "bulk_primary",
+      "phase": "bulk",
+      "profile_id": "bulk_c30",
+      "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml",
+      "sha256": "541cb31e065442bd115e585e3fb56e42ee2f050fe059fa98421d04025ab2bf5c"
+    },
+    {
+      "stage": "bulk_fallback",
+      "phase": "bulk",
+      "profile_id": "bulk_c16",
+      "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c16.yaml",
+      "sha256": "4461ac229e5d47655cf29c1bfd7f2023caf9f0c71295a4a7e12169c33b1a3eec"
+    }
+  ],
+  "lifecycle": {
+    "required_order": [
+      "smoke_exact1",
+      "bounded_small_c1",
+      "bulk_c30"
+    ],
+    "fallback_profile": "bulk_c16",
+    "fallback_allowed_reason_codes": [
+      "provider_rate_limit"
+    ],
+    "fallback_cooldown_source": "signed_wal_lease_from_rate_limit_error_and_profile",
+    "fallback_max_wait_slice_seconds": 60,
+    "status_cooldown_authoritative": false,
+    "existing_output_policy": "reject_nonempty_at_controller_start",
+    "resume_scope": "same_process_runtime_secret_slots_only"
+  },
+  "fault_policy": {
+    "reserved_without_dispatch": "fail_closed_no_automatic_reuse",
+    "dispatching_or_uncertain": "never_redispatch",
+    "unsigned_group": "fail_closed",
+    "cross_process_resume": "unsupported"
+  },
+  "security": {
+    "credential_input": "anonymous_stdin_or_in_process_receiver_once",
+    "credential_reads": 1,
+    "credential_environment_allowed": false,
+    "credential_argv_allowed": false,
+    "runtime_hmac_source": "single_runtime_random_controller_memory_slot",
+    "runtime_slots_reused_for_all_stages": true,
+    "wal_authentication": "immutable_runtime_hmac_entry_chain_before_every_replay",
+    "terminal_event_cross_binding": "hmac_receipt_and_group_commit_required",
+    "best_effort_runtime_slot_zeroization": true,
+    "forensic_zeroization_claimed": false,
+    "public_secret_material": false
+  },
+  "claims": {
+    "diagnostic_only": true,
+    "formal_training_authorized": false,
+    "quality_validated": false,
+    "resume_across_processes": false
+  }
+}

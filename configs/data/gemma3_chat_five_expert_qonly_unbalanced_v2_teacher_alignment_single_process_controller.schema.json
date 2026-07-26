@@ -1,0 +1,598 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.single-process-controller.config.v1",
+  "title": "Gemma3 Chat unbalanced-v2 single-process live controller config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "controller_id",
+    "controller_schema_path",
+    "controller_schema_sha256",
+    "controller_implementation_path",
+    "controller_implementation_sha256",
+    "batch_implementation_path",
+    "batch_implementation_sha256",
+    "consumer_release_binding",
+    "controller_runtime",
+    "wal",
+    "common_identity",
+    "profiles",
+    "lifecycle",
+    "fault_policy",
+    "security",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.single-process-controller.config.v1"
+    },
+    "controller_id": {
+      "const": "gemma3-chat-unbalanced-v2-glm-live-controller-v1"
+    },
+    "controller_schema_path": {
+      "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json"
+    },
+    "controller_schema_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "controller_implementation_path": {
+      "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py"
+    },
+    "controller_implementation_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "batch_implementation_path": {
+      "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py"
+    },
+    "batch_implementation_sha256": {
+      "const": "6bf0a4f36ab6ef977045ccd88a4c864aa9e2da3d7db3c6f50c9b3f46121588ce"
+    },
+    "consumer_release_binding": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/consumer_pending"
+        },
+        {
+          "$ref": "#/$defs/consumer_ready"
+        }
+      ]
+    },
+    "controller_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id_source",
+        "genesis",
+        "process_lock",
+        "output_directory_identity"
+      ],
+      "properties": {
+        "run_id_source": {
+          "const": "runtime_random_128_bit"
+        },
+        "genesis": {
+          "const": "immutable_hmac_o_excl"
+        },
+        "process_lock": {
+          "const": "same_pid_same_run_id_o_excl"
+        },
+        "output_directory_identity": {
+          "const": "canonical_path_dev_ino_no_reparse"
+        }
+      }
+    },
+    "wal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "relative_path",
+        "entry_naming",
+        "write_mode",
+        "global_chain",
+        "per_job_chain",
+        "event_projection",
+        "group_protocol"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.controller-wal-entry.v1"
+        },
+        "relative_path": {
+          "const": "automation/controller_wal_v1"
+        },
+        "entry_naming": {
+          "const": "zero_padded_sequence_json"
+        },
+        "write_mode": {
+          "const": "immutable_o_excl_fsync"
+        },
+        "global_chain": {
+          "const": "prev_physical_entry_sha256"
+        },
+        "per_job_chain": {
+          "const": "previous_job_entry_sha256"
+        },
+        "event_projection": {
+          "const": "events_jsonl_must_equal_authenticated_event_sequence"
+        },
+        "group_protocol": {
+          "const": "signed_prepare_then_physical_group_then_signed_terminal"
+        }
+      }
+    },
+    "common_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_manifest_sha256",
+        "source_approval_sha256",
+        "campaign_sha256",
+        "model_binding_sha256",
+        "output_root"
+      ],
+      "properties": {
+        "source_manifest_sha256": {
+          "const": "2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214"
+        },
+        "source_approval_sha256": {
+          "const": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9"
+        },
+        "campaign_sha256": {
+          "const": "5f01787a4fca356436bd16cd6023eaf9bcdacc10133cf48a9e42609ed4f901c2"
+        },
+        "model_binding_sha256": {
+          "const": "8eeff6e2c1e06cb0ae5a894faed0a67427604e7828fdda740f6faf60f873fe80"
+        },
+        "output_root": {
+          "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001"
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/smoke_profile"
+        },
+        {
+          "$ref": "#/$defs/bounded_profile"
+        },
+        {
+          "$ref": "#/$defs/bulk_primary_profile"
+        },
+        {
+          "$ref": "#/$defs/bulk_fallback_profile"
+        }
+      ],
+      "items": false
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_order",
+        "fallback_profile",
+        "fallback_allowed_reason_codes",
+        "fallback_cooldown_source",
+        "fallback_max_wait_slice_seconds",
+        "status_cooldown_authoritative",
+        "existing_output_policy",
+        "resume_scope"
+      ],
+      "properties": {
+        "required_order": {
+          "const": [
+            "smoke_exact1",
+            "bounded_small_c1",
+            "bulk_c30"
+          ]
+        },
+        "fallback_profile": {
+          "const": "bulk_c16"
+        },
+        "fallback_allowed_reason_codes": {
+          "const": [
+            "provider_rate_limit"
+          ]
+        },
+        "fallback_cooldown_source": {
+          "const": "signed_wal_lease_from_rate_limit_error_and_profile"
+        },
+        "fallback_max_wait_slice_seconds": {
+          "const": 60
+        },
+        "status_cooldown_authoritative": {
+          "const": false
+        },
+        "existing_output_policy": {
+          "const": "reject_nonempty_at_controller_start"
+        },
+        "resume_scope": {
+          "const": "same_process_runtime_secret_slots_only"
+        }
+      }
+    },
+    "fault_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reserved_without_dispatch",
+        "dispatching_or_uncertain",
+        "unsigned_group",
+        "cross_process_resume"
+      ],
+      "properties": {
+        "reserved_without_dispatch": {
+          "const": "fail_closed_no_automatic_reuse"
+        },
+        "dispatching_or_uncertain": {
+          "const": "never_redispatch"
+        },
+        "unsigned_group": {
+          "const": "fail_closed"
+        },
+        "cross_process_resume": {
+          "const": "unsupported"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "credential_input",
+        "credential_reads",
+        "credential_environment_allowed",
+        "credential_argv_allowed",
+        "runtime_hmac_source",
+        "runtime_slots_reused_for_all_stages",
+        "wal_authentication",
+        "terminal_event_cross_binding",
+        "best_effort_runtime_slot_zeroization",
+        "forensic_zeroization_claimed",
+        "public_secret_material"
+      ],
+      "properties": {
+        "credential_input": {
+          "const": "anonymous_stdin_or_in_process_receiver_once"
+        },
+        "credential_reads": {
+          "const": 1
+        },
+        "credential_environment_allowed": {
+          "const": false
+        },
+        "credential_argv_allowed": {
+          "const": false
+        },
+        "runtime_hmac_source": {
+          "const": "single_runtime_random_controller_memory_slot"
+        },
+        "runtime_slots_reused_for_all_stages": {
+          "const": true
+        },
+        "wal_authentication": {
+          "const": "immutable_runtime_hmac_entry_chain_before_every_replay"
+        },
+        "terminal_event_cross_binding": {
+          "const": "hmac_receipt_and_group_commit_required"
+        },
+        "best_effort_runtime_slot_zeroization": {
+          "const": true
+        },
+        "forensic_zeroization_claimed": {
+          "const": false
+        },
+        "public_secret_material": {
+          "const": false
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "formal_training_authorized",
+        "quality_validated",
+        "resume_across_processes"
+      ],
+      "properties": {
+        "diagnostic_only": {
+          "const": true
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "quality_validated": {
+          "const": false
+        },
+        "resume_across_processes": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "consumer_pending": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "branch",
+        "repo_path",
+        "commit_sha256",
+        "binding_path",
+        "binding_sha256",
+        "preflight_receipt_path",
+        "preflight_receipt_sha256",
+        "preflight_receipt_sidecar_path",
+        "preflight_receipt_sidecar_sha256",
+        "receipt_schema_path",
+        "receipt_schema_sha256",
+        "normalized_binding_sha256"
+      ],
+      "properties": {
+        "state": {
+          "const": "pending"
+        },
+        "branch": {
+          "const": "research/gemma3-chat-unbalanced-v2-training"
+        },
+        "repo_path": {
+          "type": "null"
+        },
+        "commit_sha256": {
+          "type": "null"
+        },
+        "binding_path": {
+          "type": "null"
+        },
+        "binding_sha256": {
+          "type": "null"
+        },
+        "preflight_receipt_path": {
+          "type": "null"
+        },
+        "preflight_receipt_sha256": {
+          "type": "null"
+        },
+        "preflight_receipt_sidecar_path": {
+          "type": "null"
+        },
+        "preflight_receipt_sidecar_sha256": {
+          "type": "null"
+        },
+        "receipt_schema_path": {
+          "type": "null"
+        },
+        "receipt_schema_sha256": {
+          "type": "null"
+        },
+        "normalized_binding_sha256": {
+          "type": "null"
+        }
+      }
+    },
+    "consumer_ready": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "branch",
+        "repo_path",
+        "commit_sha256",
+        "binding_path",
+        "binding_sha256",
+        "preflight_receipt_path",
+        "preflight_receipt_sha256",
+        "preflight_receipt_sidecar_path",
+        "preflight_receipt_sidecar_sha256",
+        "receipt_schema_path",
+        "receipt_schema_sha256",
+        "normalized_binding_sha256"
+      ],
+      "properties": {
+        "state": {
+          "const": "ready"
+        },
+        "branch": {
+          "const": "research/gemma3-chat-unbalanced-v2-training"
+        },
+        "repo_path": {
+          "type": "string",
+          "minLength": 3
+        },
+        "commit_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "binding_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "preflight_receipt_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preflight_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "preflight_receipt_sidecar_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preflight_receipt_sidecar_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "receipt_schema_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receipt_schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "normalized_binding_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "profile_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "phase",
+        "profile_id",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "smoke_exact1",
+            "bounded_small",
+            "bulk"
+          ]
+        },
+        "profile_id": {
+          "enum": [
+            "smoke_exact1",
+            "bounded_small_c1",
+            "bulk_c30",
+            "bulk_c16"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "smoke_profile": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/profile_base"
+        },
+        {
+          "properties": {
+            "stage": {
+              "const": "smoke"
+            },
+            "phase": {
+              "const": "smoke_exact1"
+            },
+            "profile_id": {
+              "const": "smoke_exact1"
+            },
+            "path": {
+              "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.smoke_exact1.yaml"
+            },
+            "sha256": {
+              "const": "d87df1c9c2b313f174846bced514058e770f6c49217130f140d4ecab5db45168"
+            }
+          }
+        }
+      ]
+    },
+    "bounded_profile": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/profile_base"
+        },
+        {
+          "properties": {
+            "stage": {
+              "const": "bounded"
+            },
+            "phase": {
+              "const": "bounded_small"
+            },
+            "profile_id": {
+              "const": "bounded_small_c1"
+            },
+            "path": {
+              "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bounded_small_c1.yaml"
+            },
+            "sha256": {
+              "const": "93a9c6d603b80ad9408795d605ec9dabb7c8aa0601e4a366c6e618fa9cb71521"
+            }
+          }
+        }
+      ]
+    },
+    "bulk_primary_profile": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/profile_base"
+        },
+        {
+          "properties": {
+            "stage": {
+              "const": "bulk_primary"
+            },
+            "phase": {
+              "const": "bulk"
+            },
+            "profile_id": {
+              "const": "bulk_c30"
+            },
+            "path": {
+              "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml"
+            },
+            "sha256": {
+              "const": "541cb31e065442bd115e585e3fb56e42ee2f050fe059fa98421d04025ab2bf5c"
+            }
+          }
+        }
+      ]
+    },
+    "bulk_fallback_profile": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/profile_base"
+        },
+        {
+          "properties": {
+            "stage": {
+              "const": "bulk_fallback"
+            },
+            "phase": {
+              "const": "bulk"
+            },
+            "profile_id": {
+              "const": "bulk_c16"
+            },
+            "path": {
+              "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c16.yaml"
+            },
+            "sha256": {
+              "const": "4461ac229e5d47655cf29c1bfd7f2023caf9f0c71295a4a7e12169c33b1a3eec"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
