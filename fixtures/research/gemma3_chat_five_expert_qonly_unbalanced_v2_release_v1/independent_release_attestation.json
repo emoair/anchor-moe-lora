@@ -1,0 +1,117 @@
+{
+  "artifact": {
+    "all_files_below_50_mib": true,
+    "all_payload_sidecars_valid": true,
+    "build_receipt_sha256": "da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6",
+    "build_receipt_sidecar_physical_sha256": "301e2bef647a92b88399c13e2148572257789f3a4231dc42d0aa5f20a9bccc92",
+    "files": 46,
+    "manifest_sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+    "manifest_sidecar_physical_sha256": "b8b2eee6cf89d0c93d9901d5702d3c143627639e2007ca55c98390d50c4f2fca",
+    "output_inventory_sha256": "e6554cec556eb974139df6a169865d7f82986b28b6df9041f9d0108481d5035e",
+    "tree_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+  },
+  "artifact_lifecycle_status": "candidate_pending_independent_release_review",
+  "artifact_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3",
+  "audit_status": "passed",
+  "canonical_artifact_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
+  "claims": {
+    "artifact_final_identity": true,
+    "formal_training_authorized": false,
+    "generalization_validated": false,
+    "independent_review_passed": true,
+    "live_authorized": false,
+    "model_release_authorized": false,
+    "quality_validated": false,
+    "training_authorized": false
+  },
+  "findings": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 0
+  },
+  "git_authentication": {
+    "commit_blobs_equal_physical_bytes": true,
+    "commit_resolved_exactly": true,
+    "grafts_absent": true,
+    "index_blobs_equal_physical_bytes": true,
+    "lf_attributes_exact": true,
+    "replace_refs_absent": true,
+    "scoped_checkout_clean": true,
+    "tracked_inventory_exact": true
+  },
+  "integrity": {
+    "atomic_attestation_sidecar_pair_publish": true,
+    "atomic_directory_rename_no_replace": true,
+    "attestation_and_sidecar_attributes_preverified": true,
+    "attestation_outside_artifact_tree": true,
+    "canonical_partial_pair_possible": false,
+    "create_once_attestation": true,
+    "draft_2020_12_passed": true,
+    "official_audit_passed": true,
+    "old_candidate_consumable": false,
+    "old_candidate_superseded": true,
+    "owned_sibling_staging_directory": true,
+    "recursive_cleanup_used": false,
+    "single_bytes_snapshot": true,
+    "terminal_toctou_recheck": true
+  },
+  "logical_identity": {
+    "eval_proxy_partition_sha256": "42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176",
+    "identity_probe_inventory_sha256": "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5",
+    "logical_all_record_inventory_sha256": "5da71c978eacdbb4dbcc466b6a227ede7ddb6b0191cc70164f5aa91747444515",
+    "logical_dataset_sha256": "c63fd9c46aff129e0840ed32482ed1a856a66a2b89b48b1316d54bf378685033",
+    "logical_record_order_sha256": "6419cdac69cb3da05a49eac94a58ab73a47ae11ae65445f29de7b518aceda76c",
+    "logical_target_inventory_sha256": "92372de0b2837b05fbe670fc677b9eee08cf751a379e3fe65d1aee4804493c46",
+    "logical_task_bundle_inventory_sha256": "137f2e37c75ae2ce248439308c66d0c2e80f92fc75600d32acb337f11d713334",
+    "logical_train_partition_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "logical_train_record_inventory_sha256": "cf395044642a3333d31f47926b590011f0cb7922631af204ea7c16b5a46fe8aa",
+    "serialization_inventory_sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d"
+  },
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+  "producer_candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+  "resource_counters": {
+    "gold_body_reads": 0,
+    "gpu_requests": 0,
+    "heldout_body_reads": 0,
+    "luna_requests": 0,
+    "model_loads": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0
+  },
+  "reviewer_separation": {
+    "different_reviewer": true,
+    "producer_id": "final_sharded_release_repair",
+    "reviewer_id": "final_release_promotion_design"
+  },
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation.v3",
+  "training_shards": {
+    "bundle_boundary_only": true,
+    "logical_partition_bytes": 59845314,
+    "logical_partition_records": 3440,
+    "ordered_concat_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "ordered_paths": [
+      "train/chat-00000-of-00002.jsonl",
+      "train/chat-00001-of-00002.jsonl"
+    ],
+    "shard_count": 2,
+    "shards": [
+      {
+        "bytes": 29909786,
+        "index": 0,
+        "path": "train/chat-00000-of-00002.jsonl",
+        "records": 1770,
+        "sha256": "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215",
+        "task_bundles": 564
+      },
+      {
+        "bytes": 29935528,
+        "index": 1,
+        "path": "train/chat-00001-of-00002.jsonl",
+        "records": 1670,
+        "sha256": "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522",
+        "task_bundles": 796
+      }
+    ]
+  }
+}
