@@ -1,0 +1,481 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-final-independent-release-attestation.v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher FINAL independent release attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "audit_status",
+    "candidate_lifecycle_status",
+    "namespace",
+    "reviewer_separation",
+    "findings",
+    "candidate_identity",
+    "source_release",
+    "implementation_binding",
+    "record_audit",
+    "runtime_receipt",
+    "integrity",
+    "resource_counters",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-independent-release-attestation.v2"
+    },
+    "audit_status": {
+      "const": "passed"
+    },
+    "candidate_lifecycle_status": {
+      "const": "candidate_pending_independent_release_review"
+    },
+    "namespace": {
+      "const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+    },
+    "reviewer_separation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementer_id",
+        "reviewer_id",
+        "different_reviewer"
+      ],
+      "properties": {
+        "implementer_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "reviewer_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "different_reviewer": {
+          "const": true
+        }
+      }
+    },
+    "findings": {
+      "const": {
+        "p0": 0,
+        "p1": 0,
+        "p2": 0
+      }
+    },
+    "candidate_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_root",
+        "physical_file_count",
+        "physical_tree_sha256",
+        "manifest_sha256",
+        "manifest_sidecar_sha256",
+        "build_receipt_sha256",
+        "build_receipt_sidecar_sha256",
+        "output_inventory_sha256",
+        "output_inventory_sidecar_sha256",
+        "release_request_sha256",
+        "release_request_sidecar_sha256",
+        "payload_tree_sha256",
+        "all_sidecars_valid",
+        "all_files_below_50_mib"
+      ],
+      "properties": {
+        "artifact_root": {
+          "type": "string",
+          "pattern": "^data/gemma3_chat_unbalanced_v2_teacher_alignment_finalizer_v1/candidate-[0-9a-f]{32}$"
+        },
+        "physical_file_count": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 64
+        },
+        "physical_tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_inventory_sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "release_request_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "release_request_sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "all_sidecars_valid": {
+          "const": true
+        },
+        "all_files_below_50_mib": {
+          "const": true
+        }
+      }
+    },
+    "source_release": {
+      "const": {
+        "producer_candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+        "producer_release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+        "producer_release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+        "producer_tree_digest_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c",
+        "source_overlay_manifest_sha256": "2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214",
+        "producer_manifest_sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+        "git_parent_and_tree_recomputed": true,
+        "physical_tree_digest_recomputed": true
+      }
+    },
+    "implementation_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_implementation_path",
+        "release_implementation_sha256",
+        "integrated_controller_config_sha256",
+        "integrated_controller_schema_sha256",
+        "integrated_controller_implementation_sha256",
+        "base_controller_config_sha256",
+        "base_controller_implementation_sha256",
+        "finalizer_config_sha256",
+        "finalizer_config_schema_sha256",
+        "finalizer_implementation_sha256",
+        "record_schema_sha256",
+        "candidate_manifest_schema_sha256",
+        "candidate_build_receipt_schema_sha256"
+      ],
+      "properties": {
+        "release_implementation_path": {
+          "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_v2.py"
+        },
+        "release_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "integrated_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "integrated_controller_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "integrated_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_config_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "record_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidate_manifest_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidate_build_receipt_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "record_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "main_records",
+        "router_records",
+        "source_asset_counts",
+        "train_identity_bundles",
+        "train_identity_records",
+        "train_identity_anchor_records",
+        "train_identity_anchor_role_counts",
+        "train_identity_role_counts",
+        "ordered_record_sha256",
+        "target_projection_sha256",
+        "source_join_sha256",
+        "shard_inventory_sha256",
+        "logical_dataset_sha256",
+        "ordered_shards",
+        "record_schema_all_rows_passed",
+        "bundle_boundary_preserved",
+        "identity_bundles_recomputed_from_four_role_air_anchors_and_bundle_closure",
+        "identity_bundle_role_matrix_passed",
+        "review_identity_fact_bound_to_candidate_identity_audit",
+        "review_target_air_sentence_reproof_claimed",
+        "identity_fact_consistency_passed",
+        "identity_anchor_false_attribution_rejected"
+      ],
+      "properties": {
+        "records": {
+          "const": 3520
+        },
+        "main_records": {
+          "const": 3440
+        },
+        "router_records": {
+          "const": 80
+        },
+        "source_asset_counts": {
+          "const": {
+            "humor": 240,
+            "serious": 240,
+            "angry_style": 240,
+            "tool_call": 1360,
+            "review_audit": 1360,
+            "planner_router": 80
+          }
+        },
+        "train_identity_bundles": {
+          "const": 20
+        },
+        "train_identity_records": {
+          "const": 100
+        },
+        "train_identity_anchor_records": {
+          "const": 80
+        },
+        "train_identity_anchor_role_counts": {
+          "const": {
+            "humor": 20,
+            "serious": 20,
+            "angry_style": 20,
+            "tool_call": 20
+          }
+        },
+        "train_identity_role_counts": {
+          "const": {
+            "humor": 20,
+            "serious": 20,
+            "angry_style": 20,
+            "tool_call": 20,
+            "review_audit": 20
+          }
+        },
+        "ordered_record_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "target_projection_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_join_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "shard_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_dataset_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ordered_shards": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/shard"
+          }
+        },
+        "record_schema_all_rows_passed": {
+          "const": true
+        },
+        "bundle_boundary_preserved": {
+          "const": true
+        },
+        "identity_bundles_recomputed_from_four_role_air_anchors_and_bundle_closure": {
+          "const": true
+        },
+        "identity_bundle_role_matrix_passed": {
+          "const": true
+        },
+        "review_identity_fact_bound_to_candidate_identity_audit": {
+          "const": true
+        },
+        "review_target_air_sentence_reproof_claimed": {
+          "const": false
+        },
+        "identity_fact_consistency_passed": {
+          "const": true
+        },
+        "identity_anchor_false_attribution_rejected": {
+          "const": true
+        }
+      }
+    },
+    "runtime_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_hmac_sha256",
+        "phase_receipt_inventory_sha256",
+        "wal_chain_tip_sha256",
+        "candidate_receipt_claims_same_process_hmac_authenticated",
+        "runtime_hmac_externally_reverified",
+        "external_hmac_key_available",
+        "runtime_hmac_key_persisted",
+        "candidate_receipt_bytes_bound"
+      ],
+      "properties": {
+        "runtime_hmac_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "phase_receipt_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wal_chain_tip_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidate_receipt_claims_same_process_hmac_authenticated": {
+          "const": true
+        },
+        "runtime_hmac_externally_reverified": {
+          "const": false
+        },
+        "external_hmac_key_available": {
+          "const": false
+        },
+        "runtime_hmac_key_persisted": {
+          "const": false
+        },
+        "candidate_receipt_bytes_bound": {
+          "const": true
+        }
+      }
+    },
+    "integrity": {
+      "const": {
+        "single_bytes_snapshot": true,
+        "terminal_toctou_recheck": true,
+        "raw_path_reparse_rejected": true,
+        "candidate_immutable": true,
+        "candidate_directly_consumable": false,
+        "create_once_release": true,
+        "atomic_directory_no_replace": true,
+        "recursive_cleanup_used": false,
+        "release_pair_sidecars_valid": true
+      }
+    },
+    "resource_counters": {
+      "$ref": "#/$defs/resources"
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$"
+    },
+    "shard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes",
+        "records",
+        "asset",
+        "first_record_id_sha256",
+        "last_record_id_sha256",
+        "first_task_bundle_sha256",
+        "last_task_bundle_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(train|router)/teacher-[0-9]{5}-of-[0-9]{5}\\.jsonl$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 70,
+          "maximum": 160
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3520
+        },
+        "asset": {
+          "enum": [
+            "main_train",
+            "planner_router_train"
+          ]
+        },
+        "first_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "first_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "resources": {
+      "const": {
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "protected_body_reads": 0,
+        "gold_body_reads": 0,
+        "heldout_body_reads": 0
+      }
+    },
+    "claims": {
+      "const": {
+        "candidate": false,
+        "final": true,
+        "independent_release_review": "passed",
+        "consumer_binding_required": true,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "live_authorized": false,
+        "quality_validated": false,
+        "generalization_validated": false
+      }
+    }
+  }
+}

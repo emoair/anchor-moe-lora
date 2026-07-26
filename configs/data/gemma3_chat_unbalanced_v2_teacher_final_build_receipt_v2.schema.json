@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-final-build-receipt.v2",
+  "title": "Gemma 3 unbalanced-v2 same-process Teacher FINAL build receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "status",
+    "controller_run_id",
+    "manifest_sha256",
+    "manifest_bytes",
+    "output_inventory_sha256",
+    "payload_tree_sha256",
+    "source_identity_sha256",
+    "phase_receipt_inventory_sha256",
+    "wal_chain_tip_sha256",
+    "counts",
+    "identity_audit_sha256",
+    "runtime_authority",
+    "claims",
+    "built_at",
+    "runtime_hmac_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-build-receipt.v2"
+    },
+    "namespace": {
+      "const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+    },
+    "status": {
+      "const": "materialized_candidate_pending_independent_release_review"
+    },
+    "controller_run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "manifest_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 52428799
+    },
+    "output_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "payload_tree_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "phase_receipt_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "wal_chain_tip_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "counts": {
+      "const": {
+        "records": 3520,
+        "main_records": 3440,
+        "router_records": 80,
+        "accepted": 3520,
+        "rejected": 0,
+        "uncertain": 0,
+        "train_identity_bundles": 20,
+        "train_identity_records": 100
+      }
+    },
+    "identity_audit_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "runtime_authority": {
+      "const": {
+        "same_process_hmac_authenticated": true,
+        "three_phase_receipts_authenticated": true,
+        "wal_terminally_authenticated": true,
+        "runtime_hmac_verification_scope": "same_process_only",
+        "runtime_hmac_key_persisted": false,
+        "runtime_hmac_key_public": false
+      }
+    },
+    "claims": {
+      "const": {
+        "candidate": true,
+        "final": false,
+        "external_release_review_required": true,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "live_authorized": false,
+        "content_in_receipt": false,
+        "secret_in_receipt": false,
+        "provider_body_in_receipt": false
+      }
+    },
+    "built_at": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "runtime_hmac_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

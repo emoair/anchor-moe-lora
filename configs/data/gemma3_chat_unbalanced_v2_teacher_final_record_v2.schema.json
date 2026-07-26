@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher FINAL training record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "record_id_sha256",
+    "source_content_sha256",
+    "source_serialization_identity_sha256",
+    "task_bundle_sha256",
+    "source_asset",
+    "decision",
+    "teacher_target",
+    "teacher_target_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2"
+    },
+    "namespace": {
+      "const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+    },
+    "record_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_content_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_serialization_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_asset": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit",
+        "planner_router"
+      ]
+    },
+    "decision": {
+      "const": "accepted"
+    },
+    "teacher_target": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 262144,
+      "pattern": "^[^\\u0000]+$"
+    },
+    "teacher_target_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
