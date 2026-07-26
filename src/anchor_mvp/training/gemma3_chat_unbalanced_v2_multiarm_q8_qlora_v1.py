@@ -42,6 +42,12 @@ CONFIG_SCHEMA_VERSION: Final = (
 PREFLIGHT_SCHEMA_VERSION: Final = (
     "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1"
 )
+CONSUMER_DERIVED_ASSET_IDENTITY_VERSION: Final = (
+    "anchor.gemma3-chat-unbalanced-v2-consumer-derived-asset-identity.v1"
+)
+CONSUMER_DERIVED_SHARD_INVENTORY_VERSION: Final = (
+    "anchor.gemma3-chat-unbalanced-v2-consumer-derived-shard-inventory.v1"
+)
 INVENTORY_SCHEMA_VERSION: Final = (
     "anchor.gemma3-chat-unbalanced-v2-observed-tensor-inventory.v1"
 )
@@ -172,6 +178,153 @@ DEPENDENCIES: Final = (
         "88411919f8b3839c037db439363413b70584fa7ca406a1f2b1b84d811bf73b1a",
     ),
 )
+FINAL_SOURCE_ANCHORS: Final = {
+    "artifact_version": (
+        "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3"
+    ),
+    "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "upstream_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "live_remote_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "tree_digest_sha256": (
+        "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+    ),
+    "producer_inventory_sha256": (
+        "dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc"
+    ),
+    "manifest": {
+        "schema_version": (
+            "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-manifest.v4"
+        ),
+        "sha256": ("c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499"),
+        "bytes": 34_236,
+    },
+    "build_receipt": {
+        "schema_version": (
+            "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-build-receipt.v4"
+        ),
+        "sha256": ("da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6"),
+        "bytes": 35_356,
+    },
+    "schema_files": {
+        "manifest": {
+            "sha256": (
+                "9841c0448cbef634de847f9ffa35ab1a67bb27749ff6f684debf48851dd8ad7e"
+            ),
+            "bytes": 11_062,
+        },
+        "build_receipt": {
+            "sha256": (
+                "77d6febe99ddebd66a9409d37e0c69feeb300ccbc00491212ff115d30996816c"
+            ),
+            "bytes": 9_699,
+        },
+        "release_attestation": {
+            "sha256": (
+                "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9"
+            ),
+            "bytes": 11_765,
+        },
+    },
+    "release_attestation": {
+        "schema_version": (
+            "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-"
+            "independent-release-attestation.v3"
+        ),
+        "sha256": ("b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813"),
+        "bytes": 4_971,
+        "sidecar_sha256": (
+            "f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35"
+        ),
+        "sidecar_bytes": 103,
+    },
+    "training_shards": {
+        "shard_count": 2,
+        "ordered_paths": [
+            "train/chat-00000-of-00002.jsonl",
+            "train/chat-00001-of-00002.jsonl",
+        ],
+        "ordered_concat_sha256": (
+            "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3"
+        ),
+        "logical_partition_bytes": 59_845_314,
+        "logical_partition_records": 3_440,
+        "task_bundles": 1_360,
+        "bundle_boundary_only": True,
+        "ordered_shards": True,
+        "task_bundle_intersection_empty": True,
+        "boundary_commitment_sha256": (
+            "6af9bc4cd79c9a8bb211a7147b91eb7c0c07e3adf7026becc1c913045716d089"
+        ),
+        "shards": [
+            {
+                "index": 0,
+                "path": "train/chat-00000-of-00002.jsonl",
+                "sha256": (
+                    "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215"
+                ),
+                "bytes": 29_909_786,
+                "records": 1_770,
+                "task_bundles": 564,
+                "first_task_bundle_sha256": (
+                    "010bc26ac17b44751b9cbb40bb78ee180179dfa8d79ecbab35aa32e44c5a1dd3"
+                ),
+                "last_task_bundle_sha256": (
+                    "5ae91812a2044054268f5e5331ee23aa033ac839bd5c51f8c2090df52e1b9060"
+                ),
+            },
+            {
+                "index": 1,
+                "path": "train/chat-00001-of-00002.jsonl",
+                "sha256": (
+                    "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522"
+                ),
+                "bytes": 29_935_528,
+                "records": 1_670,
+                "task_bundles": 796,
+                "first_task_bundle_sha256": (
+                    "5afded7a2b87b4e44631507d49ececd691071774b10a13e23c7ddfa09eb6acc2"
+                ),
+                "last_task_bundle_sha256": (
+                    "eae4a6bd05f080b17f633ace7f770bc69752348b8ebcec26cf002f8ab8c16434"
+                ),
+            },
+        ],
+    },
+    "logical_identity": {
+        "logical_dataset_sha256": (
+            "c63fd9c46aff129e0840ed32482ed1a856a66a2b89b48b1316d54bf378685033"
+        ),
+        "logical_train_partition_sha256": (
+            "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3"
+        ),
+        "eval_proxy_partition_sha256": (
+            "42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176"
+        ),
+        "logical_record_order_sha256": (
+            "6419cdac69cb3da05a49eac94a58ab73a47ae11ae65445f29de7b518aceda76c"
+        ),
+        "logical_target_inventory_sha256": (
+            "92372de0b2837b05fbe670fc677b9eee08cf751a379e3fe65d1aee4804493c46"
+        ),
+        "logical_train_record_inventory_sha256": (
+            "cf395044642a3333d31f47926b590011f0cb7922631af204ea7c16b5a46fe8aa"
+        ),
+        "logical_all_record_inventory_sha256": (
+            "5da71c978eacdbb4dbcc466b6a227ede7ddb6b0191cc70164f5aa91747444515"
+        ),
+        "logical_task_bundle_inventory_sha256": (
+            "137f2e37c75ae2ce248439308c66d0c2e80f92fc75600d32acb337f11d713334"
+        ),
+        "serialization_inventory_sha256": (
+            "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d"
+        ),
+        "identity_probe_inventory_sha256": (
+            "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5"
+        ),
+    },
+}
 
 
 class MultiArmContractError(RuntimeError):
@@ -465,10 +618,11 @@ def validate_config(config: Mapping[str, Any]) -> str:
             "required_schema_version": PREFLIGHT_SCHEMA_VERSION,
             "required_status": "passed",
             "required_namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
-            "source_identity_from_receipt_only": True,
-            "candidate_sha256_hardcoded": False,
+            "final_source_anchors_hardcoded": True,
             "require_versioned_shard_inventory": True,
-            "require_additive_logical_assets": True,
+            "require_consumer_derived_logical_assets": True,
+            "local_user_task_authorization_required": True,
+            "producer_training_authority_must_not_be_inferred": True,
             "required_physical_files": 46,
             "required_payload_files": 23,
             "required_sidecar_files": 23,
@@ -478,6 +632,7 @@ def validate_config(config: Mapping[str, Any]) -> str:
             "require_body_read": False,
             "require_raw_token_ids_read": False,
             "require_gold_heldout_protected_read": False,
+            "final_source_anchors": FINAL_SOURCE_ANCHORS,
         },
         "consumer_preflight_contract_invalid",
     )
@@ -805,6 +960,10 @@ def _validate_logical_asset(
     asset = _mapping(value, "preflight_asset_invalid")
     expected_keys = {
         "records",
+        "asset_namespace",
+        "identity_origin",
+        "identity_derivation_schema_version",
+        "identity_preimage_sha256",
         "logical_dataset_sha256",
         "shard_inventory_schema_version",
         "shard_inventory_schema_sha256",
@@ -820,15 +979,22 @@ def _validate_logical_asset(
     if (
         asset["records"] != expected_records
         or asset["training_eligible"] is not training_eligible
+        or not isinstance(asset["asset_namespace"], str)
+        or not asset["asset_namespace"]
+        or asset["identity_origin"]
+        != "consumer_derived_from_authenticated_sharded_v1_receipt"
+        or asset["identity_derivation_schema_version"]
+        != CONSUMER_DERIVED_ASSET_IDENTITY_VERSION
         or not isinstance(asset["shard_inventory_schema_version"], str)
-        or re.fullmatch(
-            r"^[a-z][a-z0-9._-]{2,127}$",
-            asset["shard_inventory_schema_version"],
-        )
-        is None
+        or asset["shard_inventory_schema_version"]
+        != CONSUMER_DERIVED_SHARD_INVENTORY_VERSION
     ):
         raise MultiArmContractError("preflight_asset_contract_invalid")
     result = dict(asset)
+    result["identity_preimage_sha256"] = _require_sha(
+        asset["identity_preimage_sha256"],
+        "identity_preimage_sha256_invalid",
+    )
     result["logical_dataset_sha256"] = _require_sha(
         asset["logical_dataset_sha256"],
         "logical_dataset_sha256_invalid",
@@ -866,40 +1032,75 @@ def _validate_logical_asset(
     return result
 
 
-def load_consumer_preflight_receipt(
-    path: str | Path,
-) -> tuple[dict[str, Any], str, str]:
-    """Authenticate the dynamic producer/consumer binding without data reads."""
+def _domain_canonical_sha256(domain: str, value: object) -> str:
+    if re.fullmatch(r"^anchor\.[a-z0-9._-]+\.v[0-9]+$", domain) is None:
+        raise MultiArmContractError("consumer_derived_hash_domain_invalid")
+    return hashlib.sha256(
+        domain.encode("ascii") + b"\0" + _canonical_json(value)
+    ).hexdigest()
 
-    receipt, receipt_sha256 = _load_json(
-        path,
-        max_bytes=_MAX_RECEIPT_BYTES,
-        code="consumer_preflight_receipt_invalid",
+
+def _receipt_training_shard_contract() -> dict[str, Any]:
+    anchors = _mapping(
+        FINAL_SOURCE_ANCHORS["training_shards"],
+        "final_training_shard_anchors_invalid",
     )
+    keys = (
+        "shard_count",
+        "ordered_paths",
+        "ordered_concat_sha256",
+        "logical_partition_bytes",
+        "logical_partition_records",
+        "task_bundles",
+        "bundle_boundary_only",
+        "ordered_shards",
+        "task_bundle_intersection_empty",
+        "boundary_commitment_sha256",
+    )
+    return {key: anchors[key] for key in keys}
+
+
+def _validate_identity_mapping(
+    value: object,
+    expected: Mapping[str, Any],
+    *,
+    code: str,
+) -> dict[str, Any]:
+    identity = _mapping(value, code)
+    _exact_keys(identity, set(expected), f"{code}_keys_invalid")
+    if identity != expected:
+        raise MultiArmContractError(code)
+    return dict(identity)
+
+
+def _validate_source_receipt(value: object) -> dict[str, Any]:
+    receipt = _mapping(value, "consumer_preflight_receipt_invalid")
+    source_keys = {
+        "schema_version",
+        "status",
+        "operation",
+        "namespace",
+        "model_free",
+        "binding_contract_sha256",
+        "artifact_version",
+        "producer_git",
+        "tree_digest_sha256",
+        "file_counts",
+        "manifest",
+        "build_receipt",
+        "schema_files",
+        "release_attestation",
+        "training_shards",
+        "logical_identity",
+        "read_set",
+        "release",
+        "terminal_recheck",
+        "resource_counters",
+        "claims",
+    }
     _exact_keys(
         receipt,
-        {
-            "schema_version",
-            "status",
-            "operation",
-            "namespace",
-            "model_free",
-            "binding_contract_sha256",
-            "producer_git_commit",
-            "producer_manifest_schema_sha256",
-            "producer_build_receipt_schema_sha256",
-            "release_review_receipt_sha256",
-            "tree_digest_sha256",
-            "file_counts",
-            "manifest",
-            "build_receipt",
-            "aggregate_counts",
-            "release",
-            "terminal_recheck",
-            "resource_counters",
-            "claims",
-            "logical_assets",
-        },
+        source_keys,
         "consumer_preflight_receipt_keys_invalid",
     )
     if (
@@ -908,110 +1109,128 @@ def load_consumer_preflight_receipt(
         or receipt["operation"] not in {"validate", "dry-run"}
         or receipt["namespace"] != "gemma3_chat_five_expert_qonly_unbalanced_v2"
         or receipt["model_free"] is not True
+        or receipt["artifact_version"] != FINAL_SOURCE_ANCHORS["artifact_version"]
     ):
         raise MultiArmContractError("consumer_preflight_not_passed")
-    _require_commit(receipt["producer_git_commit"], "producer_commit_invalid")
-    for key in (
-        "binding_contract_sha256",
-        "producer_manifest_schema_sha256",
-        "producer_build_receipt_schema_sha256",
-        "release_review_receipt_sha256",
-        "tree_digest_sha256",
-    ):
-        _require_sha(receipt[key], f"{key}_invalid")
-    file_counts = _mapping(
+    _require_sha(
+        receipt["binding_contract_sha256"],
+        "binding_contract_sha256_invalid",
+    )
+    if receipt["tree_digest_sha256"] != FINAL_SOURCE_ANCHORS["tree_digest_sha256"]:
+        raise MultiArmContractError("consumer_preflight_tree_identity_drift")
+
+    _validate_identity_mapping(
+        receipt["producer_git"],
+        {
+            "candidate_commit": FINAL_SOURCE_ANCHORS["candidate_commit"],
+            "release_commit": FINAL_SOURCE_ANCHORS["release_commit"],
+            "release_tree": FINAL_SOURCE_ANCHORS["release_tree"],
+            "upstream_commit": FINAL_SOURCE_ANCHORS["upstream_commit"],
+            "live_remote_commit": FINAL_SOURCE_ANCHORS["live_remote_commit"],
+            "clean_worktree": True,
+            "tags_at_head": 0,
+        },
+        code="consumer_preflight_producer_git_identity_drift",
+    )
+    _expect_mapping(
         receipt["file_counts"],
+        {"total": 46, "payload": 23, "sidecar": 23},
         "consumer_preflight_file_counts_invalid",
     )
+    _validate_identity_mapping(
+        receipt["manifest"],
+        _mapping(FINAL_SOURCE_ANCHORS["manifest"], "manifest_anchor_invalid"),
+        code="consumer_preflight_manifest_identity_drift",
+    )
+    _validate_identity_mapping(
+        receipt["build_receipt"],
+        _mapping(
+            FINAL_SOURCE_ANCHORS["build_receipt"],
+            "build_receipt_anchor_invalid",
+        ),
+        code="consumer_preflight_build_receipt_identity_drift",
+    )
+    schema_files = _mapping(
+        receipt["schema_files"],
+        "consumer_preflight_schema_files_invalid",
+    )
+    expected_schema_files = _mapping(
+        FINAL_SOURCE_ANCHORS["schema_files"],
+        "schema_file_anchors_invalid",
+    )
     _exact_keys(
-        file_counts,
-        {"total", "payload", "sidecar"},
-        "consumer_preflight_file_count_keys_invalid",
+        schema_files,
+        set(expected_schema_files),
+        "consumer_preflight_schema_file_names_invalid",
     )
-    payload_count = _positive_int(
-        file_counts["payload"],
-        "consumer_preflight_payload_count_invalid",
+    if schema_files != expected_schema_files:
+        raise MultiArmContractError("consumer_preflight_schema_identity_drift")
+    _validate_identity_mapping(
+        receipt["release_attestation"],
+        _mapping(
+            FINAL_SOURCE_ANCHORS["release_attestation"],
+            "release_attestation_anchor_invalid",
+        ),
+        code="consumer_preflight_attestation_identity_drift",
     )
-    sidecar_count = _positive_int(
-        file_counts["sidecar"],
-        "consumer_preflight_sidecar_count_invalid",
-    )
-    if (
-        payload_count != sidecar_count
-        or file_counts["total"] != (payload_count + sidecar_count)
-        or file_counts != {"total": 46, "payload": 23, "sidecar": 23}
-    ):
-        raise MultiArmContractError("consumer_preflight_file_counts_invalid")
-    for key in ("manifest", "build_receipt"):
-        identity = _mapping(
-            receipt[key],
-            f"consumer_preflight_{key}_identity_invalid",
-        )
-        _exact_keys(
-            identity,
-            {"schema_version", "sha256", "bytes"},
-            f"consumer_preflight_{key}_identity_keys_invalid",
-        )
-        if (
-            not isinstance(identity["schema_version"], str)
-            or not identity["schema_version"]
-            or _positive_int(
-                identity["bytes"],
-                f"consumer_preflight_{key}_bytes_invalid",
-            )
-            < 1
-        ):
-            raise MultiArmContractError(f"consumer_preflight_{key}_identity_invalid")
-        _require_sha(
-            identity["sha256"],
-            f"consumer_preflight_{key}_sha256_invalid",
-        )
     _expect_mapping(
-        receipt["aggregate_counts"],
-        {
-            "training_records": 4300,
-            "training_train_records": 3440,
-            "training_eval_proxy_records": 860,
-            "router_records": 100,
-            "router_train_records": 80,
-            "router_eval_proxy_records": 20,
-            "tool_eval_records": 400,
-            "planner_eval_records": 240,
-            "identity_probe_records": 50,
-        },
-        "consumer_preflight_aggregate_counts_invalid",
+        receipt["training_shards"],
+        _receipt_training_shard_contract(),
+        "consumer_preflight_training_shards_drift",
     )
-    release = _mapping(receipt["release"], "consumer_preflight_release_invalid")
+    _validate_identity_mapping(
+        receipt["logical_identity"],
+        _mapping(
+            FINAL_SOURCE_ANCHORS["logical_identity"],
+            "logical_identity_anchors_invalid",
+        ),
+        code="consumer_preflight_logical_identity_drift",
+    )
+    read_set = _mapping(receipt["read_set"], "consumer_preflight_read_set_invalid")
     _exact_keys(
-        release,
+        read_set,
         {
-            "manifest_status",
-            "independent_release_review",
-            "final",
-            "release_authorized",
-            "training_authorized",
-            "formal_training_authorized",
+            "count",
+            "canonical_digest_sha256",
+            "producer_inventory_sha256",
+            "physical_identities_equal",
+            "utf8_lf",
         },
-        "consumer_preflight_release_keys_invalid",
+        "consumer_preflight_read_set_keys_invalid",
     )
-    status = release["manifest_status"]
+    _positive_int(read_set["count"], "consumer_preflight_read_set_count_invalid")
+    _require_sha(
+        read_set["canonical_digest_sha256"],
+        "consumer_preflight_read_set_digest_invalid",
+    )
     if (
-        not isinstance(status, str)
-        or not status
-        or "candidate" in status
-        or "pending" in status
-        or release["independent_release_review"] != "passed"
-        or release["final"] is not True
-        or release["release_authorized"] is not True
-        or release["training_authorized"] is not True
-        or release["formal_training_authorized"] is not False
+        read_set["producer_inventory_sha256"]
+        != FINAL_SOURCE_ANCHORS["producer_inventory_sha256"]
+        or read_set["physical_identities_equal"] is not True
+        or read_set["utf8_lf"] is not True
     ):
-        raise MultiArmContractError("consumer_preflight_release_not_final")
+        raise MultiArmContractError("consumer_preflight_read_set_identity_drift")
+    _expect_mapping(
+        receipt["release"],
+        {
+            "artifact_final_identity": True,
+            "independent_release_review": "passed",
+            "p0_findings": 0,
+            "p1_findings": 0,
+            "p2_findings": 0,
+            "producer_training_authorized": False,
+            "formal_training_authorized": False,
+            "live_authorized": False,
+            "model_release_authorized": False,
+        },
+        "consumer_preflight_release_not_final",
+    )
     _expect_mapping(
         receipt["terminal_recheck"],
         {
-            "two_snapshot_bytes_equal": True,
-            "stat_identity_equal": True,
+            "two_artifact_snapshots_equal": True,
+            "artifact_stat_identity_equal": True,
+            "external_single_read_stat_identity_equal": True,
             "physical_inventory_equal": True,
         },
         "consumer_preflight_terminal_recheck_invalid",
@@ -1029,9 +1248,8 @@ def load_consumer_preflight_receipt(
         },
         "consumer_preflight_resource_counter_invalid",
     )
-    claims = _mapping(receipt["claims"], "consumer_preflight_claims_invalid")
     _expect_mapping(
-        claims,
+        receipt["claims"],
         {
             "diagnostic_only": True,
             "proxy_only": True,
@@ -1040,97 +1258,167 @@ def load_consumer_preflight_receipt(
             "data_copied": False,
             "sample_bodies_parsed": False,
             "raw_token_ids_parsed": False,
+            "producer_training_authority_inferred": False,
         },
         "consumer_preflight_claims_not_launchable",
     )
-    logical_assets = _mapping(
-        receipt["logical_assets"],
-        "consumer_preflight_logical_assets_invalid",
+    return dict(receipt)
+
+
+def _derive_consumer_assets(
+    source: Mapping[str, Any],
+    physical_receipt_sha256: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    receipt_sha = _require_sha(
+        physical_receipt_sha256,
+        "consumer_preflight_receipt_sha256_invalid",
     )
-    _exact_keys(
-        logical_assets,
-        {"training", "evaluation"},
-        "consumer_preflight_logical_asset_keys_invalid",
-    )
-    training = _mapping(
-        logical_assets["training"],
-        "consumer_preflight_training_assets_invalid",
-    )
-    if set(training) != set(TRAINING_ASSETS):
-        raise MultiArmContractError("consumer_preflight_training_asset_names_invalid")
-    normalized_training = {
-        name: _validate_logical_asset(
-            training[name],
-            expected_records=count,
-            training_eligible=True,
-            require_shard_order=True,
-            expected_shard_order=(
-                "continuous_bundle_boundary_v1" if name != "planner_router" else None
-            ),
-        )
-        for name, count in TRAINING_ASSETS.items()
+    common = {
+        "identity_derivation_schema_version": (CONSUMER_DERIVED_ASSET_IDENTITY_VERSION),
+        "physical_receipt_sha256": receipt_sha,
+        "artifact_version": source["artifact_version"],
+        "tree_digest_sha256": source["tree_digest_sha256"],
+        "logical_identity": source["logical_identity"],
     }
-    main_chat_assets = (
+    schema_contract = {
+        "schema_version": CONSUMER_DERIVED_SHARD_INVENTORY_VERSION,
+        "identity_origin": ("consumer_derived_from_authenticated_sharded_v1_receipt"),
+        "fields": [
+            "physical_receipt_sha256",
+            "artifact_version",
+            "tree_digest_sha256",
+            "logical_identity",
+            "asset_name",
+            "asset_namespace",
+            "records",
+            "training_eligible",
+        ],
+    }
+    shard_schema_sha = _domain_canonical_sha256(
+        "anchor.consumer-derived-shard-inventory-schema.v1",
+        schema_contract,
+    )
+    main_chat_shard_preimage = {
+        **common,
+        "training_shards": source["training_shards"],
+        "physical_training_shard_anchors": _mapping(
+            FINAL_SOURCE_ANCHORS["training_shards"],
+            "final_training_shard_anchors_invalid",
+        )["shards"],
+    }
+    main_chat_shard_sha = _domain_canonical_sha256(
+        "anchor.consumer-derived-main-chat-shard-inventory.v1",
+        main_chat_shard_preimage,
+    )
+    namespaces = {
+        "humor": "train/chat#role=humor",
+        "serious": "train/chat#role=serious",
+        "angry_style": "train/chat#role=angry_style",
+        "review_audit": "train/chat#role=review_audit",
+        "tool_call": "train/chat#role=tool_call",
+        "planner_router": "components/router#split=train",
+        "planner_router_eval": "components/router#split=eval_proxy",
+        "tool_comparison_eval": "components/tool_eval#split=all",
+        "planner_comparison_eval": "components/planner_eval#split=all",
+        "identity_probe": "identity_eval/probe_inventory#split=all",
+    }
+    main_chat_names = {
         "humor",
         "serious",
         "angry_style",
         "review_audit",
         "tool_call",
-    )
-    if (
-        any(normalized_training[name]["shard_count"] != 2 for name in main_chat_assets)
-        or len(
-            {
-                normalized_training[name]["shard_inventory_sha256"]
-                for name in main_chat_assets
-            }
-        )
-        != 1
-    ):
-        raise MultiArmContractError("main_chat_two_shard_inventory_mismatch")
-    evaluation = _mapping(
-        logical_assets["evaluation"],
-        "consumer_preflight_evaluation_assets_invalid",
-    )
-    if set(evaluation) != set(EVALUATION_ASSETS):
-        raise MultiArmContractError("consumer_preflight_eval_asset_names_invalid")
-    normalized_evaluation = {
-        name: _validate_logical_asset(
-            evaluation[name],
-            expected_records=count,
-            training_eligible=False,
-            require_shard_order=False,
-        )
-        for name, count in EVALUATION_ASSETS.items()
     }
-    normalized = {
-        **{
-            key: receipt[key]
-            for key in (
-                "schema_version",
-                "status",
-                "operation",
-                "namespace",
-                "model_free",
-                "binding_contract_sha256",
-                "producer_git_commit",
-                "producer_manifest_schema_sha256",
-                "producer_build_receipt_schema_sha256",
-                "release_review_receipt_sha256",
-                "tree_digest_sha256",
-                "file_counts",
-                "manifest",
-                "build_receipt",
-                "aggregate_counts",
-                "release",
-                "terminal_recheck",
-                "resource_counters",
-                "claims",
+
+    def derive(name: str, records: int, training_eligible: bool) -> dict[str, Any]:
+        preimage = {
+            **common,
+            "asset_name": name,
+            "asset_namespace": namespaces[name],
+            "records": records,
+            "training_eligible": training_eligible,
+        }
+        if name in main_chat_names:
+            shard_inventory_sha = main_chat_shard_sha
+            shard_count = 2
+        else:
+            shard_inventory_sha = _domain_canonical_sha256(
+                "anchor.consumer-derived-tree-asset-shard-inventory.v1",
+                preimage,
             )
-        },
+            shard_count = 1
+        asset = {
+            "records": records,
+            "asset_namespace": namespaces[name],
+            "identity_origin": (
+                "consumer_derived_from_authenticated_sharded_v1_receipt"
+            ),
+            "identity_derivation_schema_version": (
+                CONSUMER_DERIVED_ASSET_IDENTITY_VERSION
+            ),
+            "identity_preimage_sha256": _domain_canonical_sha256(
+                "anchor.consumer-derived-asset-preimage.v1",
+                preimage,
+            ),
+            "logical_dataset_sha256": _domain_canonical_sha256(
+                "anchor.consumer-derived-logical-dataset.v1",
+                preimage,
+            ),
+            "shard_inventory_schema_version": (
+                CONSUMER_DERIVED_SHARD_INVENTORY_VERSION
+            ),
+            "shard_inventory_schema_sha256": shard_schema_sha,
+            "shard_inventory_sha256": shard_inventory_sha,
+            "shard_count": shard_count,
+            "training_eligible": training_eligible,
+            "record_order_sha256": _domain_canonical_sha256(
+                "anchor.consumer-derived-record-order.v1",
+                preimage,
+            ),
+            "target_projection_sha256": _domain_canonical_sha256(
+                "anchor.consumer-derived-target-projection.v1",
+                preimage,
+            ),
+        }
+        if training_eligible:
+            asset["shard_order_contract"] = (
+                "continuous_bundle_boundary_v1"
+                if name in main_chat_names
+                else "consumer_derived_tree_asset_namespace_v1"
+            )
+        return asset
+
+    training = {
+        name: derive(name, count, True) for name, count in TRAINING_ASSETS.items()
+    }
+    evaluation = {
+        name: derive(name, count, False) for name, count in EVALUATION_ASSETS.items()
+    }
+    return training, evaluation
+
+
+def load_consumer_preflight_receipt(
+    path: str | Path,
+) -> tuple[dict[str, Any], str, str]:
+    """Authenticate the dynamic producer/consumer binding without data reads."""
+
+    receipt, receipt_sha256 = _load_json(
+        path,
+        max_bytes=_MAX_RECEIPT_BYTES,
+        code="consumer_preflight_receipt_invalid",
+    )
+    source = _validate_source_receipt(receipt)
+    normalized_training, normalized_evaluation = _derive_consumer_assets(
+        source,
+        receipt_sha256,
+    )
+    normalized = {
+        **source,
+        "physical_receipt_sha256": receipt_sha256,
         "training_assets": normalized_training,
         "evaluation_assets": normalized_evaluation,
     }
+    normalized = _validate_normalized_preflight_binding(normalized)
     source_binding_sha256 = _canonical_sha256(normalized)
     return normalized, receipt_sha256, source_binding_sha256
 
@@ -1141,144 +1429,47 @@ def _validate_normalized_preflight_binding(
     """Re-authenticate the body-free binding carried by a trusted context."""
 
     binding = _mapping(value, "trusted_preflight_binding_invalid")
+    source_keys = {
+        "schema_version",
+        "status",
+        "operation",
+        "namespace",
+        "model_free",
+        "binding_contract_sha256",
+        "artifact_version",
+        "producer_git",
+        "tree_digest_sha256",
+        "file_counts",
+        "manifest",
+        "build_receipt",
+        "schema_files",
+        "release_attestation",
+        "training_shards",
+        "logical_identity",
+        "read_set",
+        "release",
+        "terminal_recheck",
+        "resource_counters",
+        "claims",
+    }
     _exact_keys(
         binding,
-        {
-            "schema_version",
-            "status",
-            "operation",
-            "namespace",
-            "model_free",
-            "binding_contract_sha256",
-            "producer_git_commit",
-            "producer_manifest_schema_sha256",
-            "producer_build_receipt_schema_sha256",
-            "release_review_receipt_sha256",
-            "tree_digest_sha256",
-            "file_counts",
-            "manifest",
-            "build_receipt",
-            "aggregate_counts",
-            "release",
-            "terminal_recheck",
-            "resource_counters",
-            "claims",
+        source_keys
+        | {
+            "physical_receipt_sha256",
             "training_assets",
             "evaluation_assets",
         },
         "trusted_preflight_binding_keys_invalid",
     )
-    if (
-        binding["schema_version"] != PREFLIGHT_SCHEMA_VERSION
-        or binding["status"] != "passed"
-        or binding["operation"] not in {"validate", "dry-run"}
-        or binding["namespace"] != "gemma3_chat_five_expert_qonly_unbalanced_v2"
-        or binding["model_free"] is not True
-    ):
-        raise MultiArmContractError("trusted_preflight_identity_invalid")
-    _require_commit(binding["producer_git_commit"], "trusted_producer_commit_invalid")
-    for key in (
-        "binding_contract_sha256",
-        "producer_manifest_schema_sha256",
-        "producer_build_receipt_schema_sha256",
-        "release_review_receipt_sha256",
-        "tree_digest_sha256",
-    ):
-        _require_sha(binding[key], f"trusted_{key}_invalid")
-    _expect_mapping(
-        binding["file_counts"],
-        {"total": 46, "payload": 23, "sidecar": 23},
-        "trusted_file_counts_invalid",
+    source = _validate_source_receipt({key: binding[key] for key in source_keys})
+    receipt_sha = _require_sha(
+        binding["physical_receipt_sha256"],
+        "trusted_physical_receipt_sha256_invalid",
     )
-    for key in ("manifest", "build_receipt"):
-        identity = _mapping(binding[key], f"trusted_{key}_invalid")
-        _exact_keys(
-            identity,
-            {"schema_version", "sha256", "bytes"},
-            f"trusted_{key}_keys_invalid",
-        )
-        if (
-            not isinstance(identity["schema_version"], str)
-            or not identity["schema_version"]
-            or _positive_int(identity["bytes"], f"trusted_{key}_bytes_invalid") < 1
-        ):
-            raise MultiArmContractError(f"trusted_{key}_invalid")
-        _require_sha(identity["sha256"], f"trusted_{key}_sha256_invalid")
-    _expect_mapping(
-        binding["aggregate_counts"],
-        {
-            "training_records": 4300,
-            "training_train_records": 3440,
-            "training_eval_proxy_records": 860,
-            "router_records": 100,
-            "router_train_records": 80,
-            "router_eval_proxy_records": 20,
-            "tool_eval_records": 400,
-            "planner_eval_records": 240,
-            "identity_probe_records": 50,
-        },
-        "trusted_aggregate_counts_invalid",
-    )
-    release = _mapping(binding["release"], "trusted_release_identity_invalid")
-    _exact_keys(
-        release,
-        {
-            "manifest_status",
-            "independent_release_review",
-            "final",
-            "release_authorized",
-            "training_authorized",
-            "formal_training_authorized",
-        },
-        "trusted_release_keys_invalid",
-    )
-    manifest_status = release["manifest_status"]
-    if (
-        not isinstance(manifest_status, str)
-        or not manifest_status
-        or "candidate" in manifest_status
-        or "pending" in manifest_status
-        or release["independent_release_review"] != "passed"
-        or release["final"] is not True
-        or release["release_authorized"] is not True
-        or release["training_authorized"] is not True
-        or release["formal_training_authorized"] is not False
-    ):
-        raise MultiArmContractError("trusted_release_identity_invalid")
-    _expect_mapping(
-        binding["terminal_recheck"],
-        {
-            "two_snapshot_bytes_equal": True,
-            "stat_identity_equal": True,
-            "physical_inventory_equal": True,
-        },
-        "trusted_terminal_recheck_invalid",
-    )
-    _expect_mapping(
-        binding["resource_counters"],
-        {
-            "provider_requests": 0,
-            "network_requests": 0,
-            "model_loads": 0,
-            "gpu_requests": 0,
-            "gold_body_reads": 0,
-            "heldout_body_reads": 0,
-            "protected_body_reads": 0,
-        },
-        "trusted_resource_counters_invalid",
-    )
-    _expect_mapping(
-        binding["claims"],
-        {
-            "diagnostic_only": True,
-            "proxy_only": True,
-            "formal": False,
-            "training_started": False,
-            "data_copied": False,
-            "sample_bodies_parsed": False,
-            "raw_token_ids_parsed": False,
-        },
-        "trusted_claims_invalid",
+    expected_training, expected_evaluation = _derive_consumer_assets(
+        source,
+        receipt_sha,
     )
     training = _mapping(binding["training_assets"], "trusted_training_assets_invalid")
     evaluation = _mapping(
@@ -1296,7 +1487,9 @@ def _validate_normalized_preflight_binding(
             training_eligible=True,
             require_shard_order=True,
             expected_shard_order=(
-                "continuous_bundle_boundary_v1" if name != "planner_router" else None
+                "continuous_bundle_boundary_v1"
+                if name != "planner_router"
+                else "consumer_derived_tree_asset_namespace_v1"
             ),
         )
         for name, count in TRAINING_ASSETS.items()
@@ -1310,6 +1503,11 @@ def _validate_normalized_preflight_binding(
         )
         for name, count in EVALUATION_ASSETS.items()
     }
+    if (
+        normalized_training != expected_training
+        or normalized_evaluation != expected_evaluation
+    ):
+        raise MultiArmContractError("trusted_consumer_derived_asset_identity_drift")
     main_chat_assets = (
         "humor",
         "serious",
@@ -1327,7 +1525,10 @@ def _validate_normalized_preflight_binding(
         != {"continuous_bundle_boundary_v1"}
     ):
         raise MultiArmContractError("trusted_main_chat_shard_layout_mismatch")
-    normalized = dict(binding)
+    normalized = {
+        **source,
+        "physical_receipt_sha256": receipt_sha,
+    }
     normalized["training_assets"] = normalized_training
     normalized["evaluation_assets"] = normalized_evaluation
     return normalized
@@ -1350,6 +1551,8 @@ def build_trusted_external_bindings(
         "trusted_source_binding_sha256_invalid",
     )
     normalized = _validate_normalized_preflight_binding(preflight)
+    if normalized["physical_receipt_sha256"] != receipt_sha:
+        raise MultiArmContractError("trusted_physical_receipt_identity_mismatch")
     if _canonical_sha256(normalized) != source_sha:
         raise MultiArmContractError("trusted_source_binding_digest_mismatch")
     context = {
@@ -1395,6 +1598,11 @@ def validate_trusted_external_bindings(
     if _canonical_sha256(context) != anchor:
         raise MultiArmContractError("trusted_external_bindings_anchor_mismatch")
     normalized = _validate_normalized_preflight_binding(context["binding"])
+    if (
+        normalized["physical_receipt_sha256"]
+        != context["consumer_preflight_receipt_sha256"]
+    ):
+        raise MultiArmContractError("trusted_external_receipt_identity_mismatch")
     if _canonical_sha256(normalized) != source_sha:
         raise MultiArmContractError("trusted_external_source_binding_mismatch")
     return normalized
@@ -1408,6 +1616,10 @@ def _dataset_binding(
     asset = _mapping(value, "dataset_binding_source_invalid")
     keys = (
         "records",
+        "asset_namespace",
+        "identity_origin",
+        "identity_derivation_schema_version",
+        "identity_preimage_sha256",
         "logical_dataset_sha256",
         "shard_inventory_schema_version",
         "shard_inventory_schema_sha256",
@@ -2009,6 +2221,17 @@ def build_execution_plan(
             "dataset_binding_sha256": external["dataset_binding_sha256"],
         }
 
+    consumer_derived_asset_identity_contract_sha256 = _canonical_sha256(
+        {
+            "schema_version": CONSUMER_DERIVED_ASSET_IDENTITY_VERSION,
+            "training_assets": training_assets,
+            "evaluation_assets": evaluation_assets,
+        }
+    )
+    producer_git = _mapping(
+        preflight["producer_git"],
+        "plan_producer_git_invalid",
+    )
     plan = {
         "schema_version": PLAN_SCHEMA_VERSION,
         "status": "model_free_dry_run_passed_gpu_execution_not_implemented",
@@ -2018,16 +2241,19 @@ def build_execution_plan(
         "consumer_preflight_receipt_sha256": preflight_receipt_sha256,
         "source_binding_sha256": source_binding_sha256,
         "tensor_inventory_sha256": tensor_inventory_sha256,
-        "producer_commit": preflight["producer_git_commit"],
+        "producer_candidate_commit": producer_git["candidate_commit"],
+        "producer_release_commit": producer_git["release_commit"],
+        "producer_release_tree": producer_git["release_tree"],
         "binding_contract_sha256": preflight["binding_contract_sha256"],
-        "producer_manifest_schema_sha256": preflight["producer_manifest_schema_sha256"],
-        "producer_build_receipt_schema_sha256": preflight[
-            "producer_build_receipt_schema_sha256"
-        ],
-        "release_review_receipt_sha256": preflight["release_review_receipt_sha256"],
+        "artifact_version": preflight["artifact_version"],
         "artifact_tree_sha256": preflight["tree_digest_sha256"],
         "source_manifest_sha256": preflight["manifest"]["sha256"],
         "source_build_receipt_sha256": preflight["build_receipt"]["sha256"],
+        "producer_schema_files_sha256": _canonical_sha256(preflight["schema_files"]),
+        "release_attestation_sha256": preflight["release_attestation"]["sha256"],
+        "consumer_derived_asset_identity_contract_sha256": (
+            consumer_derived_asset_identity_contract_sha256
+        ),
         "execution_order_sha256": _canonical_sha256(list(TRAINED_ARMS)),
         "branch_seed_sha256": branch_seed_sha256,
         "phases": phases,
@@ -2068,6 +2294,8 @@ def build_execution_plan(
             "training_executed": False,
             "evaluation_executed": False,
             "gpu_execution_implemented": False,
+            "diagnostic_training_authorization_source": "local_user_task_only",
+            "producer_training_authority_inferred": False,
             "formal": False,
         },
     }
@@ -2117,14 +2345,17 @@ def validate_execution_plan(
             "consumer_preflight_receipt_sha256",
             "source_binding_sha256",
             "tensor_inventory_sha256",
-            "producer_commit",
+            "producer_candidate_commit",
+            "producer_release_commit",
+            "producer_release_tree",
             "binding_contract_sha256",
-            "producer_manifest_schema_sha256",
-            "producer_build_receipt_schema_sha256",
-            "release_review_receipt_sha256",
+            "artifact_version",
             "artifact_tree_sha256",
             "source_manifest_sha256",
             "source_build_receipt_sha256",
+            "producer_schema_files_sha256",
+            "release_attestation_sha256",
+            "consumer_derived_asset_identity_contract_sha256",
             "execution_order_sha256",
             "branch_seed_sha256",
             "phases",
@@ -2147,17 +2378,27 @@ def validate_execution_plan(
         != trusted_external_bindings["consumer_preflight_receipt_sha256"]
         or plan["source_binding_sha256"]
         != trusted_external_bindings["source_binding_sha256"]
-        or plan["producer_commit"] != external["producer_git_commit"]
+        or plan["producer_candidate_commit"]
+        != external["producer_git"]["candidate_commit"]
+        or plan["producer_release_commit"] != external["producer_git"]["release_commit"]
+        or plan["producer_release_tree"] != external["producer_git"]["release_tree"]
         or plan["binding_contract_sha256"] != external["binding_contract_sha256"]
-        or plan["producer_manifest_schema_sha256"]
-        != external["producer_manifest_schema_sha256"]
-        or plan["producer_build_receipt_schema_sha256"]
-        != external["producer_build_receipt_schema_sha256"]
-        or plan["release_review_receipt_sha256"]
-        != external["release_review_receipt_sha256"]
+        or plan["artifact_version"] != external["artifact_version"]
         or plan["artifact_tree_sha256"] != external["tree_digest_sha256"]
         or plan["source_manifest_sha256"] != external["manifest"]["sha256"]
         or plan["source_build_receipt_sha256"] != external["build_receipt"]["sha256"]
+        or plan["producer_schema_files_sha256"]
+        != _canonical_sha256(external["schema_files"])
+        or plan["release_attestation_sha256"]
+        != external["release_attestation"]["sha256"]
+        or plan["consumer_derived_asset_identity_contract_sha256"]
+        != _canonical_sha256(
+            {
+                "schema_version": CONSUMER_DERIVED_ASSET_IDENTITY_VERSION,
+                "training_assets": external["training_assets"],
+                "evaluation_assets": external["evaluation_assets"],
+            }
+        )
         or plan["execution_order_sha256"] != _canonical_sha256(list(TRAINED_ARMS))
     ):
         raise MultiArmContractError("plan_identity_invalid")
@@ -2393,6 +2634,8 @@ def validate_execution_plan(
             "training_executed": False,
             "evaluation_executed": False,
             "gpu_execution_implemented": False,
+            "diagnostic_training_authorization_source": "local_user_task_only",
+            "producer_training_authority_inferred": False,
             "formal": False,
         },
         "plan_claims_invalid",

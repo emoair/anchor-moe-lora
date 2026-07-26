@@ -21,10 +21,11 @@ consumer_preflight:
   required_schema_version: anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1
   required_status: passed
   required_namespace: gemma3_chat_five_expert_qonly_unbalanced_v2
-  source_identity_from_receipt_only: true
-  candidate_sha256_hardcoded: false
+  final_source_anchors_hardcoded: true
   require_versioned_shard_inventory: true
-  require_additive_logical_assets: true
+  require_consumer_derived_logical_assets: true
+  local_user_task_authorization_required: true
+  producer_training_authority_must_not_be_inferred: true
   required_physical_files: 46
   required_payload_files: 23
   required_sidecar_files: 23
@@ -34,6 +35,80 @@ consumer_preflight:
   require_body_read: false
   require_raw_token_ids_read: false
   require_gold_heldout_protected_read: false
+  final_source_anchors:
+    artifact_version: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3
+    candidate_commit: c5080249aa103d6cac09f0a55e51982b68524480
+    release_commit: 304be2b86f82aad7ddade80fae04528bf2801977
+    release_tree: 9bf154d481623b696dbc8a4bdf276967710b7214
+    upstream_commit: 304be2b86f82aad7ddade80fae04528bf2801977
+    live_remote_commit: 304be2b86f82aad7ddade80fae04528bf2801977
+    tree_digest_sha256: 25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c
+    producer_inventory_sha256: dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc
+    manifest:
+      schema_version: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-manifest.v4
+      sha256: c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499
+      bytes: 34236
+    build_receipt:
+      schema_version: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-build-receipt.v4
+      sha256: da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6
+      bytes: 35356
+    schema_files:
+      manifest:
+        sha256: 9841c0448cbef634de847f9ffa35ab1a67bb27749ff6f684debf48851dd8ad7e
+        bytes: 11062
+      build_receipt:
+        sha256: 77d6febe99ddebd66a9409d37e0c69feeb300ccbc00491212ff115d30996816c
+        bytes: 9699
+      release_attestation:
+        sha256: 3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9
+        bytes: 11765
+    release_attestation:
+      schema_version: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation.v3
+      sha256: b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813
+      bytes: 4971
+      sidecar_sha256: f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35
+      sidecar_bytes: 103
+    training_shards:
+      shard_count: 2
+      ordered_paths:
+        - train/chat-00000-of-00002.jsonl
+        - train/chat-00001-of-00002.jsonl
+      ordered_concat_sha256: 62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3
+      logical_partition_bytes: 59845314
+      logical_partition_records: 3440
+      task_bundles: 1360
+      bundle_boundary_only: true
+      ordered_shards: true
+      task_bundle_intersection_empty: true
+      boundary_commitment_sha256: 6af9bc4cd79c9a8bb211a7147b91eb7c0c07e3adf7026becc1c913045716d089
+      shards:
+        - index: 0
+          path: train/chat-00000-of-00002.jsonl
+          sha256: 9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215
+          bytes: 29909786
+          records: 1770
+          task_bundles: 564
+          first_task_bundle_sha256: 010bc26ac17b44751b9cbb40bb78ee180179dfa8d79ecbab35aa32e44c5a1dd3
+          last_task_bundle_sha256: 5ae91812a2044054268f5e5331ee23aa033ac839bd5c51f8c2090df52e1b9060
+        - index: 1
+          path: train/chat-00001-of-00002.jsonl
+          sha256: 1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522
+          bytes: 29935528
+          records: 1670
+          task_bundles: 796
+          first_task_bundle_sha256: 5afded7a2b87b4e44631507d49ececd691071774b10a13e23c7ddfa09eb6acc2
+          last_task_bundle_sha256: eae4a6bd05f080b17f633ace7f770bc69752348b8ebcec26cf002f8ab8c16434
+    logical_identity:
+      logical_dataset_sha256: c63fd9c46aff129e0840ed32482ed1a856a66a2b89b48b1316d54bf378685033
+      logical_train_partition_sha256: 62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3
+      eval_proxy_partition_sha256: 42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176
+      logical_record_order_sha256: 6419cdac69cb3da05a49eac94a58ab73a47ae11ae65445f29de7b518aceda76c
+      logical_target_inventory_sha256: 92372de0b2837b05fbe670fc677b9eee08cf751a379e3fe65d1aee4804493c46
+      logical_train_record_inventory_sha256: cf395044642a3333d31f47926b590011f0cb7922631af204ea7c16b5a46fe8aa
+      logical_all_record_inventory_sha256: 5da71c978eacdbb4dbcc466b6a227ede7ddb6b0191cc70164f5aa91747444515
+      logical_task_bundle_inventory_sha256: 137f2e37c75ae2ce248439308c66d0c2e80f92fc75600d32acb337f11d713334
+      serialization_inventory_sha256: 4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d
+      identity_probe_inventory_sha256: 5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5
 
 model:
   architecture: Gemma3ForCausalLM

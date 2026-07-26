@@ -64,33 +64,9 @@ def _file_sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _logical_asset(name: str, records: int, *, training: bool) -> dict[str, object]:
-    main_chat = name in {
-        "humor",
-        "serious",
-        "angry_style",
-        "review_audit",
-        "tool_call",
-    }
-    value: dict[str, object] = {
-        "records": records,
-        "logical_dataset_sha256": _sha(f"logical:{name}"),
-        "shard_inventory_schema_version": "anchor.logical-dataset-shard-inventory.v1",
-        "shard_inventory_schema_sha256": _sha("logical-shard-inventory-schema"),
-        "shard_inventory_sha256": (
-            _sha("shards:main-chat") if main_chat else _sha(f"shards:{name}")
-        ),
-        "shard_count": 2 if records > 50 else 1,
-        "training_eligible": training,
-        "record_order_sha256": _sha(f"order:{name}"),
-        "target_projection_sha256": _sha(f"target:{name}"),
-    }
-    if training:
-        value["shard_order_contract"] = "continuous_bundle_boundary_v1"
-    return value
-
-
 def _preflight_receipt() -> dict[str, object]:
+    anchors = multiarm.FINAL_SOURCE_ANCHORS
+    shard_anchors = anchors["training_shards"]
     return {
         "schema_version": multiarm.PREFLIGHT_SCHEMA_VERSION,
         "status": "passed",
@@ -98,44 +74,60 @@ def _preflight_receipt() -> dict[str, object]:
         "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
         "model_free": True,
         "binding_contract_sha256": _sha("binding"),
-        "producer_git_commit": "1" * 40,
-        "producer_manifest_schema_sha256": _sha("manifest-schema"),
-        "producer_build_receipt_schema_sha256": _sha("receipt-schema"),
-        "release_review_receipt_sha256": _sha("release-review"),
-        "tree_digest_sha256": _sha("tree"),
+        "artifact_version": anchors["artifact_version"],
+        "producer_git": {
+            "candidate_commit": anchors["candidate_commit"],
+            "release_commit": anchors["release_commit"],
+            "release_tree": anchors["release_tree"],
+            "upstream_commit": anchors["upstream_commit"],
+            "live_remote_commit": anchors["live_remote_commit"],
+            "clean_worktree": True,
+            "tags_at_head": 0,
+        },
+        "tree_digest_sha256": anchors["tree_digest_sha256"],
         "file_counts": {"total": 46, "payload": 23, "sidecar": 23},
-        "manifest": {
-            "schema_version": "anchor.unbalanced-v2-final-manifest.v1",
-            "sha256": _sha("manifest"),
-            "bytes": 4096,
+        "manifest": deepcopy(anchors["manifest"]),
+        "build_receipt": deepcopy(anchors["build_receipt"]),
+        "schema_files": deepcopy(anchors["schema_files"]),
+        "release_attestation": deepcopy(anchors["release_attestation"]),
+        "training_shards": {
+            key: deepcopy(shard_anchors[key])
+            for key in (
+                "shard_count",
+                "ordered_paths",
+                "ordered_concat_sha256",
+                "logical_partition_bytes",
+                "logical_partition_records",
+                "task_bundles",
+                "bundle_boundary_only",
+                "ordered_shards",
+                "task_bundle_intersection_empty",
+                "boundary_commitment_sha256",
+            )
         },
-        "build_receipt": {
-            "schema_version": "anchor.unbalanced-v2-final-build-receipt.v1",
-            "sha256": _sha("build-receipt"),
-            "bytes": 4096,
-        },
-        "aggregate_counts": {
-            "training_records": 4300,
-            "training_train_records": 3440,
-            "training_eval_proxy_records": 860,
-            "router_records": 100,
-            "router_train_records": 80,
-            "router_eval_proxy_records": 20,
-            "tool_eval_records": 400,
-            "planner_eval_records": 240,
-            "identity_probe_records": 50,
+        "logical_identity": deepcopy(anchors["logical_identity"]),
+        "read_set": {
+            "count": 18,
+            "canonical_digest_sha256": _sha("read-set"),
+            "producer_inventory_sha256": anchors["producer_inventory_sha256"],
+            "physical_identities_equal": True,
+            "utf8_lf": True,
         },
         "release": {
-            "manifest_status": "final_release_ready",
+            "artifact_final_identity": True,
             "independent_release_review": "passed",
-            "final": True,
-            "release_authorized": True,
-            "training_authorized": True,
+            "p0_findings": 0,
+            "p1_findings": 0,
+            "p2_findings": 0,
+            "producer_training_authorized": False,
             "formal_training_authorized": False,
+            "live_authorized": False,
+            "model_release_authorized": False,
         },
         "terminal_recheck": {
-            "two_snapshot_bytes_equal": True,
-            "stat_identity_equal": True,
+            "two_artifact_snapshots_equal": True,
+            "artifact_stat_identity_equal": True,
+            "external_single_read_stat_identity_equal": True,
             "physical_inventory_equal": True,
         },
         "resource_counters": {
@@ -155,16 +147,7 @@ def _preflight_receipt() -> dict[str, object]:
             "data_copied": False,
             "sample_bodies_parsed": False,
             "raw_token_ids_parsed": False,
-        },
-        "logical_assets": {
-            "training": {
-                name: _logical_asset(name, count, training=True)
-                for name, count in multiarm.TRAINING_ASSETS.items()
-            },
-            "evaluation": {
-                name: _logical_asset(name, count, training=False)
-                for name, count in multiarm.EVALUATION_ASSETS.items()
-            },
+            "producer_training_authority_inferred": False,
         },
     }
 
@@ -375,8 +358,16 @@ def test_config_is_closed_model_free_and_dependency_bound() -> None:
     config, config_sha, dependency_sha = multiarm.load_config(CONFIG)
     assert len(config_sha) == 64
     assert len(dependency_sha) == 64
-    assert config["consumer_preflight"]["candidate_sha256_hardcoded"] is False
+    assert config["consumer_preflight"]["final_source_anchors_hardcoded"] is True
     assert config["consumer_preflight"]["require_versioned_shard_inventory"] is True
+    assert (
+        config["consumer_preflight"]["final_source_anchors"]
+        == multiarm.FINAL_SOURCE_ANCHORS
+    )
+    assert (
+        config["consumer_preflight"]["producer_training_authority_must_not_be_inferred"]
+        is True
+    )
     assert config["consumer_preflight"]["required_physical_files"] == 46
     assert config["consumer_preflight"]["required_main_chat_train_shards"] == 2
     assert config["data"]["single_training_partition_assumed"] is False
@@ -427,7 +418,7 @@ def test_config_mutations_fail_closed() -> None:
             multiarm.validate_config(mutated)
 
 
-def test_preflight_requires_final_pass_and_versioned_logical_shards(
+def test_preflight_requires_exact_final_sharded_receipt_and_derives_assets(
     tmp_path: Path,
 ) -> None:
     valid_path = _write_json(tmp_path / "valid.json", _preflight_receipt())
@@ -439,53 +430,90 @@ def test_preflight_requires_final_pass_and_versioned_logical_shards(
     assert all(
         asset["shard_count"] >= 1 for asset in receipt["training_assets"].values()
     )
+    assert receipt["release"]["producer_training_authorized"] is False
+    assert receipt["claims"]["producer_training_authority_inferred"] is False
+    assert receipt["physical_receipt_sha256"] == receipt_sha
     main_chat = [
         receipt["training_assets"][name]
         for name in ("humor", "serious", "angry_style", "review_audit", "tool_call")
     ]
     assert {asset["shard_count"] for asset in main_chat} == {2}
     assert len({asset["shard_inventory_sha256"] for asset in main_chat}) == 1
+    assert {
+        asset["identity_origin"] for asset in receipt["training_assets"].values()
+    } == {"consumer_derived_from_authenticated_sharded_v1_receipt"}
+    assert (
+        receipt["training_assets"]["planner_router"]["shard_order_contract"]
+        == "consumer_derived_tree_asset_namespace_v1"
+    )
 
     for mutation in (
-        "old_schema",
+        "old_shape",
         "old_44",
-        "candidate",
-        "body",
-        "single_partition",
-        "shard_count",
-        "shard_identity",
-        "eval_order",
+        "single_shard",
+        "candidate_p",
+        "release_r",
+        "release_tree",
+        "manifest_hash",
+        "logical",
+        "attestation",
+        "producer_training_authorized",
+        "authority_inferred",
     ):
         value = _preflight_receipt()
-        if mutation == "old_schema":
-            value["schema_version"] = (
-                "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.v1"
-            )
+        if mutation == "old_shape":
+            del value["producer_git"]
+            value["producer_git_commit"] = "1" * 40
         elif mutation == "old_44":
             value["file_counts"] = {"total": 44, "payload": 22, "sidecar": 22}
-        elif mutation == "candidate":
-            value["release"]["manifest_status"] = (
-                "candidate_pending_independent_release_review"
+        elif mutation == "single_shard":
+            value["training_shards"]["shard_count"] = 1
+        elif mutation == "candidate_p":
+            value["producer_git"]["candidate_commit"] = "1" * 40
+        elif mutation == "release_r":
+            value["producer_git"]["release_commit"] = "2" * 40
+        elif mutation == "release_tree":
+            value["producer_git"]["release_tree"] = "3" * 40
+        elif mutation == "manifest_hash":
+            value["manifest"]["sha256"] = _sha("different-manifest")
+        elif mutation == "logical":
+            value["logical_identity"]["logical_dataset_sha256"] = _sha(
+                "different-logical-dataset"
             )
-        elif mutation == "body":
-            value["claims"]["sample_bodies_parsed"] = True
-        elif mutation == "single_partition":
-            asset = value["logical_assets"]["training"]["tool_call"]
-            del asset["shard_inventory_sha256"]
-            asset["partition_sha256"] = _sha("old-single-partition")
-        elif mutation == "shard_count":
-            value["logical_assets"]["training"]["tool_call"]["shard_count"] = 1
-        elif mutation == "shard_identity":
-            value["logical_assets"]["training"]["tool_call"][
-                "shard_inventory_sha256"
-            ] = _sha("different-two-shard-inventory")
+        elif mutation == "attestation":
+            value["release_attestation"]["sha256"] = _sha("different-attestation")
+        elif mutation == "producer_training_authorized":
+            value["release"]["producer_training_authorized"] = True
         else:
-            del value["logical_assets"]["evaluation"]["tool_comparison_eval"][
-                "record_order_sha256"
-            ]
+            value["claims"]["producer_training_authority_inferred"] = True
         path = _write_json(tmp_path / f"{mutation}.json", value)
         with pytest.raises(multiarm.MultiArmContractError):
             multiarm.load_consumer_preflight_receipt(path)
+
+
+def test_consumer_derived_asset_drift_is_recomputed_and_rejected(
+    tmp_path: Path,
+) -> None:
+    receipt_path = _write_json(tmp_path / "valid.json", _preflight_receipt())
+    normalized, receipt_sha, source_sha = multiarm.load_consumer_preflight_receipt(
+        receipt_path
+    )
+    trusted, _ = multiarm.build_trusted_external_bindings(
+        normalized,
+        preflight_receipt_sha256=receipt_sha,
+        source_binding_sha256=source_sha,
+    )
+    mutated = deepcopy(trusted)
+    mutated["binding"]["training_assets"]["tool_call"]["record_order_sha256"] = _sha(
+        "forged-consumer-derived-order"
+    )
+    mutated["source_binding_sha256"] = _canonical_sha(mutated["binding"])
+    mutated_sha = _canonical_sha(mutated)
+    with pytest.raises(
+        multiarm.MultiArmContractError,
+        match="consumer_derived_asset_identity_drift",
+    ):
+        multiarm.validate_trusted_external_bindings(mutated, mutated_sha)
 
 
 def test_json_loads_reject_duplicate_keys_and_nonfinite_numbers(
@@ -496,12 +524,12 @@ def test_json_loads_reject_duplicate_keys_and_nonfinite_numbers(
         _preflight_receipt(),
     )
     nested_text = nested_duplicate.read_text(encoding="utf-8")
-    nested_anchor = '"manifest":{"bytes":4096,'
+    nested_anchor = '"manifest":{"bytes":34236,'
     assert nested_anchor in nested_text
     nested_duplicate.write_text(
         nested_text.replace(
             nested_anchor,
-            '"manifest":{"bytes":4096,"bytes":4096,',
+            '"manifest":{"bytes":34236,"bytes":34236,',
             1,
         ),
         encoding="utf-8",
@@ -666,6 +694,11 @@ def test_dry_run_locks_pairs_and_excludes_comparison_assets_from_training(
     assert training_sources.isdisjoint(multiarm.EVALUATION_ASSETS)
     assert plan["claims"]["model_loaded"] is False
     assert plan["claims"]["gpu_touched"] is False
+    assert (
+        plan["claims"]["diagnostic_training_authorization_source"]
+        == "local_user_task_only"
+    )
+    assert plan["claims"]["producer_training_authority_inferred"] is False
 
 
 def test_plan_reauth_rejects_internally_relocked_training_binding_drift(
@@ -691,12 +724,17 @@ def test_plan_reauth_rejects_internally_relocked_training_binding_drift(
 @pytest.mark.parametrize(
     "field",
     [
-        "producer_commit",
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "producer_release_tree",
         "binding_contract_sha256",
-        "release_review_receipt_sha256",
+        "artifact_version",
         "artifact_tree_sha256",
         "source_manifest_sha256",
         "source_build_receipt_sha256",
+        "producer_schema_files_sha256",
+        "release_attestation_sha256",
+        "consumer_derived_asset_identity_contract_sha256",
     ],
 )
 def test_plan_reauth_rejects_producer_release_or_tree_identity_drift(
@@ -705,7 +743,16 @@ def test_plan_reauth_rejects_producer_release_or_tree_identity_drift(
 ) -> None:
     plan, _, _, trusted, trusted_sha = _dry_run(tmp_path)
     mutated = deepcopy(plan)
-    mutated[field] = "2" * 40 if field == "producer_commit" else _sha(f"drift:{field}")
+    if field in {
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "producer_release_tree",
+    }:
+        mutated[field] = "2" * 40
+    elif field == "artifact_version":
+        mutated[field] = "anchor.invalid-artifact.v1"
+    else:
+        mutated[field] = _sha(f"drift:{field}")
     with pytest.raises(multiarm.MultiArmContractError, match="plan_identity_invalid"):
         multiarm.validate_execution_plan(mutated, trusted, trusted_sha)
 
