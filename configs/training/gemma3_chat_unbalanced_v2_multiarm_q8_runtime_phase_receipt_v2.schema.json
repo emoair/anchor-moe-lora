@@ -1,0 +1,611 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_phase_receipt_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "run_id",
+    "arm",
+    "phase",
+    "source_asset",
+    "adapter_profile",
+    "optimizer_steps",
+    "target_steps",
+    "source",
+    "teacher_final",
+    "tokenizer",
+    "model",
+    "tensor_inventory",
+    "optimizer",
+    "loss",
+    "gradient",
+    "adapter_effect",
+    "memory",
+    "progress",
+    "adapter",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-phase-receipt.v2"
+    },
+    "status": {"const": "passed"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "arm": {
+      "enum": [
+        "humor_q_only",
+        "serious_q_only",
+        "angry_style_q_only",
+        "review_audit_q_only",
+        "tool_q_only",
+        "tool_q_plus_micro_o",
+        "planner_q_only",
+        "planner_o_only",
+        "planner_q_plus_micro_o"
+      ]
+    },
+    "phase": {"enum": ["smoke", "full"]},
+    "source_asset": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "review_audit",
+        "tool_call",
+        "planner_router"
+      ]
+    },
+    "adapter_profile": {
+      "enum": ["q_only", "o_only", "q_plus_micro_o"]
+    },
+    "optimizer_steps": {"type": "integer", "minimum": 2, "maximum": 1360},
+    "target_steps": {"type": "integer", "minimum": 2, "maximum": 1360},
+    "source": {"$ref": "#/$defs/sourceIdentity"},
+    "teacher_final": {"$ref": "#/$defs/teacherIdentity"},
+    "tokenizer": {"$ref": "#/$defs/tokenizerIdentity"},
+    "model": {"$ref": "#/$defs/model"},
+    "tensor_inventory": {"$ref": "#/$defs/tensorInventory"},
+    "optimizer": {"$ref": "#/$defs/optimizer"},
+    "loss": {"$ref": "#/$defs/loss"},
+    "gradient": {"$ref": "#/$defs/gradient"},
+    "adapter_effect": {"$ref": "#/$defs/adapterEffect"},
+    "memory": {"$ref": "#/$defs/memory"},
+    "progress": {"$ref": "#/$defs/progress"},
+    "adapter": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/adapter"}]
+    },
+    "claims": {"$ref": "#/$defs/claims"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"phase": {"const": "smoke"}},
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "optimizer_steps": {"const": 2},
+          "target_steps": {"const": 2},
+          "adapter": {"type": "null"}
+        }
+      },
+      "else": {
+        "properties": {
+          "adapter": {"$ref": "#/$defs/adapter"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.\\-/]+$"
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "candidate_commit",
+        "release_commit",
+        "release_tree",
+        "artifact_prefix",
+        "historical_release_attested",
+        "current_live_remote_reasserted",
+        "consumer_preflight_receipt_sha256",
+        "consumer_source_binding_sha256",
+        "consumer_binding_physical_sha256",
+        "consumer_binding_canonical_sha256",
+        "tree_digest_sha256",
+        "read_set_digest_sha256",
+        "producer_inventory_sha256",
+        "read_set_blob_oids_sha256",
+        "payload_blob_oids_sha256",
+        "read_set_files",
+        "final_files"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-immutable-git-source.v2"
+        },
+        "candidate_commit": {"const": "c5080249aa103d6cac09f0a55e51982b68524480"},
+        "release_commit": {"const": "304be2b86f82aad7ddade80fae04528bf2801977"},
+        "release_tree": {"const": "9bf154d481623b696dbc8a4bdf276967710b7214"},
+        "artifact_prefix": {
+          "const": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3"
+        },
+        "historical_release_attested": {"const": true},
+        "current_live_remote_reasserted": {"const": false},
+        "consumer_preflight_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_source_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_binding_physical_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_binding_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "tree_digest_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_digest_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_blob_oids_sha256": {"$ref": "#/$defs/sha256"},
+        "payload_blob_oids_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_files": {"const": 88},
+        "final_files": {"const": 46}
+      }
+    },
+    "teacherIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding_schema_version",
+        "record_schema_version",
+        "binding_sha256",
+        "binding_schema_sha256",
+        "manifest_sha256",
+        "record_schema_sha256",
+        "release_receipt_sha256",
+        "release_attestation_sha256",
+        "shard_inventory_sha256",
+        "records",
+        "main_records",
+        "router_records",
+        "train_identity_bundles",
+        "train_identity_records",
+        "independent_identity_eval_bundles_not_in_optimizer",
+        "independent_identity_eval_probes_not_in_optimizer",
+        "accepted",
+        "rejected",
+        "uncertain",
+        "producer_original_target_fallback",
+        "public_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-authenticated-teacher-final.v2"
+        },
+        "binding_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2"
+        },
+        "record_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2"
+        },
+        "binding_sha256": {"$ref": "#/$defs/sha256"},
+        "binding_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "release_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "release_attestation_sha256": {"$ref": "#/$defs/sha256"},
+        "shard_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "records": {"const": 3520},
+        "main_records": {"const": 3440},
+        "router_records": {"const": 80},
+        "train_identity_bundles": {"const": 20},
+        "train_identity_records": {"const": 100},
+        "independent_identity_eval_bundles_not_in_optimizer": {"const": 10},
+        "independent_identity_eval_probes_not_in_optimizer": {"const": 50},
+        "accepted": {"const": 3520},
+        "rejected": {"const": 0},
+        "uncertain": {"const": 0},
+        "producer_original_target_fallback": {"const": false},
+        "public_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "tokenizerIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tokenizer_model_sha256",
+        "tokenizer_config_sha256",
+        "model_config_sha256",
+        "export_manifest_sha256",
+        "chat_template_policy_sha256",
+        "combined_identity_sha256",
+        "processor_source",
+        "second_model_file_path_read",
+        "hf_auto_tokenizer_used",
+        "runtime_special_token_overlay"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-authenticated-tokenizer.v2"
+        },
+        "tokenizer_model_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_config_sha256": {"$ref": "#/$defs/sha256"},
+        "model_config_sha256": {"$ref": "#/$defs/sha256"},
+        "export_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "chat_template_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "combined_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "processor_source": {"const": "authenticated_model_proto_bytes"},
+        "second_model_file_path_read": {"const": false},
+        "hf_auto_tokenizer_used": {"const": false},
+        "runtime_special_token_overlay": {"const": true}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_files",
+        "base_parameter_hash_before",
+        "base_parameter_hash_after",
+        "base_parameter_hash_equal",
+        "q8_scb_sha256_before",
+        "q8_scb_sha256_after",
+        "q8_scb_hash_equal",
+        "q8_modules",
+        "base_preparation",
+        "runtime_packages"
+      ],
+      "properties": {
+        "base_files": {
+          "type": "object",
+          "minProperties": 5,
+          "maxProperties": 5,
+          "propertyNames": {"$ref": "#/$defs/relativePath"},
+          "additionalProperties": {"$ref": "#/$defs/sha256"}
+        },
+        "base_parameter_hash_before": {"$ref": "#/$defs/sha256"},
+        "base_parameter_hash_after": {"$ref": "#/$defs/sha256"},
+        "base_parameter_hash_equal": {"const": true},
+        "q8_scb_sha256_before": {"$ref": "#/$defs/sha256"},
+        "q8_scb_sha256_after": {"$ref": "#/$defs/sha256"},
+        "q8_scb_hash_equal": {"const": true},
+        "q8_modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["linear8lt_base_modules", "int8_weight_tensors"],
+          "properties": {
+            "linear8lt_base_modules": {"const": 182},
+            "int8_weight_tensors": {"const": 182}
+          }
+        },
+        "base_preparation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frozen_parameters",
+            "int8_parameters",
+            "preserved_bf16_parameters",
+            "norm_parameters_fp32"
+          ],
+          "properties": {
+            "frozen_parameters": {"const": 999885952},
+            "int8_parameters": {"const": 697761792},
+            "preserved_bf16_parameters": {"const": 301989888},
+            "norm_parameters_fp32": {"const": 134272}
+          }
+        },
+        "runtime_packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "torch",
+            "transformers",
+            "peft",
+            "safetensors",
+            "sentencepiece",
+            "bitsandbytes"
+          ],
+          "properties": {
+            "torch": {"const": "2.5.1+cu121"},
+            "transformers": {"const": "5.13.0"},
+            "peft": {"const": "0.19.1"},
+            "safetensors": {"type": "string", "minLength": 1},
+            "sentencepiece": {"type": "string", "minLength": 1},
+            "bitsandbytes": {"const": "0.48.2"}
+          }
+        }
+      }
+    },
+    "tensorInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "trainable_tensors",
+        "trainable_parameters",
+        "initial_adapter_sha256",
+        "final_adapter_sha256",
+        "base_o_proj_frozen"
+      ],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "trainable_tensors": {"type": "integer", "minimum": 1},
+        "trainable_parameters": {"type": "integer", "minimum": 1},
+        "initial_adapter_sha256": {"$ref": "#/$defs/sha256"},
+        "final_adapter_sha256": {"$ref": "#/$defs/sha256"},
+        "base_o_proj_frozen": {"const": true}
+      }
+    },
+    "optimizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "class",
+        "package_version",
+        "optimizer_state_bits",
+        "compatibility_optim_bits_argument",
+        "min_8bit_size",
+        "percentile_clipping",
+        "block_wise",
+        "is_paged",
+        "amsgrad",
+        "parameter_tensors",
+        "state_tensors",
+        "state_elements",
+        "state_dtype",
+        "state_device",
+        "group_order",
+        "q_learning_rate",
+        "o_learning_rate",
+        "o_lr_exactly_one_tenth_of_q",
+        "uint8_state"
+      ],
+      "properties": {
+        "backend": {"const": "bitsandbytes.optim.AdamW8bit"},
+        "class": {"const": "bitsandbytes.optim.AdamW8bit"},
+        "package_version": {"const": "0.48.2"},
+        "optimizer_state_bits": {"const": 8},
+        "compatibility_optim_bits_argument": {"const": 32},
+        "min_8bit_size": {"const": 4096},
+        "percentile_clipping": {"const": 100},
+        "block_wise": {"const": true},
+        "is_paged": {"const": false},
+        "amsgrad": {"const": false},
+        "parameter_tensors": {"type": "integer", "minimum": 1},
+        "state_tensors": {"type": "integer", "minimum": 2},
+        "state_elements": {"type": "integer", "minimum": 2},
+        "state_dtype": {"const": "uint8"},
+        "state_device": {"const": "cuda"},
+        "group_order": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"enum": ["Q", "O"]}
+        },
+        "q_learning_rate": {"const": 0.000002},
+        "o_learning_rate": {"const": 0.0000002},
+        "o_lr_exactly_one_tenth_of_q": {"const": true},
+        "uint8_state": {"const": true}
+      }
+    },
+    "loss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finite", "first", "last", "minimum", "maximum", "count"],
+      "properties": {
+        "finite": {"const": true},
+        "first": {"type": "number"},
+        "last": {"type": "number"},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "count": {"type": "integer", "minimum": 2, "maximum": 1360}
+      }
+    },
+    "gradientCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["A", "B", "Q", "O"],
+      "properties": {
+        "A": {"type": "integer", "minimum": 1},
+        "B": {"type": "integer", "minimum": 1},
+        "Q": {"type": "integer", "minimum": 0},
+        "O": {"type": "integer", "minimum": 0}
+      }
+    },
+    "gradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tensors",
+        "finite",
+        "nonzero",
+        "q_nonzero",
+        "o_nonzero",
+        "A_nonzero",
+        "B_nonzero",
+        "all_steps_finite",
+        "factor_union_nonzero"
+      ],
+      "properties": {
+        "tensors": {"type": "integer", "minimum": 1},
+        "finite": {"type": "integer", "minimum": 1},
+        "nonzero": {"type": "integer", "minimum": 1},
+        "q_nonzero": {"type": "integer", "minimum": 0},
+        "o_nonzero": {"type": "integer", "minimum": 0},
+        "A_nonzero": {"type": "integer", "minimum": 0},
+        "B_nonzero": {"type": "integer", "minimum": 0},
+        "all_steps_finite": {"const": true},
+        "factor_union_nonzero": {"$ref": "#/$defs/gradientCounts"}
+      }
+    },
+    "adapterEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view",
+        "record_id_sha256",
+        "serialization_identity_sha256",
+        "forward_prefix_tokens",
+        "future_target_suffix_forwarded",
+        "sample_body_included",
+        "raw_token_ids_included",
+        "finite",
+        "max_abs",
+        "mean_abs",
+        "vocabulary_logits"
+      ],
+      "properties": {
+        "view": {"const": "first_teacher_aligned_train_record_boundary_v2"},
+        "record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "forward_prefix_tokens": {"type": "integer", "minimum": 1, "maximum": 767},
+        "future_target_suffix_forwarded": {"const": false},
+        "sample_body_included": {"const": false},
+        "raw_token_ids_included": {"const": false},
+        "finite": {"const": true},
+        "max_abs": {"type": "number", "exclusiveMinimum": 0},
+        "mean_abs": {"type": "number", "minimum": 0},
+        "vocabulary_logits": {"type": "integer", "minimum": 1}
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "torch_peak_allocated_bytes",
+        "torch_peak_reserved_bytes",
+        "torch_peak_allocated_max_mib",
+        "torch_peak_reserved_max_mib",
+        "comparison",
+        "driver_observation_only",
+        "driver_memory_used_peak_mib",
+        "driver_sample_count",
+        "driver_samples_sha256",
+        "external_compute_process_policy"
+      ],
+      "properties": {
+        "torch_peak_allocated_bytes": {"type": "integer", "minimum": 1},
+        "torch_peak_reserved_bytes": {"type": "integer", "minimum": 1},
+        "torch_peak_allocated_max_mib": {"const": 23962},
+        "torch_peak_reserved_max_mib": {"const": 23962},
+        "comparison": {"const": "less_than_or_equal"},
+        "driver_observation_only": {"const": true},
+        "driver_memory_used_peak_mib": {"type": "integer", "minimum": 0},
+        "driver_sample_count": {"type": "integer", "minimum": 2},
+        "driver_samples_sha256": {"$ref": "#/$defs/sha256"},
+        "external_compute_process_policy": {"const": "observe_only"}
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "step_count",
+        "target_steps",
+        "inventory_sha256",
+        "step_file_sha256s",
+        "marker_file_sha256s",
+        "final_step_file_sha256",
+        "lr_trace_contract_sha256",
+        "observed_lr_trace_sha256",
+        "expected_lr_trace_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "anchor.multiarm-progress-evidence-identity.v1"},
+        "step_count": {"type": "integer", "minimum": 2, "maximum": 1360},
+        "target_steps": {"type": "integer", "minimum": 2, "maximum": 1360},
+        "inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "step_file_sha256s": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 1360,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "marker_file_sha256s": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 1360,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "final_step_file_sha256": {"$ref": "#/$defs/sha256"},
+        "lr_trace_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "observed_lr_trace_sha256": {"$ref": "#/$defs/sha256"},
+        "expected_lr_trace_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "adapterFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"enum": ["adapter_config.json", "adapter_model.safetensors"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "adapter_profile",
+        "trainable_parameters",
+        "adapter_config",
+        "adapter_model",
+        "artifact_tree_sha256",
+        "tensor_inventory_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^adapters/[A-Za-z0-9._-]+$"
+        },
+        "adapter_profile": {
+          "enum": ["q_only", "o_only", "q_plus_micro_o"]
+        },
+        "trainable_parameters": {"type": "integer", "minimum": 1},
+        "adapter_config": {"$ref": "#/$defs/adapterFile"},
+        "adapter_model": {"$ref": "#/$defs/adapterFile"},
+        "artifact_tree_sha256": {"$ref": "#/$defs/sha256"},
+        "tensor_inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "formal",
+        "sample_body_included",
+        "raw_token_ids_included",
+        "producer_original_target_used",
+        "physical_kv_validated",
+        "full_generation_kv_shared"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "proxy_only": {"const": true},
+        "formal": {"const": false},
+        "sample_body_included": {"const": false},
+        "raw_token_ids_included": {"const": false},
+        "producer_original_target_used": {"const": false},
+        "physical_kv_validated": {"const": false},
+        "full_generation_kv_shared": {"const": false}
+      }
+    }
+  }
+}

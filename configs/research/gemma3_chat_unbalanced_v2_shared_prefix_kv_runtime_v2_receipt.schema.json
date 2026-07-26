@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-v2-receipt.schema.json",
+  "title": "Gemma 3 Chat unbalanced-v2 shared-prefix KV runtime v2 receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "status",
+    "operation",
+    "identity",
+    "source",
+    "topology",
+    "boundary",
+    "comparison",
+    "isolation",
+    "performance",
+    "claims",
+    "resource_counters",
+    "failure_codes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-receipt.v2"
+    },
+    "profile_id": {
+      "const": "gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2"
+    },
+    "status": {
+      "enum": [
+        "blocked_model_free",
+        "passed_diagnostic_prefix_handoff",
+        "failed_diagnostic_prefix_handoff"
+      ]
+    },
+    "operation": {
+      "enum": ["status", "validate", "dry-run", "execute"]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "implementation_sha256",
+        "consumer_receipt_sha256",
+        "adapter_receipt_sha256",
+        "model_identity_sha256",
+        "tokenizer_identity_sha256",
+        "training_serialization_inventory_sha256"
+      ],
+      "properties": {
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "adapter_receipt_sha256": {"$ref": "#/$defs/shaOrPending"},
+        "model_identity_sha256": {"$ref": "#/$defs/shaOrPending"},
+        "tokenizer_identity_sha256": {"$ref": "#/$defs/shaOrPending"},
+        "training_serialization_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authenticated",
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "producer_release_tree",
+        "source_blob_path",
+        "source_blob_sha256",
+        "source_blob_bytes",
+        "record_index",
+        "record_sha256",
+        "record_prompt_sha256",
+        "example_serialization_sha256",
+        "tokenizer_binding_sha256",
+        "model_config_sha256",
+        "hf_auto_tokenizer_used",
+        "second_model_file_path_read",
+        "runtime_special_token_overlay",
+        "serialized_prefix_persisted"
+      ],
+      "properties": {
+        "authenticated": {"type": "boolean"},
+        "producer_candidate_commit": {"$ref": "#/$defs/commit"},
+        "producer_release_commit": {"$ref": "#/$defs/commit"},
+        "producer_release_tree": {"$ref": "#/$defs/tree"},
+        "source_blob_path": {"type": "string", "minLength": 1},
+        "source_blob_sha256": {"$ref": "#/$defs/sha256"},
+        "source_blob_bytes": {"type": "integer", "minimum": 0},
+        "record_index": {"type": "integer", "minimum": 0},
+        "record_sha256": {"$ref": "#/$defs/sha256"},
+        "record_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "example_serialization_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "model_config_sha256": {"$ref": "#/$defs/sha256"},
+        "hf_auto_tokenizer_used": {"const": false},
+        "second_model_file_path_read": {"const": false},
+        "runtime_special_token_overlay": {"const": true},
+        "serialized_prefix_persisted": {"const": false}
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layers",
+        "sliding_layers",
+        "full_layers",
+        "sliding_window",
+        "full_layer_indices",
+        "layer_topology_sha256",
+        "derived_from_authenticated_model_config",
+        "layers_detail"
+      ],
+      "properties": {
+        "layers": {"const": 26},
+        "sliding_layers": {"const": 22},
+        "full_layers": {"const": 4},
+        "sliding_window": {"const": 512},
+        "full_layer_indices": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0, "maximum": 25}
+        },
+        "layer_topology_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_from_authenticated_model_config": {"type": "boolean"},
+        "layers_detail": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 26,
+          "items": {"$ref": "#/$defs/layer"}
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_commit_sha256",
+        "ordered_prefix_sha256",
+        "token_order_sha256",
+        "position_sha256",
+        "attention_mask_sha256",
+        "rope_sha256",
+        "route_commit_sha256",
+        "plan_commit_sha256",
+        "prefix_tokens",
+        "source_prefill_adapter_state",
+        "planner_adapter_sha256",
+        "output_adapter_sha256",
+        "latent_packet"
+      ],
+      "properties": {
+        "boundary_commit_sha256": {"$ref": "#/$defs/sha256"},
+        "ordered_prefix_sha256": {"$ref": "#/$defs/sha256"},
+        "token_order_sha256": {"$ref": "#/$defs/sha256"},
+        "position_sha256": {"$ref": "#/$defs/sha256"},
+        "attention_mask_sha256": {"$ref": "#/$defs/sha256"},
+        "rope_sha256": {"$ref": "#/$defs/sha256"},
+        "route_commit_sha256": {"$ref": "#/$defs/sha256"},
+        "plan_commit_sha256": {"$ref": "#/$defs/sha256"},
+        "prefix_tokens": {"type": "integer", "minimum": 1},
+        "source_prefill_adapter_state": {
+          "const": "adapter_off_frozen_base"
+        },
+        "planner_adapter_sha256": {"$ref": "#/$defs/sha256"},
+        "output_adapter_sha256": {"$ref": "#/$defs/sha256"},
+        "latent_packet": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "fixed_dimension",
+            "serialization_sha256",
+            "position_sha256",
+            "commit_sha256",
+            "hidden_chain_of_thought"
+          ],
+          "properties": {
+            "enabled": {"const": false},
+            "fixed_dimension": {"const": 0},
+            "serialization_sha256": {"type": "null"},
+            "position_sha256": {"type": "null"},
+            "commit_sha256": {"type": "null"},
+            "hidden_chain_of_thought": {"const": false}
+          }
+        }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cold_recompute_executed",
+        "shared_prefix_handoff_executed",
+        "logits_digest_cold",
+        "logits_digest_handoff",
+        "logits_allclose",
+        "logits_max_abs_error",
+        "next_token_argmax_equal",
+        "next_token_digest_cold",
+        "next_token_digest_handoff",
+        "prefill_count_cold",
+        "prefill_count_handoff"
+      ],
+      "properties": {
+        "cold_recompute_executed": {"type": "boolean"},
+        "shared_prefix_handoff_executed": {"type": "boolean"},
+        "logits_digest_cold": {"$ref": "#/$defs/shaOrNull"},
+        "logits_digest_handoff": {"$ref": "#/$defs/shaOrNull"},
+        "logits_allclose": {"type": "boolean"},
+        "logits_max_abs_error": {
+          "type": "number",
+          "minimum": 0
+        },
+        "next_token_argmax_equal": {"type": "boolean"},
+        "next_token_digest_cold": {"$ref": "#/$defs/shaOrNull"},
+        "next_token_digest_handoff": {"$ref": "#/$defs/shaOrNull"},
+        "prefill_count_cold": {"type": "integer", "minimum": 0},
+        "prefill_count_handoff": {"type": "integer", "minimum": 0}
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_cache_unchanged",
+        "planner_tail_private",
+        "output_tail_private",
+        "sibling_branch_unchanged",
+        "private_tail_alias",
+        "wrong_adapter_rejected",
+        "wrong_position_rejected",
+        "wrong_attention_mask_rejected",
+        "cache_mutation_rejected",
+        "pointer_observation_only"
+      ],
+      "properties": {
+        "source_cache_unchanged": {"type": "boolean"},
+        "planner_tail_private": {"type": "boolean"},
+        "output_tail_private": {"type": "boolean"},
+        "sibling_branch_unchanged": {"type": "boolean"},
+        "private_tail_alias": {"type": "boolean"},
+        "wrong_adapter_rejected": {"type": "boolean"},
+        "wrong_position_rejected": {"type": "boolean"},
+        "wrong_attention_mask_rejected": {"type": "boolean"},
+        "cache_mutation_rejected": {"type": "boolean"},
+        "pointer_observation_only": {"const": true}
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cold_latency_ms",
+        "handoff_latency_ms",
+        "handoff_prefill_ms",
+        "planner_tail_ms",
+        "output_tail_ms",
+        "cold_peak_device_bytes",
+        "handoff_peak_device_bytes",
+        "repetitions"
+      ],
+      "properties": {
+        "cold_latency_ms": {"type": "number", "minimum": 0},
+        "handoff_latency_ms": {"type": "number", "minimum": 0},
+        "handoff_prefill_ms": {"type": "number", "minimum": 0},
+        "planner_tail_ms": {"type": "number", "minimum": 0},
+        "output_tail_ms": {"type": "number", "minimum": 0},
+        "cold_peak_device_bytes": {"type": "integer", "minimum": 0},
+        "handoff_peak_device_bytes": {"type": "integer", "minimum": 0},
+        "repetitions": {"type": "integer", "minimum": 0}
+      }
+    },
+    "claims": {"$ref": "#/$defs/claims"},
+    "resource_counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "gold_body_reads",
+        "heldout_body_reads",
+        "protected_body_reads",
+        "raw_token_ids_persisted",
+        "raw_logits_persisted"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"type": "integer", "minimum": 0, "maximum": 1},
+        "gpu_requests": {"type": "integer", "minimum": 0, "maximum": 1},
+        "gold_body_reads": {"const": 0},
+        "heldout_body_reads": {"const": 0},
+        "protected_body_reads": {"const": 0},
+        "raw_token_ids_persisted": {"const": 0},
+        "raw_logits_persisted": {"const": 0}
+      }
+    },
+    "failure_codes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "const": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "shaOrPending": {
+      "oneOf": [
+        {"const": "pending"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "shaOrNull": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "tree": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "attention_kind",
+        "window",
+        "sequence_axis",
+        "window_semantics",
+        "cache_capacity_tokens",
+        "source_cache_tokens",
+        "planner_cache_tokens",
+        "output_cache_tokens",
+        "cold_prefill_key_sha256",
+        "cold_prefill_value_sha256",
+        "source_prefill_key_sha256",
+        "source_prefill_value_sha256",
+        "prefill_recompute_value_equal",
+        "planner_retained_prefix_tokens",
+        "planner_source_prefix_key_sha256",
+        "planner_source_prefix_value_sha256",
+        "planner_branch_prefix_key_sha256",
+        "planner_branch_prefix_value_sha256",
+        "planner_prefix_value_equal",
+        "output_retained_prefix_tokens",
+        "output_source_prefix_key_sha256",
+        "output_source_prefix_value_sha256",
+        "output_branch_prefix_key_sha256",
+        "output_branch_prefix_value_sha256",
+        "output_prefix_value_equal",
+        "source_to_planner_pointer_equal_observed",
+        "source_to_output_pointer_equal_observed",
+        "storage_pointer_is_proof"
+      ],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0, "maximum": 25},
+        "attention_kind": {"enum": ["sliding", "full"]},
+        "window": {
+          "oneOf": [
+            {"type": "null"},
+            {"const": 512}
+          ]
+        },
+        "sequence_axis": {"const": -2},
+        "window_semantics": {
+          "enum": [
+            "retained_suffix_window_minus_one",
+            "full_prefix_unbounded"
+          ]
+        },
+        "cache_capacity_tokens": {
+          "oneOf": [
+            {"type": "null"},
+            {"const": 511}
+          ]
+        },
+        "source_cache_tokens": {"type": "integer", "minimum": 1},
+        "planner_cache_tokens": {"type": "integer", "minimum": 1},
+        "output_cache_tokens": {"type": "integer", "minimum": 1},
+        "cold_prefill_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "cold_prefill_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "source_prefill_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "source_prefill_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "prefill_recompute_value_equal": {"type": "boolean"},
+        "planner_retained_prefix_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "planner_source_prefix_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "planner_source_prefix_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "planner_branch_prefix_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "planner_branch_prefix_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "planner_prefix_value_equal": {"type": "boolean"},
+        "output_retained_prefix_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_source_prefix_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "output_source_prefix_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "output_branch_prefix_key_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "output_branch_prefix_value_sha256": {"$ref": "#/$defs/shaOrNull"},
+        "output_prefix_value_equal": {"type": "boolean"},
+        "source_to_planner_pointer_equal_observed": {"type": "boolean"},
+        "source_to_output_pointer_equal_observed": {"type": "boolean"},
+        "storage_pointer_is_proof": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "exact_prefix_value_handoff",
+        "prefill_compute_handoff",
+        "shared_storage",
+        "zero_copy",
+        "rdma",
+        "full_generation_sharing",
+        "pointer_identity_is_proof",
+        "formal",
+        "live"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "proxy_only": {"const": true},
+        "exact_prefix_value_handoff": {"type": "boolean"},
+        "prefill_compute_handoff": {"type": "boolean"},
+        "shared_storage": {"const": false},
+        "zero_copy": {"const": false},
+        "rdma": {"const": false},
+        "full_generation_sharing": {"const": false},
+        "pointer_identity_is_proof": {"const": false},
+        "formal": {"const": false},
+        "live": {"const": false}
+      }
+    }
+  }
+}

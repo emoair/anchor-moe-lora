@@ -1,0 +1,386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-generation-eval-runtime-receipt.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "run_id",
+    "identity",
+    "matrix",
+    "execution_lock",
+    "metrics",
+    "fairness",
+    "runtime",
+    "failure_code",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-generation-eval-runtime-receipt.v2"
+    },
+    "status": {
+      "enum": [
+        "passed_diagnostic_proxy_generation",
+        "failed_closed"
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "consumer_receipt_sha256",
+        "source_binding_sha256",
+        "source",
+        "logical_identity",
+        "adapter_run_receipt_sha256",
+        "adapter_inventory_sha256",
+        "base_model",
+        "base_parameter_identity_sha256",
+        "q8_scb_inventory_sha256",
+        "tokenizer"
+      ],
+      "properties": {
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "consumer_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source": {
+          "type": "object",
+          "minProperties": 20
+        },
+        "logical_identity": {
+          "type": "object",
+          "minProperties": 10,
+          "maxProperties": 10,
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "adapter_run_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "adapter_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "files",
+            "inventory_sha256"
+          ],
+          "properties": {
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "model.safetensors",
+                "config.json",
+                "tokenizer.model",
+                "tokenizer_config.json",
+                "EXPORT_MANIFEST.json"
+              ],
+              "properties": {
+                "model.safetensors": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "config.json": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "tokenizer.model": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "tokenizer_config.json": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "EXPORT_MANIFEST.json": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            },
+            "inventory_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "base_parameter_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "q8_scb_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tokenizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "tokenizer_model_sha256",
+            "tokenizer_config_sha256",
+            "model_config_sha256",
+            "export_manifest_sha256",
+            "chat_template_policy_sha256",
+            "combined_identity_sha256",
+            "processor_source",
+            "second_model_file_path_read",
+            "hf_auto_tokenizer_used",
+            "runtime_special_token_overlay",
+            "authority",
+            "runtime_special_token_ids"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "anchor.gemma3-chat-unbalanced-v2-authenticated-tokenizer.v2"
+            },
+            "tokenizer_model_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "tokenizer_config_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "model_config_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "export_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "chat_template_policy_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "combined_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "processor_source": {
+              "const": "authenticated_model_proto_bytes"
+            },
+            "second_model_file_path_read": {
+              "const": false
+            },
+            "hf_auto_tokenizer_used": {
+              "const": false
+            },
+            "runtime_special_token_overlay": {
+              "const": true
+            },
+            "authority": {
+              "const": "anchor_mvp.training.gemma3_chat_unbalanced_v2_runtime_source_v2"
+            },
+            "runtime_special_token_ids": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pad_token_id",
+                "eos_token_id",
+                "bos_token_id",
+                "unk_token_id",
+                "start_of_turn_token_id",
+                "end_of_turn_token_id",
+                "user_token_id",
+                "model_token_id"
+              ],
+              "properties": {
+                "pad_token_id": {
+                  "const": 0
+                },
+                "eos_token_id": {
+                  "const": 1
+                },
+                "bos_token_id": {
+                  "const": 2
+                },
+                "unk_token_id": {
+                  "const": 3
+                },
+                "start_of_turn_token_id": {
+                  "const": 105
+                },
+                "end_of_turn_token_id": {
+                  "const": 106
+                },
+                "user_token_id": {
+                  "const": 2364
+                },
+                "model_token_id": {
+                  "const": 4368
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "minProperties": 6
+    },
+    "execution_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seed",
+        "max_new_tokens",
+        "do_sample",
+        "num_beams",
+        "temperature"
+      ],
+      "properties": {
+        "seed": {
+          "const": 1337
+        },
+        "max_new_tokens": {
+          "const": 256
+        },
+        "do_sample": {
+          "const": false
+        },
+        "num_beams": {
+          "const": 1
+        },
+        "temperature": {
+          "const": 0
+        }
+      }
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "fairness": {
+      "type": "object"
+    },
+    "runtime": {
+      "type": "object"
+    },
+    "failure_code": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^eval_[a-z0-9_]+$"
+        }
+      ]
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "eval_proxy_is_heldout",
+        "heldout_evaluated",
+        "generalization_validated",
+        "formal",
+        "release",
+        "sample_bodies_persisted",
+        "completions_persisted",
+        "raw_token_ids_persisted",
+        "per_record_metrics_persisted",
+        "network_used"
+      ],
+      "properties": {
+        "diagnostic_only": {
+          "const": true
+        },
+        "proxy_only": {
+          "const": true
+        },
+        "eval_proxy_is_heldout": {
+          "const": false
+        },
+        "heldout_evaluated": {
+          "const": false
+        },
+        "generalization_validated": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "release": {
+          "const": false
+        },
+        "sample_bodies_persisted": {
+          "const": false
+        },
+        "completions_persisted": {
+          "const": false
+        },
+        "raw_token_ids_persisted": {
+          "const": false
+        },
+        "per_record_metrics_persisted": {
+          "const": false
+        },
+        "network_used": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed_diagnostic_proxy_generation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure_code": {
+            "type": "null"
+          },
+          "runtime": {
+            "type": "object",
+            "required": [
+              "runtime_input_read_leases",
+              "runtime_input_read_leases_verified_after_load",
+              "windows_read_leases_held_during_all_loads",
+              "adapter_file_identities_equal_before_after"
+            ],
+            "properties": {
+              "runtime_input_read_leases": {
+                "const": 23
+              },
+              "runtime_input_read_leases_verified_after_load": {
+                "const": 23
+              },
+              "windows_read_leases_held_during_all_loads": {
+                "const": true
+              },
+              "adapter_file_identities_equal_before_after": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "failure_code": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

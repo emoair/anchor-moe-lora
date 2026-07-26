@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_failure_receipt_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "run_id",
+    "mode",
+    "error_type",
+    "error_code",
+    "last_completed_arm",
+    "source_authenticated",
+    "teacher_final_authenticated",
+    "sample_body_included",
+    "raw_token_ids_included",
+    "automatic_retry"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-failure-receipt.v2"
+    },
+    "status": {"const": "failed"},
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "mode": {"enum": ["smoke_only", "full"]},
+    "error_type": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+    },
+    "error_code": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+    },
+    "last_completed_arm": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "enum": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "review_audit_q_only",
+            "tool_q_only",
+            "tool_q_plus_micro_o",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        }
+      ]
+    },
+    "source_authenticated": {"type": "boolean"},
+    "teacher_final_authenticated": {"type": "boolean"},
+    "sample_body_included": {"const": false},
+    "raw_token_ids_included": {"const": false},
+    "automatic_retry": {"const": false}
+  }
+}

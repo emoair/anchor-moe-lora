@@ -1,0 +1,194 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-generation-eval-runtime.v2",
+  "profile_id": "gemma3_chat_unbalanced_v2_generation_eval_runtime_v2",
+  "default_mode": "validate",
+  "consumer": {
+    "binding_path": "configs/research/gemma3_chat_unbalanced_v2_consumer_binding_sharded_v1.json",
+    "binding_sha256": "9f18c4106d9ed74ecfa132e74628642ce76f9111125a4b3fdd18e0d003dc57c0",
+    "receipt_path": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json",
+    "receipt_sha256": "a976754d84f48c01b9ff509c48f7fb7b26c32eabfa0b10d6f221661114a1cdb2",
+    "source_binding_sha256": "012f78dafe0081c722fd978c612ecd6c845c8daa62fc289cf0991fc6818e7d6f"
+  },
+  "historical_source": {
+    "default_repo": "../anchor-moe-lora-gemma3-chat-final-r304be2",
+    "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "candidate_tree": "f750c0020e7acacdfe04aee968f43e07689dc25e",
+    "release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "payload_root": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
+    "read_mode": "git_cat_file_only",
+    "required_read_set_files": 88,
+    "required_payload_files": 23,
+    "required_physical_files": 46,
+    "current_head_or_upstream_is_authority": false
+  },
+  "tokenizer": {
+    "authority": "anchor_mvp.training.gemma3_chat_unbalanced_v2_runtime_source_v2",
+    "chat_template_policy_sha256": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6",
+    "processor_source": "authenticated_model_proto_bytes",
+    "second_model_file_path_read": false,
+    "hf_auto_tokenizer_used": false,
+    "runtime_special_token_overlay": {
+      "pad_token_id": 0,
+      "eos_token_id": 1,
+      "bos_token_id": 2,
+      "unk_token_id": 3,
+      "start_of_turn_token_id": 105,
+      "end_of_turn_token_id": 106,
+      "user_token_id": 2364,
+      "model_token_id": 4368
+    },
+    "serialization_inventory_sha256_from_consumer_receipt": true
+  },
+  "model": {
+    "environment_variable": "ANCHOR_GEMMA_MODEL_DIR",
+    "default_path": "D:/LLM/models/google-gemma-3-1b-it-keras-v3/hf-export-keras-hub-0.29.1-bf16",
+    "required_files": [
+      "model.safetensors",
+      "config.json",
+      "tokenizer.model",
+      "tokenizer_config.json",
+      "EXPORT_MANIFEST.json"
+    ]
+  },
+  "adapter_run": {
+    "receipt_path": "pending",
+    "receipt_sha256": "pending",
+    "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-run-receipt.v2",
+    "required_status": "passed",
+    "required_arms": [
+      "humor_q_only",
+      "serious_q_only",
+      "angry_style_q_only",
+      "review_audit_q_only",
+      "tool_q_only",
+      "tool_q_plus_micro_o",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "fresh_base_required": true,
+    "fresh_adapters_required": true,
+    "resume_allowed": false
+  },
+  "assets": {
+    "tool": {
+      "payload_path": "components/tool_eval/records.jsonl",
+      "records": 400
+    },
+    "planner": {
+      "payload_path": "components/planner_eval/records.jsonl",
+      "records": 240
+    },
+    "router": {
+      "payload_path": "components/router/records.jsonl",
+      "records": 20
+    },
+    "identity": {
+      "payload_path": "identity_eval/probe_inventory.jsonl",
+      "records": 50
+    },
+    "wrong_route": {
+      "payload_path": "eval_proxy/chat.jsonl",
+      "records": 860
+    }
+  },
+  "matrix": {
+    "tool": {
+      "records": 400,
+      "arms": 3,
+      "slots": 1200
+    },
+    "planner": {
+      "records": 240,
+      "arms": 4,
+      "slots": 960
+    },
+    "router": {
+      "records": 20,
+      "arms": 1,
+      "slots": 20
+    },
+    "identity": {
+      "records": 50,
+      "arms": 3,
+      "slots": 150
+    },
+    "wrong_route": {
+      "records": 860,
+      "arms": 3,
+      "slots": 2580
+    },
+    "total_slots": 4910
+  },
+  "execution": {
+    "seed": 1337,
+    "max_new_tokens": 256,
+    "do_sample": false,
+    "num_beams": 1,
+    "temperature": 0,
+    "gpu_concurrency": 1,
+    "network_allowed": false,
+    "windows_read_leases_required": true,
+    "tokenizer_auth_read_leases": 4,
+    "runtime_input_read_leases": 23,
+    "adapter_switch_must_match_exact_state": true,
+    "base_and_scb_recheck_after_each_run": true,
+    "termination_checked_every_generation": true
+  },
+  "metric_contract": {
+    "tool": [
+      "json_structure_valid",
+      "tool_name_exact",
+      "tool_arguments_exact",
+      "tool_arguments_grounded"
+    ],
+    "planner": [
+      "json_structure_valid",
+      "planner_label_exact",
+      "planner_topology_exact"
+    ],
+    "identity": [
+      "identity_air_attribution",
+      "identity_provider_misattribution_absent"
+    ],
+    "router": [
+      "route_exact"
+    ],
+    "safety": [
+      "format_valid",
+      "refusal_absent",
+      "out_of_bounds_absent",
+      "eos_terminated"
+    ],
+    "strata": [
+      "stratum",
+      "language",
+      "role",
+      "identity",
+      "router",
+      "wrong_route"
+    ]
+  },
+  "output": {
+    "root": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_generation_eval_runtime_v2",
+    "gpu_lock": "runs/formal-v3-training.lock",
+    "atomic_create_once": true,
+    "handle_disposition_delete_only": true,
+    "path_unlink_fallback": false,
+    "failure_receipt": true,
+    "progress_scalar_only": true
+  },
+  "claims": {
+    "diagnostic_only": true,
+    "proxy_only": true,
+    "eval_proxy_is_heldout": false,
+    "generalization_validated": false,
+    "formal": false,
+    "release": false,
+    "sample_bodies_persisted": false,
+    "completions_persisted": false,
+    "raw_token_ids_persisted": false,
+    "network_used": false
+  }
+}

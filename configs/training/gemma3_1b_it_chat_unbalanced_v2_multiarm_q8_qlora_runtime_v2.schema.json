@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.schema.json",
+  "title": "Gemma 3 unbalanced-v2 real multi-arm Q8 runtime config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "claim_scope",
+    "model_free_contract",
+    "source",
+    "teacher_final",
+    "model",
+    "quantization",
+    "arms",
+    "adapter",
+    "training",
+    "optimizer",
+    "gpu_policy",
+    "output",
+    "execution",
+    "downstream",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-1b-it-chat-unbalanced-v2-multiarm-q8-runtime-config.v2"
+    },
+    "status": {"const": "gpu_runtime_implemented_explicit_execution_only"},
+    "claim_scope": {"const": "diagnostic_proxy_training_runtime"},
+    "model_free_contract": {"$ref": "#/$defs/object"},
+    "source": {"$ref": "#/$defs/object"},
+    "teacher_final": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_for_gpu_execution",
+        "binding_schema_version",
+        "record_schema_version",
+        "binding_schema",
+        "binding_schema_release_status",
+        "binding_schema_sha256",
+        "record_schema",
+        "record_schema_release_status",
+        "record_schema_sha256",
+        "expected_records",
+        "expected_main_records",
+        "expected_router_records",
+        "expected_train_identity_bundles",
+        "expected_train_identity_records",
+        "independent_identity_eval_bundles_not_in_optimizer",
+        "independent_identity_eval_probes_not_in_optimizer",
+        "allowed_decisions",
+        "rejected_or_uncertain_records",
+        "original_producer_target_fallback",
+        "join_fields"
+      ],
+      "properties": {
+        "required_for_gpu_execution": {"const": true},
+        "binding_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2"
+        },
+        "record_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2"
+        },
+        "binding_schema": {
+          "const": "configs/training/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json"
+        },
+        "binding_schema_release_status": {
+          "enum": ["pending_exact_producer_v2_handoff", "released"]
+        },
+        "binding_schema_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "record_schema": {
+          "const": "configs/training/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
+        },
+        "record_schema_release_status": {
+          "enum": ["pending_exact_producer_v2_handoff", "released"]
+        },
+        "record_schema_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "expected_records": {"const": 3520},
+        "expected_main_records": {"const": 3440},
+        "expected_router_records": {"const": 80},
+        "expected_train_identity_bundles": {"const": 20},
+        "expected_train_identity_records": {"const": 100},
+        "independent_identity_eval_bundles_not_in_optimizer": {"const": 10},
+        "independent_identity_eval_probes_not_in_optimizer": {"const": 50},
+        "allowed_decisions": {"const": ["accepted"]},
+        "rejected_or_uncertain_records": {"const": 0},
+        "original_producer_target_fallback": {"const": false},
+        "join_fields": {
+          "const": [
+            "record_id_sha256",
+            "source_content_sha256",
+            "source_serialization_identity_sha256",
+            "task_bundle_sha256",
+            "source_asset"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "binding_schema_release_status": {"const": "released"}
+            },
+            "required": ["binding_schema_release_status"]
+          },
+          "then": {
+            "properties": {
+              "binding_schema_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          },
+          "else": {
+            "properties": {
+              "binding_schema_sha256": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "record_schema_release_status": {"const": "released"}
+            },
+            "required": ["record_schema_release_status"]
+          },
+          "then": {
+            "properties": {
+              "record_schema_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          },
+          "else": {
+            "properties": {
+              "record_schema_sha256": {"type": "null"}
+            }
+          }
+        }
+      ]
+    },
+    "model": {"$ref": "#/$defs/object"},
+    "quantization": {"$ref": "#/$defs/object"},
+    "arms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordered", "definitions"],
+      "properties": {
+        "ordered": {
+          "const": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "review_audit_q_only",
+            "tool_q_only",
+            "tool_q_plus_micro_o",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        },
+        "definitions": {
+          "type": "object",
+          "minProperties": 9,
+          "maxProperties": 9
+        }
+      }
+    },
+    "adapter": {"$ref": "#/$defs/object"},
+    "training": {"$ref": "#/$defs/object"},
+    "optimizer": {"$ref": "#/$defs/object"},
+    "gpu_policy": {"$ref": "#/$defs/object"},
+    "output": {"$ref": "#/$defs/object"},
+    "execution": {"$ref": "#/$defs/object"},
+    "downstream": {"$ref": "#/$defs/object"},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "formal",
+        "release",
+        "default_model_free",
+        "gpu_execution_requires_explicit_flag",
+        "physical_kv_validated",
+        "full_generation_kv_shared"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "proxy_only": {"const": true},
+        "formal": {"const": false},
+        "release": {"const": false},
+        "default_model_free": {"const": true},
+        "gpu_execution_requires_explicit_flag": {"const": true},
+        "physical_kv_validated": {"const": false},
+        "full_generation_kv_shared": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "object": {
+      "type": "object"
+    }
+  }
+}

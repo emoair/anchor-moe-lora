@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json",
+  "title": "Gemma 3 unbalanced-v2 teacher alignment FINAL binding",
+  "$comment": "Non-authoritative consumer proposal. GPU execution remains fail-closed until the Producer releases and the consumer copies/binds the exact v2 schema bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "namespace",
+    "producer_source",
+    "artifact_root",
+    "manifest",
+    "record_schema",
+    "release_receipt",
+    "release_attestation",
+    "shards",
+    "counts",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2"
+    },
+    "status": {"const": "passed"},
+    "namespace": {"const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"},
+    "producer_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_commit",
+        "release_commit",
+        "release_tree",
+        "tree_digest_sha256"
+      ],
+      "properties": {
+        "candidate_commit": {
+          "const": "c5080249aa103d6cac09f0a55e51982b68524480"
+        },
+        "release_commit": {
+          "const": "304be2b86f82aad7ddade80fae04528bf2801977"
+        },
+        "release_tree": {
+          "const": "9bf154d481623b696dbc8a4bdf276967710b7214"
+        },
+        "tree_digest_sha256": {
+          "const": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+        }
+      }
+    },
+    "artifact_root": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_.\\-/]+$"
+    },
+    "manifest": {"$ref": "#/$defs/file"},
+    "record_schema": {"$ref": "#/$defs/file"},
+    "release_receipt": {"$ref": "#/$defs/file"},
+    "release_attestation": {"$ref": "#/$defs/file"},
+    "shards": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/file"},
+          {
+            "type": "object",
+            "required": ["records", "asset"],
+            "properties": {
+              "records": {"type": "integer", "minimum": 1, "maximum": 3520},
+              "asset": {
+                "enum": [
+                  "main_train",
+                  "planner_router_train"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "main_records",
+        "router_records",
+        "train_identity_bundles",
+        "train_identity_records",
+        "accepted",
+        "rejected",
+        "uncertain"
+      ],
+      "properties": {
+        "records": {"const": 3520},
+        "main_records": {"const": 3440},
+        "router_records": {"const": 80},
+        "train_identity_bundles": {"const": 20},
+        "train_identity_records": {"const": 100},
+        "accepted": {"const": 3520},
+        "rejected": {"const": 0},
+        "uncertain": {"const": 0}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "final",
+        "independent_release_review",
+        "sample_bodies_in_binding",
+        "raw_token_ids_persisted",
+        "formal"
+      ],
+      "properties": {
+        "final": {"const": true},
+        "independent_release_review": {"const": "passed"},
+        "sample_bodies_in_binding": {"const": false},
+        "raw_token_ids_persisted": {"const": false},
+        "formal": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.\\-/]+$"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sidecar_sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_bytes": {"type": "integer", "minimum": 70, "maximum": 256},
+        "records": {"type": "integer", "minimum": 1, "maximum": 3520},
+        "asset": {
+          "enum": [
+            "main_train",
+            "planner_router_train"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-config.v2",
+  "profile_id": "gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2",
+  "status": "model_free_contract_ready_execution_identities_pending",
+  "schemas": {
+    "config": {
+      "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2_config.schema.json",
+      "version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-config.v2",
+      "sha256": "9da2d91d1ab6506a850d0b21c35eb2727987029c94408cf61367e4f6f3483274"
+    },
+    "receipt": {
+      "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2_receipt.schema.json",
+      "version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-receipt.v2",
+      "sha256": "43f4c1335d946fefbcf4d2bc5a8dec37eb481d1f551b8aa216ca98a0c17ae5f4"
+    }
+  },
+  "source_gate": {
+    "module": "anchor_mvp.training.gemma3_chat_unbalanced_v2_runtime_source_v2",
+    "callables": [
+      "authenticate_producer_source",
+      "iter_authenticated_jsonl",
+      "terminal_recheck_source",
+      "authenticate_tokenizer_snapshot",
+      "serialize_authenticated_example"
+    ],
+    "lazy_import_only": true,
+    "owns_git_blob_and_body_authentication": true,
+    "current_head_or_upstream_required": false
+  },
+  "consumer_preflight": {
+    "path": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json",
+    "sidecar_path": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json.sha256",
+    "schema_path": "configs/research/gemma3_chat_unbalanced_v2_consumer_binding_v1.schema.json",
+    "schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1",
+    "receipt_sha256": "a976754d84f48c01b9ff509c48f7fb7b26c32eabfa0b10d6f221661114a1cdb2",
+    "sidecar_sha256": "aebd6c53788214c8fcf7783f64a60f4ffc97343c040d5422e7ca79a8fd7afbc3",
+    "schema_sha256": "d0510caebb6a18f0ccade5386ce5007da8d9452a1badf5618a00aba75fc5bdde",
+    "required_status": "passed"
+  },
+  "producer_final": {
+    "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "artifact_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3",
+    "artifact_relative_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
+    "physical_tree_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c",
+    "output_inventory_sha256": "e6554cec556eb974139df6a169865d7f82986b28b6df9041f9d0108481d5035e",
+    "input_inventory_sha256": "dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc",
+    "serialization_inventory_sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d",
+    "release_attestation_sha256": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813",
+    "allowed_source_blobs": [
+      "components/router/records.jsonl",
+      "components/tool_eval/records.jsonl",
+      "components/planner_eval/records.jsonl",
+      "eval_proxy/chat.jsonl"
+    ]
+  },
+  "tokenizer_binding": {
+    "config_path": "configs/research/gemma3_1b_it_tokenizer_binding_v1.yaml",
+    "config_sha256": "08f07feb07076a924bf0cedbbc722a2fd91ce77e03041f50fc3e3bf6859d1367",
+    "policy_path": "configs/research/gemma3_1b_it_chat_template_policy_v1.json",
+    "policy_sha256": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6",
+    "manifest_path": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json",
+    "manifest_sha256": "2cfe0370f4c8f634e2258094e15acdb0571d6c3954bb66d5eb15677c0827f366",
+    "manifest_sidecar_path": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json.sha256",
+    "manifest_sidecar_sha256": "2c0df1565beaca7294e024ebafc1f889033ad1268b70f7146b244125fb15b31e",
+    "implementation_path": "src/anchor_mvp/training/gemma3_tokenizer_binding_v1.py",
+    "implementation_sha256": "3194ede7eb78597902e05f7e246bc76b644135a5f6abffef2d5aa4f56cf6b011",
+    "authenticated_tokenizer_combined_identity_sha256": "4ecef32083915c93dd7eb88318bb8ca0511b39cbea183ed82aa3f14937bfecbb",
+    "serialization_policy": "gemma3_canonical_single_turn_v1",
+    "training_serialization_inventory_sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d",
+    "runtime_special_token_overlay": {
+      "canonical_files_modified": false,
+      "bos_token_id": 2,
+      "eos_token_id": 1,
+      "start_of_turn_token_id": 105,
+      "end_of_turn_token_id": 106,
+      "start_and_end_marked_special_in_memory": true
+    }
+  },
+  "teacher_final": {
+    "schema_version": "pending",
+    "binding_sha256": "pending",
+    "manifest_sha256": "pending",
+    "record_schema_sha256": "pending",
+    "release_receipt_sha256": "pending",
+    "release_attestation_sha256": "pending",
+    "shard_inventory_sha256": "pending",
+    "public_identity_sha256": "pending"
+  },
+  "adapter_receipt": {
+    "path_template": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_v2/{run_id}/run_receipt.json",
+    "sidecar_path_template": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_v2/{run_id}/run_receipt.json.sha256",
+    "schema_path": "configs/training/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_run_receipt_v2.schema.json",
+    "schema_version": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-run-receipt.v2",
+    "receipt_sha256": "pending",
+    "sidecar_sha256": "pending",
+    "schema_sha256": "pending",
+    "required_status": "passed",
+    "required_mode": "full",
+    "required_arms": [
+      "humor_q_only",
+      "serious_q_only",
+      "angry_style_q_only",
+      "review_audit_q_only",
+      "tool_q_only",
+      "tool_q_plus_micro_o",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ]
+  },
+  "model": {
+    "architecture": "Gemma3ForCausalLM",
+    "expected_layers": 26,
+    "expected_sliding_layers": 22,
+    "expected_full_layers": 4,
+    "expected_sliding_window": 512,
+    "derive_layer_types_from_authenticated_config": true,
+    "model_identity_sha256": "pending",
+    "tokenizer_identity_sha256": "4ecef32083915c93dd7eb88318bb8ca0511b39cbea183ed82aa3f14937bfecbb",
+    "base_load": "bitsandbytes_int8_frozen",
+    "attention_implementation": "sdpa",
+    "compute_dtype": "bfloat16"
+  },
+  "handoff": {
+    "stages": [
+      "general_router_plan_adapter_off_prefill",
+      "selected_expert_planner_tail",
+      "selected_output_expert_tail"
+    ],
+    "source_prefill_adapter_state": "adapter_off_frozen_base",
+    "planner_tail": "selected_expert_planner_private",
+    "output_tail": "selected_output_expert_private",
+    "source_prefix_read_only": true,
+    "tails_private_append_only": true,
+    "lineage_fields": [
+      "producer_candidate_commit",
+      "producer_release_commit",
+      "producer_release_tree",
+      "source_blob_sha256",
+      "source_record_sha256",
+      "training_serialization_inventory_sha256",
+      "record_prompt_sha256",
+      "example_serialization_sha256",
+      "tokenizer_binding_sha256",
+      "model_config_sha256",
+      "token_order_sha256",
+      "position_sha256",
+      "attention_mask_sha256",
+      "rope_sha256",
+      "model_identity_sha256",
+      "base_identity_sha256",
+      "q8_scb_sha256",
+      "adapter_lineage_sha256",
+      "layer_topology_sha256",
+      "route_commit_sha256",
+      "plan_commit_sha256"
+    ],
+    "latent_packet": {
+      "enabled": false,
+      "fixed_dimension_required": true,
+      "serialization_digest_required": true,
+      "position_digest_required": true,
+      "commit_digest_required": true,
+      "hidden_chain_of_thought_claimed": false
+    }
+  },
+  "comparison": {
+    "arms": [
+      "cold_recompute",
+      "shared_prefix_handoff"
+    ],
+    "logits_atol": 0.0001,
+    "logits_rtol": 0.0001,
+    "next_token_argmax_equal_required": true,
+    "source_cache_unchanged_required": true,
+    "sibling_branch_isolation_required": true,
+    "negative_mutations": [
+      "wrong_adapter",
+      "wrong_position",
+      "wrong_attention_mask",
+      "source_cache_mutation",
+      "private_tail_alias"
+    ]
+  },
+  "execution": {
+    "default_mode": "validate",
+    "execute_authorized": false,
+    "offline_only": true,
+    "gpu_lock_required": true,
+    "atomic_receipt_publish": true,
+    "atomic_create_once": true,
+    "failure_receipt_preserved": true,
+    "raw_logits_persisted": false,
+    "raw_token_ids_persisted": false
+  },
+  "claims": {
+    "diagnostic_only": true,
+    "proxy_only": true,
+    "exact_prefix_value_handoff_requires_physical_pass": true,
+    "prefill_compute_handoff_requires_physical_pass": true,
+    "shared_storage": false,
+    "zero_copy": false,
+    "rdma": false,
+    "full_generation_sharing": false,
+    "pointer_identity_is_proof": false,
+    "formal": false,
+    "live": false
+  },
+  "audit": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "gold_body_reads": 0,
+    "heldout_body_reads": 0,
+    "protected_body_reads": 0,
+    "raw_token_ids_persisted": 0,
+    "raw_logits_persisted": 0
+  }
+}

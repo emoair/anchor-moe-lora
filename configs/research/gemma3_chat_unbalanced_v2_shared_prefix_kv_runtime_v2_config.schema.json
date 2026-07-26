@@ -1,0 +1,575 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-v2-config.schema.json",
+  "title": "Gemma 3 Chat unbalanced-v2 real shared-prefix KV runtime v2 config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "status",
+    "schemas",
+    "source_gate",
+    "consumer_preflight",
+    "producer_final",
+    "tokenizer_binding",
+    "teacher_final",
+    "adapter_receipt",
+    "model",
+    "handoff",
+    "comparison",
+    "execution",
+    "claims",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-config.v2"
+    },
+    "profile_id": {
+      "const": "gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2"
+    },
+    "status": {
+      "const": "model_free_contract_ready_execution_identities_pending"
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config", "receipt"],
+      "properties": {
+        "config": {"$ref": "#/$defs/schemaBinding"},
+        "receipt": {"$ref": "#/$defs/schemaBinding"}
+      }
+    },
+    "source_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module",
+        "callables",
+        "lazy_import_only",
+        "owns_git_blob_and_body_authentication",
+        "current_head_or_upstream_required"
+      ],
+      "properties": {
+        "module": {
+          "const": "anchor_mvp.training.gemma3_chat_unbalanced_v2_runtime_source_v2"
+        },
+        "callables": {
+          "const": [
+            "authenticate_producer_source",
+            "iter_authenticated_jsonl",
+            "terminal_recheck_source",
+            "authenticate_tokenizer_snapshot",
+            "serialize_authenticated_example"
+          ]
+        },
+        "lazy_import_only": {"const": true},
+        "owns_git_blob_and_body_authentication": {"const": true},
+        "current_head_or_upstream_required": {"const": false}
+      }
+    },
+    "consumer_preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sidecar_path",
+        "schema_path",
+        "schema_version",
+        "receipt_sha256",
+        "sidecar_sha256",
+        "schema_sha256",
+        "required_status"
+      ],
+      "properties": {
+        "path": {
+          "const": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json"
+        },
+        "sidecar_path": {
+          "const": "fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/receipt.json.sha256"
+        },
+        "schema_path": {
+          "const": "configs/research/gemma3_chat_unbalanced_v2_consumer_binding_v1.schema.json"
+        },
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1"
+        },
+        "receipt_sha256": {
+          "const": "a976754d84f48c01b9ff509c48f7fb7b26c32eabfa0b10d6f221661114a1cdb2"
+        },
+        "sidecar_sha256": {
+          "const": "aebd6c53788214c8fcf7783f64a60f4ffc97343c040d5422e7ca79a8fd7afbc3"
+        },
+        "schema_sha256": {
+          "const": "d0510caebb6a18f0ccade5386ce5007da8d9452a1badf5618a00aba75fc5bdde"
+        },
+        "required_status": {"const": "passed"}
+      }
+    },
+    "producer_final": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_commit",
+        "release_commit",
+        "release_tree",
+        "artifact_version",
+        "artifact_relative_path",
+        "physical_tree_sha256",
+        "output_inventory_sha256",
+        "input_inventory_sha256",
+        "serialization_inventory_sha256",
+        "release_attestation_sha256",
+        "allowed_source_blobs"
+      ],
+      "properties": {
+        "candidate_commit": {
+          "const": "c5080249aa103d6cac09f0a55e51982b68524480"
+        },
+        "release_commit": {
+          "const": "304be2b86f82aad7ddade80fae04528bf2801977"
+        },
+        "release_tree": {
+          "const": "9bf154d481623b696dbc8a4bdf276967710b7214"
+        },
+        "artifact_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3"
+        },
+        "artifact_relative_path": {
+          "const": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3"
+        },
+        "physical_tree_sha256": {
+          "const": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+        },
+        "output_inventory_sha256": {
+          "const": "e6554cec556eb974139df6a169865d7f82986b28b6df9041f9d0108481d5035e"
+        },
+        "input_inventory_sha256": {
+          "const": "dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc"
+        },
+        "serialization_inventory_sha256": {
+          "const": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d"
+        },
+        "release_attestation_sha256": {
+          "const": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813"
+        },
+        "allowed_source_blobs": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "prefixItems": [
+            {"const": "components/router/records.jsonl"},
+            {"const": "components/tool_eval/records.jsonl"},
+            {"const": "components/planner_eval/records.jsonl"},
+            {"const": "eval_proxy/chat.jsonl"}
+          ],
+          "items": false
+        }
+      }
+    },
+    "tokenizer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_path",
+        "config_sha256",
+        "policy_path",
+        "policy_sha256",
+        "manifest_path",
+        "manifest_sha256",
+        "manifest_sidecar_path",
+        "manifest_sidecar_sha256",
+        "implementation_path",
+        "implementation_sha256",
+        "authenticated_tokenizer_combined_identity_sha256",
+        "serialization_policy",
+        "training_serialization_inventory_sha256",
+        "runtime_special_token_overlay"
+      ],
+      "properties": {
+        "config_path": {
+          "const": "configs/research/gemma3_1b_it_tokenizer_binding_v1.yaml"
+        },
+        "config_sha256": {
+          "const": "08f07feb07076a924bf0cedbbc722a2fd91ce77e03041f50fc3e3bf6859d1367"
+        },
+        "policy_path": {
+          "const": "configs/research/gemma3_1b_it_chat_template_policy_v1.json"
+        },
+        "policy_sha256": {
+          "const": "0ffb2e2597428da4ee5d727697bcb29a116489e220580c7bd1cb5bd8f2e076b6"
+        },
+        "manifest_path": {
+          "const": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json"
+        },
+        "manifest_sha256": {
+          "const": "2cfe0370f4c8f634e2258094e15acdb0571d6c3954bb66d5eb15677c0827f366"
+        },
+        "manifest_sidecar_path": {
+          "const": "fixtures/research/gemma3_1b_it_tokenizer_binding_v1/manifest.json.sha256"
+        },
+        "manifest_sidecar_sha256": {
+          "const": "2c0df1565beaca7294e024ebafc1f889033ad1268b70f7146b244125fb15b31e"
+        },
+        "implementation_path": {
+          "const": "src/anchor_mvp/training/gemma3_tokenizer_binding_v1.py"
+        },
+        "implementation_sha256": {
+          "const": "3194ede7eb78597902e05f7e246bc76b644135a5f6abffef2d5aa4f56cf6b011"
+        },
+        "authenticated_tokenizer_combined_identity_sha256": {
+          "const": "4ecef32083915c93dd7eb88318bb8ca0511b39cbea183ed82aa3f14937bfecbb"
+        },
+        "serialization_policy": {
+          "const": "gemma3_canonical_single_turn_v1"
+        },
+        "training_serialization_inventory_sha256": {
+          "const": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d"
+        },
+        "runtime_special_token_overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "canonical_files_modified",
+            "bos_token_id",
+            "eos_token_id",
+            "start_of_turn_token_id",
+            "end_of_turn_token_id",
+            "start_and_end_marked_special_in_memory"
+          ],
+          "properties": {
+            "canonical_files_modified": {"const": false},
+            "bos_token_id": {"const": 2},
+            "eos_token_id": {"const": 1},
+            "start_of_turn_token_id": {"const": 105},
+            "end_of_turn_token_id": {"const": 106},
+            "start_and_end_marked_special_in_memory": {"const": true}
+          }
+        }
+      }
+    },
+    "teacher_final": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding_sha256",
+        "manifest_sha256",
+        "record_schema_sha256",
+        "release_receipt_sha256",
+        "release_attestation_sha256",
+        "shard_inventory_sha256",
+        "public_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "oneOf": [
+            {"const": "pending"},
+            {"type": "string", "pattern": "^(?!pending$).+"}
+          ]
+        },
+        "binding_sha256": {"$ref": "#/$defs/pendingSha"},
+        "manifest_sha256": {"$ref": "#/$defs/pendingSha"},
+        "record_schema_sha256": {"$ref": "#/$defs/pendingSha"},
+        "release_receipt_sha256": {"$ref": "#/$defs/pendingSha"},
+        "release_attestation_sha256": {"$ref": "#/$defs/pendingSha"},
+        "shard_inventory_sha256": {"$ref": "#/$defs/pendingSha"},
+        "public_identity_sha256": {"$ref": "#/$defs/pendingSha"}
+      }
+    },
+    "adapter_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_template",
+        "sidecar_path_template",
+        "schema_path",
+        "schema_version",
+        "receipt_sha256",
+        "sidecar_sha256",
+        "schema_sha256",
+        "required_status",
+        "required_mode",
+        "required_arms"
+      ],
+      "properties": {
+        "path_template": {
+          "const": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_v2/{run_id}/run_receipt.json"
+        },
+        "sidecar_path_template": {
+          "const": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_v2/{run_id}/run_receipt.json.sha256"
+        },
+        "schema_path": {
+          "const": "configs/training/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_run_receipt_v2.schema.json"
+        },
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-run-receipt.v2"
+        },
+        "receipt_sha256": {"$ref": "#/$defs/pendingSha"},
+        "sidecar_sha256": {"$ref": "#/$defs/pendingSha"},
+        "schema_sha256": {"$ref": "#/$defs/pendingSha"},
+        "required_status": {"const": "passed"},
+        "required_mode": {"const": "full"},
+        "required_arms": {
+          "const": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "review_audit_q_only",
+            "tool_q_only",
+            "tool_q_plus_micro_o",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture",
+        "expected_layers",
+        "expected_sliding_layers",
+        "expected_full_layers",
+        "expected_sliding_window",
+        "derive_layer_types_from_authenticated_config",
+        "model_identity_sha256",
+        "tokenizer_identity_sha256",
+        "base_load",
+        "attention_implementation",
+        "compute_dtype"
+      ],
+      "properties": {
+        "architecture": {"const": "Gemma3ForCausalLM"},
+        "expected_layers": {"const": 26},
+        "expected_sliding_layers": {"const": 22},
+        "expected_full_layers": {"const": 4},
+        "expected_sliding_window": {"const": 512},
+        "derive_layer_types_from_authenticated_config": {"const": true},
+        "model_identity_sha256": {"$ref": "#/$defs/pendingSha"},
+        "tokenizer_identity_sha256": {"$ref": "#/$defs/pendingSha"},
+        "base_load": {"const": "bitsandbytes_int8_frozen"},
+        "attention_implementation": {"const": "sdpa"},
+        "compute_dtype": {"const": "bfloat16"}
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stages",
+        "source_prefill_adapter_state",
+        "planner_tail",
+        "output_tail",
+        "source_prefix_read_only",
+        "tails_private_append_only",
+        "lineage_fields",
+        "latent_packet"
+      ],
+      "properties": {
+        "stages": {
+          "const": [
+            "general_router_plan_adapter_off_prefill",
+            "selected_expert_planner_tail",
+            "selected_output_expert_tail"
+          ]
+        },
+        "source_prefill_adapter_state": {"const": "adapter_off_frozen_base"},
+        "planner_tail": {"const": "selected_expert_planner_private"},
+        "output_tail": {"const": "selected_output_expert_private"},
+        "source_prefix_read_only": {"const": true},
+        "tails_private_append_only": {"const": true},
+        "lineage_fields": {
+          "const": [
+            "producer_candidate_commit",
+            "producer_release_commit",
+            "producer_release_tree",
+            "source_blob_sha256",
+            "source_record_sha256",
+            "training_serialization_inventory_sha256",
+            "record_prompt_sha256",
+            "example_serialization_sha256",
+            "tokenizer_binding_sha256",
+            "model_config_sha256",
+            "token_order_sha256",
+            "position_sha256",
+            "attention_mask_sha256",
+            "rope_sha256",
+            "model_identity_sha256",
+            "base_identity_sha256",
+            "q8_scb_sha256",
+            "adapter_lineage_sha256",
+            "layer_topology_sha256",
+            "route_commit_sha256",
+            "plan_commit_sha256"
+          ]
+        },
+        "latent_packet": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "fixed_dimension_required",
+            "serialization_digest_required",
+            "position_digest_required",
+            "commit_digest_required",
+            "hidden_chain_of_thought_claimed"
+          ],
+          "properties": {
+            "enabled": {"const": false},
+            "fixed_dimension_required": {"const": true},
+            "serialization_digest_required": {"const": true},
+            "position_digest_required": {"const": true},
+            "commit_digest_required": {"const": true},
+            "hidden_chain_of_thought_claimed": {"const": false}
+          }
+        }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arms",
+        "logits_atol",
+        "logits_rtol",
+        "next_token_argmax_equal_required",
+        "source_cache_unchanged_required",
+        "sibling_branch_isolation_required",
+        "negative_mutations"
+      ],
+      "properties": {
+        "arms": {
+          "const": ["cold_recompute", "shared_prefix_handoff"]
+        },
+        "logits_atol": {"type": "number", "exclusiveMinimum": 0},
+        "logits_rtol": {"type": "number", "exclusiveMinimum": 0},
+        "next_token_argmax_equal_required": {"const": true},
+        "source_cache_unchanged_required": {"const": true},
+        "sibling_branch_isolation_required": {"const": true},
+        "negative_mutations": {
+          "const": [
+            "wrong_adapter",
+            "wrong_position",
+            "wrong_attention_mask",
+            "source_cache_mutation",
+            "private_tail_alias"
+          ]
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_mode",
+        "execute_authorized",
+        "offline_only",
+        "gpu_lock_required",
+        "atomic_receipt_publish",
+        "atomic_create_once",
+        "failure_receipt_preserved",
+        "raw_logits_persisted",
+        "raw_token_ids_persisted"
+      ],
+      "properties": {
+        "default_mode": {"const": "validate"},
+        "execute_authorized": {"type": "boolean"},
+        "offline_only": {"const": true},
+        "gpu_lock_required": {"const": true},
+        "atomic_receipt_publish": {"const": true},
+        "atomic_create_once": {"const": true},
+        "failure_receipt_preserved": {"const": true},
+        "raw_logits_persisted": {"const": false},
+        "raw_token_ids_persisted": {"const": false}
+      }
+    },
+    "claims": {"$ref": "#/$defs/claims"},
+    "audit": {"$ref": "#/$defs/zeroAudit"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "const": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "pendingSha": {
+      "oneOf": [
+        {"const": "pending"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "schemaBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "version", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "exact_prefix_value_handoff_requires_physical_pass",
+        "prefill_compute_handoff_requires_physical_pass",
+        "shared_storage",
+        "zero_copy",
+        "rdma",
+        "full_generation_sharing",
+        "pointer_identity_is_proof",
+        "formal",
+        "live"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "proxy_only": {"const": true},
+        "exact_prefix_value_handoff_requires_physical_pass": {"const": true},
+        "prefill_compute_handoff_requires_physical_pass": {"const": true},
+        "shared_storage": {"const": false},
+        "zero_copy": {"const": false},
+        "rdma": {"const": false},
+        "full_generation_sharing": {"const": false},
+        "pointer_identity_is_proof": {"const": false},
+        "formal": {"const": false},
+        "live": {"const": false}
+      }
+    },
+    "zeroAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "gold_body_reads",
+        "heldout_body_reads",
+        "protected_body_reads",
+        "raw_token_ids_persisted",
+        "raw_logits_persisted"
+      ],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "gold_body_reads": {"const": 0},
+        "heldout_body_reads": {"const": 0},
+        "protected_body_reads": {"const": 0},
+        "raw_token_ids_persisted": {"const": 0},
+        "raw_logits_persisted": {"const": 0}
+      }
+    }
+  }
+}

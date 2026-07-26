@@ -1,0 +1,575 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_multiarm_q8_runtime_run_receipt_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "run_id",
+    "mode",
+    "config",
+    "source",
+    "teacher_final",
+    "tokenizer",
+    "model",
+    "phase_order",
+    "phase_receipts",
+    "adapters",
+    "training_lineage",
+    "launcher",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-run-receipt.v2"
+    },
+    "status": {"const": "passed"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "mode": {"enum": ["smoke_only", "full"]},
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "implementation"],
+      "properties": {
+        "path": {
+          "const": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.yaml"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "implementation": {"$ref": "#/$defs/implementation"}
+      }
+    },
+    "source": {"$ref": "#/$defs/sourceIdentity"},
+    "teacher_final": {"$ref": "#/$defs/teacherIdentity"},
+    "tokenizer": {"$ref": "#/$defs/tokenizerIdentity"},
+    "model": {"$ref": "#/$defs/modelIdentity"},
+    "phase_order": {"$ref": "#/$defs/phaseOrder"},
+    "phase_receipts": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {"$ref": "#/$defs/humorPhase"},
+        {"$ref": "#/$defs/seriousPhase"},
+        {"$ref": "#/$defs/angryPhase"},
+        {"$ref": "#/$defs/reviewPhase"},
+        {"$ref": "#/$defs/toolQPhase"},
+        {"$ref": "#/$defs/toolQOPhase"},
+        {"$ref": "#/$defs/plannerQPhase"},
+        {"$ref": "#/$defs/plannerOPhase"},
+        {"$ref": "#/$defs/plannerQOPhase"}
+      ],
+      "items": false
+    },
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "humor_q_only": {"$ref": "#/$defs/adapter"},
+        "serious_q_only": {"$ref": "#/$defs/adapter"},
+        "angry_style_q_only": {"$ref": "#/$defs/adapter"},
+        "review_audit_q_only": {"$ref": "#/$defs/adapter"},
+        "tool_q_only": {"$ref": "#/$defs/adapter"},
+        "tool_q_plus_micro_o": {"$ref": "#/$defs/adapter"},
+        "planner_q_only": {"$ref": "#/$defs/adapter"},
+        "planner_o_only": {"$ref": "#/$defs/adapter"},
+        "planner_q_plus_micro_o": {"$ref": "#/$defs/adapter"}
+      }
+    },
+    "training_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "sidecar_sha256"],
+      "properties": {
+        "path": {"const": "training_lineage.json"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "sidecar_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "launcher": {"$ref": "#/$defs/launcher"},
+    "claims": {"$ref": "#/$defs/runClaims"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"mode": {"const": "smoke_only"}},
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {
+          "phase_receipts": {
+            "prefixItems": [
+              {"$ref": "#/$defs/humorSmokePhase"},
+              {"$ref": "#/$defs/seriousSmokePhase"},
+              {"$ref": "#/$defs/angrySmokePhase"},
+              {"$ref": "#/$defs/reviewSmokePhase"},
+              {"$ref": "#/$defs/toolQSmokePhase"},
+              {"$ref": "#/$defs/toolQOSmokePhase"},
+              {"$ref": "#/$defs/plannerQSmokePhase"},
+              {"$ref": "#/$defs/plannerOSmokePhase"},
+              {"$ref": "#/$defs/plannerQOSmokePhase"}
+            ]
+          },
+          "adapters": {"maxProperties": 0},
+          "launcher": {
+            "properties": {"smoke_gate": {"type": "null"}}
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "phase_receipts": {
+            "prefixItems": [
+              {"$ref": "#/$defs/humorFullPhase"},
+              {"$ref": "#/$defs/seriousFullPhase"},
+              {"$ref": "#/$defs/angryFullPhase"},
+              {"$ref": "#/$defs/reviewFullPhase"},
+              {"$ref": "#/$defs/toolQFullPhase"},
+              {"$ref": "#/$defs/toolQOFullPhase"},
+              {"$ref": "#/$defs/plannerQFullPhase"},
+              {"$ref": "#/$defs/plannerOFullPhase"},
+              {"$ref": "#/$defs/plannerQOFullPhase"}
+            ]
+          },
+          "adapters": {
+            "required": [
+              "humor_q_only",
+              "serious_q_only",
+              "angry_style_q_only",
+              "review_audit_q_only",
+              "tool_q_only",
+              "tool_q_plus_micro_o",
+              "planner_q_only",
+              "planner_o_only",
+              "planner_q_plus_micro_o"
+            ],
+            "minProperties": 9,
+            "maxProperties": 9
+          },
+          "launcher": {
+            "properties": {"smoke_gate": {"$ref": "#/$defs/smokeGate"}}
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitObject": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.\\-/]+$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "set_sha256"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {"$ref": "#/$defs/fileIdentity"}
+        },
+        "set_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "candidate_commit",
+        "release_commit",
+        "release_tree",
+        "artifact_prefix",
+        "historical_release_attested",
+        "current_live_remote_reasserted",
+        "consumer_preflight_receipt_sha256",
+        "consumer_source_binding_sha256",
+        "consumer_binding_physical_sha256",
+        "consumer_binding_canonical_sha256",
+        "tree_digest_sha256",
+        "read_set_digest_sha256",
+        "producer_inventory_sha256",
+        "read_set_blob_oids_sha256",
+        "payload_blob_oids_sha256",
+        "read_set_files",
+        "final_files"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-immutable-git-source.v2"
+        },
+        "candidate_commit": {"const": "c5080249aa103d6cac09f0a55e51982b68524480"},
+        "release_commit": {"const": "304be2b86f82aad7ddade80fae04528bf2801977"},
+        "release_tree": {"const": "9bf154d481623b696dbc8a4bdf276967710b7214"},
+        "artifact_prefix": {
+          "const": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3"
+        },
+        "historical_release_attested": {"const": true},
+        "current_live_remote_reasserted": {"const": false},
+        "consumer_preflight_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_source_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_binding_physical_sha256": {"$ref": "#/$defs/sha256"},
+        "consumer_binding_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "tree_digest_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_digest_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_blob_oids_sha256": {"$ref": "#/$defs/sha256"},
+        "payload_blob_oids_sha256": {"$ref": "#/$defs/sha256"},
+        "read_set_files": {"const": 88},
+        "final_files": {"const": 46}
+      }
+    },
+    "teacherIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding_schema_version",
+        "record_schema_version",
+        "binding_sha256",
+        "binding_schema_sha256",
+        "manifest_sha256",
+        "record_schema_sha256",
+        "release_receipt_sha256",
+        "release_attestation_sha256",
+        "shard_inventory_sha256",
+        "records",
+        "main_records",
+        "router_records",
+        "train_identity_bundles",
+        "train_identity_records",
+        "independent_identity_eval_bundles_not_in_optimizer",
+        "independent_identity_eval_probes_not_in_optimizer",
+        "accepted",
+        "rejected",
+        "uncertain",
+        "producer_original_target_fallback",
+        "public_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-authenticated-teacher-final.v2"
+        },
+        "binding_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2"
+        },
+        "record_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2"
+        },
+        "binding_sha256": {"$ref": "#/$defs/sha256"},
+        "binding_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "record_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "release_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "release_attestation_sha256": {"$ref": "#/$defs/sha256"},
+        "shard_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "records": {"const": 3520},
+        "main_records": {"const": 3440},
+        "router_records": {"const": 80},
+        "train_identity_bundles": {"const": 20},
+        "train_identity_records": {"const": 100},
+        "independent_identity_eval_bundles_not_in_optimizer": {"const": 10},
+        "independent_identity_eval_probes_not_in_optimizer": {"const": 50},
+        "accepted": {"const": 3520},
+        "rejected": {"const": 0},
+        "uncertain": {"const": 0},
+        "producer_original_target_fallback": {"const": false},
+        "public_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "tokenizerIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tokenizer_model_sha256",
+        "tokenizer_config_sha256",
+        "model_config_sha256",
+        "export_manifest_sha256",
+        "chat_template_policy_sha256",
+        "combined_identity_sha256",
+        "processor_source",
+        "second_model_file_path_read",
+        "hf_auto_tokenizer_used",
+        "runtime_special_token_overlay"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-authenticated-tokenizer.v2"
+        },
+        "tokenizer_model_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_config_sha256": {"$ref": "#/$defs/sha256"},
+        "model_config_sha256": {"$ref": "#/$defs/sha256"},
+        "export_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "chat_template_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "combined_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "processor_source": {"const": "authenticated_model_proto_bytes"},
+        "second_model_file_path_read": {"const": false},
+        "hf_auto_tokenizer_used": {"const": false},
+        "runtime_special_token_overlay": {"const": true}
+      }
+    },
+    "hashByArm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "humor_q_only",
+        "serious_q_only",
+        "angry_style_q_only",
+        "review_audit_q_only",
+        "tool_q_only",
+        "tool_q_plus_micro_o",
+        "planner_q_only",
+        "planner_o_only",
+        "planner_q_plus_micro_o"
+      ],
+      "properties": {
+        "humor_q_only": {"$ref": "#/$defs/sha256"},
+        "serious_q_only": {"$ref": "#/$defs/sha256"},
+        "angry_style_q_only": {"$ref": "#/$defs/sha256"},
+        "review_audit_q_only": {"$ref": "#/$defs/sha256"},
+        "tool_q_only": {"$ref": "#/$defs/sha256"},
+        "tool_q_plus_micro_o": {"$ref": "#/$defs/sha256"},
+        "planner_q_only": {"$ref": "#/$defs/sha256"},
+        "planner_o_only": {"$ref": "#/$defs/sha256"},
+        "planner_q_plus_micro_o": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "modelIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_files",
+        "base_file_inventory_sha256",
+        "phase_base_hashes",
+        "phase_q8_scb_hashes",
+        "all_phase_base_hashes_equal",
+        "all_phase_q8_scb_hashes_equal",
+        "frozen_q8_base",
+        "base_o_proj_always_frozen"
+      ],
+      "properties": {
+        "base_files": {
+          "type": "object",
+          "minProperties": 5,
+          "maxProperties": 5,
+          "propertyNames": {"$ref": "#/$defs/relativePath"},
+          "additionalProperties": {"$ref": "#/$defs/sha256"}
+        },
+        "base_file_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "phase_base_hashes": {"$ref": "#/$defs/hashByArm"},
+        "phase_q8_scb_hashes": {"$ref": "#/$defs/hashByArm"},
+        "all_phase_base_hashes_equal": {"const": true},
+        "all_phase_q8_scb_hashes_equal": {"const": true},
+        "frozen_q8_base": {"const": true},
+        "base_o_proj_always_frozen": {"const": true}
+      }
+    },
+    "phaseOrder": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "humor_q_only"},
+        {"const": "serious_q_only"},
+        {"const": "angry_style_q_only"},
+        {"const": "review_audit_q_only"},
+        {"const": "tool_q_only"},
+        {"const": "tool_q_plus_micro_o"},
+        {"const": "planner_q_only"},
+        {"const": "planner_o_only"},
+        {"const": "planner_q_plus_micro_o"}
+      ],
+      "items": false,
+      "minItems": 9,
+      "maxItems": 9
+    },
+    "phaseSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arm",
+        "phase",
+        "status",
+        "target_steps",
+        "path",
+        "sha256",
+        "bytes",
+        "q8_scb_sha256",
+        "base_parameter_sha256",
+        "tensor_inventory_sha256"
+      ],
+      "properties": {
+        "arm": {
+          "enum": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "review_audit_q_only",
+            "tool_q_only",
+            "tool_q_plus_micro_o",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        },
+        "phase": {"enum": ["smoke", "full"]},
+        "status": {"const": "passed"},
+        "target_steps": {"type": "integer", "minimum": 2, "maximum": 1360},
+        "path": {
+          "type": "string",
+          "pattern": "^phases/[A-Za-z0-9._-]+/receipt\\.json$"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "q8_scb_sha256": {"$ref": "#/$defs/sha256"},
+        "base_parameter_sha256": {"$ref": "#/$defs/sha256"},
+        "tensor_inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "humorPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "humor_q_only"}}}]},
+    "seriousPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "serious_q_only"}}}]},
+    "angryPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "angry_style_q_only"}}}]},
+    "reviewPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "review_audit_q_only"}}}]},
+    "toolQPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "tool_q_only"}}}]},
+    "toolQOPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "tool_q_plus_micro_o"}}}]},
+    "plannerQPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "planner_q_only"}}}]},
+    "plannerOPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "planner_o_only"}}}]},
+    "plannerQOPhase": {"allOf": [{"$ref": "#/$defs/phaseSummary"}, {"properties": {"arm": {"const": "planner_q_plus_micro_o"}}}]},
+    "humorSmokePhase": {"allOf": [{"$ref": "#/$defs/humorPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "seriousSmokePhase": {"allOf": [{"$ref": "#/$defs/seriousPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "angrySmokePhase": {"allOf": [{"$ref": "#/$defs/angryPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "reviewSmokePhase": {"allOf": [{"$ref": "#/$defs/reviewPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "toolQSmokePhase": {"allOf": [{"$ref": "#/$defs/toolQPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "toolQOSmokePhase": {"allOf": [{"$ref": "#/$defs/toolQOPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "plannerQSmokePhase": {"allOf": [{"$ref": "#/$defs/plannerQPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "plannerOSmokePhase": {"allOf": [{"$ref": "#/$defs/plannerOPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "plannerQOSmokePhase": {"allOf": [{"$ref": "#/$defs/plannerQOPhase"}, {"properties": {"phase": {"const": "smoke"}, "target_steps": {"const": 2}}}]},
+    "humorFullPhase": {"allOf": [{"$ref": "#/$defs/humorPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 240}}}]},
+    "seriousFullPhase": {"allOf": [{"$ref": "#/$defs/seriousPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 240}}}]},
+    "angryFullPhase": {"allOf": [{"$ref": "#/$defs/angryPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 240}}}]},
+    "reviewFullPhase": {"allOf": [{"$ref": "#/$defs/reviewPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 1360}}}]},
+    "toolQFullPhase": {"allOf": [{"$ref": "#/$defs/toolQPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 1360}}}]},
+    "toolQOFullPhase": {"allOf": [{"$ref": "#/$defs/toolQOPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 1360}}}]},
+    "plannerQFullPhase": {"allOf": [{"$ref": "#/$defs/plannerQPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 80}}}]},
+    "plannerOFullPhase": {"allOf": [{"$ref": "#/$defs/plannerOPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 80}}}]},
+    "plannerQOFullPhase": {"allOf": [{"$ref": "#/$defs/plannerQOPhase"}, {"properties": {"phase": {"const": "full"}, "target_steps": {"const": 80}}}]},
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "adapter_profile",
+        "trainable_parameters",
+        "adapter_config",
+        "adapter_model",
+        "artifact_tree_sha256",
+        "tensor_inventory_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^adapters/[A-Za-z0-9._-]+$"
+        },
+        "adapter_profile": {
+          "enum": ["q_only", "o_only", "q_plus_micro_o"]
+        },
+        "trainable_parameters": {"type": "integer", "minimum": 1},
+        "adapter_config": {"$ref": "#/$defs/fileIdentity"},
+        "adapter_model": {"$ref": "#/$defs/fileIdentity"},
+        "artifact_tree_sha256": {"$ref": "#/$defs/sha256"},
+        "tensor_inventory_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "smokeGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_sha256",
+        "run_id",
+        "all_nine_arms_passed",
+        "smoke_checkpoint_consumed"
+      ],
+      "properties": {
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "run_id": {"$ref": "#/$defs/runId"},
+        "all_nine_arms_passed": {"const": true},
+        "smoke_checkpoint_consumed": {"const": false}
+      }
+    },
+    "launcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lease_sha256",
+        "attestation_sha256",
+        "launcher_pid",
+        "expected_gpu_uuid",
+        "canonical_lock_path",
+        "lock_exclusive",
+        "external_compute_process_policy",
+        "smoke_gate"
+      ],
+      "properties": {
+        "lease_sha256": {"$ref": "#/$defs/sha256"},
+        "attestation_sha256": {"$ref": "#/$defs/sha256"},
+        "launcher_pid": {"type": "integer", "minimum": 1},
+        "expected_gpu_uuid": {"type": "string", "minLength": 1, "maxLength": 256},
+        "canonical_lock_path": {"const": "runs/formal-v3-training.lock"},
+        "lock_exclusive": {"const": true},
+        "external_compute_process_policy": {"const": "observe_only"},
+        "smoke_gate": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/smokeGate"}]
+        }
+      }
+    },
+    "runClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "formal",
+        "release",
+        "sample_bodies_included",
+        "raw_token_ids_included",
+        "producer_original_targets_used",
+        "physical_kv_validated",
+        "full_generation_kv_shared"
+      ],
+      "properties": {
+        "diagnostic_only": {"const": true},
+        "proxy_only": {"const": true},
+        "formal": {"const": false},
+        "release": {"const": false},
+        "sample_bodies_included": {"const": false},
+        "raw_token_ids_included": {"const": false},
+        "producer_original_targets_used": {"const": false},
+        "physical_kv_validated": {"const": false},
+        "full_generation_kv_shared": {"const": false}
+      }
+    }
+  }
+}

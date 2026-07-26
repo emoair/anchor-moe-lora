@@ -1,0 +1,647 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-generation-eval-runtime.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "default_mode",
+    "consumer",
+    "historical_source",
+    "tokenizer",
+    "model",
+    "adapter_run",
+    "assets",
+    "matrix",
+    "execution",
+    "metric_contract",
+    "output",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-generation-eval-runtime.v2"
+    },
+    "profile_id": {
+      "const": "gemma3_chat_unbalanced_v2_generation_eval_runtime_v2"
+    },
+    "default_mode": {
+      "enum": [
+        "validate",
+        "dry-run"
+      ]
+    },
+    "consumer": {
+      "$ref": "#/$defs/consumer"
+    },
+    "historical_source": {
+      "$ref": "#/$defs/historical_source"
+    },
+    "tokenizer": {
+      "$ref": "#/$defs/tokenizer"
+    },
+    "model": {
+      "$ref": "#/$defs/model"
+    },
+    "adapter_run": {
+      "$ref": "#/$defs/adapter_run"
+    },
+    "assets": {
+      "$ref": "#/$defs/assets"
+    },
+    "matrix": {
+      "$ref": "#/$defs/matrix"
+    },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
+    "metric_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "planner",
+        "identity",
+        "router",
+        "safety",
+        "strata"
+      ],
+      "properties": {
+        "tool": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "planner": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "identity": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "router": {
+          "const": [
+            "route_exact"
+          ]
+        },
+        "safety": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "strata": {
+          "const": [
+            "stratum",
+            "language",
+            "role",
+            "identity",
+            "router",
+            "wrong_route"
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "gpu_lock",
+        "atomic_create_once",
+        "handle_disposition_delete_only",
+        "path_unlink_fallback",
+        "failure_receipt",
+        "progress_scalar_only"
+      ],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/path"
+        },
+        "gpu_lock": {
+          "$ref": "#/$defs/path"
+        },
+        "atomic_create_once": {
+          "const": true
+        },
+        "handle_disposition_delete_only": {
+          "const": true
+        },
+        "path_unlink_fallback": {
+          "const": false
+        },
+        "failure_receipt": {
+          "const": true
+        },
+        "progress_scalar_only": {
+          "const": true
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "eval_proxy_is_heldout",
+        "generalization_validated",
+        "formal",
+        "release",
+        "sample_bodies_persisted",
+        "completions_persisted",
+        "raw_token_ids_persisted",
+        "network_used"
+      ],
+      "properties": {
+        "diagnostic_only": {
+          "const": true
+        },
+        "proxy_only": {
+          "const": true
+        },
+        "eval_proxy_is_heldout": {
+          "const": false
+        },
+        "generalization_validated": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "release": {
+          "const": false
+        },
+        "sample_bodies_persisted": {
+          "const": false
+        },
+        "completions_persisted": {
+          "const": false
+        },
+        "raw_token_ids_persisted": {
+          "const": false
+        },
+        "network_used": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pending_sha256": {
+      "oneOf": [
+        {
+          "const": "pending"
+        },
+        {
+          "$ref": "#/$defs/sha256"
+        }
+      ]
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "oid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40,64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\\\:]+$"
+    },
+    "file_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_path",
+        "binding_sha256",
+        "receipt_path",
+        "receipt_sha256",
+        "source_binding_sha256"
+      ],
+      "properties": {
+        "binding_path": {
+          "$ref": "#/$defs/path"
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "receipt_path": {
+          "$ref": "#/$defs/path"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "historical_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_repo",
+        "candidate_commit",
+        "candidate_tree",
+        "release_commit",
+        "release_tree",
+        "payload_root",
+        "read_mode",
+        "required_read_set_files",
+        "required_payload_files",
+        "required_physical_files",
+        "current_head_or_upstream_is_authority"
+      ],
+      "properties": {
+        "default_repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "candidate_tree": {
+          "$ref": "#/$defs/oid"
+        },
+        "release_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "release_tree": {
+          "$ref": "#/$defs/oid"
+        },
+        "payload_root": {
+          "$ref": "#/$defs/path"
+        },
+        "read_mode": {
+          "const": "git_cat_file_only"
+        },
+        "required_read_set_files": {
+          "const": 88
+        },
+        "required_payload_files": {
+          "const": 23
+        },
+        "required_physical_files": {
+          "const": 46
+        },
+        "current_head_or_upstream_is_authority": {
+          "const": false
+        }
+      }
+    },
+    "tokenizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "chat_template_policy_sha256",
+        "processor_source",
+        "second_model_file_path_read",
+        "hf_auto_tokenizer_used",
+        "runtime_special_token_overlay",
+        "serialization_inventory_sha256_from_consumer_receipt"
+      ],
+      "properties": {
+        "authority": {
+          "const": "anchor_mvp.training.gemma3_chat_unbalanced_v2_runtime_source_v2"
+        },
+        "chat_template_policy_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "processor_source": {
+          "const": "authenticated_model_proto_bytes"
+        },
+        "second_model_file_path_read": {
+          "const": false
+        },
+        "hf_auto_tokenizer_used": {
+          "const": false
+        },
+        "runtime_special_token_overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pad_token_id",
+            "eos_token_id",
+            "bos_token_id",
+            "unk_token_id",
+            "start_of_turn_token_id",
+            "end_of_turn_token_id",
+            "user_token_id",
+            "model_token_id"
+          ],
+          "properties": {
+            "pad_token_id": {
+              "const": 0
+            },
+            "eos_token_id": {
+              "const": 1
+            },
+            "bos_token_id": {
+              "const": 2
+            },
+            "unk_token_id": {
+              "const": 3
+            },
+            "start_of_turn_token_id": {
+              "const": 105
+            },
+            "end_of_turn_token_id": {
+              "const": 106
+            },
+            "user_token_id": {
+              "const": 2364
+            },
+            "model_token_id": {
+              "const": 4368
+            }
+          }
+        },
+        "serialization_inventory_sha256_from_consumer_receipt": {
+          "const": true
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_variable",
+        "default_path",
+        "required_files"
+      ],
+      "properties": {
+        "environment_variable": {
+          "const": "ANCHOR_GEMMA_MODEL_DIR"
+        },
+        "default_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_files": {
+          "const": [
+            "model.safetensors",
+            "config.json",
+            "tokenizer.model",
+            "tokenizer_config.json",
+            "EXPORT_MANIFEST.json"
+          ]
+        }
+      }
+    },
+    "adapter_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_path",
+        "receipt_sha256",
+        "required_schema_version",
+        "required_status",
+        "required_arms",
+        "fresh_base_required",
+        "fresh_adapters_required",
+        "resume_allowed"
+      ],
+      "properties": {
+        "receipt_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/pending_sha256"
+        },
+        "required_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-q8-runtime-run-receipt.v2"
+        },
+        "required_status": {
+          "const": "passed"
+        },
+        "required_arms": {
+          "const": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "review_audit_q_only",
+            "tool_q_only",
+            "tool_q_plus_micro_o",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        },
+        "fresh_base_required": {
+          "const": true
+        },
+        "fresh_adapters_required": {
+          "const": true
+        },
+        "resume_allowed": {
+          "const": false
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payload_path",
+        "records"
+      ],
+      "properties": {
+        "payload_path": {
+          "$ref": "#/$defs/path"
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "planner",
+        "router",
+        "identity",
+        "wrong_route"
+      ],
+      "properties": {
+        "tool": {
+          "$ref": "#/$defs/asset"
+        },
+        "planner": {
+          "$ref": "#/$defs/asset"
+        },
+        "router": {
+          "$ref": "#/$defs/asset"
+        },
+        "identity": {
+          "$ref": "#/$defs/asset"
+        },
+        "wrong_route": {
+          "$ref": "#/$defs/asset"
+        }
+      }
+    },
+    "matrix_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "arms",
+        "slots"
+      ],
+      "properties": {
+        "records": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "arms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "slots": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "planner",
+        "router",
+        "identity",
+        "wrong_route",
+        "total_slots"
+      ],
+      "properties": {
+        "tool": {
+          "$ref": "#/$defs/matrix_cell"
+        },
+        "planner": {
+          "$ref": "#/$defs/matrix_cell"
+        },
+        "router": {
+          "$ref": "#/$defs/matrix_cell"
+        },
+        "identity": {
+          "$ref": "#/$defs/matrix_cell"
+        },
+        "wrong_route": {
+          "$ref": "#/$defs/matrix_cell"
+        },
+        "total_slots": {
+          "const": 4910
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seed",
+        "max_new_tokens",
+        "do_sample",
+        "num_beams",
+        "temperature",
+        "gpu_concurrency",
+        "network_allowed",
+        "windows_read_leases_required",
+        "tokenizer_auth_read_leases",
+        "runtime_input_read_leases",
+        "adapter_switch_must_match_exact_state",
+        "base_and_scb_recheck_after_each_run",
+        "termination_checked_every_generation"
+      ],
+      "properties": {
+        "seed": {
+          "const": 1337
+        },
+        "max_new_tokens": {
+          "const": 256
+        },
+        "do_sample": {
+          "const": false
+        },
+        "num_beams": {
+          "const": 1
+        },
+        "temperature": {
+          "const": 0
+        },
+        "gpu_concurrency": {
+          "const": 1
+        },
+        "network_allowed": {
+          "const": false
+        },
+        "windows_read_leases_required": {
+          "const": true
+        },
+        "tokenizer_auth_read_leases": {
+          "const": 4
+        },
+        "runtime_input_read_leases": {
+          "const": 23
+        },
+        "adapter_switch_must_match_exact_state": {
+          "const": true
+        },
+        "base_and_scb_recheck_after_each_run": {
+          "const": true
+        },
+        "termination_checked_every_generation": {
+          "const": true
+        }
+      }
+    }
+  }
+}
