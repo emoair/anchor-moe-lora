@@ -1,0 +1,820 @@
+{
+  "artifact_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3",
+  "expected_attestation_schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation.v3",
+  "expected_build_receipt_schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-build-receipt.v4",
+  "expected_manifest_schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-manifest.v4",
+  "expected_manifest_status": "candidate_pending_independent_release_review",
+  "logical_identity": {
+    "eval_proxy_partition_sha256": "42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176",
+    "identity_probe_inventory_sha256": "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5",
+    "logical_all_record_inventory_sha256": "5da71c978eacdbb4dbcc466b6a227ede7ddb6b0191cc70164f5aa91747444515",
+    "logical_dataset_sha256": "c63fd9c46aff129e0840ed32482ed1a856a66a2b89b48b1316d54bf378685033",
+    "logical_record_order_sha256": "6419cdac69cb3da05a49eac94a58ab73a47ae11ae65445f29de7b518aceda76c",
+    "logical_target_inventory_sha256": "92372de0b2837b05fbe670fc677b9eee08cf751a379e3fe65d1aee4804493c46",
+    "logical_task_bundle_inventory_sha256": "137f2e37c75ae2ce248439308c66d0c2e80f92fc75600d32acb337f11d713334",
+    "logical_train_partition_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "logical_train_record_inventory_sha256": "cf395044642a3333d31f47926b590011f0cb7922631af204ea7c16b5a46fe8aa",
+    "serialization_inventory_sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d"
+  },
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+  "payload_files": [
+    {
+      "bytes": 35356,
+      "kind": "json",
+      "path": "build_receipt.json",
+      "sha256": "da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6",
+      "sidecar_bytes": 85,
+      "sidecar_sha256": "301e2bef647a92b88399c13e2148572257789f3a4231dc42d0aa5f20a9bccc92"
+    },
+    {
+      "bytes": 3798,
+      "kind": "json",
+      "path": "components/planner_eval/build_receipt.json",
+      "sha256": "56df42d17c0fec48ef6e52aeeffdd6cb0fa324622ed8156447b77df5b1fd10d8",
+      "sidecar_bytes": 85,
+      "sidecar_sha256": "78a278a8aa89bf5966a24fe91139ec6d136fb3381824d26db16c3819613ce779"
+    },
+    {
+      "bytes": 25370,
+      "kind": "json",
+      "path": "components/planner_eval/manifest.json",
+      "sha256": "f6cc5f4b5f63bc174bd65c71e6c0d6b224dcf9e8a90ece687fc38b5d1b7f0c05",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "2e21bdd4a35ec408cf67ad3beb32b78511345c49c583d4018aadc6bbeb91e2af"
+    },
+    {
+      "bytes": 17281,
+      "kind": "jsonl",
+      "path": "components/planner_eval/negative_inventory.jsonl",
+      "sha256": "61ec3954a2758dc5aa3c383fbd712adce85008ba359613fbf93bfc76a2cb4043",
+      "sidecar_bytes": 91,
+      "sidecar_sha256": "a987669cdd3c1eca85deab39c880625097735895d302a6a1dd603634cab3fab1"
+    },
+    {
+      "bytes": 2480914,
+      "kind": "jsonl",
+      "path": "components/planner_eval/records.jsonl",
+      "sha256": "591843636062b2e6915b2c4e2aafbb9dcb76b699c6dcbc95bb00f188a1ab3734",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "25e7c532fdbd3c31640061dd8e30b269bdb340e9dbfe549a062654264703b0b6"
+    },
+    {
+      "bytes": 288220,
+      "kind": "jsonl",
+      "path": "components/planner_eval/token_inventory.jsonl",
+      "sha256": "3d53386ae920c8474e189c5da92adf46e214b36ad8a960cb3cc5b1eb0449432d",
+      "sidecar_bytes": 88,
+      "sidecar_sha256": "945a4560af23379af0fd9e1a2c2028422d7f36bb218b4e297eb699277b5d4bbf"
+    },
+    {
+      "bytes": 1498,
+      "kind": "json",
+      "path": "components/router/build_receipt.json",
+      "sha256": "8b409c139dad499d5c06663bb7b9712a379a32f319a009ef7f6f3c800618966d",
+      "sidecar_bytes": 85,
+      "sidecar_sha256": "fa59b127eab07f0165509271def17793a32601bcc3d052666dcc61c26da33605"
+    },
+    {
+      "bytes": 30839,
+      "kind": "json",
+      "path": "components/router/manifest.json",
+      "sha256": "416e39b0617263edc3af7046ab075745dbe564430927565a1623540d63027b6d",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "a1fba4dc0176636cd176e2cafe623bdc6421ce596433f8ae20d2a02e1f734f60"
+    },
+    {
+      "bytes": 938700,
+      "kind": "jsonl",
+      "path": "components/router/records.jsonl",
+      "sha256": "f41b865b4c65cf849c92499a0ea19ea53f2ce37f7424fa8e154543bff81f61b8",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "2a16d6e1dabf5f0d98d51a1235d1e6681c8124bcfe93a310afb82dafa204bd05"
+    },
+    {
+      "bytes": 91514,
+      "kind": "jsonl",
+      "path": "components/router/token_inventory.jsonl",
+      "sha256": "67fe668b21ea935e5143362d87ab213de5b8a4c971de3c4cb836b353fcf778a3",
+      "sidecar_bytes": 88,
+      "sidecar_sha256": "78b791611405f8f3c1589b5a5a18cfffe0ff69d8ca4b10c8b11ca2a5c49d8587"
+    },
+    {
+      "bytes": 3676,
+      "kind": "json",
+      "path": "components/tool_eval/build_receipt.json",
+      "sha256": "464d6475069b4ebf2fb34f2c27d87d90c74ad3deb6118480ca1e68835cdcbcfa",
+      "sidecar_bytes": 85,
+      "sidecar_sha256": "c2e97ab8c29425d64b74e0980a989a488b1ecb7fa12792588310cebad4ed090c"
+    },
+    {
+      "bytes": 27925,
+      "kind": "json",
+      "path": "components/tool_eval/manifest.json",
+      "sha256": "ece2b2e998c44037eb7af10c6c68193aba9037035169358855b5cfa1071935f1",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "46658330eecdbdb3225eb860aa7d3ddc195ebbcf0401be2a628d702c0bebd79c"
+    },
+    {
+      "bytes": 18680,
+      "kind": "jsonl",
+      "path": "components/tool_eval/negative_inventory.jsonl",
+      "sha256": "899b83076340ea8d496f5a2c8a3b355337de9add744c5a7ccb9406ac1622c364",
+      "sidecar_bytes": 91,
+      "sidecar_sha256": "fae6fcc0307dd9139a877b16d581af65f4dd5d3a0f4d07e75d814dbc992b7ed2"
+    },
+    {
+      "bytes": 4258978,
+      "kind": "jsonl",
+      "path": "components/tool_eval/records.jsonl",
+      "sha256": "138a3b6b915250db0d793fb36745586e95f17881f52e8882e6d4f0df691057fe",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "673ba9282adf1c27015d95cd8c76d1a2ab5dafb6139d20ae0384b01dfd4f7f1b"
+    },
+    {
+      "bytes": 506080,
+      "kind": "jsonl",
+      "path": "components/tool_eval/token_inventory.jsonl",
+      "sha256": "ff0d918c9532b0b2a9ff392b783c63c410c94d65cdb77ae5c57af48bce5a467c",
+      "sidecar_bytes": 88,
+      "sidecar_sha256": "bf5d1410afcb69736e81cee548a0b22b186d6cffebd556d632f0838cd6f58b30"
+    },
+    {
+      "bytes": 14873286,
+      "kind": "jsonl",
+      "path": "eval_proxy/chat.jsonl",
+      "sha256": "42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176",
+      "sidecar_bytes": 77,
+      "sidecar_sha256": "78523732fe7361f071aab7c0b5d6472a84b52026ddf87b181bee3d4d2939ff3e"
+    },
+    {
+      "bytes": 51145,
+      "kind": "jsonl",
+      "path": "identity_eval/probe_inventory.jsonl",
+      "sha256": "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5",
+      "sidecar_bytes": 88,
+      "sidecar_sha256": "2bb0bc50793cff2f77caa7c2ccfff7a9d0fb8805e2f0d15a695894bab7806143"
+    },
+    {
+      "bytes": 34236,
+      "kind": "json",
+      "path": "manifest.json",
+      "sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+      "sidecar_bytes": 80,
+      "sidecar_sha256": "b8b2eee6cf89d0c93d9901d5702d3c143627639e2007ca55c98390d50c4f2fca"
+    },
+    {
+      "bytes": 2203,
+      "kind": "json",
+      "path": "reviews/planner_eval_independent_review.json",
+      "sha256": "c77fcd309af64eee689148c396d612b1b3ad20414f71482d7c9c27751d33c57c",
+      "sidecar_bytes": 103,
+      "sidecar_sha256": "b8d3cc8b75b575a25534c41c173274215432ff5cf6bf949f6119b4bbbab3555b"
+    },
+    {
+      "bytes": 2477,
+      "kind": "json",
+      "path": "reviews/tool_eval_independent_review.json",
+      "sha256": "a09ac7dc7643168342360d2bc0cd463238fd43405d5365c6efc06373f76a6082",
+      "sidecar_bytes": 100,
+      "sidecar_sha256": "4f7e9c280aac50a4bf685176f64803fc69f5cf7c5b4967aeff0db91f8e88ed77"
+    },
+    {
+      "bytes": 4251182,
+      "kind": "jsonl",
+      "path": "serialization_inventory.jsonl",
+      "sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d",
+      "sidecar_bytes": 96,
+      "sidecar_sha256": "715285e1f884b9e0452038bd12a7dcac4928a013e93834306302a0c25ba39e71"
+    },
+    {
+      "bytes": 29909786,
+      "kind": "jsonl",
+      "path": "train/chat-00000-of-00002.jsonl",
+      "sha256": "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215",
+      "sidecar_bytes": 92,
+      "sidecar_sha256": "8a0352927bd15767df11491743134b9e4c530ea58a96472312ba50a803941b20"
+    },
+    {
+      "bytes": 29935528,
+      "kind": "jsonl",
+      "path": "train/chat-00001-of-00002.jsonl",
+      "sha256": "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522",
+      "sidecar_bytes": 92,
+      "sidecar_sha256": "562c474ff3cd763f33cab179c66785f215763a5771109b169d10d73b6bee271f"
+    }
+  ],
+  "producer_git": {
+    "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "clean_worktree": true,
+    "live_remote_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "tags_at_head": 0,
+    "upstream_commit": "304be2b86f82aad7ddade80fae04528bf2801977"
+  },
+  "producer_output_inventory_sha256": "e6554cec556eb974139df6a169865d7f82986b28b6df9041f9d0108481d5035e",
+  "read_set": {
+    "canonical_digest_sha256": "0b174baf82e485015eaf46040c636c794dfdb2972ae01983aba8417171b13ea8",
+    "count": 88,
+    "files": [
+      {
+        "bytes": 14870,
+        "kind": "text",
+        "path": ".gitattributes",
+        "sha256": "f316a5866c3a70a648ca56e81b396959685741912ecce3acbfdc8e68221ebed8"
+      },
+      {
+        "bytes": 18648,
+        "kind": "json",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final.json",
+        "sha256": "88a517cec580d4d43a3884cd7c96b6ed0897e156703480c50022b50af6274cac"
+      },
+      {
+        "bytes": 9699,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_build_receipt.schema.json",
+        "sha256": "77d6febe99ddebd66a9409d37e0c69feeb300ccbc00491212ff115d30996816c"
+      },
+      {
+        "bytes": 13238,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_config.schema.json",
+        "sha256": "11205f98af6a1e3d2acad9ada781e7bdaeefc8a02fd6d4ae3f4aedcf13a27df2"
+      },
+      {
+        "bytes": 3061,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_identity_probe.schema.json",
+        "sha256": "4c82c6feae11c4eead8642f7f93f97670421874e87d358e9c78af5e43ec12ee2"
+      },
+      {
+        "bytes": 11062,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_manifest.schema.json",
+        "sha256": "9841c0448cbef634de847f9ffa35ab1a67bb27749ff6f684debf48851dd8ad7e"
+      },
+      {
+        "bytes": 21529,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_record.schema.json",
+        "sha256": "7e9ef006d76ad3da239fbac10029dd9c30eb2ee85031435187109e05beef8cc0"
+      },
+      {
+        "bytes": 2878,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_serialization_inventory.schema.json",
+        "sha256": "b695da4cbb54c1e613caac395719738de5735effa5b7ced2afc560c44d49e8c8"
+      },
+      {
+        "bytes": 14025,
+        "kind": "json",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.json",
+        "sha256": "abbbf8b35656e2344ac827cede779a5f5bc448551b4e31f98a8450fa27d77081"
+      },
+      {
+        "bytes": 22339,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.schema.json",
+        "sha256": "6b4cee95865a02db0332a37076152d1dfbb8faf73ab21b39b04df3f27e8e354b"
+      },
+      {
+        "bytes": 11765,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_independent_release_attestation_v1.schema.json",
+        "sha256": "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9"
+      },
+      {
+        "bytes": 20625,
+        "kind": "json",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.json",
+        "sha256": "37df3a7a47c5e47365473ff0f82c267c8cdfd6f68830f2434f18df432ed524d0"
+      },
+      {
+        "bytes": 46338,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.schema.json",
+        "sha256": "bdf13057fe30612ca9848beefd0e3d24f9244c2670f5478c419bcb2c6a348142"
+      },
+      {
+        "bytes": 22963,
+        "kind": "json_schema",
+        "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_record.schema.json",
+        "sha256": "54620c5f77decbf43ddfef05e5665fc3aa8bd5746b0d1597647c9611dcc7a2ba"
+      },
+      {
+        "bytes": 1498,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/build_receipt.json",
+        "sha256": "8b409c139dad499d5c06663bb7b9712a379a32f319a009ef7f6f3c800618966d"
+      },
+      {
+        "bytes": 85,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/build_receipt.json.sha256",
+        "sha256": "fa59b127eab07f0165509271def17793a32601bcc3d052666dcc61c26da33605"
+      },
+      {
+        "bytes": 30839,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/manifest.json",
+        "sha256": "416e39b0617263edc3af7046ab075745dbe564430927565a1623540d63027b6d"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/manifest.json.sha256",
+        "sha256": "a1fba4dc0176636cd176e2cafe623bdc6421ce596433f8ae20d2a02e1f734f60"
+      },
+      {
+        "bytes": 938700,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/records.jsonl",
+        "sha256": "f41b865b4c65cf849c92499a0ea19ea53f2ce37f7424fa8e154543bff81f61b8"
+      },
+      {
+        "bytes": 91514,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate/token_inventory.jsonl",
+        "sha256": "67fe668b21ea935e5143362d87ab213de5b8a4c971de3c4cb836b353fcf778a3"
+      },
+      {
+        "bytes": 35356,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2/build_receipt.json",
+        "sha256": "f6b7f7d8a3365dda642532f1033db362dca356281b7f47367c04a1bdcab9fcd6"
+      },
+      {
+        "bytes": 85,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2/build_receipt.json.sha256",
+        "sha256": "d9d65765b817fe51585225ced8340637195a382eb4e49dbebecb2f4a320e245c"
+      },
+      {
+        "bytes": 34255,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2/manifest.json",
+        "sha256": "b853201d7e433a4fae8cbfeef522bc5ac6fc4be133037e762ce7b850099ff88c"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2/manifest.json.sha256",
+        "sha256": "90136ebfc0d62c15467086e7a89faf2c6e3b34e97b1d5b8fe4efb5811f5b5ac8"
+      },
+      {
+        "bytes": 2922,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json",
+        "sha256": "269098db8106b1bdba141ec364cde8edbf13fac8f87ddec0e7b8091973efe7e9"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json.sha256",
+        "sha256": "9880479610c337e9b19c081d83b2daff986a241dd6a642f766068142a79b7c80"
+      },
+      {
+        "bytes": 2203,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/planner_eval_independent_review.json",
+        "sha256": "c77fcd309af64eee689148c396d612b1b3ad20414f71482d7c9c27751d33c57c"
+      },
+      {
+        "bytes": 103,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/planner_eval_independent_review.json.sha256",
+        "sha256": "b8d3cc8b75b575a25534c41c173274215432ff5cf6bf949f6119b4bbbab3555b"
+      },
+      {
+        "bytes": 2477,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/tool_eval_independent_review.json",
+        "sha256": "a09ac7dc7643168342360d2bc0cd463238fd43405d5365c6efc06373f76a6082"
+      },
+      {
+        "bytes": 100,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/tool_eval_independent_review.json.sha256",
+        "sha256": "4f7e9c280aac50a4bf685176f64803fc69f5cf7c5b4967aeff0db91f8e88ed77"
+      },
+      {
+        "bytes": 75228,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate_v2/manifest.json",
+        "sha256": "37dd0cf1c776bb81c26085b46c434f17899f4d2cf90ae4c4eaf4bf69aaf2717f"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate_v2/manifest.json.sha256",
+        "sha256": "dab28b7c4d4bc82cb7ea4fd6eb4de90041111d0f73b6c6753d0395598b391537"
+      },
+      {
+        "bytes": 865603,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate_v2/semantic_blueprints.jsonl",
+        "sha256": "d880404e052abe4c468ab57a43740e8cd66c936fe946ef5e40f09892d709f885"
+      },
+      {
+        "bytes": 7779,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2/manifest.json",
+        "sha256": "8c05f39ff472d01f72fcff040a87435f52cc38f4db74f75092657b9af3163705"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2/manifest.json.sha256",
+        "sha256": "ff2d607da4ee20722b9302cad990cb3ef914a3bf121dac5abaf290f25137b6cc"
+      },
+      {
+        "bytes": 1537841,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2/semantic_blueprints.jsonl",
+        "sha256": "56244504895d9daf05c415b1ede599968fb9f96af17bde866f54cd9983cf4ed6"
+      },
+      {
+        "bytes": 9901,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate/manifest.json",
+        "sha256": "3339f14f572b7f377667c31b4c79ec842fa2c636d3574dc0a6a3157d4fbabf18"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate/manifest.json.sha256",
+        "sha256": "cdb2bba4c687ce8f2df0519f9b862d8799cc5fbabb8cab6b5a9fe0e843ea4808"
+      },
+      {
+        "bytes": 1377655,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate/semantic_blueprints.jsonl",
+        "sha256": "fbb582ecf644e5f7b90969db8510c92ff7aa5d03c3c76e6e1eb10b06401208bc"
+      },
+      {
+        "bytes": 10884,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate/manifest.json",
+        "sha256": "c16b62d445b9daad936a1cb45f8eded68865295854291d952b64ed4387ef5130"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate/manifest.json.sha256",
+        "sha256": "94d07ef6e4f45f1a29f7853b8a1165449eb6f49047a13cc38ae824151ff3fae3"
+      },
+      {
+        "bytes": 1536286,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate/semantic_blueprints.jsonl",
+        "sha256": "68118b9b7a961d05b77c520113b911f6abcc15f06694c7e4aad1e067bf3aa7b4"
+      },
+      {
+        "bytes": 12340,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/05_fixed_datetime_arithmetic_candidate_v3/manifest.json",
+        "sha256": "08c6a13d033a26bfc698d4be464d6802276bac1e6ca90cb6d706395876037a61"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/05_fixed_datetime_arithmetic_candidate_v3/manifest.json.sha256",
+        "sha256": "4bb206cdc406924d05756394d656100f62d850a5f56c89a200da432d7d8cf0e9"
+      },
+      {
+        "bytes": 1656562,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/05_fixed_datetime_arithmetic_candidate_v3/semantic_blueprints.jsonl",
+        "sha256": "cf1001a48be9d1489e6b0919f7581fcb31287244abdb1c14704f37a947e2aba1"
+      },
+      {
+        "bytes": 14762,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/06_table_filter_sort_candidate/manifest.json",
+        "sha256": "bdfcaebd6d9834d02604d9273a99285e9dc35374d9a35c5845adb8040b92702a"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/06_table_filter_sort_candidate/manifest.json.sha256",
+        "sha256": "a6ba1239caa3720cc92c6de1569d06f1a9202dedd73d909451741ad7cf2c2b74"
+      },
+      {
+        "bytes": 3197069,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/06_table_filter_sort_candidate/semantic_blueprints.jsonl",
+        "sha256": "e31698ebb080f5ca677e76729f3af5e126eca25a03707245ee548c81f123bff0"
+      },
+      {
+        "bytes": 16361,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/07_text_statistics_candidate/manifest.json",
+        "sha256": "2085b6377440f9f9d01eb84b971f525528d9892b5f8fc544aa65022b1500869f"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/07_text_statistics_candidate/manifest.json.sha256",
+        "sha256": "9aa1d0010c74ba6a9a8ee7440de7754e5872236a24867f634fc75172ea3d737e"
+      },
+      {
+        "bytes": 1789381,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/07_text_statistics_candidate/semantic_blueprints.jsonl",
+        "sha256": "fac988b985b001482d3c1bbe6f62bdbe8ef18ebfba34dbb7bf5fdd50a1566bc3"
+      },
+      {
+        "bytes": 17973,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/08_sandbox_file_metadata_candidate/manifest.json",
+        "sha256": "5d9913a65671eed558a26e088edc22870440effb3b035543ccf0a7c50a1087e4"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/08_sandbox_file_metadata_candidate/manifest.json.sha256",
+        "sha256": "8eef84aab48116eb906225df56063551dcc30f1489cc3505c3f9a8f879a8b7b9"
+      },
+      {
+        "bytes": 3487238,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/08_sandbox_file_metadata_candidate/semantic_blueprints.jsonl",
+        "sha256": "64316e88c3f1e929f526aec2a57d1a893581fe8757d4cc864f99b6124433e614"
+      },
+      {
+        "bytes": 23909,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/09_micro_code_sandbox_candidate/manifest.json",
+        "sha256": "343ef208c50180f7e03446e4a525e404b9de0fa0f28d198e716910f3ee8c7f25"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/09_micro_code_sandbox_candidate/manifest.json.sha256",
+        "sha256": "75d7f3dfdb773e9e9377fc0f550a87c383c7641935bb0c89b085ab80c5760dd3"
+      },
+      {
+        "bytes": 2547403,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/09_micro_code_sandbox_candidate/semantic_blueprints.jsonl",
+        "sha256": "3e412e15531c00719dc6a3b53f00b017e94bb70310889d3e36a7b80aee79b4d4"
+      },
+      {
+        "bytes": 21076,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/10_schema_transform_validation_candidate/manifest.json",
+        "sha256": "284bc5ed407bce21501ca8e09bb7ba78ba5078b727f44b6acacd2aac88f2f7a6"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/10_schema_transform_validation_candidate/manifest.json.sha256",
+        "sha256": "770ec53d65434bbbe097c9e4a59ad8964e6706bb1cd9ea7b8597fdaf7d23f9b3"
+      },
+      {
+        "bytes": 2250320,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/10_schema_transform_validation_candidate/semantic_blueprints.jsonl",
+        "sha256": "6a827bbd3764f4eb69f42362bf6c0fd6e6319ee3016ef0b26d8073803663712e"
+      },
+      {
+        "bytes": 3798,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/build_receipt.json",
+        "sha256": "56df42d17c0fec48ef6e52aeeffdd6cb0fa324622ed8156447b77df5b1fd10d8"
+      },
+      {
+        "bytes": 85,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/build_receipt.json.sha256",
+        "sha256": "78a278a8aa89bf5966a24fe91139ec6d136fb3381824d26db16c3819613ce779"
+      },
+      {
+        "bytes": 25370,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/manifest.json",
+        "sha256": "f6cc5f4b5f63bc174bd65c71e6c0d6b224dcf9e8a90ece687fc38b5d1b7f0c05"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/manifest.json.sha256",
+        "sha256": "2e21bdd4a35ec408cf67ad3beb32b78511345c49c583d4018aadc6bbeb91e2af"
+      },
+      {
+        "bytes": 17281,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/negative_inventory.jsonl",
+        "sha256": "61ec3954a2758dc5aa3c383fbd712adce85008ba359613fbf93bfc76a2cb4043"
+      },
+      {
+        "bytes": 91,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/negative_inventory.jsonl.sha256",
+        "sha256": "a987669cdd3c1eca85deab39c880625097735895d302a6a1dd603634cab3fab1"
+      },
+      {
+        "bytes": 2480914,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/records.jsonl",
+        "sha256": "591843636062b2e6915b2c4e2aafbb9dcb76b699c6dcbc95bb00f188a1ab3734"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/records.jsonl.sha256",
+        "sha256": "25e7c532fdbd3c31640061dd8e30b269bdb340e9dbfe549a062654264703b0b6"
+      },
+      {
+        "bytes": 288220,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/token_inventory.jsonl",
+        "sha256": "3d53386ae920c8474e189c5da92adf46e214b36ad8a960cb3cc5b1eb0449432d"
+      },
+      {
+        "bytes": 88,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate/token_inventory.jsonl.sha256",
+        "sha256": "945a4560af23379af0fd9e1a2c2028422d7f36bb218b4e297eb699277b5d4bbf"
+      },
+      {
+        "bytes": 3676,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/build_receipt.json",
+        "sha256": "464d6475069b4ebf2fb34f2c27d87d90c74ad3deb6118480ca1e68835cdcbcfa"
+      },
+      {
+        "bytes": 85,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/build_receipt.json.sha256",
+        "sha256": "c2e97ab8c29425d64b74e0980a989a488b1ecb7fa12792588310cebad4ed090c"
+      },
+      {
+        "bytes": 27925,
+        "kind": "json",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/manifest.json",
+        "sha256": "ece2b2e998c44037eb7af10c6c68193aba9037035169358855b5cfa1071935f1"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/manifest.json.sha256",
+        "sha256": "46658330eecdbdb3225eb860aa7d3ddc195ebbcf0401be2a628d702c0bebd79c"
+      },
+      {
+        "bytes": 18680,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/negative_inventory.jsonl",
+        "sha256": "899b83076340ea8d496f5a2c8a3b355337de9add744c5a7ccb9406ac1622c364"
+      },
+      {
+        "bytes": 91,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/negative_inventory.jsonl.sha256",
+        "sha256": "fae6fcc0307dd9139a877b16d581af65f4dd5d3a0f4d07e75d814dbc992b7ed2"
+      },
+      {
+        "bytes": 4258978,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/records.jsonl",
+        "sha256": "138a3b6b915250db0d793fb36745586e95f17881f52e8882e6d4f0df691057fe"
+      },
+      {
+        "bytes": 80,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/records.jsonl.sha256",
+        "sha256": "673ba9282adf1c27015d95cd8c76d1a2ab5dafb6139d20ae0384b01dfd4f7f1b"
+      },
+      {
+        "bytes": 506080,
+        "kind": "jsonl",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/token_inventory.jsonl",
+        "sha256": "ff0d918c9532b0b2a9ff392b783c63c410c94d65cdb77ae5c57af48bce5a467c"
+      },
+      {
+        "bytes": 88,
+        "kind": "sha256_sidecar",
+        "path": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate/token_inventory.jsonl.sha256",
+        "sha256": "bf5d1410afcb69736e81cee548a0b22b186d6cffebd556d632f0838cd6f58b30"
+      },
+      {
+        "bytes": 471,
+        "kind": "python",
+        "path": "scripts/research/audit_gemma3_chat_five_expert_qonly_unbalanced_v2_final.py",
+        "sha256": "652d689688f6646f43b3f8c8c2f059ea823813f54a0e0ba1a1f99f90479ad789"
+      },
+      {
+        "bytes": 471,
+        "kind": "python",
+        "path": "scripts/research/build_gemma3_chat_five_expert_qonly_unbalanced_v2_final.py",
+        "sha256": "7c5fa727ffeab82f8711c54f369acbd833dd2345afe77ea8be105331d454e6aa"
+      },
+      {
+        "bytes": 460,
+        "kind": "python",
+        "path": "scripts/research/review_gemma3_chat_five_expert_qonly_unbalanced_v2_release.py",
+        "sha256": "35d54cb03f7f771629402ee6d8d788516602902f3119edad53b19fb029353917"
+      },
+      {
+        "bytes": 180985,
+        "kind": "python",
+        "path": "src/anchor_mvp/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final.py",
+        "sha256": "ec96f96fe8290d5ecf3a2b74024b43cc2c7e8908b4436fe203db102ae927aff3"
+      },
+      {
+        "bytes": 40116,
+        "kind": "python",
+        "path": "src/anchor_mvp/research/gemma3_chat_five_expert_qonly_unbalanced_v2_release.py",
+        "sha256": "74c1157e5e63dd984c3f8733dc9e610d942d3f82939d8b711cd2b1e86d3c48cf"
+      },
+      {
+        "bytes": 17549,
+        "kind": "python",
+        "path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_contract.py",
+        "sha256": "46242bb7eff516d907951299d784631666d361138fe345277ef9492ba160f514"
+      },
+      {
+        "bytes": 11580,
+        "kind": "python",
+        "path": "tests/test_gemma3_chat_five_expert_qonly_unbalanced_v2_final.py",
+        "sha256": "7a225893cb2d29b1c5f4660591d65f51ec53a70bb1a9e0b5ff476fdbdf3c7a00"
+      },
+      {
+        "bytes": 7249,
+        "kind": "python",
+        "path": "tests/test_review_gemma3_chat_five_expert_qonly_unbalanced_v2_release.py",
+        "sha256": "1642bff012b3d489ef8e58a4a5f1b9125456aa27ee97bd1b8b93f84304d76596"
+      }
+    ],
+    "producer_inventory_sha256": "dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc"
+  },
+  "release_attestation": {
+    "bytes": 4971,
+    "kind": "json",
+    "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2_release_v1/independent_release_attestation.json",
+    "sha256": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813",
+    "sidecar_bytes": 103,
+    "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2_release_v1/independent_release_attestation.json.sha256",
+    "sidecar_sha256": "f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35"
+  },
+  "schema_files": {
+    "build_receipt": {
+      "bytes": 9699,
+      "kind": "json_schema",
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_build_receipt.schema.json",
+      "sha256": "77d6febe99ddebd66a9409d37e0c69feeb300ccbc00491212ff115d30996816c"
+    },
+    "manifest": {
+      "bytes": 11062,
+      "kind": "json_schema",
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final_manifest.schema.json",
+      "sha256": "9841c0448cbef634de847f9ffa35ab1a67bb27749ff6f684debf48851dd8ad7e"
+    },
+    "release_attestation": {
+      "bytes": 11765,
+      "kind": "json_schema",
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_independent_release_attestation_v1.schema.json",
+      "sha256": "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9"
+    }
+  },
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-binding.sharded-v1",
+  "training_shards": {
+    "boundary_commitment_sha256": "6af9bc4cd79c9a8bb211a7147b91eb7c0c07e3adf7026becc1c913045716d089",
+    "logical_partition_bytes": 59845314,
+    "logical_partition_records": 3440,
+    "ordered_concat_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "ordered_paths": [
+      "train/chat-00000-of-00002.jsonl",
+      "train/chat-00001-of-00002.jsonl"
+    ],
+    "ordered_shards": true,
+    "shard_count": 2,
+    "shards": [
+      {
+        "bytes": 29909786,
+        "first_task_bundle_sha256": "010bc26ac17b44751b9cbb40bb78ee180179dfa8d79ecbab35aa32e44c5a1dd3",
+        "index": 0,
+        "last_task_bundle_sha256": "5ae91812a2044054268f5e5331ee23aa033ac839bd5c51f8c2090df52e1b9060",
+        "path": "train/chat-00000-of-00002.jsonl",
+        "records": 1770,
+        "sha256": "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215",
+        "task_bundles": 564
+      },
+      {
+        "bytes": 29935528,
+        "first_task_bundle_sha256": "5afded7a2b87b4e44631507d49ececd691071774b10a13e23c7ddfa09eb6acc2",
+        "index": 1,
+        "last_task_bundle_sha256": "eae4a6bd05f080b17f633ace7f770bc69752348b8ebcec26cf002f8ab8c16434",
+        "path": "train/chat-00001-of-00002.jsonl",
+        "records": 1670,
+        "sha256": "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522",
+        "task_bundles": 796
+      }
+    ],
+    "split_boundary": "contiguous_task_bundle",
+    "task_bundle_intersection_empty": true,
+    "task_bundles": 1360
+  },
+  "tree_digest_domain": "anchor.gemma3-chat-sharded-final-physical-tree.v1",
+  "tree_digest_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+}
