@@ -1,0 +1,467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_consumer_binding_v1.schema.json",
+  "title": "Gemma 3 Chat unbalanced-v2 consumer binding and preflight receipt",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/binding"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "const": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "git_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "not": {
+        "const": "0000000000000000000000000000000000000000"
+      }
+    },
+    "payload_path": {
+      "enum": [
+        "build_receipt.json",
+        "components/planner_eval/build_receipt.json",
+        "components/planner_eval/manifest.json",
+        "components/planner_eval/negative_inventory.jsonl",
+        "components/planner_eval/records.jsonl",
+        "components/planner_eval/token_inventory.jsonl",
+        "components/router/build_receipt.json",
+        "components/router/manifest.json",
+        "components/router/records.jsonl",
+        "components/router/token_inventory.jsonl",
+        "components/tool_eval/build_receipt.json",
+        "components/tool_eval/manifest.json",
+        "components/tool_eval/negative_inventory.jsonl",
+        "components/tool_eval/records.jsonl",
+        "components/tool_eval/token_inventory.jsonl",
+        "eval_proxy/chat.jsonl",
+        "identity_eval/probe_inventory.jsonl",
+        "manifest.json",
+        "reviews/planner_eval_independent_review.json",
+        "reviews/tool_eval_independent_review.json",
+        "serialization_inventory.jsonl",
+        "train/chat.jsonl"
+      ]
+    },
+    "payload_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/payload_path"
+        },
+        "kind": {
+          "enum": [
+            "json",
+            "jsonl"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 52428799
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "release_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_status",
+        "reviewer_separation",
+        "p0_findings",
+        "p1_findings",
+        "p2_findings",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "audit_status": {
+          "const": "passed"
+        },
+        "reviewer_separation": {
+          "const": "different_reviewer"
+        },
+        "p0_findings": {
+          "const": 0
+        },
+        "p1_findings": {
+          "const": 0
+        },
+        "p2_findings": {
+          "const": 0
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "namespace",
+        "producer_git_commit",
+        "producer_manifest_schema_sha256",
+        "producer_build_receipt_schema_sha256",
+        "expected_manifest_status",
+        "tree_digest_sha256",
+        "payload_files",
+        "release_review"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-consumer-binding.v1"
+        },
+        "namespace": {
+          "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+        },
+        "producer_git_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "producer_manifest_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_build_receipt_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "expected_manifest_status": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,127}$",
+          "not": {
+            "pattern": "(candidate|pending)"
+          }
+        },
+        "tree_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_files": {
+          "type": "array",
+          "minItems": 22,
+          "maxItems": 22,
+          "items": {
+            "$ref": "#/$defs/payload_pin"
+          }
+        },
+        "release_review": {
+          "$ref": "#/$defs/release_review"
+        }
+      }
+    },
+    "aggregate_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "training_records",
+        "training_train_records",
+        "training_eval_proxy_records",
+        "router_records",
+        "router_train_records",
+        "router_eval_proxy_records",
+        "tool_eval_records",
+        "planner_eval_records",
+        "identity_probe_records"
+      ],
+      "properties": {
+        "training_records": {
+          "const": 4300
+        },
+        "training_train_records": {
+          "const": 3440
+        },
+        "training_eval_proxy_records": {
+          "const": 860
+        },
+        "router_records": {
+          "const": 100
+        },
+        "router_train_records": {
+          "const": 80
+        },
+        "router_eval_proxy_records": {
+          "const": 20
+        },
+        "tool_eval_records": {
+          "const": 400
+        },
+        "planner_eval_records": {
+          "const": 240
+        },
+        "identity_probe_records": {
+          "const": 50
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "operation",
+        "namespace",
+        "model_free",
+        "binding_contract_sha256",
+        "producer_git_commit",
+        "producer_manifest_schema_sha256",
+        "producer_build_receipt_schema_sha256",
+        "release_review_receipt_sha256",
+        "tree_digest_sha256",
+        "file_counts",
+        "manifest",
+        "build_receipt",
+        "aggregate_counts",
+        "release",
+        "terminal_recheck",
+        "resource_counters",
+        "claims"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.v1"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "operation": {
+          "enum": [
+            "validate",
+            "dry-run"
+          ]
+        },
+        "namespace": {
+          "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+        },
+        "model_free": {
+          "const": true
+        },
+        "binding_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_git_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "producer_manifest_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_build_receipt_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "release_review_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total",
+            "payload",
+            "sidecar"
+          ],
+          "properties": {
+            "total": {
+              "const": 44
+            },
+            "payload": {
+              "const": 22
+            },
+            "sidecar": {
+              "const": 22
+            }
+          }
+        },
+        "manifest": {
+          "$ref": "#/$defs/metadata_identity"
+        },
+        "build_receipt": {
+          "$ref": "#/$defs/metadata_identity"
+        },
+        "aggregate_counts": {
+          "$ref": "#/$defs/aggregate_counts"
+        },
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest_status",
+            "independent_release_review",
+            "final",
+            "release_authorized",
+            "training_authorized",
+            "formal_training_authorized"
+          ],
+          "properties": {
+            "manifest_status": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{2,127}$",
+              "not": {
+                "pattern": "(candidate|pending)"
+              }
+            },
+            "independent_release_review": {
+              "const": "passed"
+            },
+            "final": {
+              "const": true
+            },
+            "release_authorized": {
+              "const": true
+            },
+            "training_authorized": {
+              "const": true
+            },
+            "formal_training_authorized": {
+              "const": false
+            }
+          }
+        },
+        "terminal_recheck": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "two_snapshot_bytes_equal",
+            "stat_identity_equal",
+            "physical_inventory_equal"
+          ],
+          "properties": {
+            "two_snapshot_bytes_equal": {
+              "const": true
+            },
+            "stat_identity_equal": {
+              "const": true
+            },
+            "physical_inventory_equal": {
+              "const": true
+            }
+          }
+        },
+        "resource_counters": {
+          "$ref": "#/$defs/zero_resources"
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "diagnostic_only",
+            "proxy_only",
+            "formal",
+            "training_started",
+            "data_copied",
+            "sample_bodies_parsed",
+            "raw_token_ids_parsed"
+          ],
+          "properties": {
+            "diagnostic_only": {
+              "const": true
+            },
+            "proxy_only": {
+              "const": true
+            },
+            "formal": {
+              "const": false
+            },
+            "training_started": {
+              "const": false
+            },
+            "data_copied": {
+              "const": false
+            },
+            "sample_bodies_parsed": {
+              "const": false
+            },
+            "raw_token_ids_parsed": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "metadata_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "zero_resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "gold_body_reads",
+        "heldout_body_reads",
+        "protected_body_reads"
+      ],
+      "properties": {
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "gold_body_reads": {
+          "const": 0
+        },
+        "heldout_body_reads": {
+          "const": 0
+        },
+        "protected_body_reads": {
+          "const": 0
+        }
+      }
+    }
+  }
+}
