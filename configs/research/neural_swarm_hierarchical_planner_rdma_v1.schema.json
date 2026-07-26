@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/neural_swarm_hierarchical_planner_rdma_v1.schema.json",
+  "title": "Neural Swarm hierarchical planner activation-alignment RDMA contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "status",
+    "claim_scope",
+    "memory_red_zone",
+    "task_decomposition",
+    "routing",
+    "activation_alignment",
+    "cache_lineage",
+    "selected_group_transport",
+    "serial_alignment",
+    "evaluation",
+    "claims"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./neural_swarm_hierarchical_planner_rdma_v1.schema.json"
+    },
+    "schema_version": {
+      "const": "anchor.neural-swarm-hierarchical-planner-rdma.v1"
+    },
+    "status": {
+      "const": "contract_only_model_free_rdma_unverified"
+    },
+    "claim_scope": {
+      "const": "additive_proxy_only_no_training_or_rdma_authority"
+    },
+    "memory_red_zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "immutable",
+        "source_final_mutated",
+        "final_output_expert_count",
+        "visible_chain_of_thought",
+        "full_generation_kv_shared",
+        "rdma_required_for_correctness"
+      ],
+      "properties": {
+        "immutable": {"const": true},
+        "source_final_mutated": {"const": false},
+        "final_output_expert_count": {"const": 1},
+        "visible_chain_of_thought": {"const": false},
+        "full_generation_kv_shared": {"const": false},
+        "rdma_required_for_correctness": {"const": false}
+      }
+    },
+    "task_decomposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "max_nodes",
+        "max_depth",
+        "cycles_allowed",
+        "hash_index_or_case_salt_allowed",
+        "required_semantic_fields"
+      ],
+      "properties": {
+        "kind": {"const": "fine_grained_causal_subtask_dag"},
+        "max_nodes": {"type": "integer", "minimum": 1, "maximum": 32},
+        "max_depth": {"type": "integer", "minimum": 1, "maximum": 8},
+        "cycles_allowed": {"const": false},
+        "hash_index_or_case_salt_allowed": {"const": false},
+        "required_semantic_fields": {
+          "const": [
+            "operation",
+            "operands",
+            "constraints",
+            "dependencies",
+            "expected_relation"
+          ]
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "general_planner_count",
+        "specialist_planners",
+        "selected_specialist_min",
+        "selected_specialist_max",
+        "one_planner_per_subtask",
+        "output_experts",
+        "selected_output_expert_count",
+        "unselected_expert_visibility",
+        "confidence_margin_required",
+        "uncertain_route_action"
+      ],
+      "properties": {
+        "general_planner_count": {"const": 1},
+        "specialist_planners": {
+          "const": ["mode_planner", "tool_planner", "emotion_planner"]
+        },
+        "selected_specialist_min": {"const": 1},
+        "selected_specialist_max": {"const": 3},
+        "one_planner_per_subtask": {"const": true},
+        "output_experts": {
+          "const": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "selected_output_expert_count": {"const": 1},
+        "unselected_expert_visibility": {"const": "none"},
+        "confidence_margin_required": {"const": true},
+        "uncertain_route_action": {
+          "const": "general_planner_or_safe_abstain"
+        }
+      }
+    },
+    "activation_alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_dimension",
+        "packet_dtype",
+        "serialization",
+        "position_binding",
+        "commit_digest",
+        "recomputable_boundary",
+        "hidden_chain_of_thought",
+        "threshold_status",
+        "objectives"
+      ],
+      "properties": {
+        "packet_dimension": {"const": 256},
+        "packet_dtype": {"const": "float32"},
+        "serialization": {"const": "canonical_f32_le_v1"},
+        "position_binding": {"const": "explicit_absolute_position_v1"},
+        "commit_digest": {"const": "sha256"},
+        "recomputable_boundary": {"const": true},
+        "hidden_chain_of_thought": {"const": false},
+        "threshold_status": {"const": "pending_calibration"},
+        "objectives": {
+          "const": [
+            "selected_chain_contrastive_alignment",
+            "wrong_route_margin_separation",
+            "subtask_dependency_consistency"
+          ]
+        }
+      }
+    },
+    "cache_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordered_stages",
+        "adapter_switch_boundary",
+        "current_backend",
+        "current_claim",
+        "new_adapter_prefix_recomputation_equivalent",
+        "same_cache_object_implies_same_storage_or_data_ptr",
+        "shared_storage",
+        "zero_copy",
+        "planner_private_tail_transfer",
+        "output_expert_tail",
+        "hybrid_attention_layers"
+      ],
+      "properties": {
+        "ordered_stages": {
+          "const": [
+            "P0_adapter_off_frozen_base_prefix",
+            "P1_general_planner_commit",
+            "P2_selected_specialist_commits_topological_order",
+            "P3_aligned_activation_group_commit",
+            "P4_single_output_expert_private_decode"
+          ]
+        },
+        "adapter_switch_boundary": {"const": "explicit"},
+        "current_backend": {"const": "hf_dynamic_cache"},
+        "current_claim": {
+          "const": "exact_ordered_prefix_value_and_prefill_compute_handoff"
+        },
+        "new_adapter_prefix_recomputation_equivalent": {"const": false},
+        "same_cache_object_implies_same_storage_or_data_ptr": {
+          "const": false
+        },
+        "shared_storage": {"const": false},
+        "zero_copy": {"const": false},
+        "planner_private_tail_transfer": {"const": false},
+        "output_expert_tail": {"const": "private_append_only"},
+        "hybrid_attention_layers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sliding_window_layers",
+            "sliding_window_size",
+            "full_attention_layers"
+          ],
+          "properties": {
+            "sliding_window_layers": {"const": 22},
+            "sliding_window_size": {"const": 512},
+            "full_attention_layers": {"const": 4}
+          }
+        }
+      }
+    },
+    "selected_group_transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_members",
+        "current_mode",
+        "allowed_modes",
+        "shared_payload",
+        "live_private_kv_remote_transfer",
+        "rdma_write_allowed",
+        "uncommitted_or_future_read_allowed",
+        "transport_changes_semantics",
+        "rdma_physical_verified",
+        "fallback_on_missing_capability",
+        "required_rdma_proofs"
+      ],
+      "properties": {
+        "group_members": {
+          "const": [
+            "general_planner",
+            "selected_specialist_planners",
+            "single_output_expert"
+          ]
+        },
+        "current_mode": {"const": "local_copy_fallback"},
+        "allowed_modes": {
+          "const": [
+            "local_copy_fallback",
+            "local_segmented_or_paged_read_only",
+            "rdma_registered_read_only"
+          ]
+        },
+        "shared_payload": {
+          "const": "committed_content_addressed_activation_and_prefix_pages"
+        },
+        "live_private_kv_remote_transfer": {"const": false},
+        "rdma_write_allowed": {"const": false},
+        "uncommitted_or_future_read_allowed": {"const": false},
+        "transport_changes_semantics": {"const": false},
+        "rdma_physical_verified": {"const": false},
+        "fallback_on_missing_capability": {
+          "const": "local_copy_or_fail_closed"
+        },
+        "required_rdma_proofs": {
+          "const": [
+            "registered_memory_region",
+            "read_only_remote_key_scope",
+            "owner_and_reader_device_identity",
+            "generation_epoch_and_lease",
+            "content_digest_before_and_after_read",
+            "pointer_offset_stride_and_layout",
+            "token_order_position_mask_and_rope",
+            "model_tokenizer_template_and_adapter_lineage",
+            "completion_fence_and_lifetime",
+            "stale_read_and_revoked_lease_rejection",
+            "22_sliding_window_plus_4_full_attention_semantics"
+          ]
+        }
+      }
+    },
+    "serial_alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "downstream_requires_all_upstream_frozen",
+        "selected_group_executes_in_dag_topological_order",
+        "records_added_to_current_4300_final"
+      ],
+      "properties": {
+        "order": {
+          "const": [
+            "train_and_freeze_general_planner",
+            "train_and_freeze_each_specialist_planner",
+            "align_selected_chain_activations",
+            "train_each_governed_output_expert_on_frozen_upstream_commits"
+          ]
+        },
+        "downstream_requires_all_upstream_frozen": {"const": true},
+        "selected_group_executes_in_dag_topological_order": {
+          "const": true
+        },
+        "records_added_to_current_4300_final": {"const": 0}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_metrics", "required_controls"],
+      "properties": {
+        "required_metrics": {
+          "type": "array",
+          "minItems": 15,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "required_controls": {
+          "const": [
+            "direct_oracle_route",
+            "general_planner_only",
+            "general_plus_specialist_without_alignment",
+            "general_plus_specialist_with_alignment",
+            "wrong_route",
+            "random_route",
+            "local_copy_transport"
+          ]
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_final_modified",
+        "training_authorized",
+        "formal",
+        "quality_validated",
+        "rdma_implemented",
+        "rdma_quality_gain_claimed",
+        "rdma_latency_gain_claimed",
+        "zero_copy_claimed",
+        "shared_storage_claimed",
+        "hidden_chain_of_thought_claimed"
+      ],
+      "properties": {
+        "data_final_modified": {"const": false},
+        "training_authorized": {"const": false},
+        "formal": {"const": false},
+        "quality_validated": {"const": false},
+        "rdma_implemented": {"const": false},
+        "rdma_quality_gain_claimed": {"const": false},
+        "rdma_latency_gain_claimed": {"const": false},
+        "zero_copy_claimed": {"const": false},
+        "shared_storage_claimed": {"const": false},
+        "hidden_chain_of_thought_claimed": {"const": false}
+      }
+    }
+  }
+}

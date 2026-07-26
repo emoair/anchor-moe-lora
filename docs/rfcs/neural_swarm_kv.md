@@ -130,6 +130,12 @@ Its single source of truth is the producer-v2 native plan at
 plan. Runtime identity remains unbound and physical reuse is disabled, so the
 metadata makes no exact-reuse or performance claim.
 
+The frozen hierarchical planner, activation-alignment, and read-only RDMA
+red-zone contract is specified in
+[`neural_swarm_hierarchical_planner_rdma.md`](neural_swarm_hierarchical_planner_rdma.md).
+It permits only exact ordered prefix-value/prefill-compute handoff today;
+physical RDMA, shared storage, and zero-copy claims remain false.
+
 ## MVP implementation plan
 
 ### M0 — planning model (implemented)

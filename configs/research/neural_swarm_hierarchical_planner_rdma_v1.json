@@ -1,0 +1,172 @@
+{
+  "$schema": "./neural_swarm_hierarchical_planner_rdma_v1.schema.json",
+  "schema_version": "anchor.neural-swarm-hierarchical-planner-rdma.v1",
+  "status": "contract_only_model_free_rdma_unverified",
+  "claim_scope": "additive_proxy_only_no_training_or_rdma_authority",
+  "memory_red_zone": {
+    "immutable": true,
+    "source_final_mutated": false,
+    "final_output_expert_count": 1,
+    "visible_chain_of_thought": false,
+    "full_generation_kv_shared": false,
+    "rdma_required_for_correctness": false
+  },
+  "task_decomposition": {
+    "kind": "fine_grained_causal_subtask_dag",
+    "max_nodes": 8,
+    "max_depth": 4,
+    "cycles_allowed": false,
+    "hash_index_or_case_salt_allowed": false,
+    "required_semantic_fields": [
+      "operation",
+      "operands",
+      "constraints",
+      "dependencies",
+      "expected_relation"
+    ]
+  },
+  "routing": {
+    "general_planner_count": 1,
+    "specialist_planners": [
+      "mode_planner",
+      "tool_planner",
+      "emotion_planner"
+    ],
+    "selected_specialist_min": 1,
+    "selected_specialist_max": 3,
+    "one_planner_per_subtask": true,
+    "output_experts": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "selected_output_expert_count": 1,
+    "unselected_expert_visibility": "none",
+    "confidence_margin_required": true,
+    "uncertain_route_action": "general_planner_or_safe_abstain"
+  },
+  "activation_alignment": {
+    "packet_dimension": 256,
+    "packet_dtype": "float32",
+    "serialization": "canonical_f32_le_v1",
+    "position_binding": "explicit_absolute_position_v1",
+    "commit_digest": "sha256",
+    "recomputable_boundary": true,
+    "hidden_chain_of_thought": false,
+    "threshold_status": "pending_calibration",
+    "objectives": [
+      "selected_chain_contrastive_alignment",
+      "wrong_route_margin_separation",
+      "subtask_dependency_consistency"
+    ]
+  },
+  "cache_lineage": {
+    "ordered_stages": [
+      "P0_adapter_off_frozen_base_prefix",
+      "P1_general_planner_commit",
+      "P2_selected_specialist_commits_topological_order",
+      "P3_aligned_activation_group_commit",
+      "P4_single_output_expert_private_decode"
+    ],
+    "adapter_switch_boundary": "explicit",
+    "current_backend": "hf_dynamic_cache",
+    "current_claim": "exact_ordered_prefix_value_and_prefill_compute_handoff",
+    "new_adapter_prefix_recomputation_equivalent": false,
+    "same_cache_object_implies_same_storage_or_data_ptr": false,
+    "shared_storage": false,
+    "zero_copy": false,
+    "planner_private_tail_transfer": false,
+    "output_expert_tail": "private_append_only",
+    "hybrid_attention_layers": {
+      "sliding_window_layers": 22,
+      "sliding_window_size": 512,
+      "full_attention_layers": 4
+    }
+  },
+  "selected_group_transport": {
+    "group_members": [
+      "general_planner",
+      "selected_specialist_planners",
+      "single_output_expert"
+    ],
+    "current_mode": "local_copy_fallback",
+    "allowed_modes": [
+      "local_copy_fallback",
+      "local_segmented_or_paged_read_only",
+      "rdma_registered_read_only"
+    ],
+    "shared_payload": "committed_content_addressed_activation_and_prefix_pages",
+    "live_private_kv_remote_transfer": false,
+    "rdma_write_allowed": false,
+    "uncommitted_or_future_read_allowed": false,
+    "transport_changes_semantics": false,
+    "rdma_physical_verified": false,
+    "fallback_on_missing_capability": "local_copy_or_fail_closed",
+    "required_rdma_proofs": [
+      "registered_memory_region",
+      "read_only_remote_key_scope",
+      "owner_and_reader_device_identity",
+      "generation_epoch_and_lease",
+      "content_digest_before_and_after_read",
+      "pointer_offset_stride_and_layout",
+      "token_order_position_mask_and_rope",
+      "model_tokenizer_template_and_adapter_lineage",
+      "completion_fence_and_lifetime",
+      "stale_read_and_revoked_lease_rejection",
+      "22_sliding_window_plus_4_full_attention_semantics"
+    ]
+  },
+  "serial_alignment": {
+    "order": [
+      "train_and_freeze_general_planner",
+      "train_and_freeze_each_specialist_planner",
+      "align_selected_chain_activations",
+      "train_each_governed_output_expert_on_frozen_upstream_commits"
+    ],
+    "downstream_requires_all_upstream_frozen": true,
+    "selected_group_executes_in_dag_topological_order": true,
+    "records_added_to_current_4300_final": 0
+  },
+  "evaluation": {
+    "required_metrics": [
+      "subtask_dag_exactness",
+      "route_accuracy",
+      "selected_chain_activation_similarity",
+      "wrong_route_margin",
+      "wrong_route_delta",
+      "single_output_expert_invariant",
+      "prefix_handoff_value_equality",
+      "prefill_compute_saved",
+      "remote_bytes_read",
+      "rdma_read_latency_if_physically_available",
+      "stale_or_revoked_read_rejection",
+      "fallback_rate",
+      "tool_schema_and_grounding",
+      "emotion_style_accuracy",
+      "identity_consistency"
+    ],
+    "required_controls": [
+      "direct_oracle_route",
+      "general_planner_only",
+      "general_plus_specialist_without_alignment",
+      "general_plus_specialist_with_alignment",
+      "wrong_route",
+      "random_route",
+      "local_copy_transport"
+    ]
+  },
+  "claims": {
+    "data_final_modified": false,
+    "training_authorized": false,
+    "formal": false,
+    "quality_validated": false,
+    "rdma_implemented": false,
+    "rdma_quality_gain_claimed": false,
+    "rdma_latency_gain_claimed": false,
+    "zero_copy_claimed": false,
+    "shared_storage_claimed": false,
+    "hidden_chain_of_thought_claimed": false
+  }
+}

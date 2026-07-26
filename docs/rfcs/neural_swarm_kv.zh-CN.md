@@ -113,6 +113,11 @@ KV 共享不会自动产生 token 路由。反过来，token 路由历史会改�
 不兼容的 plan。运行时 identity 仍为 unbound，物理复用也被禁用，因此这份元数据
 不声明精确复用或性能收益。
 
+冻结的层级规划师、激活对齐和只读 RDMA 红区契约见
+[`neural_swarm_hierarchical_planner_rdma.zh-CN.md`](neural_swarm_hierarchical_planner_rdma.zh-CN.md)。
+当前只允许声明 ordered prefix-value/prefill-compute 的精确交接；物理 RDMA、
+shared storage 与 zero-copy 仍明确为 false。
+
 ## 已落地的 M0/M1
 
 - 精确共享层前沿判定；
