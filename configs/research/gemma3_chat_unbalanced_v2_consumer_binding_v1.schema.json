@@ -2,12 +2,72 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_consumer_binding_v1.schema.json",
   "title": "Gemma 3 Chat unbalanced-v2 consumer binding and preflight receipt",
+  "x-sharded-v1-final-trust-anchors": {
+    "artifact_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3",
+    "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "manifest_sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+    "build_receipt_sha256": "da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6",
+    "physical_tree_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c",
+    "tree_digest_domain": "anchor.gemma3-chat-sharded-final-physical-tree.v1",
+    "output_inventory_sha256": "e6554cec556eb974139df6a169865d7f82986b28b6df9041f9d0108481d5035e",
+    "input_inventory_sha256": "dff68b505661f21815b6883b75e1d8c26701c1bd9733c1e5912a91b4c3c8c5fc",
+    "release_attestation_sha256": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813",
+    "release_attestation_sidecar_sha256": "f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35",
+    "boundary_commitment_sha256": "6af9bc4cd79c9a8bb211a7147b91eb7c0c07e3adf7026becc1c913045716d089",
+    "logical_identity": {
+      "logical_dataset_sha256": "c63fd9c46aff129e0840ed32482ed1a856a66a2b89b48b1316d54bf378685033",
+      "logical_train_partition_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+      "eval_proxy_partition_sha256": "42798778a2c1398393bb0b6588cfd5d1cf5f3fc67ae008e9e20aea0e33bae176",
+      "logical_record_order_sha256": "6419cdac69cb3da05a49eac94a58ab73a47ae11ae65445f29de7b518aceda76c",
+      "logical_target_inventory_sha256": "92372de0b2837b05fbe670fc677b9eee08cf751a379e3fe65d1aee4804493c46",
+      "logical_train_record_inventory_sha256": "cf395044642a3333d31f47926b590011f0cb7922631af204ea7c16b5a46fe8aa",
+      "logical_all_record_inventory_sha256": "5da71c978eacdbb4dbcc466b6a227ede7ddb6b0191cc70164f5aa91747444515",
+      "logical_task_bundle_inventory_sha256": "137f2e37c75ae2ce248439308c66d0c2e80f92fc75600d32acb337f11d713334",
+      "serialization_inventory_sha256": "4b7a35067ab4a0acdbda3095055f20a21b8c24b64f12a70d07aaa9a48afa0f1d",
+      "identity_probe_inventory_sha256": "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5"
+    },
+    "training_shards": [
+      {
+        "index": 0,
+        "path": "train/chat-00000-of-00002.jsonl",
+        "sha256": "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215",
+        "bytes": 29909786,
+        "records": 1770,
+        "task_bundles": 564,
+        "first_task_bundle_sha256": "010bc26ac17b44751b9cbb40bb78ee180179dfa8d79ecbab35aa32e44c5a1dd3",
+        "last_task_bundle_sha256": "5ae91812a2044054268f5e5331ee23aa033ac839bd5c51f8c2090df52e1b9060"
+      },
+      {
+        "index": 1,
+        "path": "train/chat-00001-of-00002.jsonl",
+        "sha256": "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522",
+        "bytes": 29935528,
+        "records": 1670,
+        "task_bundles": 796,
+        "first_task_bundle_sha256": "5afded7a2b87b4e44631507d49ececd691071774b10a13e23c7ddfa09eb6acc2",
+        "last_task_bundle_sha256": "eae4a6bd05f080b17f633ace7f770bc69752348b8ebcec26cf002f8ab8c16434"
+      }
+    ],
+    "schema_sha256": {
+      "manifest": "9841c0448cbef634de847f9ffa35ab1a67bb27749ff6f684debf48851dd8ad7e",
+      "build_receipt": "77d6febe99ddebd66a9409d37e0c69feeb300ccbc00491212ff115d30996816c",
+      "release_attestation": "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9"
+    }
+  },
   "oneOf": [
     {
       "$ref": "#/$defs/binding"
     },
     {
       "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/binding_sharded_v1"
+    },
+    {
+      "$ref": "#/$defs/receipt_sharded_v1"
     }
   ],
   "$defs": {
@@ -399,6 +459,853 @@
               "const": false
             },
             "raw_token_ids_parsed": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "sharded_payload_path": {
+      "enum": [
+        "build_receipt.json",
+        "components/planner_eval/build_receipt.json",
+        "components/planner_eval/manifest.json",
+        "components/planner_eval/negative_inventory.jsonl",
+        "components/planner_eval/records.jsonl",
+        "components/planner_eval/token_inventory.jsonl",
+        "components/router/build_receipt.json",
+        "components/router/manifest.json",
+        "components/router/records.jsonl",
+        "components/router/token_inventory.jsonl",
+        "components/tool_eval/build_receipt.json",
+        "components/tool_eval/manifest.json",
+        "components/tool_eval/negative_inventory.jsonl",
+        "components/tool_eval/records.jsonl",
+        "components/tool_eval/token_inventory.jsonl",
+        "eval_proxy/chat.jsonl",
+        "identity_eval/probe_inventory.jsonl",
+        "manifest.json",
+        "reviews/planner_eval_independent_review.json",
+        "reviews/tool_eval_independent_review.json",
+        "serialization_inventory.jsonl",
+        "train/chat-00000-of-00002.jsonl",
+        "train/chat-00001-of-00002.jsonl"
+      ]
+    },
+    "payload_pin_sharded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/sharded_payload_path"
+        },
+        "kind": {
+          "enum": [
+            "json",
+            "jsonl"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "safe_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "external_kind": {
+      "enum": [
+        "json",
+        "jsonl",
+        "json_schema",
+        "python",
+        "powershell",
+        "yaml",
+        "text",
+        "sha256_sidecar"
+      ]
+    },
+    "read_set_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/external_kind"
+        }
+      }
+    },
+    "schema_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "const": "json_schema"
+        }
+      }
+    },
+    "release_attestation_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "sha256",
+        "bytes",
+        "sidecar_path",
+        "sidecar_sha256",
+        "sidecar_bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "kind": {
+          "const": "json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sidecar_path": {
+          "$ref": "#/$defs/safe_relative_path"
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "producer_git_sharded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_commit",
+        "release_commit",
+        "release_tree",
+        "upstream_commit",
+        "live_remote_commit",
+        "clean_worktree",
+        "tags_at_head"
+      ],
+      "properties": {
+        "candidate_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "release_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "release_tree": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "upstream_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "live_remote_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "clean_worktree": {
+          "const": true
+        },
+        "tags_at_head": {
+          "const": 0
+        }
+      }
+    },
+    "logical_identity_sharded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_dataset_sha256",
+        "logical_train_partition_sha256",
+        "eval_proxy_partition_sha256",
+        "logical_record_order_sha256",
+        "logical_target_inventory_sha256",
+        "logical_train_record_inventory_sha256",
+        "logical_all_record_inventory_sha256",
+        "logical_task_bundle_inventory_sha256",
+        "serialization_inventory_sha256",
+        "identity_probe_inventory_sha256"
+      ],
+      "properties": {
+        "logical_dataset_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_train_partition_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "eval_proxy_partition_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_record_order_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_target_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_train_record_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_all_record_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_task_bundle_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "serialization_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "identity_probe_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "shard_binding_consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "sha256",
+        "bytes",
+        "records",
+        "task_bundles",
+        "first_task_bundle_sha256",
+        "last_task_bundle_sha256"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "path": {
+          "enum": [
+            "train/chat-00000-of-00002.jsonl",
+            "train/chat-00001-of-00002.jsonl"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3439
+        },
+        "task_bundles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1359
+        },
+        "first_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "training_shards_consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shard_count",
+        "ordered_paths",
+        "shards",
+        "ordered_concat_sha256",
+        "logical_partition_bytes",
+        "logical_partition_records",
+        "task_bundles",
+        "split_boundary",
+        "ordered_shards",
+        "task_bundle_intersection_empty",
+        "boundary_commitment_sha256"
+      ],
+      "properties": {
+        "shard_count": {
+          "const": 2
+        },
+        "ordered_paths": {
+          "const": [
+            "train/chat-00000-of-00002.jsonl",
+            "train/chat-00001-of-00002.jsonl"
+          ]
+        },
+        "shards": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/shard_binding_consumer"
+          }
+        },
+        "ordered_concat_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_partition_bytes": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "logical_partition_records": {
+          "const": 3440
+        },
+        "task_bundles": {
+          "const": 1360
+        },
+        "split_boundary": {
+          "const": "contiguous_task_bundle"
+        },
+        "ordered_shards": {
+          "const": true
+        },
+        "task_bundle_intersection_empty": {
+          "const": true
+        },
+        "boundary_commitment_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "read_set_sharded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "canonical_digest_sha256",
+        "producer_inventory_sha256",
+        "files"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "canonical_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/read_set_pin"
+          }
+        }
+      }
+    },
+    "binding_sharded_v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "namespace",
+        "artifact_version",
+        "expected_manifest_schema_version",
+        "expected_build_receipt_schema_version",
+        "expected_attestation_schema_version",
+        "expected_manifest_status",
+        "producer_git",
+        "producer_output_inventory_sha256",
+        "tree_digest_domain",
+        "tree_digest_sha256",
+        "payload_files",
+        "schema_files",
+        "release_attestation",
+        "read_set",
+        "logical_identity",
+        "training_shards"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-consumer-binding.sharded-v1"
+        },
+        "namespace": {
+          "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+        },
+        "artifact_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3"
+        },
+        "expected_manifest_schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-manifest.v4"
+        },
+        "expected_build_receipt_schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-build-receipt.v4"
+        },
+        "expected_attestation_schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation.v3"
+        },
+        "expected_manifest_status": {
+          "const": "candidate_pending_independent_release_review"
+        },
+        "producer_git": {
+          "$ref": "#/$defs/producer_git_sharded"
+        },
+        "producer_output_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_digest_domain": {
+          "const": "anchor.gemma3-chat-sharded-final-physical-tree.v1"
+        },
+        "tree_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_files": {
+          "type": "array",
+          "minItems": 23,
+          "maxItems": 23,
+          "items": {
+            "$ref": "#/$defs/payload_pin_sharded"
+          }
+        },
+        "schema_files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest",
+            "build_receipt",
+            "release_attestation"
+          ],
+          "properties": {
+            "manifest": {
+              "$ref": "#/$defs/schema_pin"
+            },
+            "build_receipt": {
+              "$ref": "#/$defs/schema_pin"
+            },
+            "release_attestation": {
+              "$ref": "#/$defs/schema_pin"
+            }
+          }
+        },
+        "release_attestation": {
+          "$ref": "#/$defs/release_attestation_pin"
+        },
+        "read_set": {
+          "$ref": "#/$defs/read_set_sharded"
+        },
+        "logical_identity": {
+          "$ref": "#/$defs/logical_identity_sharded"
+        },
+        "training_shards": {
+          "$ref": "#/$defs/training_shards_consumer"
+        }
+      }
+    },
+    "physical_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "receipt_sharded_v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "operation",
+        "namespace",
+        "model_free",
+        "binding_contract_sha256",
+        "artifact_version",
+        "producer_git",
+        "tree_digest_domain",
+        "tree_digest_sha256",
+        "file_counts",
+        "manifest",
+        "build_receipt",
+        "schema_files",
+        "release_attestation",
+        "training_shards",
+        "logical_identity",
+        "read_set",
+        "release",
+        "terminal_recheck",
+        "resource_counters",
+        "claims"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "operation": {
+          "enum": [
+            "validate",
+            "dry-run"
+          ]
+        },
+        "namespace": {
+          "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+        },
+        "model_free": {
+          "const": true
+        },
+        "binding_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifact_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer_git": {
+          "$ref": "#/$defs/producer_git_sharded"
+        },
+        "tree_digest_domain": {
+          "const": "anchor.gemma3-chat-sharded-final-physical-tree.v1"
+        },
+        "tree_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total",
+            "payload",
+            "sidecar"
+          ],
+          "properties": {
+            "total": {
+              "const": 46
+            },
+            "payload": {
+              "const": 23
+            },
+            "sidecar": {
+              "const": 23
+            }
+          }
+        },
+        "manifest": {
+          "$ref": "#/$defs/metadata_identity"
+        },
+        "build_receipt": {
+          "$ref": "#/$defs/metadata_identity"
+        },
+        "schema_files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest",
+            "build_receipt",
+            "release_attestation"
+          ],
+          "properties": {
+            "manifest": {
+              "$ref": "#/$defs/physical_identity"
+            },
+            "build_receipt": {
+              "$ref": "#/$defs/physical_identity"
+            },
+            "release_attestation": {
+              "$ref": "#/$defs/physical_identity"
+            }
+          }
+        },
+        "release_attestation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "sha256",
+            "bytes",
+            "sidecar_sha256",
+            "sidecar_bytes"
+          ],
+          "properties": {
+            "schema_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sidecar_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "sidecar_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "training_shards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "shard_count",
+            "ordered_paths",
+            "ordered_concat_sha256",
+            "logical_partition_bytes",
+            "logical_partition_records",
+            "task_bundles",
+            "bundle_boundary_only",
+            "ordered_shards",
+            "task_bundle_intersection_empty",
+            "boundary_commitment_sha256"
+          ],
+          "properties": {
+            "shard_count": {
+              "const": 2
+            },
+            "ordered_paths": {
+              "const": [
+                "train/chat-00000-of-00002.jsonl",
+                "train/chat-00001-of-00002.jsonl"
+              ]
+            },
+            "ordered_concat_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "logical_partition_bytes": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "logical_partition_records": {
+              "const": 3440
+            },
+            "task_bundles": {
+              "const": 1360
+            },
+            "bundle_boundary_only": {
+              "const": true
+            },
+            "ordered_shards": {
+              "const": true
+            },
+            "task_bundle_intersection_empty": {
+              "const": true
+            },
+            "boundary_commitment_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "logical_identity": {
+          "$ref": "#/$defs/logical_identity_sharded"
+        },
+        "read_set": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "canonical_digest_sha256",
+            "producer_inventory_sha256",
+            "physical_identities_equal",
+            "utf8_lf"
+          ],
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "canonical_digest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "producer_inventory_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "physical_identities_equal": {
+              "const": true
+            },
+            "utf8_lf": {
+              "const": true
+            }
+          }
+        },
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact_final_identity",
+            "independent_release_review",
+            "p0_findings",
+            "p1_findings",
+            "p2_findings",
+            "producer_training_authorized",
+            "formal_training_authorized",
+            "live_authorized",
+            "model_release_authorized"
+          ],
+          "properties": {
+            "artifact_final_identity": {
+              "const": true
+            },
+            "independent_release_review": {
+              "const": "passed"
+            },
+            "p0_findings": {
+              "const": 0
+            },
+            "p1_findings": {
+              "const": 0
+            },
+            "p2_findings": {
+              "const": 0
+            },
+            "producer_training_authorized": {
+              "const": false
+            },
+            "formal_training_authorized": {
+              "const": false
+            },
+            "live_authorized": {
+              "const": false
+            },
+            "model_release_authorized": {
+              "const": false
+            }
+          }
+        },
+        "terminal_recheck": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "two_artifact_snapshots_equal",
+            "artifact_stat_identity_equal",
+            "external_single_read_stat_identity_equal",
+            "physical_inventory_equal"
+          ],
+          "properties": {
+            "two_artifact_snapshots_equal": {
+              "const": true
+            },
+            "artifact_stat_identity_equal": {
+              "const": true
+            },
+            "external_single_read_stat_identity_equal": {
+              "const": true
+            },
+            "physical_inventory_equal": {
+              "const": true
+            }
+          }
+        },
+        "resource_counters": {
+          "$ref": "#/$defs/zero_resources"
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "diagnostic_only",
+            "proxy_only",
+            "formal",
+            "training_started",
+            "data_copied",
+            "sample_bodies_parsed",
+            "raw_token_ids_parsed",
+            "producer_training_authority_inferred"
+          ],
+          "properties": {
+            "diagnostic_only": {
+              "const": true
+            },
+            "proxy_only": {
+              "const": true
+            },
+            "formal": {
+              "const": false
+            },
+            "training_started": {
+              "const": false
+            },
+            "data_copied": {
+              "const": false
+            },
+            "sample_bodies_parsed": {
+              "const": false
+            },
+            "raw_token_ids_parsed": {
+              "const": false
+            },
+            "producer_training_authority_inferred": {
               "const": false
             }
           }
