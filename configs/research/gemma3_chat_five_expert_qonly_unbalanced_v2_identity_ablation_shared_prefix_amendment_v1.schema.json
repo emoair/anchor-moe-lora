@@ -1,0 +1,868 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-unbalanced-v2-identity-ablation-shared-prefix-amendment-v1.json",
+  "title": "Gemma3 Chat unbalanced-v2 identity, ablation and shared-prefix amendment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "namespace",
+    "replaces_existing",
+    "base_contract_binding",
+    "identity_alignment",
+    "gemma3_parameter_shape",
+    "tool_ablation",
+    "planner_ablation",
+    "ablation_execution_contract",
+    "comparison_eval",
+    "shared_route_prefix_kv",
+    "resource_counters",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.identity-ablation-shared-prefix-amendment.v1"
+    },
+    "status": {
+      "const": "candidate_pending_independent_audit"
+    },
+    "namespace": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "replaces_existing": {
+      "const": false
+    },
+    "base_contract_binding": {
+      "$ref": "#/$defs/baseBinding"
+    },
+    "identity_alignment": {
+      "$ref": "#/$defs/identityAlignment"
+    },
+    "gemma3_parameter_shape": {
+      "$ref": "#/$defs/parameterShape"
+    },
+    "tool_ablation": {
+      "$ref": "#/$defs/toolAblation"
+    },
+    "planner_ablation": {
+      "$ref": "#/$defs/plannerAblation"
+    },
+    "ablation_execution_contract": {
+      "$ref": "#/$defs/executionContract"
+    },
+    "comparison_eval": {
+      "$ref": "#/$defs/comparisonEval"
+    },
+    "shared_route_prefix_kv": {
+      "$ref": "#/$defs/sharedPrefix"
+    },
+    "resource_counters": {
+      "$ref": "#/$defs/zeroCounters"
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "baseBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_path",
+        "proposal_sha256",
+        "proposal_schema_path",
+        "proposal_schema_sha256",
+        "validator_path",
+        "validator_sha256"
+      ],
+      "properties": {
+        "proposal_path": {
+          "type": "string"
+        },
+        "proposal_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "proposal_schema_path": {
+          "type": "string"
+        },
+        "proposal_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "validator_path": {
+          "type": "string"
+        },
+        "validator_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "intentQuota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundles",
+        "train",
+        "eval_proxy",
+        "en",
+        "zh_cn"
+      ],
+      "properties": {
+        "bundles": {
+          "const": 6
+        },
+        "train": {
+          "const": 4
+        },
+        "eval_proxy": {
+          "const": 2
+        },
+        "en": {
+          "const": 3
+        },
+        "zh_cn": {
+          "const": 3
+        }
+      }
+    },
+    "intentMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direct_self_identity",
+        "provenance_fact_check",
+        "no_tool_identity_decision",
+        "pre_coding_attribution",
+        "false_attribution_correction"
+      ],
+      "properties": {
+        "direct_self_identity": {
+          "$ref": "#/$defs/intentQuota"
+        },
+        "provenance_fact_check": {
+          "$ref": "#/$defs/intentQuota"
+        },
+        "no_tool_identity_decision": {
+          "$ref": "#/$defs/intentQuota"
+        },
+        "pre_coding_attribution": {
+          "$ref": "#/$defs/intentQuota"
+        },
+        "false_attribution_correction": {
+          "$ref": "#/$defs/intentQuota"
+        }
+      }
+    },
+    "identityAlignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "source_pool",
+        "source_pool_bundles",
+        "identity_bundles",
+        "train_bundles",
+        "eval_proxy_bundles",
+        "en_bundles",
+        "zh_cn_bundles",
+        "rows_added_to_4300",
+        "derived_role_records",
+        "eval_identity_probe_records",
+        "roles",
+        "stable_identity_fact",
+        "forbidden_attributions",
+        "intent_matrix",
+        "tool_call_behavior",
+        "review_behavior",
+        "emotion_router_default",
+        "explicit_wrong_route_identity_fact_must_remain_equal",
+        "bundle_split_before_role_expansion",
+        "train_eval_semantics_disjoint",
+        "metrics"
+      ],
+      "properties": {
+        "namespace": {
+          "const": "gemma3_chat_unbalanced_v2_identity_alignment_v1"
+        },
+        "source_pool": {
+          "const": "full_five_role_core"
+        },
+        "source_pool_bundles": {
+          "const": 300
+        },
+        "identity_bundles": {
+          "const": 30
+        },
+        "train_bundles": {
+          "const": 20
+        },
+        "eval_proxy_bundles": {
+          "const": 10
+        },
+        "en_bundles": {
+          "const": 15
+        },
+        "zh_cn_bundles": {
+          "const": 15
+        },
+        "rows_added_to_4300": {
+          "const": 0
+        },
+        "derived_role_records": {
+          "const": 150
+        },
+        "eval_identity_probe_records": {
+          "const": 50
+        },
+        "roles": {
+          "const": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "stable_identity_fact": {
+          "const": "我是由Air训练的测试模型。"
+        },
+        "forbidden_attributions": {
+          "const": [
+            "Google",
+            "OpenAI",
+            "谷歌"
+          ]
+        },
+        "intent_matrix": {
+          "$ref": "#/$defs/intentMatrix"
+        },
+        "tool_call_behavior": {
+          "const": "direct_answer_no_tool"
+        },
+        "review_behavior": {
+          "const": "verify_identity_fact_and_reject_false_attribution"
+        },
+        "emotion_router_default": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_expert_id",
+            "decision",
+            "router_runs_once_then_exits"
+          ],
+          "properties": {
+            "target_expert_id": {
+              "const": "serious"
+            },
+            "decision": {
+              "const": "direct_answer"
+            },
+            "router_runs_once_then_exits": {
+              "const": true
+            }
+          }
+        },
+        "explicit_wrong_route_identity_fact_must_remain_equal": {
+          "const": true
+        },
+        "bundle_split_before_role_expansion": {
+          "const": true
+        },
+        "train_eval_semantics_disjoint": {
+          "const": true
+        },
+        "metrics": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "parameterShape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_family",
+        "text_layers",
+        "q_proj_shape",
+        "o_proj_shape",
+        "k_proj_shape",
+        "v_proj_shape",
+        "sliding_attention_layers",
+        "full_attention_layers",
+        "sliding_window",
+        "q_proj_in_plus_out_features",
+        "o_proj_in_plus_out_features",
+        "q_plus_micro_o_trainable_params",
+        "formula",
+        "physical_shape_mismatch_policy"
+      ],
+      "properties": {
+        "model_family": {
+          "const": "Gemma3 1B"
+        },
+        "text_layers": {
+          "const": 26
+        },
+        "q_proj_shape": {
+          "const": [
+            1024,
+            1152
+          ]
+        },
+        "o_proj_shape": {
+          "const": [
+            1152,
+            1024
+          ]
+        },
+        "k_proj_shape": {
+          "const": [
+            256,
+            1152
+          ]
+        },
+        "v_proj_shape": {
+          "const": [
+            256,
+            1152
+          ]
+        },
+        "sliding_attention_layers": {
+          "const": 22
+        },
+        "full_attention_layers": {
+          "const": 4
+        },
+        "sliding_window": {
+          "const": 512
+        },
+        "q_proj_in_plus_out_features": {
+          "const": 2176
+        },
+        "o_proj_in_plus_out_features": {
+          "const": 2176
+        },
+        "q_plus_micro_o_trainable_params": {
+          "const": 61554688
+        },
+        "formula": {
+          "const": "layers * rank * (in_features + out_features)"
+        },
+        "physical_shape_mismatch_policy": {
+          "const": "fail_closed_recompute"
+        }
+      }
+    },
+    "branch": {
+      "type": "object",
+      "required": [
+        "target_modules",
+        "rank",
+        "alpha",
+        "scaling",
+        "trainable_params"
+      ],
+      "properties": {
+        "target_modules": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "enum": [
+              "q_proj",
+              "o_proj"
+            ]
+          }
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "alpha": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scaling": {
+          "const": 2
+        },
+        "trainable_params": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_rank_ratio_numerator": {
+          "type": "integer"
+        },
+        "max_rank_ratio_denominator": {
+          "type": "integer"
+        },
+        "max_param_ratio_numerator": {
+          "type": "integer"
+        },
+        "max_param_ratio_denominator": {
+          "type": "integer"
+        },
+        "max_lr_ratio_numerator": {
+          "type": "integer"
+        },
+        "max_lr_ratio_denominator": {
+          "type": "integer"
+        },
+        "frozen_base_o_proj_unchanged": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "toolAblation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_role",
+        "primary_arm",
+        "final_arms",
+        "q_branch",
+        "micro_o_branch",
+        "records_added_by_arms",
+        "matched_dimensions",
+        "only_lora_o_proj_sidepath_enabled",
+        "default_promotion_allowed"
+      ],
+      "properties": {
+        "target_role": {
+          "const": "tool_call"
+        },
+        "primary_arm": {
+          "const": "tool_q_only"
+        },
+        "final_arms": {
+          "const": [
+            "base",
+            "tool_q_only",
+            "tool_q_plus_micro_o"
+          ]
+        },
+        "q_branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "micro_o_branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "records_added_by_arms": {
+          "const": 0
+        },
+        "matched_dimensions": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "only_lora_o_proj_sidepath_enabled": {
+          "const": true
+        },
+        "default_promotion_allowed": {
+          "const": false
+        }
+      }
+    },
+    "plannerAblation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_kind",
+        "topology",
+        "review_is_offline_optional_sidepath",
+        "final_arms",
+        "q_branch_ref",
+        "micro_o_branch_ref",
+        "planner_o_only_uses_exact_same_micro_o_branch",
+        "planner_o_only_purpose",
+        "planner_o_only_default_winner_allowed",
+        "active_budget_matched_interpretation_required",
+        "per_arm_parameter_report_fields",
+        "matched_dimensions",
+        "existing_router_training_asset",
+        "semantic_descriptor_variables",
+        "structured_output_fields",
+        "five_route_planning_status",
+        "execution_authorized"
+      ],
+      "properties": {
+        "component_kind": {
+          "const": "independent_router_planner_lora_not_output_expert"
+        },
+        "topology": {
+          "const": "single_total_to_branch_then_router_exits"
+        },
+        "review_is_offline_optional_sidepath": {
+          "const": true
+        },
+        "final_arms": {
+          "const": [
+            "base",
+            "planner_q_only",
+            "planner_o_only",
+            "planner_q_plus_micro_o"
+          ]
+        },
+        "q_branch_ref": {
+          "const": "#/tool_ablation/q_branch"
+        },
+        "micro_o_branch_ref": {
+          "const": "#/tool_ablation/micro_o_branch"
+        },
+        "planner_o_only_uses_exact_same_micro_o_branch": {
+          "const": true
+        },
+        "planner_o_only_purpose": {
+          "type": "string"
+        },
+        "planner_o_only_default_winner_allowed": {
+          "const": false
+        },
+        "active_budget_matched_interpretation_required": {
+          "const": true
+        },
+        "per_arm_parameter_report_fields": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "matched_dimensions": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "existing_router_training_asset": {
+          "type": "object"
+        },
+        "semantic_descriptor_variables": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "structured_output_fields": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "five_route_planning_status": {
+          "const": "blocked_existing_100_rows_insufficient_pending_explicit_quota"
+        },
+        "execution_authorized": {
+          "const": false
+        }
+      }
+    },
+    "executionContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "q_initialization_equal_between_q_only_and_q_plus_micro_o",
+        "o_initialization_equal_between_o_only_and_q_plus_micro_o",
+        "initialization_derivation",
+        "module_construction_order_may_affect_initialization",
+        "separate_optimizer_parameter_groups",
+        "o_to_q_lr_ratio_max_numerator",
+        "o_to_q_lr_ratio_max_denominator",
+        "o_to_q_lr_ratio_checked_every_step",
+        "warmup_schedule_ratio_preserving",
+        "receipt_required_fields"
+      ],
+      "properties": {
+        "q_initialization_equal_between_q_only_and_q_plus_micro_o": {
+          "const": true
+        },
+        "o_initialization_equal_between_o_only_and_q_plus_micro_o": {
+          "const": true
+        },
+        "initialization_derivation": {
+          "const": "sha256(seed || canonical_layer_name || branch_kind)"
+        },
+        "module_construction_order_may_affect_initialization": {
+          "const": false
+        },
+        "separate_optimizer_parameter_groups": {
+          "const": [
+            "q_branch",
+            "o_branch"
+          ]
+        },
+        "o_to_q_lr_ratio_max_numerator": {
+          "const": 1
+        },
+        "o_to_q_lr_ratio_max_denominator": {
+          "const": 10
+        },
+        "o_to_q_lr_ratio_checked_every_step": {
+          "const": true
+        },
+        "warmup_schedule_ratio_preserving": {
+          "const": true
+        },
+        "receipt_required_fields": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "comparisonEval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "records_added_to_training_4300",
+        "records_added_to_router_100",
+        "same_task_reused_across_all_arms",
+        "eval_proxy_is_heldout",
+        "tool_eval",
+        "planner_eval",
+        "identity_eval",
+        "metrics",
+        "required_group_bys",
+        "macro_only_reporting_allowed",
+        "risk_rules"
+      ],
+      "properties": {
+        "namespace": {
+          "const": "gemma3_chat_unbalanced_v2_comparison_eval_v1"
+        },
+        "records_added_to_training_4300": {
+          "const": 0
+        },
+        "records_added_to_router_100": {
+          "const": 0
+        },
+        "same_task_reused_across_all_arms": {
+          "const": true
+        },
+        "eval_proxy_is_heldout": {
+          "const": false
+        },
+        "tool_eval": {
+          "type": "object"
+        },
+        "planner_eval": {
+          "type": "object"
+        },
+        "identity_eval": {
+          "type": "object"
+        },
+        "metrics": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "required_group_bys": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "macro_only_reporting_allowed": {
+          "const": false
+        },
+        "risk_rules": {
+          "type": "object"
+        }
+      }
+    },
+    "sharedPrefix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "commit_sequence",
+        "required_commit_fields",
+        "producer_mode",
+        "adapter_state_on_prefix",
+        "shared_storage",
+        "unique_prefix_allocation_count",
+        "expert_private_tail",
+        "expert_private_tail_append_only",
+        "o_branch_may_modify_shared_prefix",
+        "full_generation_kv_shared",
+        "planner_live_private_kv_transfer",
+        "exact_reuse_scope",
+        "identity_unknown_or_mismatch_policy",
+        "raw_token_ids_persisted",
+        "hybrid_attention_contract",
+        "current_physical_claim",
+        "prefill_once_does_not_imply_persistent_zero_copy",
+        "hf_dynamic_cache_tail_cat_is_zero_copy_proof",
+        "persistent_prefix_storage_claim_allowed",
+        "persistent_prefix_storage_required_backends",
+        "persistent_storage_verification_fields",
+        "exact_proof_kv_dtype",
+        "lossy_kv_diagnostic_only",
+        "physical_validation"
+      ],
+      "properties": {
+        "status": {
+          "const": "contract_only_physical_execution_blocked"
+        },
+        "commit_sequence": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "required_commit_fields": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "producer_mode": {
+          "const": "frozen_base_adapter_off_reencode_committed_route_and_plan"
+        },
+        "adapter_state_on_prefix": {
+          "const": "off"
+        },
+        "shared_storage": {
+          "const": true
+        },
+        "unique_prefix_allocation_count": {
+          "const": 1
+        },
+        "expert_private_tail": {
+          "const": true
+        },
+        "expert_private_tail_append_only": {
+          "const": true
+        },
+        "o_branch_may_modify_shared_prefix": {
+          "const": false
+        },
+        "full_generation_kv_shared": {
+          "const": false
+        },
+        "planner_live_private_kv_transfer": {
+          "const": false
+        },
+        "exact_reuse_scope": {
+          "const": "identical_ordered_tokens_positions_rope_mask_model_tokenizer_template_and_prefix_lineage_only"
+        },
+        "identity_unknown_or_mismatch_policy": {
+          "const": "fail_closed_cache_miss"
+        },
+        "raw_token_ids_persisted": {
+          "const": false
+        },
+        "hybrid_attention_contract": {
+          "type": "object"
+        },
+        "current_physical_claim": {
+          "const": "prefill_compute_reuse"
+        },
+        "prefill_once_does_not_imply_persistent_zero_copy": {
+          "const": true
+        },
+        "hf_dynamic_cache_tail_cat_is_zero_copy_proof": {
+          "const": false
+        },
+        "persistent_prefix_storage_claim_allowed": {
+          "const": false
+        },
+        "persistent_prefix_storage_required_backends": {
+          "const": [
+            "segmented_kv",
+            "paged_kv"
+          ]
+        },
+        "persistent_storage_verification_fields": {
+          "const": [
+            "layer_storage_pointer",
+            "layer_storage_offset",
+            "layer_storage_stride"
+          ]
+        },
+        "exact_proof_kv_dtype": {
+          "const": "bf16"
+        },
+        "lossy_kv_diagnostic_only": {
+          "const": [
+            "q8_kv",
+            "hqq_kv"
+          ]
+        },
+        "physical_validation": {
+          "type": "object"
+        }
+      }
+    },
+    "zeroCounters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "luna_requests",
+        "protected_body_reads",
+        "gold_body_reads",
+        "heldout_body_reads"
+      ],
+      "properties": {
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "luna_requests": {
+          "const": 0
+        },
+        "protected_body_reads": {
+          "const": 0
+        },
+        "gold_body_reads": {
+          "const": 0
+        },
+        "heldout_body_reads": {
+          "const": 0
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_only",
+        "records_materialized",
+        "comparison_eval_materialized",
+        "identity_rows_added",
+        "physical_kv_materialized",
+        "physical_zero_copy_verified",
+        "training_authorized",
+        "formal_training_authorized",
+        "release_authorized"
+      ],
+      "properties": {
+        "contract_only": {
+          "const": true
+        },
+        "records_materialized": {
+          "const": false
+        },
+        "comparison_eval_materialized": {
+          "const": false
+        },
+        "identity_rows_added": {
+          "const": false
+        },
+        "physical_kv_materialized": {
+          "const": false
+        },
+        "physical_zero_copy_verified": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        }
+      }
+    }
+  }
+}

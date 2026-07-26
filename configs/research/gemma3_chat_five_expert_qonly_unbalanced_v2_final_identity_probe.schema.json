@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-unbalanced-v2-final-identity-probe.schema.json",
+  "title": "Gemma 3 Chat unbalanced v2 FINAL body-free identity probe inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "probe_id",
+    "record_id",
+    "task_bundle_sha256",
+    "role",
+    "language",
+    "intent",
+    "stable_fact_sha256",
+    "wrong_route_fact_sha256",
+    "exact_fact_present",
+    "tool_abstention_expected",
+    "false_attribution_rejection_expected",
+    "records_added",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-identity-probe.v1"
+    },
+    "probe_id": {
+      "type": "string",
+      "pattern": "^gemma3-chat-unbalanced-v2-identity-probe:[0-9a-f]{64}$"
+    },
+    "record_id": {
+      "type": "string",
+      "pattern": "^gemma3-chat-unbalanced-v2-final:[0-9a-f]{64}:(humor|serious|angry_style|tool_call|review_audit)$"
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "role": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit"
+      ]
+    },
+    "language": {
+      "enum": [
+        "en",
+        "zh-CN"
+      ]
+    },
+    "intent": {
+      "enum": [
+        "direct_self_identity",
+        "provenance_fact_check",
+        "no_tool_identity_decision",
+        "pre_coding_attribution",
+        "false_attribution_correction"
+      ]
+    },
+    "stable_fact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "wrong_route_fact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "exact_fact_present": {
+      "const": true
+    },
+    "tool_abstention_expected": {
+      "type": "boolean"
+    },
+    "false_attribution_rejection_expected": {
+      "type": "boolean"
+    },
+    "records_added": {
+      "const": 0
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_only",
+        "proxy_only",
+        "training_authorized",
+        "formal_training_authorized",
+        "live_authorized",
+        "release_authorized",
+        "quality_validated",
+        "generalization_validated"
+      ],
+      "properties": {
+        "diagnostic_only": {
+          "const": true
+        },
+        "proxy_only": {
+          "const": true
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "live_authorized": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        },
+        "quality_validated": {
+          "const": false
+        },
+        "generalization_validated": {
+          "const": false
+        }
+      }
+    }
+  }
+}

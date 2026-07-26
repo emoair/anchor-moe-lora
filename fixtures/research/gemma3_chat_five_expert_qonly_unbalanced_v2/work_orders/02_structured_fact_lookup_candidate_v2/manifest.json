@@ -1,0 +1,205 @@
+{
+  "claims": {
+    "chat_rows_materialized": false,
+    "final": false,
+    "formal_training_authorized": false,
+    "independent_audit_passed": false,
+    "records_materialized": false,
+    "training_authorized": false,
+    "work_order_candidate": true
+  },
+  "counts": {
+    "blueprints": 170,
+    "cell_counts": {
+      "en_eval_proxy_core": 3,
+      "en_eval_proxy_depth": 14,
+      "en_train_core": 12,
+      "en_train_depth": 56,
+      "zh_cn_eval_proxy_core": 3,
+      "zh_cn_eval_proxy_depth": 14,
+      "zh_cn_train_core": 12,
+      "zh_cn_train_depth": 56
+    },
+    "chat_rows_materialized": 0,
+    "core_bundles": 30,
+    "depth_bundles": 140,
+    "en_bundles": 85,
+    "en_eval_proxy": 17,
+    "en_train": 68,
+    "eval_proxy_bundles": 34,
+    "instances_per_template_family": 17,
+    "records_materialized": 0,
+    "task_bundles": 170,
+    "task_semantics": 170,
+    "template_families": 10,
+    "train_bundles": 136,
+    "translation_pairs": 0,
+    "zh_cn_bundles": 85,
+    "zh_cn_eval_proxy": 17,
+    "zh_cn_train": 68
+  },
+  "grounding_contract": {
+    "chat_serializer_called": false,
+    "closed_local_fact_banks": 170,
+    "evidence_refs_resolve": true,
+    "fact_bank_id": "anchor.synthetic.structured-fact-bank.v1",
+    "segment_refs_resolve": true,
+    "synthetic_local_results_parseable": true,
+    "tokenizer_called": false,
+    "tool_args_parseable": true,
+    "unique_interpreter_result_per_blueprint": true,
+    "visibility_filter_before_blueprint_serialization": true
+  },
+  "integrity_gates": {
+    "atomic_directory_publish_no_replace": true,
+    "bytes_hash_stat_reauthenticated_before_rename": true,
+    "exact_inventory_reauthenticated_before_rename": true,
+    "final_toctou_recheck": true,
+    "mandatory_manifest_sha256_sidecar": true,
+    "published_identity_inheritance_verified": true,
+    "single_bytes_snapshot_for_hash_parse_count": true,
+    "staged_file_snapshots_persisted": true,
+    "stat_identity_rechecked": true
+  },
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+  "negative_fixtures": [
+    {
+      "expected_validation": "reject",
+      "path": "negative/grounding_result_mismatch.json",
+      "rejection_code": "grounding_result_mismatch",
+      "sha256": "d968a14b68f8e3695bf043c086b427c0070d1904d7e117120681087cf266e48f"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/required_operand_missing.json",
+      "rejection_code": "required_operand_missing",
+      "sha256": "9da80e0b9dd1c259ea522f1251c5eb36340d63a47da85c9d48ea5f7448c698e5"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/visible_input_leak.json",
+      "rejection_code": "visible_input_leak",
+      "sha256": "ee72c98e3623823d28f1913231946c76ec6a3860f676fe9e135e97ce1e8b21ff"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/cross_bundle_reference.json",
+      "rejection_code": "cross_bundle_reference",
+      "sha256": "e307dbe9e5ef3615d9a81cd6fbea3b0185bee8350b8a374e63b1a2401d4111d3"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/index_salted_descriptor.json",
+      "rejection_code": "excluded_field_in_preimage",
+      "sha256": "97050d0e656c906dbf12ee73f2e5e2797c192ba8e142c3bc936a113ad60d34db"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/segment_reference_unresolved.json",
+      "rejection_code": "segment_reference_unresolved",
+      "sha256": "92b674a993a563f6fd4f840da071950b2e7de2f1af47220b7bb1ce202b61dcd3"
+    }
+  ],
+  "partition": {
+    "blueprints": 170,
+    "bytes": 1537841,
+    "chat_rows_materialized": 0,
+    "path": "semantic_blueprints.jsonl",
+    "records_materialized": 0,
+    "sha256": "56244504895d9daf05c415b1ede599968fb9f96af17bde866f54cd9983cf4ed6"
+  },
+  "producer": {
+    "config_path": "configs/research/gemma3_chat_unbalanced_v2_structured_fact_lookup_work_order_v1.json",
+    "config_sha256": "f0928e3986977a8a4f7d01ec9ddf7e0d8d4893aaf6fc199676babdbf6799521c",
+    "implementation_path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_structured_fact_lookup.py",
+    "implementation_sha256": "c65692418edb2ab9b5ae74a700f91b669efd469461ee393777db917ace3f98cc",
+    "manifest_schema_path": "configs/research/gemma3_chat_unbalanced_v2_structured_fact_lookup_work_order_manifest.schema.json",
+    "manifest_schema_sha256": "345bc821f98cdb6404c6311e3400f1ff5067039a13a63373d72872401aac36ba",
+    "record_schema_path": "configs/research/gemma3_chat_unbalanced_v2_structured_fact_lookup_work_order_record.schema.json",
+    "record_schema_sha256": "59562578088bf6a6df45cbfb3eb61f673c1468ef853165fe4cc2de296df90eb1",
+    "test_path": "tests/test_gemma3_chat_unbalanced_v2_structured_fact_lookup.py",
+    "test_sha256": "9e941685286d6996898d2e749a6a8e02bbe95fc986e74373adff656969569419"
+  },
+  "resource_counters": {
+    "gold_body_reads": 0,
+    "gpu_requests": 0,
+    "heldout_body_reads": 0,
+    "luna_requests": 0,
+    "model_loads": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0
+  },
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-structured-fact-lookup-work-order-manifest.v2",
+  "schemas": {
+    "draft": "2020-12",
+    "manifest_schema_sha256": "345bc821f98cdb6404c6311e3400f1ff5067039a13a63373d72872401aac36ba",
+    "record_schema_sha256": "59562578088bf6a6df45cbfb3eb61f673c1468ef853165fe4cc2de296df90eb1"
+  },
+  "semantic_identity_contract": {
+    "algorithm": "sha256(domain_tag_utf8 || 0x00 || rfc8785_jcs(canonical_descriptor))",
+    "bundle_domain": "anchor.gemma3-chat-task-bundle.v2",
+    "descriptor_fields": [
+      "operation",
+      "typed_operands",
+      "constraints",
+      "expected_relation",
+      "tool_family",
+      "difficulty_factors"
+    ],
+    "descriptor_recomputed": true,
+    "en_zh_intersection": 0,
+    "excluded_fields": [
+      "namespace",
+      "language",
+      "role",
+      "split",
+      "seed",
+      "record_index",
+      "case_transform",
+      "evidence_id",
+      "source_path",
+      "hash_value",
+      "template_family_name"
+    ],
+    "fact_refs_structurally_derived": true,
+    "forbidden_uniqueness_shortcuts": [
+      "hash_salting",
+      "index_salting",
+      "case_salting",
+      "evidence_salting",
+      "namespace_salting",
+      "language_salting",
+      "template_renaming"
+    ],
+    "semantic_domain": "anchor.gemma3-chat-task-semantic.v2",
+    "semantic_ids_unique": true,
+    "translation_pairs": 0
+  },
+  "split_contract": {
+    "class_rank": "ascending_task_bundle_sha256_within_language_split_cell",
+    "eval_proxy_is_heldout": false,
+    "group_key": "task_bundle_sha256",
+    "preimage_forbidden_fields": [
+      "role",
+      "view",
+      "arm",
+      "noise",
+      "language"
+    ],
+    "split_before_role_expansion": true,
+    "split_before_view_expansion": true,
+    "split_rank": "ascending_task_bundle_sha256_within_language"
+  },
+  "status": "candidate_pending_independent_audit",
+  "supersession": {
+    "old_candidate_must_not_be_consumed": true,
+    "replacement_artifact_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2",
+    "superseded_artifact_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate",
+    "superseded_manifest_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate/manifest.json",
+    "superseded_manifest_sha256": "c156e0ad2cb44d2ac4b36f321b71e969f72935a07c014035a8a9e30dd1dc2676",
+    "superseded_status": "superseded_due_to_pre_publish_staging_toctou_gap"
+  },
+  "tool_family": "structured_fact_lookup",
+  "work_order_id": "anchor.gemma3-chat-unbalanced-v2.semantic-blueprints.structured-fact-lookup.02"
+}

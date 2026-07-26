@@ -1,0 +1,418 @@
+{
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-config.v4",
+  "status": "frozen_sharded_candidate_materialization_contract",
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+  "artifact_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3",
+  "canonical_output_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
+  "superseded_candidate": {
+    "canonical_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v2",
+    "manifest_sha256": "b853201d7e433a4fae8cbfeef522bc5ac6fc4be133037e762ce7b850099ff88c",
+    "manifest_sidecar_physical_sha256": "90136ebfc0d62c15467086e7a89faf2c6e3b34e97b1d5b8fe4efb5811f5b5ac8",
+    "build_receipt_sha256": "f6b7f7d8a3365dda642532f1033db362dca356281b7f47367c04a1bdcab9fcd6",
+    "build_receipt_sidecar_physical_sha256": "d9d65765b817fe51585225ced8340637195a382eb4e49dbebecb2f4a320e245c",
+    "logical_train_ordered_paths": [
+      "train/chat-00000-of-00002.jsonl",
+      "train/chat-00001-of-00002.jsonl"
+    ],
+    "logical_train_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "logical_train_bytes": 59845314,
+    "logical_train_records": 3440,
+    "superseded_reason": "ruff_format_gate_and_atomic_attestation_pair_publish_incomplete",
+    "old_candidate_consumption_allowed": false
+  },
+  "sharding_contract": {
+    "partition": "train",
+    "shard_count": 2,
+    "ordered_paths": [
+      "train/chat-00000-of-00002.jsonl",
+      "train/chat-00001-of-00002.jsonl"
+    ],
+    "split_boundary": "contiguous_task_bundle",
+    "split_target": "nearest_half_bytes_with_stable_earliest_tie_break",
+    "max_file_bytes_exclusive": 52428800,
+    "ordered_concat_must_equal_superseded_logical_train_bytes": true,
+    "logical_partition_sha256": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3",
+    "logical_partition_bytes": 59845314,
+    "logical_partition_records": 3440,
+    "all_other_payloads_and_sidecars_byte_identical": true
+  },
+  "frozen_contracts": [
+    {
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.json",
+      "sha256": "37df3a7a47c5e47365473ff0f82c267c8cdfd6f68830f2434f18df432ed524d0"
+    },
+    {
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.schema.json",
+      "sha256": "bdf13057fe30612ca9848beefd0e3d24f9244c2670f5478c419bcb2c6a348142"
+    },
+    {
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_record.schema.json",
+      "sha256": "54620c5f77decbf43ddfef05e5665fc3aa8bd5746b0d1597647c9611dcc7a2ba"
+    },
+    {
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.json",
+      "sha256": "abbbf8b35656e2344ac827cede779a5f5bc448551b4e31f98a8450fa27d77081"
+    },
+    {
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.schema.json",
+      "sha256": "6b4cee95865a02db0332a37076152d1dfbb8faf73ab21b39b04df3f27e8e354b"
+    },
+    {
+      "path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_contract.py",
+      "sha256": "46242bb7eff516d907951299d784631666d361138fe345277ef9492ba160f514"
+    },
+    {
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json",
+      "sha256": "269098db8106b1bdba141ec364cde8edbf13fac8f87ddec0e7b8091973efe7e9"
+    },
+    {
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json.sha256",
+      "sha256": "9880479610c337e9b19c081d83b2daff986a241dd6a642f766068142a79b7c80"
+    }
+  ],
+  "training_contract": {
+    "records": 4300,
+    "task_bundles": 1700,
+    "task_semantics": 1700,
+    "roles": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "role_counts": {
+      "humor": 300,
+      "serious": 300,
+      "angry_style": 300,
+      "tool_call": 1700,
+      "review_audit": 1700
+    },
+    "split_counts": {
+      "train": 3440,
+      "eval_proxy": 860
+    },
+    "language_counts": {
+      "en": 2150,
+      "zh-CN": 2150
+    },
+    "language_split_counts": {
+      "en_train": 1720,
+      "zh_cn_train": 1720,
+      "en_eval_proxy": 430,
+      "zh_cn_eval_proxy": 430
+    },
+    "bundle_classes": {
+      "full_five_role_core": 300,
+      "tool_review_depth": 1400
+    },
+    "review": {
+      "pass": 850,
+      "fail": 850,
+      "fault_types": {
+        "format_schema": 170,
+        "tool_argument": 170,
+        "evidence_mismatch": 170,
+        "grounding_mismatch": 170,
+        "routing_scope": 170
+      }
+    }
+  },
+  "identity_contract": {
+    "stable_identity_fact": "我是由Air训练的测试模型。",
+    "identity_bundles": 30,
+    "train_bundles": 20,
+    "eval_proxy_bundles": 10,
+    "en_bundles": 15,
+    "zh_cn_bundles": 15,
+    "role_records": 150,
+    "eval_probe_records": 50,
+    "intents": [
+      "direct_self_identity",
+      "provenance_fact_check",
+      "no_tool_identity_decision",
+      "pre_coding_attribution",
+      "false_attribution_correction"
+    ],
+    "bundles_per_intent": 6,
+    "forbidden_attributions": [
+      "Google",
+      "OpenAI"
+    ],
+    "tool_behavior": "direct_answer_no_tool",
+    "review_behavior": "reject_false_attribution_and_preserve_exact_fact",
+    "wrong_route_fact_must_remain_equal": true
+  },
+  "work_order_families": [
+    {
+      "family_index": 1,
+      "training_family_id": "local_catalog_search",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate_v2",
+      "manifest_sha256": "37dd0cf1c776bb81c26085b46c434f17899f4d2cf90ae4c4eaf4bf69aaf2717f",
+      "partition_sha256": "d880404e052abe4c468ab57a43740e8cd66c936fe946ef5e40f09892d709f885",
+      "mapping_sha256": "a07fb205d027e60902bd8ebfd103de3485d82932bfce721165f0b088b14571b5",
+      "sidecar_physical_sha256": "dab28b7c4d4bc82cb7ea4fd6eb4de90041111d0f73b6c6753d0395598b391537",
+      "old_candidate_selected": false
+    },
+    {
+      "family_index": 2,
+      "training_family_id": "structured_fact_lookup",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2",
+      "manifest_sha256": "8c05f39ff472d01f72fcff040a87435f52cc38f4db74f75092657b9af3163705",
+      "partition_sha256": "56244504895d9daf05c415b1ede599968fb9f96af17bde866f54cd9983cf4ed6",
+      "sidecar_physical_sha256": "ff2d607da4ee20722b9302cad990cb3ef914a3bf121dac5abaf290f25137b6cc"
+    },
+    {
+      "family_index": 3,
+      "training_family_id": "calculator",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate",
+      "manifest_sha256": "3339f14f572b7f377667c31b4c79ec842fa2c636d3574dc0a6a3157d4fbabf18",
+      "partition_sha256": "fbb582ecf644e5f7b90969db8510c92ff7aa5d03c3c76e6e1eb10b06401208bc",
+      "sidecar_physical_sha256": "cdb2bba4c687ce8f2df0519f9b862d8799cc5fbabb8cab6b5a9fe0e843ea4808"
+    },
+    {
+      "family_index": 4,
+      "training_family_id": "unit_conversion",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate",
+      "manifest_sha256": "c16b62d445b9daad936a1cb45f8eded68865295854291d952b64ed4387ef5130",
+      "partition_sha256": "68118b9b7a961d05b77c520113b911f6abcc15f06694c7e4aad1e067bf3aa7b4",
+      "sidecar_physical_sha256": "94d07ef6e4f45f1a29f7853b8a1165449eb6f49047a13cc38ae824151ff3fae3"
+    },
+    {
+      "family_index": 5,
+      "training_family_id": "fixed_datetime_arithmetic",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/05_fixed_datetime_arithmetic_candidate_v3",
+      "manifest_sha256": "08c6a13d033a26bfc698d4be464d6802276bac1e6ca90cb6d706395876037a61",
+      "partition_sha256": "cf1001a48be9d1489e6b0919f7581fcb31287244abdb1c14704f37a947e2aba1",
+      "sidecar_physical_sha256": "4bb206cdc406924d05756394d656100f62d850a5f56c89a200da432d7d8cf0e9"
+    },
+    {
+      "family_index": 6,
+      "training_family_id": "table_filter_sort",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/06_table_filter_sort_candidate",
+      "manifest_sha256": "bdfcaebd6d9834d02604d9273a99285e9dc35374d9a35c5845adb8040b92702a",
+      "partition_sha256": "e31698ebb080f5ca677e76729f3af5e126eca25a03707245ee548c81f123bff0",
+      "sidecar_physical_sha256": "a6ba1239caa3720cc92c6de1569d06f1a9202dedd73d909451741ad7cf2c2b74"
+    },
+    {
+      "family_index": 7,
+      "training_family_id": "text_statistics",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/07_text_statistics_candidate",
+      "manifest_sha256": "2085b6377440f9f9d01eb84b971f525528d9892b5f8fc544aa65022b1500869f",
+      "partition_sha256": "fac988b985b001482d3c1bbe6f62bdbe8ef18ebfba34dbb7bf5fdd50a1566bc3",
+      "sidecar_physical_sha256": "9aa1d0010c74ba6a9a8ee7440de7754e5872236a24867f634fc75172ea3d737e"
+    },
+    {
+      "family_index": 8,
+      "training_family_id": "sandbox_file_metadata",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/08_sandbox_file_metadata_candidate",
+      "manifest_sha256": "5d9913a65671eed558a26e088edc22870440effb3b035543ccf0a7c50a1087e4",
+      "partition_sha256": "64316e88c3f1e929f526aec2a57d1a893581fe8757d4cc864f99b6124433e614",
+      "sidecar_physical_sha256": "8eef84aab48116eb906225df56063551dcc30f1489cc3505c3f9a8f879a8b7b9"
+    },
+    {
+      "family_index": 9,
+      "training_family_id": "micro_code_sandbox",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/09_micro_code_sandbox_candidate",
+      "manifest_sha256": "343ef208c50180f7e03446e4a525e404b9de0fa0f28d198e716910f3ee8c7f25",
+      "partition_sha256": "3e412e15531c00719dc6a3b53f00b017e94bb70310889d3e36a7b80aee79b4d4",
+      "sidecar_physical_sha256": "75d7f3dfdb773e9e9377fc0f550a87c383c7641935bb0c89b085ab80c5760dd3"
+    },
+    {
+      "family_index": 10,
+      "training_family_id": "schema_transform_validation",
+      "directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/10_schema_transform_validation_candidate",
+      "manifest_sha256": "284bc5ed407bce21501ca8e09bb7ba78ba5078b727f44b6acacd2aac88f2f7a6",
+      "partition_sha256": "6a827bbd3764f4eb69f42362bf6c0fd6e6319ee3016ef0b26d8073803663712e",
+      "sidecar_physical_sha256": "770ec53d65434bbbe097c9e4a59ad8964e6706bb1cd9ea7b8597fdaf7d23f9b3"
+    }
+  ],
+  "family1_repair_independent_review": {
+    "status": "passed",
+    "reviewer_separation": "different_reviewer",
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "reviewed_directory": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate_v2",
+    "reviewed_manifest_sha256": "37dd0cf1c776bb81c26085b46c434f17899f4d2cf90ae4c4eaf4bf69aaf2717f",
+    "reviewed_partition_sha256": "d880404e052abe4c468ab57a43740e8cd66c936fe946ef5e40f09892d709f885",
+    "reviewed_mapping_sha256": "a07fb205d027e60902bd8ebfd103de3485d82932bfce721165f0b088b14571b5",
+    "reviewed_sidecar_physical_sha256": "dab28b7c4d4bc82cb7ea4fd6eb4de90041111d0f73b6c6753d0395598b391537",
+    "old_candidate_selected": false,
+    "audit_entrypoint": "scripts/research/audit_gemma3_chat_unbalanced_v2_local_catalog_search_v2.py",
+    "time_budget_seconds": 300,
+    "outcome_binding_domain": "anchor.gemma3-chat-family1-v2-independent-review-outcome.v1",
+    "outcome_binding_sha256": "4ca9c2055c907037ff752aa43c3072f0e47b15506869262029219624dfc168fb"
+  },
+  "component_candidates": {
+    "router": {
+      "source_directory": "fixtures/research/gemma3_chat_emotion_router_qonly_v1/candidate",
+      "output_directory": "components/router",
+      "files": [
+        {
+          "path": "manifest.json",
+          "sha256": "416e39b0617263edc3af7046ab075745dbe564430927565a1623540d63027b6d",
+          "sidecar_physical_sha256": "a1fba4dc0176636cd176e2cafe623bdc6421ce596433f8ae20d2a02e1f734f60"
+        },
+        {
+          "path": "records.jsonl",
+          "sha256": "f41b865b4c65cf849c92499a0ea19ea53f2ce37f7424fa8e154543bff81f61b8",
+          "sidecar_physical_sha256": null
+        },
+        {
+          "path": "token_inventory.jsonl",
+          "sha256": "67fe668b21ea935e5143362d87ab213de5b8a4c971de3c4cb836b353fcf778a3",
+          "sidecar_physical_sha256": null
+        },
+        {
+          "path": "build_receipt.json",
+          "sha256": "8b409c139dad499d5c06663bb7b9712a379a32f319a009ef7f6f3c800618966d",
+          "sidecar_physical_sha256": "fa59b127eab07f0165509271def17793a32601bcc3d052666dcc61c26da33605"
+        }
+      ]
+    },
+    "tool_eval": {
+      "source_directory": "fixtures/research/gemma3_chat_unbalanced_v2_tool_comparison_eval_v1/candidate",
+      "output_directory": "components/tool_eval",
+      "files": [
+        {
+          "path": "manifest.json",
+          "sha256": "ece2b2e998c44037eb7af10c6c68193aba9037035169358855b5cfa1071935f1",
+          "sidecar_physical_sha256": "46658330eecdbdb3225eb860aa7d3ddc195ebbcf0401be2a628d702c0bebd79c"
+        },
+        {
+          "path": "records.jsonl",
+          "sha256": "138a3b6b915250db0d793fb36745586e95f17881f52e8882e6d4f0df691057fe",
+          "sidecar_physical_sha256": "673ba9282adf1c27015d95cd8c76d1a2ab5dafb6139d20ae0384b01dfd4f7f1b"
+        },
+        {
+          "path": "token_inventory.jsonl",
+          "sha256": "ff0d918c9532b0b2a9ff392b783c63c410c94d65cdb77ae5c57af48bce5a467c",
+          "sidecar_physical_sha256": "bf5d1410afcb69736e81cee548a0b22b186d6cffebd556d632f0838cd6f58b30"
+        },
+        {
+          "path": "negative_inventory.jsonl",
+          "sha256": "899b83076340ea8d496f5a2c8a3b355337de9add744c5a7ccb9406ac1622c364",
+          "sidecar_physical_sha256": "fae6fcc0307dd9139a877b16d581af65f4dd5d3a0f4d07e75d814dbc992b7ed2"
+        },
+        {
+          "path": "build_receipt.json",
+          "sha256": "464d6475069b4ebf2fb34f2c27d87d90c74ad3deb6118480ca1e68835cdcbcfa",
+          "sidecar_physical_sha256": "c2e97ab8c29425d64b74e0980a989a488b1ecb7fa12792588310cebad4ed090c"
+        }
+      ]
+    },
+    "planner_eval": {
+      "source_directory": "fixtures/research/gemma3_chat_unbalanced_v2_planner_comparison_eval_v1/candidate",
+      "output_directory": "components/planner_eval",
+      "files": [
+        {
+          "path": "manifest.json",
+          "sha256": "f6cc5f4b5f63bc174bd65c71e6c0d6b224dcf9e8a90ece687fc38b5d1b7f0c05",
+          "sidecar_physical_sha256": "2e21bdd4a35ec408cf67ad3beb32b78511345c49c583d4018aadc6bbeb91e2af"
+        },
+        {
+          "path": "records.jsonl",
+          "sha256": "591843636062b2e6915b2c4e2aafbb9dcb76b699c6dcbc95bb00f188a1ab3734",
+          "sidecar_physical_sha256": "25e7c532fdbd3c31640061dd8e30b269bdb340e9dbfe549a062654264703b0b6"
+        },
+        {
+          "path": "token_inventory.jsonl",
+          "sha256": "3d53386ae920c8474e189c5da92adf46e214b36ad8a960cb3cc5b1eb0449432d",
+          "sidecar_physical_sha256": "945a4560af23379af0fd9e1a2c2028422d7f36bb218b4e297eb699277b5d4bbf"
+        },
+        {
+          "path": "negative_inventory.jsonl",
+          "sha256": "61ec3954a2758dc5aa3c383fbd712adce85008ba359613fbf93bfc76a2cb4043",
+          "sidecar_physical_sha256": "a987669cdd3c1eca85deab39c880625097735895d302a6a1dd603634cab3fab1"
+        },
+        {
+          "path": "build_receipt.json",
+          "sha256": "56df42d17c0fec48ef6e52aeeffdd6cb0fa324622ed8156447b77df5b1fd10d8",
+          "sidecar_physical_sha256": "78a278a8aa89bf5966a24fe91139ec6d136fb3381824d26db16c3819613ce779"
+        }
+      ]
+    }
+  },
+  "external_reviews": {
+    "tool_eval": {
+      "canonical_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/tool_eval_independent_review.json",
+      "sha256": "a09ac7dc7643168342360d2bc0cd463238fd43405d5365c6efc06373f76a6082",
+      "sidecar_physical_sha256": "4f7e9c280aac50a4bf685176f64803fc69f5cf7c5b4967aeff0db91f8e88ed77",
+      "reviewed_manifest_sha256": "ece2b2e998c44037eb7af10c6c68193aba9037035169358855b5cfa1071935f1"
+    },
+    "planner_eval": {
+      "canonical_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/release_inputs/planner_eval_independent_review.json",
+      "sha256": "c77fcd309af64eee689148c396d612b1b3ad20414f71482d7c9c27751d33c57c",
+      "sidecar_physical_sha256": "b8d3cc8b75b575a25534c41c173274215432ff5cf6bf949f6119b4bbbab3555b",
+      "reviewed_manifest_sha256": "f6cc5f4b5f63bc174bd65c71e6c0d6b224dcf9e8a90ece687fc38b5d1b7f0c05"
+    }
+  },
+  "adapter_contract": {
+    "tool_arms": [
+      "base",
+      "tool_q_only",
+      "tool_q_plus_micro_o"
+    ],
+    "planner_arms": [
+      "base",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "tool_execution_slots": 1200,
+    "planner_execution_slots": 960,
+    "q_branch": {
+      "target_module": "q_proj",
+      "rank": 1024,
+      "alpha": 2048,
+      "trainable_params": 57933824
+    },
+    "micro_o_branch": {
+      "target_module": "o_proj",
+      "rank": 64,
+      "alpha": 128,
+      "trainable_params": 3620864,
+      "max_lr_ratio_to_q": "1/10"
+    },
+    "non_tool_q_only_roles": [
+      "humor",
+      "serious",
+      "angry_style",
+      "review_audit"
+    ],
+    "records_added_by_arms": 0
+  },
+  "kv_contract": {
+    "route_plan_commits_immutable_and_hash_bound": true,
+    "gemma_canonical_serialization": true,
+    "producer_mode": "frozen_base_adapter_off_single_shared_prefix_prefill",
+    "exact_reuse_scope": "identical_ordered_prefix_lineage_only",
+    "expert_private_tail_append_only": true,
+    "planner_live_private_kv_transfer": false,
+    "full_generation_kv_shared": false,
+    "current_physical_claim": "prefill_compute_reuse",
+    "persistent_zero_copy_verified": false,
+    "persistent_zero_copy_blocked_on": [
+      "data_ptr_identity",
+      "storage_identity",
+      "cache_identity"
+    ],
+    "q8_kv_exact": false
+  },
+  "claims": {
+    "candidate": true,
+    "final": false,
+    "diagnostic_only": true,
+    "proxy_only": true,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "live_authorized": false,
+    "release_authorized": false,
+    "quality_validated": false,
+    "generalization_validated": false,
+    "replaces_v1": false,
+    "replaces_10k": false,
+    "replaces_luna": false
+  }
+}

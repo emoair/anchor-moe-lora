@@ -1,0 +1,898 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-unbalanced-v2-final-record.schema.json",
+  "title": "Gemma 3 Chat unbalanced v2 FINAL diagnostic record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "record_id",
+    "task_bundle_sha256",
+    "task_semantic_sha256",
+    "task_template_pair_sha256",
+    "template_family_sha256",
+    "bundle_class",
+    "split",
+    "language",
+    "tool_family",
+    "role",
+    "source_binding",
+    "semantic_descriptor",
+    "identity_alignment",
+    "source_user",
+    "messages",
+    "target",
+    "route_control",
+    "tool_trace",
+    "review_dependency",
+    "attention_specialization",
+    "gemma_serialization",
+    "kv_contract",
+    "adapter_contract",
+    "causal_proof",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-final-record.v1"
+    },
+    "namespace": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "record_id": {
+      "type": "string",
+      "pattern": "^gemma3-chat-unbalanced-v2-final:[0-9a-f]{64}:(humor|serious|angry_style|tool_call|review_audit)$"
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "task_semantic_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "task_template_pair_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "template_family_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "bundle_class": {
+      "enum": [
+        "full_five_role_core",
+        "tool_review_depth"
+      ]
+    },
+    "split": {
+      "enum": [
+        "train",
+        "eval_proxy"
+      ]
+    },
+    "language": {
+      "enum": [
+        "en",
+        "zh-CN"
+      ]
+    },
+    "tool_family": {
+      "$ref": "#/$defs/toolFamily"
+    },
+    "role": {
+      "$ref": "#/$defs/role"
+    },
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_index",
+        "work_order_id",
+        "source_blueprint_id",
+        "source_blueprint_line_sha256",
+        "source_task_bundle_sha256",
+        "source_task_semantic_sha256",
+        "source_manifest_sha256",
+        "source_partition_sha256",
+        "source_manifest_sidecar_physical_sha256"
+      ],
+      "properties": {
+        "family_index": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "work_order_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_blueprint_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_blueprint_line_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_task_semantic_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_partition_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_manifest_sidecar_physical_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "semantic_descriptor": {
+      "type": "object",
+      "minProperties": 6
+    },
+    "identity_alignment": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/identityAlignment"
+        }
+      ]
+    },
+    "source_user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content",
+        "content_sha256"
+      ],
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "content"
+          ],
+          "properties": {
+            "role": {
+              "const": "system"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "content"
+          ],
+          "properties": {
+            "role": {
+              "const": "user"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 131072
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assistant_text",
+        "format",
+        "output_sha256",
+        "normalized_fact_sha256"
+      ],
+      "properties": {
+        "assistant_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        },
+        "format": {
+          "enum": [
+            "chat_text",
+            "tool_call_result_grounded_answer_json",
+            "review_audit_json"
+          ]
+        },
+        "output_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normalized_fact_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        }
+      }
+    },
+    "route_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routing_plane",
+        "selected_role",
+        "single_total_to_branch",
+        "router_exits_after_selection",
+        "return_to_router",
+        "posthoc_aggregation",
+        "route_commit_sha256",
+        "plan_commit_sha256"
+      ],
+      "properties": {
+        "routing_plane": {
+          "enum": [
+            "emotion_style",
+            "task_stage",
+            "offline_review"
+          ]
+        },
+        "selected_role": {
+          "$ref": "#/$defs/role"
+        },
+        "single_total_to_branch": {
+          "const": true
+        },
+        "router_exits_after_selection": {
+          "const": true
+        },
+        "return_to_router": {
+          "const": false
+        },
+        "posthoc_aggregation": {
+          "const": false
+        },
+        "route_commit_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "plan_commit_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "tool_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "direct_no_tool",
+        "tool_schema_ref",
+        "tool_call",
+        "tool_result",
+        "grounded_answer",
+        "sandbox_receipt",
+        "call_sha256",
+        "result_sha256",
+        "grounded_answer_sha256",
+        "sandbox_receipt_sha256",
+        "actual_local_executions",
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "direct_no_tool": {
+          "type": "boolean"
+        },
+        "tool_schema_ref": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tool_call": {
+          "$ref": "#/$defs/nullableObject"
+        },
+        "tool_result": {
+          "$ref": "#/$defs/nullableObject"
+        },
+        "grounded_answer": {
+          "$ref": "#/$defs/nullableObject"
+        },
+        "sandbox_receipt": {
+          "$ref": "#/$defs/nullableObject"
+        },
+        "call_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "grounded_answer_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "sandbox_receipt_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "actual_local_executions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        }
+      }
+    },
+    "review_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "tool_record_id",
+        "tool_target_sha256",
+        "candidate_projection",
+        "candidate_projection_sha256",
+        "dependency_set_sha256",
+        "verdict",
+        "fault_type",
+        "corrected_output_sha256"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "tool_record_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^gemma3-chat-unbalanced-v2-final:[0-9a-f]{64}:tool_call$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tool_target_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "candidate_projection": {
+          "$ref": "#/$defs/nullableObject"
+        },
+        "candidate_projection_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "dependency_set_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "verdict": {
+          "oneOf": [
+            {
+              "enum": [
+                "pass",
+                "fail"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fault_type": {
+          "oneOf": [
+            {
+              "enum": [
+                "format_schema",
+                "tool_argument",
+                "evidence_mismatch",
+                "grounding_mismatch",
+                "routing_scope"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "corrected_output_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        }
+      }
+    },
+    "attention_specialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segments",
+        "ordered_segment_ids",
+        "ordered_segment_ids_sha256",
+        "prefix_lineage_sha256",
+        "allowed_context_intersection",
+        "salient_segment_ids",
+        "distractor_segment_ids",
+        "route_relevant_evidence_refs"
+      ],
+      "properties": {
+        "segments": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
+        },
+        "ordered_segment_ids": {
+          "$ref": "#/$defs/segmentIds"
+        },
+        "ordered_segment_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "prefix_lineage_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "allowed_context_intersection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "segment_ids",
+            "segment_ids_sha256",
+            "scope"
+          ],
+          "properties": {
+            "segment_ids": {
+              "$ref": "#/$defs/segmentIds"
+            },
+            "segment_ids_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "scope": {
+              "const": "identical_ordered_prefix_lineage_only"
+            }
+          }
+        },
+        "salient_segment_ids": {
+          "$ref": "#/$defs/segmentIds"
+        },
+        "distractor_segment_ids": {
+          "$ref": "#/$defs/segmentIds"
+        },
+        "route_relevant_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/contentRef"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "gemma_serialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "system_embedded_in_first_user_turn",
+        "prompt_sha256",
+        "full_example_sha256",
+        "raw_token_ids_persisted",
+        "tokenizer_called"
+      ],
+      "properties": {
+        "policy": {
+          "const": "gemma3_canonical_single_turn_v1"
+        },
+        "system_embedded_in_first_user_turn": {
+          "const": true
+        },
+        "prompt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "full_example_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "raw_token_ids_persisted": {
+          "const": false
+        },
+        "tokenizer_called": {
+          "const": false
+        }
+      }
+    },
+    "kv_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_plan_commits_immutable_and_hash_bound",
+        "producer_mode",
+        "adapter_state_on_prefix",
+        "single_shared_prefix_prefill",
+        "exact_reuse_scope",
+        "expert_private_tail_append_only",
+        "planner_live_private_kv_transfer",
+        "full_generation_kv_shared",
+        "current_physical_claim",
+        "persistent_zero_copy_verified",
+        "zero_copy_blocked_on",
+        "q8_kv_exact"
+      ],
+      "properties": {
+        "route_plan_commits_immutable_and_hash_bound": {
+          "const": true
+        },
+        "producer_mode": {
+          "const": "frozen_base_adapter_off_reencode_committed_route_and_plan"
+        },
+        "adapter_state_on_prefix": {
+          "const": "off"
+        },
+        "single_shared_prefix_prefill": {
+          "const": true
+        },
+        "exact_reuse_scope": {
+          "const": "identical_ordered_prefix_lineage_only"
+        },
+        "expert_private_tail_append_only": {
+          "const": true
+        },
+        "planner_live_private_kv_transfer": {
+          "const": false
+        },
+        "full_generation_kv_shared": {
+          "const": false
+        },
+        "current_physical_claim": {
+          "const": "prefill_compute_reuse"
+        },
+        "persistent_zero_copy_verified": {
+          "const": false
+        },
+        "zero_copy_blocked_on": {
+          "const": [
+            "data_ptr_identity",
+            "storage_identity",
+            "cache_identity"
+          ]
+        },
+        "q8_kv_exact": {
+          "const": false
+        }
+      }
+    },
+    "adapter_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_arm_neutral",
+        "role_policy",
+        "records_added_by_arms"
+      ],
+      "properties": {
+        "data_arm_neutral": {
+          "const": true
+        },
+        "role_policy": {
+          "enum": [
+            "q_only",
+            "tool_ablation_arm_neutral"
+          ]
+        },
+        "records_added_by_arms": {
+          "const": 0
+        }
+      }
+    },
+    "causal_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visibility_filter_before_serialization",
+        "visibility_filter_before_tokenization",
+        "current_target_absent_from_prompt",
+        "future_targets_absent_from_prompt",
+        "forbidden_segments_absent_from_prompt",
+        "unapproved_sibling_targets_absent",
+        "review_dependency_only_in_review_record"
+      ],
+      "properties": {
+        "visibility_filter_before_serialization": {
+          "const": true
+        },
+        "visibility_filter_before_tokenization": {
+          "const": true
+        },
+        "current_target_absent_from_prompt": {
+          "const": true
+        },
+        "future_targets_absent_from_prompt": {
+          "const": true
+        },
+        "forbidden_segments_absent_from_prompt": {
+          "const": true
+        },
+        "unapproved_sibling_targets_absent": {
+          "const": true
+        },
+        "review_dependency_only_in_review_record": {
+          "const": true
+        }
+      }
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullableObject": {
+      "oneOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "role": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit"
+      ]
+    },
+    "toolFamily": {
+      "enum": [
+        "local_catalog_search",
+        "structured_fact_lookup",
+        "calculator",
+        "unit_conversion",
+        "fixed_datetime_arithmetic",
+        "table_filter_sort",
+        "text_statistics",
+        "sandbox_file_metadata",
+        "micro_code_sandbox",
+        "schema_transform_validation"
+      ]
+    },
+    "segmentId": {
+      "type": "string",
+      "pattern": "^chat-segment-v1:[0-9a-f]{64}$"
+    },
+    "segmentIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/segmentId"
+      },
+      "uniqueItems": true
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "kind",
+        "content_sha256",
+        "causal_order",
+        "commit_state",
+        "cache_scope"
+      ],
+      "properties": {
+        "segment_id": {
+          "$ref": "#/$defs/segmentId"
+        },
+        "kind": {
+          "enum": [
+            "policy",
+            "task_request",
+            "route_or_review_context"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "causal_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "commit_state": {
+          "const": "committed"
+        },
+        "cache_scope": {
+          "const": "task_shared_prefix"
+        }
+      }
+    },
+    "contentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "segment_id": {
+          "$ref": "#/$defs/segmentId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "identityAlignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_core_carve",
+        "intent",
+        "case_context",
+        "stable_identity_fact",
+        "stable_fact_sha256",
+        "forbidden_attributions",
+        "tool_direct_no_tool",
+        "review_rejects_false_attribution",
+        "wrong_route_fact_sha256"
+      ],
+      "properties": {
+        "source_core_carve": {
+          "const": true
+        },
+        "intent": {
+          "enum": [
+            "direct_self_identity",
+            "provenance_fact_check",
+            "no_tool_identity_decision",
+            "pre_coding_attribution",
+            "false_attribution_correction"
+          ]
+        },
+        "case_context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stable_identity_fact": {
+          "const": "我是由Air训练的测试模型。"
+        },
+        "stable_fact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "forbidden_attributions": {
+          "const": [
+            "Google",
+            "OpenAI"
+          ]
+        },
+        "tool_direct_no_tool": {
+          "const": true
+        },
+        "review_rejects_false_attribution": {
+          "const": true
+        },
+        "wrong_route_fact_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate",
+        "final",
+        "diagnostic_only",
+        "proxy_only",
+        "training_authorized",
+        "formal_training_authorized",
+        "live_authorized",
+        "release_authorized",
+        "quality_validated",
+        "generalization_validated",
+        "replaces_v1",
+        "replaces_10k",
+        "replaces_luna",
+        "physical_kv_materialized",
+        "physical_zero_copy_verified"
+      ],
+      "properties": {
+        "candidate": {
+          "const": true
+        },
+        "final": {
+          "const": false
+        },
+        "diagnostic_only": {
+          "const": true
+        },
+        "proxy_only": {
+          "const": true
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "live_authorized": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        },
+        "quality_validated": {
+          "const": false
+        },
+        "generalization_validated": {
+          "const": false
+        },
+        "replaces_v1": {
+          "const": false
+        },
+        "replaces_10k": {
+          "const": false
+        },
+        "replaces_luna": {
+          "const": false
+        },
+        "physical_kv_materialized": {
+          "const": false
+        },
+        "physical_zero_copy_verified": {
+          "const": false
+        }
+      }
+    }
+  }
+}

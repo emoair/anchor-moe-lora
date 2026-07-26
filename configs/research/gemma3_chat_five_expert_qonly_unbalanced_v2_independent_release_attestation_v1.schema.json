@@ -1,0 +1,464 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation-v1.schema.json",
+  "title": "Gemma 3 Chat unbalanced v2 independent release attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "audit_status",
+    "artifact_lifecycle_status",
+    "namespace",
+    "artifact_version",
+    "canonical_artifact_path",
+    "producer_candidate_commit",
+    "reviewer_separation",
+    "findings",
+    "artifact",
+    "training_shards",
+    "logical_identity",
+    "git_authentication",
+    "integrity",
+    "resource_counters",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-independent-release-attestation.v3"
+    },
+    "audit_status": {
+      "const": "passed"
+    },
+    "artifact_lifecycle_status": {
+      "const": "candidate_pending_independent_release_review"
+    },
+    "namespace": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "artifact_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2-sharded.v3"
+    },
+    "canonical_artifact_path": {
+      "const": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3"
+    },
+    "producer_candidate_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "reviewer_separation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "reviewer_id",
+        "different_reviewer"
+      ],
+      "properties": {
+        "producer_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$"
+        },
+        "reviewer_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$"
+        },
+        "different_reviewer": {
+          "const": true
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p0",
+        "p1",
+        "p2"
+      ],
+      "properties": {
+        "p0": {
+          "const": 0
+        },
+        "p1": {
+          "const": 0
+        },
+        "p2": {
+          "const": 0
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files",
+        "tree_sha256",
+        "manifest_sha256",
+        "manifest_sidecar_physical_sha256",
+        "build_receipt_sha256",
+        "build_receipt_sidecar_physical_sha256",
+        "output_inventory_sha256",
+        "all_payload_sidecars_valid",
+        "all_files_below_50_mib"
+      ],
+      "properties": {
+        "files": {
+          "const": 46
+        },
+        "tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sidecar_physical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sidecar_physical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "all_payload_sidecars_valid": {
+          "const": true
+        },
+        "all_files_below_50_mib": {
+          "const": true
+        }
+      }
+    },
+    "training_shards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shard_count",
+        "ordered_paths",
+        "shards",
+        "ordered_concat_sha256",
+        "logical_partition_bytes",
+        "logical_partition_records",
+        "bundle_boundary_only"
+      ],
+      "properties": {
+        "shard_count": {
+          "const": 2
+        },
+        "ordered_paths": {
+          "const": [
+            "train/chat-00000-of-00002.jsonl",
+            "train/chat-00001-of-00002.jsonl"
+          ]
+        },
+        "shards": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/shard"
+          }
+        },
+        "ordered_concat_sha256": {
+          "const": "62c0f64b6d2f5a0901169480c946d554cc02175138862b3a210d06e44fcbddd3"
+        },
+        "logical_partition_bytes": {
+          "const": 59845314
+        },
+        "logical_partition_records": {
+          "const": 3440
+        },
+        "bundle_boundary_only": {
+          "const": true
+        }
+      }
+    },
+    "logical_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_dataset_sha256",
+        "logical_train_partition_sha256",
+        "eval_proxy_partition_sha256",
+        "logical_record_order_sha256",
+        "logical_target_inventory_sha256",
+        "logical_train_record_inventory_sha256",
+        "logical_all_record_inventory_sha256",
+        "logical_task_bundle_inventory_sha256",
+        "serialization_inventory_sha256",
+        "identity_probe_inventory_sha256"
+      ],
+      "properties": {
+        "logical_dataset_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_train_partition_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "eval_proxy_partition_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_record_order_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_target_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_train_record_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_all_record_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_task_bundle_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "serialization_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "identity_probe_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "git_authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_resolved_exactly",
+        "replace_refs_absent",
+        "grafts_absent",
+        "tracked_inventory_exact",
+        "commit_blobs_equal_physical_bytes",
+        "index_blobs_equal_physical_bytes",
+        "scoped_checkout_clean",
+        "lf_attributes_exact"
+      ],
+      "properties": {
+        "commit_resolved_exactly": {
+          "const": true
+        },
+        "replace_refs_absent": {
+          "const": true
+        },
+        "grafts_absent": {
+          "const": true
+        },
+        "tracked_inventory_exact": {
+          "const": true
+        },
+        "commit_blobs_equal_physical_bytes": {
+          "const": true
+        },
+        "index_blobs_equal_physical_bytes": {
+          "const": true
+        },
+        "scoped_checkout_clean": {
+          "const": true
+        },
+        "lf_attributes_exact": {
+          "const": true
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_bytes_snapshot",
+        "terminal_toctou_recheck",
+        "official_audit_passed",
+        "draft_2020_12_passed",
+        "create_once_attestation",
+        "atomic_attestation_sidecar_pair_publish",
+        "owned_sibling_staging_directory",
+        "atomic_directory_rename_no_replace",
+        "canonical_partial_pair_possible",
+        "recursive_cleanup_used",
+        "attestation_and_sidecar_attributes_preverified",
+        "attestation_outside_artifact_tree",
+        "old_candidate_superseded",
+        "old_candidate_consumable"
+      ],
+      "properties": {
+        "single_bytes_snapshot": {
+          "const": true
+        },
+        "terminal_toctou_recheck": {
+          "const": true
+        },
+        "official_audit_passed": {
+          "const": true
+        },
+        "draft_2020_12_passed": {
+          "const": true
+        },
+        "create_once_attestation": {
+          "const": true
+        },
+        "atomic_attestation_sidecar_pair_publish": {
+          "const": true
+        },
+        "owned_sibling_staging_directory": {
+          "const": true
+        },
+        "atomic_directory_rename_no_replace": {
+          "const": true
+        },
+        "canonical_partial_pair_possible": {
+          "const": false
+        },
+        "recursive_cleanup_used": {
+          "const": false
+        },
+        "attestation_and_sidecar_attributes_preverified": {
+          "const": true
+        },
+        "attestation_outside_artifact_tree": {
+          "const": true
+        },
+        "old_candidate_superseded": {
+          "const": true
+        },
+        "old_candidate_consumable": {
+          "const": false
+        }
+      }
+    },
+    "resource_counters": {
+      "$ref": "#/$defs/resources"
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "shard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "sha256",
+        "bytes",
+        "records",
+        "task_bundles"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "path": {
+          "enum": [
+            "train/chat-00000-of-00002.jsonl",
+            "train/chat-00001-of-00002.jsonl"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "task_bundles": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_requests",
+        "network_requests",
+        "model_loads",
+        "gpu_requests",
+        "protected_body_reads",
+        "gold_body_reads",
+        "heldout_body_reads",
+        "luna_requests"
+      ],
+      "properties": {
+        "provider_requests": {
+          "const": 0
+        },
+        "network_requests": {
+          "const": 0
+        },
+        "model_loads": {
+          "const": 0
+        },
+        "gpu_requests": {
+          "const": 0
+        },
+        "protected_body_reads": {
+          "const": 0
+        },
+        "gold_body_reads": {
+          "const": 0
+        },
+        "heldout_body_reads": {
+          "const": 0
+        },
+        "luna_requests": {
+          "const": 0
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_final_identity",
+        "independent_review_passed",
+        "training_authorized",
+        "formal_training_authorized",
+        "live_authorized",
+        "model_release_authorized",
+        "quality_validated",
+        "generalization_validated"
+      ],
+      "properties": {
+        "artifact_final_identity": {
+          "const": true
+        },
+        "independent_review_passed": {
+          "const": true
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal_training_authorized": {
+          "const": false
+        },
+        "live_authorized": {
+          "const": false
+        },
+        "model_release_authorized": {
+          "const": false
+        },
+        "quality_validated": {
+          "const": false
+        },
+        "generalization_validated": {
+          "const": false
+        }
+      }
+    }
+  }
+}

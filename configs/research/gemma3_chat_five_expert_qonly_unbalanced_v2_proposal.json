@@ -1,0 +1,674 @@
+{
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-proposal.v2",
+  "proposal_status": "pending_consumer_sync_no_materialization",
+  "claim_scope": "contract_only_diagnostic_non_authorizing",
+  "lineage": {
+    "predecessor_namespace": "gemma3_chat_five_expert_qonly_v1",
+    "predecessor_git_commit": "5a8343baa117f8ec2340debaa3fbc727ee993da2",
+    "predecessor_manifest_sha256": "e71fb5f239d7d1abb94ff50d5db2d57cfd101ccfad3c2c4e34cc128a7e91317b",
+    "replaces_existing": false,
+    "old_fixture_mutation_allowed": false
+  },
+  "paths": {
+    "proposal_config": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.json",
+    "proposal_schema": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.schema.json",
+    "generation_record_schema": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_record.schema.json",
+    "emotion_router_record_schema": "configs/research/gemma3_chat_emotion_router_qonly_v1_record.schema.json",
+    "comparison_identity_schema": "configs/research/gemma3_chat_tool_call_qo_comparison_identity_v1.schema.json",
+    "contract_validator": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_contract.py",
+    "generation_artifact": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2",
+    "emotion_router_artifact": "fixtures/research/gemma3_chat_emotion_router_qonly_v1",
+    "comparison_identity_artifact": "fixtures/research/gemma3_chat_tool_call_qo_comparison_identity_v1"
+  },
+  "generation_asset": {
+    "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+    "records": 4300,
+    "task_bundles": 1700,
+    "task_semantics": 1700,
+    "roles": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "emotion_router_is_sixth_expert": false,
+    "split": {
+      "group_key": "task_bundle_sha256",
+      "split_before_role_expansion": true,
+      "train_bundles": 1360,
+      "eval_proxy_bundles": 340,
+      "train_records": 3440,
+      "eval_proxy_records": 860,
+      "eval_proxy_is_heldout": false
+    },
+    "language": {
+      "en_bundles": 850,
+      "zh_cn_bundles": 850,
+      "en_records": 2150,
+      "zh_cn_records": 2150,
+      "translation_pairs": 0,
+      "cross_language_semantic_intersection": 0
+    },
+    "exact_language_split_cells": [
+      {
+        "language": "en",
+        "split": "train",
+        "full_five_role_core_bundles": 120,
+        "tool_review_depth_bundles": 560,
+        "humor_records": 120,
+        "serious_records": 120,
+        "angry_style_records": 120,
+        "tool_call_records": 680,
+        "review_audit_records": 680,
+        "total_bundles": 680,
+        "total_records": 1720
+      },
+      {
+        "language": "zh-CN",
+        "split": "train",
+        "full_five_role_core_bundles": 120,
+        "tool_review_depth_bundles": 560,
+        "humor_records": 120,
+        "serious_records": 120,
+        "angry_style_records": 120,
+        "tool_call_records": 680,
+        "review_audit_records": 680,
+        "total_bundles": 680,
+        "total_records": 1720
+      },
+      {
+        "language": "en",
+        "split": "eval_proxy",
+        "full_five_role_core_bundles": 30,
+        "tool_review_depth_bundles": 140,
+        "humor_records": 30,
+        "serious_records": 30,
+        "angry_style_records": 30,
+        "tool_call_records": 170,
+        "review_audit_records": 170,
+        "total_bundles": 170,
+        "total_records": 430
+      },
+      {
+        "language": "zh-CN",
+        "split": "eval_proxy",
+        "full_five_role_core_bundles": 30,
+        "tool_review_depth_bundles": 140,
+        "humor_records": 30,
+        "serious_records": 30,
+        "angry_style_records": 30,
+        "tool_call_records": 170,
+        "review_audit_records": 170,
+        "total_bundles": 170,
+        "total_records": 430
+      }
+    ],
+    "bundle_classes": {
+      "full_five_role_core": {
+        "bundles": 300,
+        "train_bundles": 240,
+        "eval_proxy_bundles": 60,
+        "en_bundles": 150,
+        "zh_cn_bundles": 150,
+        "records_per_bundle": 5
+      },
+      "tool_review_depth": {
+        "bundles": 1400,
+        "train_bundles": 1120,
+        "eval_proxy_bundles": 280,
+        "en_bundles": 700,
+        "zh_cn_bundles": 700,
+        "records_per_bundle": 2
+      }
+    },
+    "role_quota": {
+      "humor": {
+        "records": 300,
+        "train": 240,
+        "eval_proxy": 60,
+        "en": 150,
+        "zh_cn": 150
+      },
+      "serious": {
+        "records": 300,
+        "train": 240,
+        "eval_proxy": 60,
+        "en": 150,
+        "zh_cn": 150
+      },
+      "angry_style": {
+        "records": 300,
+        "train": 240,
+        "eval_proxy": 60,
+        "en": 150,
+        "zh_cn": 150
+      },
+      "tool_call": {
+        "records": 1700,
+        "train": 1360,
+        "eval_proxy": 340,
+        "en": 850,
+        "zh_cn": 850
+      },
+      "review_audit": {
+        "records": 1700,
+        "train": 1360,
+        "eval_proxy": 340,
+        "en": 850,
+        "zh_cn": 850
+      }
+    },
+    "tool_family_order": [
+      "local_catalog_search",
+      "structured_fact_lookup",
+      "calculator",
+      "unit_conversion",
+      "fixed_datetime_arithmetic",
+      "table_filter_sort",
+      "text_statistics",
+      "sandbox_file_metadata",
+      "micro_code_sandbox",
+      "schema_transform_validation"
+    ],
+    "per_tool_family_quota": {
+      "bundles": 170,
+      "core_bundles": 30,
+      "depth_bundles": 140,
+      "train_bundles": 136,
+      "eval_proxy_bundles": 34,
+      "en_bundles": 85,
+      "zh_cn_bundles": 85,
+      "tool_call_records": 170,
+      "review_audit_records": 170,
+      "template_families": 10
+    },
+    "per_tool_family_exact_language_split_cells": [
+      {
+        "language": "en",
+        "split": "train",
+        "core_bundles": 12,
+        "depth_bundles": 56,
+        "total_bundles": 68
+      },
+      {
+        "language": "zh-CN",
+        "split": "train",
+        "core_bundles": 12,
+        "depth_bundles": 56,
+        "total_bundles": 68
+      },
+      {
+        "language": "en",
+        "split": "eval_proxy",
+        "core_bundles": 3,
+        "depth_bundles": 14,
+        "total_bundles": 17
+      },
+      {
+        "language": "zh-CN",
+        "split": "eval_proxy",
+        "core_bundles": 3,
+        "depth_bundles": 14,
+        "total_bundles": 17
+      }
+    ],
+    "template_contract": {
+      "template_families": 100,
+      "template_families_per_tool_family": 10,
+      "semantic_instances_per_template_family": 17,
+      "eval_proxy_seen_template_interpolation_only": true,
+      "template_generalization_claimed": false,
+      "template_family_identity_language_neutral": true
+    },
+    "semantic_identity": {
+      "domain_tag": "anchor.gemma3-chat-task-semantic.v2",
+      "algorithm": "sha256(domain_tag_utf8 || 0x00 || rfc8785_jcs(canonical_descriptor))",
+      "canonical_descriptor_required_fields": [
+        "operation",
+        "typed_operands",
+        "constraints",
+        "expected_relation",
+        "tool_family",
+        "difficulty_factors"
+      ],
+      "excluded_fields": [
+        "namespace",
+        "language",
+        "role",
+        "split",
+        "seed",
+        "record_index",
+        "case_transform",
+        "evidence_id",
+        "source_path",
+        "hash_value"
+      ],
+      "prohibited_uniqueness_shortcuts": [
+        "hash_salting",
+        "index_salting",
+        "case_salting",
+        "evidence_salting",
+        "namespace_salting",
+        "language_salting",
+        "template_renaming"
+      ],
+      "semantic_ids_must_be_unique": true,
+      "descriptor_recomputation_required": true,
+      "zero_overlap_with_predecessor_v1_required": true,
+      "zero_overlap_with_emotion_router_asset_required": true
+    },
+    "tool_execution_contract": {
+      "execution_mode": "deterministic_local_synthetic_sandbox",
+      "actual_structured_calls": 1700,
+      "actual_local_tool_results": 1700,
+      "grounded_final_answers": 1700,
+      "fabricated_tool_results_allowed": false,
+      "network_allowed": false,
+      "provider_allowed": false,
+      "model_allowed": false,
+      "gpu_allowed": false,
+      "sandbox_receipt_required": true,
+      "tool_schema_call_result_answer_digest_chain_required": true,
+      "micro_code_uses_typed_semantic_parameters": true
+    },
+    "review_contract": {
+      "records": 1700,
+      "pass_records": 850,
+      "fail_records": 850,
+      "fail_fault_types": {
+        "format_schema": 170,
+        "tool_argument": 170,
+        "evidence_mismatch": 170,
+        "grounding_mismatch": 170,
+        "routing_scope": 170
+      },
+      "per_tool_family_pass": 85,
+      "per_tool_family_fail": 85,
+      "per_tool_family_each_fault_type": 17,
+      "same_bundle_tool_dependency_required": true,
+      "dependency_digest_recomputed": true,
+      "fail_rows_require_corrected_output": true,
+      "pass_rows_forbid_synthetic_fault": true,
+      "candidate_mutation_never_changes_tool_record": true,
+      "review_is_optional_offline_side_branch": true
+    },
+    "review_exact_marginals": {
+      "train_pass": 680,
+      "train_fail": 680,
+      "eval_proxy_pass": 170,
+      "eval_proxy_fail": 170,
+      "en_pass": 425,
+      "en_fail": 425,
+      "zh_cn_pass": 425,
+      "zh_cn_fail": 425,
+      "each_fault_type_train": 136,
+      "each_fault_type_eval_proxy": 34,
+      "each_fault_type_en": 85,
+      "each_fault_type_zh_cn": 85,
+      "per_family_train_en_pass_fail": [
+        34,
+        34
+      ],
+      "per_family_train_zh_cn_pass_fail": [
+        34,
+        34
+      ],
+      "per_family_eval_language_rotation": "even_family_en_9_8_zh_8_9_odd_family_en_8_9_zh_9_8"
+    }
+  },
+  "emotion_router_asset": {
+    "namespace": "gemma3_chat_emotion_router_qonly_v1",
+    "records": 100,
+    "task_semantics": 100,
+    "labels": [
+      "humor",
+      "serious",
+      "angry_style"
+    ],
+    "tool_call_is_label": false,
+    "review_audit_is_label": false,
+    "split": {
+      "train": 80,
+      "eval_proxy": 20,
+      "eval_proxy_is_heldout": false
+    },
+    "language": {
+      "en": 50,
+      "zh_cn": 50
+    },
+    "label_totals": {
+      "humor": 34,
+      "serious": 33,
+      "angry_style": 33
+    },
+    "exact_cells": [
+      {
+        "language": "en",
+        "split": "train",
+        "humor": 14,
+        "serious": 13,
+        "angry_style": 13
+      },
+      {
+        "language": "zh-CN",
+        "split": "train",
+        "humor": 13,
+        "serious": 13,
+        "angry_style": 14
+      },
+      {
+        "language": "en",
+        "split": "eval_proxy",
+        "humor": 3,
+        "serious": 4,
+        "angry_style": 3
+      },
+      {
+        "language": "zh-CN",
+        "split": "eval_proxy",
+        "humor": 4,
+        "serious": 3,
+        "angry_style": 3
+      }
+    ],
+    "required_record_fields": [
+      "record_id",
+      "task_semantic_sha256",
+      "semantic_descriptor",
+      "split",
+      "language",
+      "messages",
+      "user_message_sha256",
+      "user_emotion_evidence",
+      "target_expert_id",
+      "allowed_expert_ids",
+      "forbidden_expert_ids",
+      "concise_routing_rationale",
+      "attention_specialization",
+      "route_topology",
+      "claims"
+    ],
+    "answer_text_allowed": false,
+    "route_topology": {
+      "name": "single_router_then_single_expert_v1",
+      "planner_invocations_per_request": 1,
+      "router_decisions_per_request": 1,
+      "selected_experts_per_request": 1,
+      "router_exits_after_selection": true,
+      "selected_expert_generates_final_output": true,
+      "return_to_router_after_expert": false,
+      "router_rewrite_after_expert": false,
+      "router_vote_after_expert": false,
+      "router_aggregate_after_expert": false,
+      "review_required_in_main_path": false,
+      "review_allowed_as_offline_overlay": true
+    },
+    "eval_overlay": {
+      "training_rows_added": 0,
+      "eval_inputs": 20,
+      "arms_per_input": 3,
+      "execution_slots": 60,
+      "arms": [
+        "correct_route",
+        "wrong_route",
+        "no_router"
+      ],
+      "same_input_bytes_required": true,
+      "wrong_route_must_use_forbidden_expert": true,
+      "no_router_means_all_adapters_off": true,
+      "overlay_is_not_training_data": true,
+      "quality_claimed": false
+    },
+    "semantic_identity_domain_tag": "anchor.gemma3-chat-emotion-route-semantic.v1",
+    "semantic_identity": {
+      "domain_tag": "anchor.gemma3-chat-emotion-route-semantic.v1",
+      "algorithm": "sha256(domain_tag_utf8 || 0x00 || rfc8785_jcs(canonical_descriptor))",
+      "canonical_descriptor_required_fields": [
+        "operation",
+        "input_affect",
+        "observable_cues",
+        "requested_tone",
+        "stakes",
+        "target_expert_relation"
+      ],
+      "excluded_fields": [
+        "namespace",
+        "language",
+        "split",
+        "seed",
+        "record_index",
+        "case_transform",
+        "evidence_id",
+        "source_path",
+        "hash_value"
+      ],
+      "prohibited_uniqueness_shortcuts": [
+        "hash_salting",
+        "index_salting",
+        "case_salting",
+        "evidence_salting",
+        "namespace_salting",
+        "language_salting",
+        "template_renaming"
+      ],
+      "semantic_ids_must_be_unique": true,
+      "descriptor_recomputation_required": true
+    },
+    "zero_overlap_with_generation_asset_required": true,
+    "zero_overlap_with_predecessor_v1_required": true
+  },
+  "segment_attention_contract": {
+    "schema_version": "anchor.chat-qonly-attention-specialization.v1",
+    "digest_domains": {
+      "ordered_segment_ids": "anchor.ordered-segment-ids.v1",
+      "allowed_context_intersection": "anchor.allowed-context-intersection.v1",
+      "router_semantic": "anchor.gemma3-chat-emotion-route-semantic.v1",
+      "route_evidence_set": "anchor.route-evidence-set.v1",
+      "review_dependency": "anchor.review-tool-dependency.v2",
+      "task_template_pair": "anchor.task-template-pair.v1"
+    },
+    "required_record_fields": [
+      "ordered_segment_ids",
+      "ordered_segment_ids_sha256",
+      "prefix_lineage_sha256",
+      "allowed_context_intersection",
+      "salient_segment_ids",
+      "distractor_segment_ids",
+      "route_relevant_evidence_refs",
+      "private_tail_contract"
+    ],
+    "segment_id_domain": "anchor.chat-visible-segment.v1",
+    "visibility_filter_before_serialization": true,
+    "visibility_filter_before_tokenization": true,
+    "current_target_segments_allowed": false,
+    "future_segments_allowed": false,
+    "forbidden_segments_allowed": false,
+    "target_text_in_shared_prefix_allowed": false,
+    "salient_and_distractor_disjoint": true,
+    "salient_subset_of_allowed_context_intersection": true,
+    "distractor_subset_of_allowed_context_intersection": true,
+    "route_relevant_evidence_refs_must_resolve_to_salient": true,
+    "causal_distractors_may_be_used_for_specialization": true,
+    "allowed_context_intersection_scope": "all_possible_consumers_of_the_identical_pre_route_prefix",
+    "shared_prefix": {
+      "producer": "adapter_off_frozen_base",
+      "ordered_prefix_lineage_required": true,
+      "exact_reuse_scope": "identical_token_order_positions_rope_and_prefix_lineage_only",
+      "generated_once_per_identical_lineage_claim": true,
+      "independent_segment_concatenation_allowed": false
+    },
+    "expert_read": {
+      "q_adapter_activation": "after_single_route_boundary_only",
+      "q_independent_per_selected_expert": true,
+      "kv_from_shared_prefix_read_only": true
+    },
+    "private_tail": {
+      "required": true,
+      "append_only": true,
+      "includes_post_route_prompt_tokens": true,
+      "includes_generated_tokens": true,
+      "cross_expert_reuse_allowed": false,
+      "committed_text_requires_frozen_base_reencode_for_downstream_share": true
+    },
+    "forbidden_claims": {
+      "ordinary_in_stack_full_layer_kv_exact_sharing": true,
+      "full_generation_kv_cross_expert_exact_sharing": true,
+      "q_only_sufficient_for_full_stack_exact_reuse": true,
+      "mask_after_forbidden_prefill_is_safe": true,
+      "physical_kv_tensor_backend_implemented": true
+    }
+  },
+  "comparison_handoff": {
+    "status": "preregistered_execution_overlay_after_dataset_final",
+    "data_rows_added": 0,
+    "data_schema_depends_on_adapter_arm": false,
+    "target_role": "tool_call",
+    "primary_arm": "q_only",
+    "controlled_arm": "q_plus_o",
+    "o_proj_lr_ratio_to_q_proj": 0.1,
+    "matched_dimensions": [
+      "base_model_identity",
+      "record_inventory_sha256",
+      "split_inventory_sha256",
+      "record_order_sha256",
+      "target_inventory_sha256",
+      "steps",
+      "seeds",
+      "optimizer_family",
+      "optimizer_budget"
+    ],
+    "arm_receipt_required_fields": [
+      "arm_id",
+      "q_rank",
+      "q_trainable_params",
+      "q_learning_rate",
+      "q_optimizer_state_sha256",
+      "o_rank",
+      "o_trainable_params",
+      "o_learning_rate",
+      "o_optimizer_state_sha256"
+    ],
+    "body_free_identity_required_fields": [
+      "task_semantic_sha256",
+      "template_family_sha256",
+      "task_template_pair_sha256",
+      "typed_parameter_instance_sha256",
+      "stratum",
+      "source_inventory_sha256"
+    ],
+    "strata": [
+      "same_template_new_parameters",
+      "old_task_new_template",
+      "completely_new_task"
+    ],
+    "current_dataset_directly_materializes_strata": [
+      "same_template_new_parameters"
+    ],
+    "future_overlay_identity_only_until_materialized": [
+      "old_task_new_template",
+      "completely_new_task"
+    ],
+    "metrics": [
+      "structured_schema_validity",
+      "tool_selection_accuracy",
+      "argument_accuracy",
+      "result_grounding",
+      "wrong_route_rate"
+    ],
+    "preregistered_risk_rule": "if_q_plus_o_improves_train_or_same_template_but_harms_old_task_new_template_or_completely_new_task_then_template_writeback_memorization_risk",
+    "q_plus_o_default_promotion_allowed": false,
+    "training_authorized": false
+  },
+  "serial_work_order_state_machine": {
+    "schema_version": "anchor.serial-data-work-orders.v1",
+    "active_generation_agents_max": 1,
+    "nested_agents_allowed": false,
+    "generator_may_self_review": false,
+    "generator_and_reviewer_identity_must_differ": true,
+    "next_work_order_requires_independent_review_pass": true,
+    "hashes_are_not_final_until_release_audit": true,
+    "ordered_phases": [
+      {
+        "phase": "contract_proposal",
+        "work_orders": 1,
+        "records_materialized": 0
+      },
+      {
+        "phase": "consumer_contract_sync_gate",
+        "work_orders": 1,
+        "records_materialized": 0
+      },
+      {
+        "phase": "semantic_blueprints_by_tool_family",
+        "work_orders": 10,
+        "records_materialized": 0
+      },
+      {
+        "phase": "style_role_humor",
+        "work_orders": 1,
+        "records_materialized": 300
+      },
+      {
+        "phase": "style_role_serious",
+        "work_orders": 1,
+        "records_materialized": 300
+      },
+      {
+        "phase": "style_role_angry_style",
+        "work_orders": 1,
+        "records_materialized": 300
+      },
+      {
+        "phase": "tool_call_by_tool_family",
+        "work_orders": 10,
+        "records_materialized": 1700
+      },
+      {
+        "phase": "review_audit_by_tool_family",
+        "work_orders": 10,
+        "records_materialized": 1700
+      },
+      {
+        "phase": "emotion_router_asset",
+        "work_orders": 1,
+        "records_materialized": 100
+      },
+      {
+        "phase": "final_atomic_rebuild_without_content_edits",
+        "work_orders": 1,
+        "records_materialized": 0
+      },
+      {
+        "phase": "independent_release_audit",
+        "work_orders": 1,
+        "records_materialized": 0
+      }
+    ],
+    "review_receipt_required_after_every_generation_work_order": true,
+    "final_publish_requires_all_review_receipts": true,
+    "luna_queue_may_start": false
+  },
+  "resource_counters": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "protected_body_reads": 0,
+    "gold_body_reads": 0,
+    "heldout_body_reads": 0,
+    "luna_requests": 0
+  },
+  "claims": {
+    "proposal_only": true,
+    "records_materialized": false,
+    "schemas_final": false,
+    "consumer_synced": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "release_authorized": false,
+    "quality_validated": false,
+    "physical_kv_materialized": false,
+    "full_generation_kv_shared_claimed": false
+  }
+}

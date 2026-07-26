@@ -1,0 +1,77 @@
+{
+  "amendment_id": "identity_ablation_shared_prefix_v1",
+  "claims": {
+    "contract_only": true,
+    "formal_training_authorized": false,
+    "independent_audit_passed": false,
+    "records_materialized": false,
+    "release_authorized": false,
+    "training_authorized": false
+  },
+  "counts": {
+    "identity_bundles": 30,
+    "identity_eval_probe_records": 50,
+    "planner_eval_tasks": 240,
+    "records_materialized": 0,
+    "tool_eval_tasks": 400
+  },
+  "files": [
+    {
+      "bytes": 14025,
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.json",
+      "sha256": "abbbf8b35656e2344ac827cede779a5f5bc448551b4e31f98a8450fa27d77081"
+    },
+    {
+      "bytes": 22339,
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.schema.json",
+      "sha256": "6b4cee95865a02db0332a37076152d1dfbb8faf73ab21b39b04df3f27e8e354b"
+    },
+    {
+      "bytes": 5255,
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_comparison_eval_identity_record.schema.json",
+      "sha256": "6377e4eddd4a9d2907f20c9f8c61f7fa77c155eb3030d2cc1d7b2566bdcddb2b"
+    },
+    {
+      "bytes": 8411,
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_shared_route_prefix_kv_receipt.schema.json",
+      "sha256": "32aebb8a20139308de4b8a070970f3f3ec93a41db6393de865219e837d198d5c"
+    },
+    {
+      "bytes": 3622,
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_identity_ablation_shared_prefix_amendment_manifest.schema.json",
+      "sha256": "a18584545ac5d94477ca3baf99032411023b789ca621a51eea290abb1681903a"
+    },
+    {
+      "bytes": 24955,
+      "path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_amendment.py",
+      "sha256": "1ac788bb79c713eb4b9cb7397a4f8bf5073d1725fcc13a915eb022f7250049dd"
+    },
+    {
+      "bytes": 12821,
+      "path": "tests/test_gemma3_chat_unbalanced_v2_amendment.py",
+      "sha256": "a6284bde592ceac7bdfd3b9a867ea9b97b41020ee33226637049cbdfe96aa28e"
+    },
+    {
+      "bytes": 4724,
+      "path": "docs/research/gemma3_chat_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.md",
+      "sha256": "714a83c66e66e1cfd8006b4dd50c6c1bbb2879a05f84e167dd1769b76236401a"
+    },
+    {
+      "bytes": 4344,
+      "path": "docs/research/gemma3_chat_unbalanced_v2_identity_ablation_shared_prefix_amendment_v1.zh-CN.md",
+      "sha256": "80624644480cf302b2ff179986421d4ecb9ec905273b52a2b31f8717070a3c68"
+    }
+  ],
+  "resource_counters": {
+    "gold_body_reads": 0,
+    "gpu_requests": 0,
+    "heldout_body_reads": 0,
+    "luna_requests": 0,
+    "model_loads": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0
+  },
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-amendment-contract-manifest.v1",
+  "status": "candidate_pending_independent_audit"
+}

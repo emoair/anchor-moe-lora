@@ -1,0 +1,298 @@
+{
+  "claims": {
+    "chat_rows_materialized": false,
+    "final": false,
+    "formal_training_authorized": false,
+    "independent_audit_passed": false,
+    "records_materialized": false,
+    "training_authorized": false,
+    "work_order_candidate": true
+  },
+  "counts": {
+    "blueprints": 170,
+    "cell_counts": {
+      "en_eval_proxy_core": 3,
+      "en_eval_proxy_depth": 14,
+      "en_train_core": 12,
+      "en_train_depth": 56,
+      "zh_cn_eval_proxy_core": 3,
+      "zh_cn_eval_proxy_depth": 14,
+      "zh_cn_train_core": 12,
+      "zh_cn_train_depth": 56
+    },
+    "chat_rows_materialized": 0,
+    "core_bundles": 30,
+    "depth_bundles": 140,
+    "en_bundles": 85,
+    "en_eval_proxy": 17,
+    "en_train": 68,
+    "eval_proxy_bundles": 34,
+    "instances_per_template_family": 17,
+    "records_materialized": 0,
+    "task_bundles": 170,
+    "task_semantics": 170,
+    "template_families": 10,
+    "train_bundles": 136,
+    "translation_pairs": 0,
+    "zh_cn_bundles": 85,
+    "zh_cn_eval_proxy": 17,
+    "zh_cn_train": 68
+  },
+  "datetime_contract": {
+    "all_answers_recomputed": true,
+    "calendar": "proleptic_gregorian",
+    "dst_rules": "forbidden",
+    "fixed_offset_max_absolute_hours": 14,
+    "fixed_offsets_only": true,
+    "input_format": "strict_iso_8601_ascii",
+    "instances_per_operation": 17,
+    "interpreter": "python_datetime_date_timedelta_calendar_pure_local_deterministic",
+    "interval_boundary": "closed_open_start_inclusive_end_exclusive",
+    "locale_parsing": "forbidden",
+    "month_clamp_policy": "last_valid_day",
+    "one_answer_per_blueprint": true,
+    "operations": 10,
+    "precision": "date_or_minute_as_operation",
+    "rounding": "none",
+    "wall_clock_now": "forbidden",
+    "zone_database": "forbidden"
+  },
+  "grounding_contract": {
+    "chat_serializer_called": false,
+    "evidence_refs_resolve": true,
+    "grounding_projections_resolve": true,
+    "segment_refs_resolve": true,
+    "synthetic_local_results_parseable": true,
+    "tokenizer_called": false,
+    "tool_args_parseable": true,
+    "visibility_filter_before_blueprint_serialization": true
+  },
+  "integrity_gates": {
+    "atomic_directory_publish_no_replace": true,
+    "bytes_hash_stat_reauthenticated_before_rename": true,
+    "exact_inventory_reauthenticated_before_rename": true,
+    "final_toctou_recheck": true,
+    "mandatory_manifest_sha256_sidecar": true,
+    "post_rename_anomaly_preserves_diagnostic_tree": true,
+    "published_identity_inheritance_verified": true,
+    "single_bytes_snapshot_for_hash_parse_count": true,
+    "staged_file_snapshots_persisted": true,
+    "stat_identity_rechecked": true
+  },
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2_fixed_datetime_arithmetic_family05",
+  "negative_fixtures": [
+    {
+      "expected_validation": "reject",
+      "path": "negative/invalid_iso_date.json",
+      "rejection_code": "invalid_iso_date",
+      "sha256": "c04a45173cee84ca332ddc5085994530989aeeafb09016c0b1b2e69963ba7ff5"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/forbidden_zone_name_or_dst.json",
+      "rejection_code": "forbidden_zone_name_or_dst",
+      "sha256": "911739868f6d158a600abe348607ae41ac59658309cff28ea38b479399178d43"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/ambiguous_locale_datetime.json",
+      "rejection_code": "ambiguous_locale_datetime",
+      "sha256": "5b28c88119d9d9fe351ec0e3133fb0f12c991929dd4fd8e448c28bbb1b1ace65"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/invalid_fixed_offset.json",
+      "rejection_code": "invalid_fixed_offset",
+      "sha256": "b8c8948e112da8bd5ff7504aa128969943bdcea3ccb525564f1b66484dcfaaf1"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/month_clamp_policy_missing.json",
+      "rejection_code": "month_clamp_policy_missing",
+      "sha256": "ba280db1749c77879ce23c66bc039c056de61ab8de9fe1cc8973f73163d5297d"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/interval_boundary_policy_missing.json",
+      "rejection_code": "interval_boundary_policy_missing",
+      "sha256": "72437875002b2256914ee6728f0b8b16f73fd05e477c75d6c5f780ed15e0f761"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/required_operand_missing.json",
+      "rejection_code": "required_operand_missing",
+      "sha256": "b0389ee592cdd026ea7a77179193675ebaf0f95f7930a54fb4d2f5d3fd5767ac"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/datetime_result_mismatch.json",
+      "rejection_code": "datetime_result_mismatch",
+      "sha256": "00ba9f0c4aac47771144a6ec9ea6fb4cb4c54520c1a8b39326b907f1bb281740"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/grounding_reference_drift.json",
+      "rejection_code": "grounding_reference_drift",
+      "sha256": "635248dd601af54403dcd436c26100b25537ac4aea6520b3ee308c4afd37da5e"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/visible_target_leak.json",
+      "rejection_code": "visible_target_leak",
+      "sha256": "97733177367b51659e346965af703ec08fdcfe194c4a2034e3ec77898912981f"
+    },
+    {
+      "expected_validation": "reject",
+      "path": "negative/language_split_quota_drift.json",
+      "rejection_code": "language_quota_mismatch",
+      "sha256": "404729f5a15890fc5c765f04c08f6f8a0e74ad0aabcc40a21b853ba3e97c5d36"
+    }
+  ],
+  "partition": {
+    "blueprints": 170,
+    "bytes": 1656562,
+    "chat_rows_materialized": 0,
+    "path": "semantic_blueprints.jsonl",
+    "records_materialized": 0,
+    "sha256": "cf1001a48be9d1489e6b0919f7581fcb31287244abdb1c14704f37a947e2aba1"
+  },
+  "producer": {
+    "config_path": "configs/research/gemma3_chat_unbalanced_v2_fixed_datetime_arithmetic_work_order_v1.json",
+    "config_sha256": "b4ab9df79204649ef1b70225d0e09697d1a1dcff5b847fa72b46b0a710f99e68",
+    "implementation_path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_fixed_datetime_arithmetic.py",
+    "implementation_sha256": "58edef45dd344a61788f17db111c9c1b94e79cc2ded5661e6818125afa7d2a36",
+    "manifest_schema_path": "configs/research/gemma3_chat_unbalanced_v2_fixed_datetime_arithmetic_work_order_manifest.schema.json",
+    "manifest_schema_sha256": "4500505e1691da2131f21743178d57d5b7586b4facb594b845a1fff7f4158690",
+    "record_schema_path": "configs/research/gemma3_chat_unbalanced_v2_fixed_datetime_arithmetic_work_order_record.schema.json",
+    "record_schema_sha256": "68c4557fdf201588aeed9b86ecc04f5c715675e0a90ec711c829983f1302967a",
+    "test_path": "tests/test_gemma3_chat_unbalanced_v2_fixed_datetime_arithmetic.py",
+    "test_sha256": "27dd109dd0f39b3e4f61c774abf03faa80c5a1f0f52db26ee01fb33798499502"
+  },
+  "resource_counters": {
+    "gold_body_reads": 0,
+    "gpu_requests": 0,
+    "heldout_body_reads": 0,
+    "luna_requests": 0,
+    "model_loads": 0,
+    "network_requests": 0,
+    "protected_body_reads": 0,
+    "provider_requests": 0
+  },
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-fixed-datetime-arithmetic-work-order-manifest.v1",
+  "schemas": {
+    "draft": "2020-12",
+    "manifest_schema_sha256": "4500505e1691da2131f21743178d57d5b7586b4facb594b845a1fff7f4158690",
+    "record_schema_sha256": "68c4557fdf201588aeed9b86ecc04f5c715675e0a90ec711c829983f1302967a"
+  },
+  "semantic_identity_contract": {
+    "algorithm": "sha256(domain_tag_utf8 || 0x00 || rfc8785_jcs(canonical_descriptor))",
+    "bundle_domain": "anchor.gemma3-chat-task-bundle.v2",
+    "descriptor_fields": [
+      "operation",
+      "typed_operands",
+      "constraints",
+      "expected_relation",
+      "tool_family",
+      "difficulty_factors"
+    ],
+    "descriptor_recomputed": true,
+    "en_zh_intersection": 0,
+    "excluded_fields": [
+      "arm",
+      "case_transform",
+      "evidence_id",
+      "hash_value",
+      "language",
+      "namespace",
+      "noise",
+      "record_index",
+      "role",
+      "seed",
+      "source_path",
+      "split",
+      "template_family_name",
+      "view"
+    ],
+    "forbidden_uniqueness_shortcuts": [
+      "hash_salting",
+      "index_salting",
+      "case_salting",
+      "evidence_salting",
+      "namespace_salting",
+      "language_salting",
+      "template_renaming"
+    ],
+    "semantic_domain": "anchor.gemma3-chat-task-semantic.v2",
+    "semantic_ids_unique": true,
+    "translation_pairs": 0
+  },
+  "split_contract": {
+    "class_rank": "ascending_task_bundle_sha256_within_language_split_cell",
+    "eval_proxy_is_heldout": false,
+    "group_key": "task_bundle_sha256",
+    "preimage_forbidden_fields": [
+      "role",
+      "view",
+      "arm",
+      "noise",
+      "language"
+    ],
+    "split_before_role_expansion": true,
+    "split_before_view_expansion": true,
+    "split_rank": "ascending_task_bundle_sha256_within_language"
+  },
+  "status": "candidate_pending_different_reviewer",
+  "tool_family": "fixed_datetime_arithmetic",
+  "upstream_pass_identities": [
+    {
+      "dependency_id": "unbalanced_v2_proposal",
+      "path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.json",
+      "required_review_outcome": "PASS",
+      "schema_path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.schema.json",
+      "schema_sha256": "bdf13057fe30612ca9848beefd0e3d24f9244c2670f5478c419bcb2c6a348142",
+      "sha256": "37df3a7a47c5e47365473ff0f82c267c8cdfd6f68830f2434f18df432ed524d0"
+    },
+    {
+      "dependency_id": "identity_ablation_shared_prefix_amendment_v1",
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json",
+      "required_review_outcome": "PASS",
+      "sha256": "269098db8106b1bdba141ec364cde8edbf13fac8f87ddec0e7b8091973efe7e9",
+      "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/amendments/identity_ablation_shared_prefix_v1_candidate/manifest.json.sha256"
+    },
+    {
+      "dependency_id": "family_01_local_catalog_search",
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate/manifest.json",
+      "required_review_outcome": "PASS",
+      "sha256": "30bdac46d57bff70cd62f9ecfb15e582d8c602b4af094dc46fb22072df3bea17",
+      "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/01_local_catalog_search_candidate/manifest.json.sha256"
+    },
+    {
+      "dependency_id": "family_02_structured_fact_lookup_v2",
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2/manifest.json",
+      "required_review_outcome": "PASS",
+      "sha256": "8c05f39ff472d01f72fcff040a87435f52cc38f4db74f75092657b9af3163705",
+      "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate_v2/manifest.json.sha256",
+      "supersedes": {
+        "must_not_be_consumed": true,
+        "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/02_structured_fact_lookup_candidate/manifest.json",
+        "sha256": "c156e0ad2cb44d2ac4b36f321b71e969f72935a07c014035a8a9e30dd1dc2676",
+        "status": "superseded_due_to_pre_publish_staging_toctou_gap"
+      }
+    },
+    {
+      "dependency_id": "family_03_calculator",
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate/manifest.json",
+      "required_review_outcome": "PASS",
+      "sha256": "3339f14f572b7f377667c31b4c79ec842fa2c636d3574dc0a6a3157d4fbabf18",
+      "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/03_calculator_candidate/manifest.json.sha256"
+    },
+    {
+      "dependency_id": "family_04_unit_conversion",
+      "path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate/manifest.json",
+      "required_review_outcome": "PASS",
+      "sha256": "c16b62d445b9daad936a1cb45f8eded68865295854291d952b64ed4387ef5130",
+      "sidecar_path": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_v2/work_orders/04_unit_conversion_candidate/manifest.json.sha256"
+    }
+  ],
+  "work_order_id": "anchor.gemma3-chat-unbalanced-v2.semantic-blueprints.fixed-datetime-arithmetic.05"
+}

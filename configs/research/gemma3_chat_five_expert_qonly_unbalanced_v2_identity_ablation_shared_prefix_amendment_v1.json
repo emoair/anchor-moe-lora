@@ -1,0 +1,461 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2.identity-ablation-shared-prefix-amendment.v1",
+  "status": "candidate_pending_independent_audit",
+  "namespace": "gemma3_chat_five_expert_qonly_unbalanced_v2",
+  "replaces_existing": false,
+  "base_contract_binding": {
+    "proposal_path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.json",
+    "proposal_sha256": "37df3a7a47c5e47365473ff0f82c267c8cdfd6f68830f2434f18df432ed524d0",
+    "proposal_schema_path": "configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_proposal.schema.json",
+    "proposal_schema_sha256": "bdf13057fe30612ca9848beefd0e3d24f9244c2670f5478c419bcb2c6a348142",
+    "validator_path": "src/anchor_mvp/research/gemma3_chat_unbalanced_v2_contract.py",
+    "validator_sha256": "46242bb7eff516d907951299d784631666d361138fe345277ef9492ba160f514"
+  },
+  "identity_alignment": {
+    "namespace": "gemma3_chat_unbalanced_v2_identity_alignment_v1",
+    "source_pool": "full_five_role_core",
+    "source_pool_bundles": 300,
+    "identity_bundles": 30,
+    "train_bundles": 20,
+    "eval_proxy_bundles": 10,
+    "en_bundles": 15,
+    "zh_cn_bundles": 15,
+    "rows_added_to_4300": 0,
+    "derived_role_records": 150,
+    "eval_identity_probe_records": 50,
+    "roles": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "stable_identity_fact": "我是由Air训练的测试模型。",
+    "forbidden_attributions": [
+      "Google",
+      "OpenAI",
+      "谷歌"
+    ],
+    "intent_matrix": {
+      "direct_self_identity": {
+        "bundles": 6,
+        "train": 4,
+        "eval_proxy": 2,
+        "en": 3,
+        "zh_cn": 3
+      },
+      "provenance_fact_check": {
+        "bundles": 6,
+        "train": 4,
+        "eval_proxy": 2,
+        "en": 3,
+        "zh_cn": 3
+      },
+      "no_tool_identity_decision": {
+        "bundles": 6,
+        "train": 4,
+        "eval_proxy": 2,
+        "en": 3,
+        "zh_cn": 3
+      },
+      "pre_coding_attribution": {
+        "bundles": 6,
+        "train": 4,
+        "eval_proxy": 2,
+        "en": 3,
+        "zh_cn": 3
+      },
+      "false_attribution_correction": {
+        "bundles": 6,
+        "train": 4,
+        "eval_proxy": 2,
+        "en": 3,
+        "zh_cn": 3
+      }
+    },
+    "tool_call_behavior": "direct_answer_no_tool",
+    "review_behavior": "verify_identity_fact_and_reject_false_attribution",
+    "emotion_router_default": {
+      "target_expert_id": "serious",
+      "decision": "direct_answer",
+      "router_runs_once_then_exits": true
+    },
+    "explicit_wrong_route_identity_fact_must_remain_equal": true,
+    "bundle_split_before_role_expansion": true,
+    "train_eval_semantics_disjoint": true,
+    "metrics": [
+      "identity_probe_records",
+      "exact_core_consistency",
+      "false_attribution_rejection",
+      "tool_abstention",
+      "wrong_route_identity_consistency"
+    ]
+  },
+  "gemma3_parameter_shape": {
+    "model_family": "Gemma3 1B",
+    "text_layers": 26,
+    "q_proj_shape": [
+      1024,
+      1152
+    ],
+    "o_proj_shape": [
+      1152,
+      1024
+    ],
+    "k_proj_shape": [
+      256,
+      1152
+    ],
+    "v_proj_shape": [
+      256,
+      1152
+    ],
+    "sliding_attention_layers": 22,
+    "full_attention_layers": 4,
+    "sliding_window": 512,
+    "q_proj_in_plus_out_features": 2176,
+    "o_proj_in_plus_out_features": 2176,
+    "q_plus_micro_o_trainable_params": 61554688,
+    "formula": "layers * rank * (in_features + out_features)",
+    "physical_shape_mismatch_policy": "fail_closed_recompute"
+  },
+  "tool_ablation": {
+    "target_role": "tool_call",
+    "primary_arm": "tool_q_only",
+    "final_arms": [
+      "base",
+      "tool_q_only",
+      "tool_q_plus_micro_o"
+    ],
+    "q_branch": {
+      "target_modules": [
+        "q_proj"
+      ],
+      "rank": 1024,
+      "alpha": 2048,
+      "scaling": 2,
+      "trainable_params": 57933824
+    },
+    "micro_o_branch": {
+      "target_modules": [
+        "o_proj"
+      ],
+      "rank": 64,
+      "alpha": 128,
+      "scaling": 2,
+      "trainable_params": 3620864,
+      "max_rank_ratio_numerator": 1,
+      "max_rank_ratio_denominator": 16,
+      "max_param_ratio_numerator": 1,
+      "max_param_ratio_denominator": 16,
+      "max_lr_ratio_numerator": 1,
+      "max_lr_ratio_denominator": 10,
+      "frozen_base_o_proj_unchanged": true
+    },
+    "records_added_by_arms": 0,
+    "matched_dimensions": [
+      "base_model_identity",
+      "record_inventory_sha256",
+      "split_inventory_sha256",
+      "record_order_sha256",
+      "target_inventory_sha256",
+      "steps",
+      "seeds",
+      "optimizer_family",
+      "optimizer_budget"
+    ],
+    "only_lora_o_proj_sidepath_enabled": true,
+    "default_promotion_allowed": false
+  },
+  "planner_ablation": {
+    "component_kind": "independent_router_planner_lora_not_output_expert",
+    "topology": "single_total_to_branch_then_router_exits",
+    "review_is_offline_optional_sidepath": true,
+    "final_arms": [
+      "base",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "q_branch_ref": "#/tool_ablation/q_branch",
+    "micro_o_branch_ref": "#/tool_ablation/micro_o_branch",
+    "planner_o_only_uses_exact_same_micro_o_branch": true,
+    "planner_o_only_purpose": "fixed_json_or_dead_command_template_writeback_probe",
+    "planner_o_only_default_winner_allowed": false,
+    "active_budget_matched_interpretation_required": true,
+    "per_arm_parameter_report_fields": [
+      "active_q_params",
+      "active_o_params",
+      "stored_q_params",
+      "stored_o_params",
+      "optimizer_state_params"
+    ],
+    "matched_dimensions": [
+      "data_identity",
+      "record_order_sha256",
+      "steps",
+      "seeds",
+      "optimizer_family",
+      "optimizer_config"
+    ],
+    "existing_router_training_asset": {
+      "records": 100,
+      "train": 80,
+      "eval_proxy": 20,
+      "en": 50,
+      "zh_cn": 50,
+      "label_counts": {
+        "humor": 34,
+        "serious": 33,
+        "angry_style": 33
+      },
+      "rows_may_expand_without_new_contract": false
+    },
+    "semantic_descriptor_variables": [
+      "emotion",
+      "task_type",
+      "tool_need",
+      "risk",
+      "urgency",
+      "conflicting_cues"
+    ],
+    "structured_output_fields": [
+      "emotion_route",
+      "task_type",
+      "tool_required",
+      "risk_level",
+      "ordered_plan_steps",
+      "dependency_edges",
+      "acceptance_conditions"
+    ],
+    "five_route_planning_status": "blocked_existing_100_rows_insufficient_pending_explicit_quota",
+    "execution_authorized": false
+  },
+  "ablation_execution_contract": {
+    "q_initialization_equal_between_q_only_and_q_plus_micro_o": true,
+    "o_initialization_equal_between_o_only_and_q_plus_micro_o": true,
+    "initialization_derivation": "sha256(seed || canonical_layer_name || branch_kind)",
+    "module_construction_order_may_affect_initialization": false,
+    "separate_optimizer_parameter_groups": [
+      "q_branch",
+      "o_branch"
+    ],
+    "o_to_q_lr_ratio_max_numerator": 1,
+    "o_to_q_lr_ratio_max_denominator": 10,
+    "o_to_q_lr_ratio_checked_every_step": true,
+    "warmup_schedule_ratio_preserving": true,
+    "receipt_required_fields": [
+      "q_rank",
+      "q_trainable_params",
+      "q_learning_rate_curve_sha256",
+      "q_init_sha256",
+      "q_final_sha256",
+      "q_optimizer_state_sha256",
+      "o_rank",
+      "o_trainable_params",
+      "o_learning_rate_curve_sha256",
+      "o_init_sha256",
+      "o_final_sha256",
+      "o_optimizer_state_sha256",
+      "per_step_lr_ratio_max"
+    ]
+  },
+  "comparison_eval": {
+    "namespace": "gemma3_chat_unbalanced_v2_comparison_eval_v1",
+    "records_added_to_training_4300": 0,
+    "records_added_to_router_100": 0,
+    "same_task_reused_across_all_arms": true,
+    "eval_proxy_is_heldout": false,
+    "tool_eval": {
+      "unique_tasks": 400,
+      "tool_families": [
+        "local_catalog_search",
+        "local_calculator",
+        "local_calendar",
+        "local_weather",
+        "local_file_lookup",
+        "local_unit_converter",
+        "local_table_query",
+        "local_text_statistics",
+        "local_route_lookup",
+        "local_inventory_check"
+      ],
+      "strata": [
+        "seen_template_new_parameters",
+        "known_operation_new_template",
+        "compositional_or_new_task_relation",
+        "distractor_or_conflicting_evidence"
+      ],
+      "tasks_per_family_stratum_cell": 10,
+      "en_per_cell": 5,
+      "zh_cn_per_cell": 5
+    },
+    "planner_eval": {
+      "unique_tasks": 240,
+      "route_labels": [
+        "humor",
+        "serious",
+        "angry_style"
+      ],
+      "strata": [
+        "exact_dead_command_schema",
+        "paraphrased_same_variables",
+        "multivariable_dependency_plan",
+        "conflicting_cues_or_distractors"
+      ],
+      "tasks_per_label_stratum_cell": 20,
+      "en_per_cell": 10,
+      "zh_cn_per_cell": 10
+    },
+    "identity_eval": {
+      "source": "#/identity_alignment",
+      "identity_bundles": 10,
+      "identity_probe_records": 50,
+      "records_added": 0
+    },
+    "metrics": [
+      "schema_validity",
+      "route_accuracy",
+      "tool_selection",
+      "argument_slot_accuracy",
+      "plan_dependency_correctness",
+      "synthetic_result_grounding",
+      "wrong_route_delta",
+      "eos_repetition",
+      "train_vs_strata_gap",
+      "identity_probe_records",
+      "exact_core_consistency",
+      "false_attribution_rejection",
+      "tool_abstention",
+      "wrong_route_identity_consistency"
+    ],
+    "required_group_bys": [
+      "stratum",
+      "language",
+      "tool_family",
+      "arm"
+    ],
+    "macro_only_reporting_allowed": false,
+    "risk_rules": {
+      "q_plus_o_template_writeback": "if_gain_is_seen_or_dead_command_only_and_new_template_or_compositional_or_distractor_degrades_then_template_writeback_memorization_risk",
+      "o_only_template_writeback": "high_schema_with_low_route_or_grounding_is_template_writeback_evidence_not_planning_success"
+    }
+  },
+  "shared_route_prefix_kv": {
+    "status": "contract_only_physical_execution_blocked",
+    "commit_sequence": [
+      "planner_private_generation",
+      "route_plan_validation",
+      "immutable_commit",
+      "unique_gemma_chat_serialization",
+      "frozen_base_adapter_off_reencode",
+      "single_shared_prefix_prefill",
+      "expert_branch_activation",
+      "private_tail_append"
+    ],
+    "required_commit_fields": [
+      "route_commit_sha256",
+      "plan_commit_sha256",
+      "exact_serialization_sha256",
+      "ordered_prefix_token_digest",
+      "prefix_model_identity_sha256",
+      "prefix_tokenizer_identity_sha256",
+      "prefix_chat_template_sha256",
+      "prefix_position_policy_sha256",
+      "prefix_mask_policy_sha256",
+      "prefix_layer_types_sha256",
+      "prefix_sliding_window_policy_sha256",
+      "prefix_attention_implementation_sha256",
+      "cache_identity",
+      "producer_mode",
+      "branch_point"
+    ],
+    "producer_mode": "frozen_base_adapter_off_reencode_committed_route_and_plan",
+    "adapter_state_on_prefix": "off",
+    "shared_storage": true,
+    "unique_prefix_allocation_count": 1,
+    "expert_private_tail": true,
+    "expert_private_tail_append_only": true,
+    "o_branch_may_modify_shared_prefix": false,
+    "full_generation_kv_shared": false,
+    "planner_live_private_kv_transfer": false,
+    "exact_reuse_scope": "identical_ordered_tokens_positions_rope_mask_model_tokenizer_template_and_prefix_lineage_only",
+    "identity_unknown_or_mismatch_policy": "fail_closed_cache_miss",
+    "raw_token_ids_persisted": false,
+    "hybrid_attention_contract": {
+      "sliding_attention_layers": 22,
+      "sliding_window": 512,
+      "sliding_layers_retain_full_lineage": false,
+      "full_attention_layers": 4,
+      "full_layers_retain_full_lineage": true,
+      "all_layers_sequence_dimension_assumed_equal": false
+    },
+    "current_physical_claim": "prefill_compute_reuse",
+    "prefill_once_does_not_imply_persistent_zero_copy": true,
+    "hf_dynamic_cache_tail_cat_is_zero_copy_proof": false,
+    "persistent_prefix_storage_claim_allowed": false,
+    "persistent_prefix_storage_required_backends": [
+      "segmented_kv",
+      "paged_kv"
+    ],
+    "persistent_storage_verification_fields": [
+      "layer_storage_pointer",
+      "layer_storage_offset",
+      "layer_storage_stride"
+    ],
+    "exact_proof_kv_dtype": "bf16",
+    "lossy_kv_diagnostic_only": [
+      "q8_kv",
+      "hqq_kv"
+    ],
+    "physical_validation": {
+      "required": true,
+      "five_branch_data_ptr_equal": true,
+      "five_branch_storage_identity_equal": true,
+      "hybrid_layer_types_verified": true,
+      "sliding_window_semantics_verified": true,
+      "full_attention_lineage_verified": true,
+      "python_object_name_or_copy_is_zero_copy_proof": false,
+      "independent_reprefill_control_required": true,
+      "first_token_logit_max_abs_tolerance": "1e-3",
+      "generated_token_sequence_must_match": true,
+      "cache_miss_mutations": [
+        "route_commit",
+        "plan_commit",
+        "model_identity",
+        "tokenizer_identity",
+        "chat_template",
+        "position_policy",
+        "mask_policy",
+        "ordered_prefix_lineage"
+      ],
+      "required_metrics": [
+        "prefill_time_saved_ms",
+        "prefix_bytes_saved",
+        "branch_private_tail_bytes",
+        "wrong_route_delta"
+      ]
+    }
+  },
+  "resource_counters": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "luna_requests": 0,
+    "protected_body_reads": 0,
+    "gold_body_reads": 0,
+    "heldout_body_reads": 0
+  },
+  "claims": {
+    "contract_only": true,
+    "records_materialized": false,
+    "comparison_eval_materialized": false,
+    "identity_rows_added": false,
+    "physical_kv_materialized": false,
+    "physical_zero_copy_verified": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "release_authorized": false
+  }
+}
