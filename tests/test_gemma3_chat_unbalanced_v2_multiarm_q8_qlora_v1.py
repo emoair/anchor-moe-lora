@@ -84,6 +84,7 @@ def _preflight_receipt() -> dict[str, object]:
             "clean_worktree": True,
             "tags_at_head": 0,
         },
+        "tree_digest_domain": multiarm.PRODUCER_TREE_DIGEST_DOMAIN,
         "tree_digest_sha256": anchors["tree_digest_sha256"],
         "file_counts": {"total": 46, "payload": 23, "sidecar": 23},
         "manifest": deepcopy(anchors["manifest"]),
@@ -450,6 +451,9 @@ def test_preflight_requires_exact_final_sharded_receipt_and_derives_assets(
     for mutation in (
         "old_shape",
         "old_44",
+        "missing_tree_domain",
+        "wrong_tree_domain",
+        "extra_tree_domain_key",
         "single_shard",
         "candidate_p",
         "release_r",
@@ -466,6 +470,14 @@ def test_preflight_requires_exact_final_sharded_receipt_and_derives_assets(
             value["producer_git_commit"] = "1" * 40
         elif mutation == "old_44":
             value["file_counts"] = {"total": 44, "payload": 22, "sidecar": 22}
+        elif mutation == "missing_tree_domain":
+            del value["tree_digest_domain"]
+        elif mutation == "wrong_tree_domain":
+            value["tree_digest_domain"] = (
+                "anchor.gemma3-chat-unbalanced-v2-consumer-physical-tree.sharded-v1"
+            )
+        elif mutation == "extra_tree_domain_key":
+            value["tree_digest_domain_alias"] = multiarm.PRODUCER_TREE_DIGEST_DOMAIN
         elif mutation == "single_shard":
             value["training_shards"]["shard_count"] = 1
         elif mutation == "candidate_p":

@@ -42,6 +42,7 @@ CONFIG_SCHEMA_VERSION: Final = (
 PREFLIGHT_SCHEMA_VERSION: Final = (
     "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1"
 )
+PRODUCER_TREE_DIGEST_DOMAIN: Final = "anchor.gemma3-chat-sharded-final-physical-tree.v1"
 CONSUMER_DERIVED_ASSET_IDENTITY_VERSION: Final = (
     "anchor.gemma3-chat-unbalanced-v2-consumer-derived-asset-identity.v1"
 )
@@ -1084,6 +1085,7 @@ def _validate_source_receipt(value: object) -> dict[str, Any]:
         "binding_contract_sha256",
         "artifact_version",
         "producer_git",
+        "tree_digest_domain",
         "tree_digest_sha256",
         "file_counts",
         "manifest",
@@ -1110,6 +1112,7 @@ def _validate_source_receipt(value: object) -> dict[str, Any]:
         or receipt["namespace"] != "gemma3_chat_five_expert_qonly_unbalanced_v2"
         or receipt["model_free"] is not True
         or receipt["artifact_version"] != FINAL_SOURCE_ANCHORS["artifact_version"]
+        or receipt["tree_digest_domain"] != PRODUCER_TREE_DIGEST_DOMAIN
     ):
         raise MultiArmContractError("consumer_preflight_not_passed")
     _require_sha(
@@ -1277,6 +1280,7 @@ def _derive_consumer_assets(
         "identity_derivation_schema_version": (CONSUMER_DERIVED_ASSET_IDENTITY_VERSION),
         "physical_receipt_sha256": receipt_sha,
         "artifact_version": source["artifact_version"],
+        "tree_digest_domain": source["tree_digest_domain"],
         "tree_digest_sha256": source["tree_digest_sha256"],
         "logical_identity": source["logical_identity"],
     }
@@ -1438,6 +1442,7 @@ def _validate_normalized_preflight_binding(
         "binding_contract_sha256",
         "artifact_version",
         "producer_git",
+        "tree_digest_domain",
         "tree_digest_sha256",
         "file_counts",
         "manifest",
