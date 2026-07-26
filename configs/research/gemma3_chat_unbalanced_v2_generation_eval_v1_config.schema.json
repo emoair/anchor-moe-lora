@@ -1,0 +1,539 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_generation_eval_v1_config.schema.json",
+    "title": "Gemma 3 chat unbalanced-v2 generation evaluation v1 config",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "profile_id",
+        "status",
+        "schemas",
+        "consumer_preflight",
+        "training_run",
+        "kv_probe",
+        "dataset_inventory",
+        "matrix",
+        "metrics",
+        "numeric_rule",
+        "aggregation",
+        "failure_codes",
+        "claims",
+        "audit"
+    ],
+    "properties": {
+        "schema_version": {
+            "const": "anchor.gemma3-chat-unbalanced-v2-generation-eval-config.v1"
+        },
+        "profile_id": {"const": "gemma3_chat_unbalanced_v2_generation_eval_v1"},
+        "status": {"const": "model_free_contract_ready_execution_pending"},
+        "schemas": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["config", "receipt"],
+            "properties": {
+                "config": {"$ref": "#/$defs/schema_binding"},
+                "receipt": {"$ref": "#/$defs/schema_binding"}
+            }
+        },
+        "consumer_preflight": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "logical_receipt_path",
+                "required_schema_version",
+                "required_status",
+                "receipt_sha256",
+                "receipt_schema_sha256",
+                "artifact_tree_digest_sha256",
+                "shard_inventory_sha256",
+                "identity_from_receipt_only",
+                "candidate_identity_hardcoded"
+            ],
+            "properties": {
+                "logical_receipt_path": {
+                    "const": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_consumer_v1/preflight_receipt.json"
+                },
+                "required_schema_version": {
+                    "const": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1"
+                },
+                "required_status": {"const": "passed"},
+                "receipt_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "receipt_schema_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "artifact_tree_digest_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "shard_inventory_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "identity_from_receipt_only": {"const": true},
+                "candidate_identity_hardcoded": {"const": false}
+            }
+        },
+        "training_run": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "logical_receipt_path_template",
+                "required_schema_version",
+                "required_status",
+                "receipt_sha256",
+                "receipt_schema_sha256",
+                "adapter_inventory_sha256",
+                "run_id",
+                "fresh_base_required",
+                "fresh_adapter_required",
+                "resume_allowed"
+            ],
+            "properties": {
+                "logical_receipt_path_template": {
+                    "const": "artifacts/diagnostics/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1/{run_id}/run_receipt.json"
+                },
+                "required_schema_version": {
+                    "const": "anchor.gemma3-chat-unbalanced-v2-multiarm-run-receipt.v1"
+                },
+                "required_status": {"const": "passed_diagnostic_multiarm_training"},
+                "receipt_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "receipt_schema_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "adapter_inventory_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "run_id": {
+                    "anyOf": [
+                        {"const": "pending"},
+                        {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+                        }
+                    ]
+                },
+                "fresh_base_required": {"const": true},
+                "fresh_adapter_required": {"const": true},
+                "resume_allowed": {"const": false}
+            }
+        },
+        "kv_probe": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "logical_receipt_path_template",
+                "required_schema_version",
+                "required_status",
+                "receipt_sha256",
+                "receipt_schema_sha256",
+                "exact_prefix_value_handoff_required",
+                "shared_storage_required",
+                "zero_copy_required",
+                "rdma_required"
+            ],
+            "properties": {
+                "logical_receipt_path_template": {
+                    "const": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1/{run_id}/receipt.json"
+                },
+                "required_schema_version": {
+                    "const": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-receipt.v1"
+                },
+                "required_status": {"const": "passed_diagnostic_prefix_value_handoff"},
+                "receipt_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "receipt_schema_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "exact_prefix_value_handoff_required": {"const": true},
+                "shared_storage_required": {"const": false},
+                "zero_copy_required": {"const": false},
+                "rdma_required": {"const": false}
+            }
+        },
+        "dataset_inventory": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "source",
+                "shard_inventory_sha256",
+                "physical_paths_hardcoded",
+                "components"
+            ],
+            "properties": {
+                "source": {"const": "authenticated_consumer_preflight_receipt"},
+                "shard_inventory_sha256": {"$ref": "#/$defs/pending_sha256"},
+                "physical_paths_hardcoded": {"const": false},
+                "components": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "tool_comparison_eval",
+                        "planner_comparison_eval",
+                        "router",
+                        "identity_probe",
+                        "wrong_route_proxy"
+                    ],
+                    "properties": {
+                        "tool_comparison_eval": {
+                            "$ref": "#/$defs/logical_component_400"
+                        },
+                        "planner_comparison_eval": {
+                            "$ref": "#/$defs/logical_component_240"
+                        },
+                        "router": {"$ref": "#/$defs/logical_router"},
+                        "identity_probe": {"$ref": "#/$defs/logical_component_50"},
+                        "wrong_route_proxy": {"$ref": "#/$defs/logical_component_860"}
+                    }
+                }
+            }
+        },
+        "matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "tool",
+                "planner",
+                "router",
+                "identity",
+                "wrong_route",
+                "total_slots"
+            ],
+            "properties": {
+                "tool": {"$ref": "#/$defs/tool_matrix"},
+                "planner": {"$ref": "#/$defs/planner_matrix"},
+                "router": {"$ref": "#/$defs/router_matrix"},
+                "identity": {"$ref": "#/$defs/identity_matrix"},
+                "wrong_route": {"$ref": "#/$defs/wrong_route_matrix"},
+                "total_slots": {"const": 4990}
+            }
+        },
+        "metrics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "tool",
+                "planner",
+                "router",
+                "identity",
+                "wrong_route",
+                "performance"
+            ],
+            "properties": {
+                "tool": {
+                    "const": [
+                        "json_parse",
+                        "closed_schema",
+                        "tool_name_exact",
+                        "arguments_exact",
+                        "grounding_consistent",
+                        "execution_projection_exact"
+                    ]
+                },
+                "planner": {
+                    "const": [
+                        "plan_format",
+                        "task_class_exact",
+                        "selected_expert_exact",
+                        "single_total_to_branch",
+                        "no_return_to_general",
+                        "commit_boundary_exact"
+                    ]
+                },
+                "router": {
+                    "const": ["top1_accuracy", "macro_f1", "confusion_aggregate"]
+                },
+                "identity": {
+                    "const": [
+                        "air_attribution",
+                        "provider_misattribution_absent",
+                        "identity_fact_route_invariant"
+                    ]
+                },
+                "wrong_route": {
+                    "const": [
+                        "primary_metric",
+                        "correct_minus_wrong_delta",
+                        "wrong_route_format_leak_absent"
+                    ]
+                },
+                "performance": {
+                    "const": [
+                        "count",
+                        "latency_ms_mean",
+                        "latency_ms_p50",
+                        "latency_ms_p95",
+                        "throughput_units_per_second"
+                    ]
+                }
+            }
+        },
+        "numeric_rule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version", "encoding", "quantum", "rounding"],
+            "properties": {
+                "version": {"const": "decimal-string-quantized-1e-12-v1"},
+                "encoding": {"const": "fixed_12_decimal_places"},
+                "quantum": {"const": "0.000000000001"},
+                "rounding": {"const": "ROUND_HALF_EVEN"}
+            }
+        },
+        "aggregation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "aggregate_only",
+                "sample_bodies_persisted",
+                "raw_token_ids_persisted",
+                "per_record_arrays_persisted",
+                "record_identifiers_persisted",
+                "eval_proxy_is_heldout",
+                "rates_recomputed_from_counts",
+                "atomic_receipt"
+            ],
+            "properties": {
+                "aggregate_only": {"const": true},
+                "sample_bodies_persisted": {"const": 0},
+                "raw_token_ids_persisted": {"const": 0},
+                "per_record_arrays_persisted": {"const": 0},
+                "record_identifiers_persisted": {"const": 0},
+                "eval_proxy_is_heldout": {"const": false},
+                "rates_recomputed_from_counts": {"const": true},
+                "atomic_receipt": {"const": true}
+            }
+        },
+        "failure_codes": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 10,
+            "items": {
+                "enum": [
+                    "eval_aggregate_only_violation",
+                    "eval_config_invalid",
+                    "eval_consumer_preflight_pending",
+                    "eval_count_mismatch",
+                    "eval_dataset_inventory_mismatch",
+                    "eval_identity_mismatch",
+                    "eval_kv_probe_pending",
+                    "eval_physical_backend_required",
+                    "eval_rate_mismatch",
+                    "eval_receipt_invalid",
+                    "eval_training_run_pending"
+                ]
+            }
+        },
+        "claims": {"$ref": "#/$defs/claims"},
+        "audit": {"$ref": "#/$defs/zero_audit"}
+    },
+    "$defs": {
+        "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "not": {
+                "const": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+        },
+        "pending_sha256": {"oneOf": [{"const": "pending"}, {"$ref": "#/$defs/sha256"}]},
+        "schema_binding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "version", "sha256"],
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "pattern": "^configs/research/[a-z0-9_]+\\.schema\\.json$"
+                },
+                "version": {"type": "string", "minLength": 1},
+                "sha256": {"$ref": "#/$defs/sha256"}
+            }
+        },
+        "logical_component_400": {
+            "$ref": "#/$defs/logical_component",
+            "properties": {
+                "logical_id": {"const": "tool_comparison_eval"},
+                "records": {"const": 400}
+            }
+        },
+        "logical_component_240": {
+            "$ref": "#/$defs/logical_component",
+            "properties": {
+                "logical_id": {"const": "planner_comparison_eval"},
+                "records": {"const": 240}
+            }
+        },
+        "logical_component_50": {
+            "$ref": "#/$defs/logical_component",
+            "properties": {
+                "logical_id": {"const": "identity_probe"},
+                "records": {"const": 50}
+            }
+        },
+        "logical_component_860": {
+            "$ref": "#/$defs/logical_component",
+            "properties": {
+                "logical_id": {"const": "wrong_route_eval_proxy"},
+                "records": {"const": 860}
+            }
+        },
+        "logical_component": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "logical_id",
+                "records",
+                "training_eligible",
+                "shards_from_inventory"
+            ],
+            "properties": {
+                "logical_id": {"type": "string"},
+                "records": {"type": "integer", "minimum": 1},
+                "training_eligible": {"const": false},
+                "shards_from_inventory": {"const": true}
+            }
+        },
+        "logical_router": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "logical_id",
+                "train",
+                "eval_proxy",
+                "total",
+                "shards_from_inventory"
+            ],
+            "properties": {
+                "logical_id": {"const": "emotion_router"},
+                "train": {"const": 80},
+                "eval_proxy": {"const": 20},
+                "total": {"const": 100},
+                "shards_from_inventory": {"const": true}
+            }
+        },
+        "tool_matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["records", "arms", "slots", "strata"],
+            "properties": {
+                "records": {"const": 400},
+                "arms": {"const": ["tool_base", "tool_q_only", "tool_q_plus_micro_o"]},
+                "slots": {"const": 1200},
+                "strata": {
+                    "const": {
+                        "seen_template_interpolation": 160,
+                        "argument_composition_proxy": 120,
+                        "cross_language_transfer_proxy": 120
+                    }
+                }
+            }
+        },
+        "planner_matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["records", "arms", "slots", "strata"],
+            "properties": {
+                "records": {"const": 240},
+                "arms": {
+                    "const": [
+                        "planner_base",
+                        "planner_q_only",
+                        "planner_o_only",
+                        "planner_q_plus_micro_o"
+                    ]
+                },
+                "slots": {"const": 960},
+                "strata": {
+                    "const": {
+                        "task_classification": 80,
+                        "expert_selection": 80,
+                        "commit_boundary": 80
+                    }
+                }
+            }
+        },
+        "router_matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["train", "eval_proxy", "slots"],
+            "properties": {
+                "train": {"const": 80},
+                "eval_proxy": {"const": 20},
+                "slots": {"const": 100}
+            }
+        },
+        "identity_matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["records", "arms", "slots"],
+            "properties": {
+                "records": {"const": 50},
+                "arms": {
+                    "const": [
+                        "identity_base",
+                        "identity_correct_route",
+                        "identity_wrong_route"
+                    ]
+                },
+                "slots": {"const": 150}
+            }
+        },
+        "wrong_route_matrix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["records", "derangements", "slots", "strategy"],
+            "properties": {
+                "records": {"const": 860},
+                "derangements": {
+                    "const": ["derangement_1", "derangement_2", "derangement_3"]
+                },
+                "slots": {"const": 2580},
+                "strategy": {"const": "deterministic_from_authenticated_role_labels"}
+            }
+        },
+        "claims": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "diagnostic_only",
+                "proxy_only",
+                "quality_validated",
+                "generalization_validated",
+                "eval_proxy_is_heldout",
+                "wrong_route_is_causal_proof",
+                "kv_exact_prefix_value_required",
+                "kv_shared_storage_claimed",
+                "kv_zero_copy_claimed",
+                "kv_rdma_claimed",
+                "physical_execution_completed",
+                "formal",
+                "release"
+            ],
+            "properties": {
+                "diagnostic_only": {"const": true},
+                "proxy_only": {"const": true},
+                "quality_validated": {"const": false},
+                "generalization_validated": {"const": false},
+                "eval_proxy_is_heldout": {"const": false},
+                "wrong_route_is_causal_proof": {"const": false},
+                "kv_exact_prefix_value_required": {"const": true},
+                "kv_shared_storage_claimed": {"const": false},
+                "kv_zero_copy_claimed": {"const": false},
+                "kv_rdma_claimed": {"const": false},
+                "physical_execution_completed": {"const": false},
+                "formal": {"const": false},
+                "release": {"const": false}
+            }
+        },
+        "zero_audit": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "dataset_body_reads",
+                "raw_token_ids_read",
+                "gold_reads",
+                "heldout_body_reads",
+                "protected_reads",
+                "model_loads",
+                "gpu_requests",
+                "provider_requests",
+                "network_requests"
+            ],
+            "properties": {
+                "dataset_body_reads": {"const": 0},
+                "raw_token_ids_read": {"const": 0},
+                "gold_reads": {"const": 0},
+                "heldout_body_reads": {"const": 0},
+                "protected_reads": {"const": 0},
+                "model_loads": {"const": 0},
+                "gpu_requests": {"const": 0},
+                "provider_requests": {"const": 0},
+                "network_requests": {"const": 0}
+            }
+        }
+    }
+}

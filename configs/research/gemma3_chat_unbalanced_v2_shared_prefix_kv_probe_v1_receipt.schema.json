@@ -1,0 +1,387 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anchor.local/schemas/gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1_receipt.schema.json",
+    "title": "Gemma 3 chat unbalanced-v2 shared-prefix KV probe v1 receipt",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "profile_id",
+        "status",
+        "identity",
+        "boundary",
+        "experiments",
+        "layers",
+        "diagnostics",
+        "performance",
+        "failure_codes",
+        "claims",
+        "audit"
+    ],
+    "properties": {
+        "schema_version": {
+            "const": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-receipt.v1"
+        },
+        "profile_id": {"const": "gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1"},
+        "status": {"enum": ["passed_diagnostic_prefix_value_handoff", "failed_closed"]},
+        "identity": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "config_sha256",
+                "implementation_sha256",
+                "consumer_preflight_receipt_sha256",
+                "artifact_tree_digest_sha256",
+                "shard_inventory_sha256",
+                "training_run_receipt_sha256",
+                "adapter_inventory_sha256",
+                "run_id",
+                "trusted_lineage_context_sha256",
+                "model_identity_sha256",
+                "tokenizer_identity_sha256",
+                "serialization_identity_sha256",
+                "template_identity_sha256",
+                "attention_implementation_sha256",
+                "dtype_policy_sha256",
+                "quantization_policy_sha256",
+                "adapter_off_policy_sha256",
+                "layer_layout_sha256"
+            ],
+            "properties": {
+                "config_sha256": {"$ref": "#/$defs/sha256"},
+                "implementation_sha256": {"$ref": "#/$defs/sha256"},
+                "consumer_preflight_receipt_sha256": {"$ref": "#/$defs/sha256"},
+                "artifact_tree_digest_sha256": {"$ref": "#/$defs/sha256"},
+                "shard_inventory_sha256": {"$ref": "#/$defs/sha256"},
+                "training_run_receipt_sha256": {"$ref": "#/$defs/sha256"},
+                "adapter_inventory_sha256": {"$ref": "#/$defs/sha256"},
+                "run_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+                },
+                "trusted_lineage_context_sha256": {"$ref": "#/$defs/sha256"},
+                "model_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "tokenizer_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "template_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "attention_implementation_sha256": {"$ref": "#/$defs/sha256"},
+                "dtype_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "quantization_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "adapter_off_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "layer_layout_sha256": {"$ref": "#/$defs/sha256"}
+            }
+        },
+        "boundary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "adapter_state",
+                "commit_sha256",
+                "route_commit_sha256",
+                "plan_commit_sha256",
+                "ordered_prefix_sha256",
+                "prefix_length",
+                "retained_span_algorithm",
+                "source_cache_present",
+                "source_cache_complete"
+            ],
+            "properties": {
+                "name": {"const": "route_plan_commit"},
+                "adapter_state": {"const": "adapter_off_frozen_base"},
+                "commit_sha256": {"$ref": "#/$defs/sha256"},
+                "route_commit_sha256": {"$ref": "#/$defs/sha256"},
+                "plan_commit_sha256": {"$ref": "#/$defs/sha256"},
+                "ordered_prefix_sha256": {"$ref": "#/$defs/sha256"},
+                "prefix_length": {"type": "integer", "minimum": 1},
+                "retained_span_algorithm": {
+                    "const": "full_0_to_boundary__sliding_max_0_boundary_minus_512_to_boundary"
+                },
+                "source_cache_present": {"type": "boolean"},
+                "source_cache_complete": {"type": "boolean"}
+            }
+        },
+        "experiments": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["isolated_reprefill", "one_prefill_explicit_local_copy"],
+            "properties": {
+                "isolated_reprefill": {"$ref": "#/$defs/experiment"},
+                "one_prefill_explicit_local_copy": {"$ref": "#/$defs/experiment"}
+            }
+        },
+        "layers": {
+            "type": "array",
+            "minItems": 26,
+            "maxItems": 26,
+            "items": {"$ref": "#/$defs/layer"}
+        },
+        "diagnostics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "all_layer_retained_values_equal",
+                "first_token_distribution_digest_equal",
+                "first_token_argmax_equal",
+                "source_cache_unchanged",
+                "cross_mutation_rejections",
+                "cache_miss_rejected",
+                "private_tail_append_only",
+                "private_tails_alias",
+                "cache_object_equal_observed",
+                "cache_pointer_equal_observed"
+            ],
+            "properties": {
+                "all_layer_retained_values_equal": {"type": "boolean"},
+                "first_token_distribution_digest_equal": {"type": "boolean"},
+                "first_token_argmax_equal": {"type": "boolean"},
+                "source_cache_unchanged": {"type": "boolean"},
+                "cross_mutation_rejections": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["attempted", "rejected"],
+                    "properties": {
+                        "attempted": {"const": 24},
+                        "rejected": {"type": "integer", "minimum": 0, "maximum": 24}
+                    }
+                },
+                "cache_miss_rejected": {"type": "boolean"},
+                "private_tail_append_only": {"type": "boolean"},
+                "private_tails_alias": {"type": "boolean"},
+                "cache_object_equal_observed": {"type": "boolean"},
+                "cache_pointer_equal_observed": {"type": "boolean"}
+            }
+        },
+        "performance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "isolated_prefill_ms",
+                "handoff_prefill_ms",
+                "handoff_copy_ms",
+                "first_token_ms",
+                "peak_device_bytes",
+                "repetitions"
+            ],
+            "properties": {
+                "isolated_prefill_ms": {"$ref": "#/$defs/nonnegative_number"},
+                "handoff_prefill_ms": {"$ref": "#/$defs/nonnegative_number"},
+                "handoff_copy_ms": {"$ref": "#/$defs/nonnegative_number"},
+                "first_token_ms": {"$ref": "#/$defs/nonnegative_number"},
+                "peak_device_bytes": {"type": "integer", "minimum": 0},
+                "repetitions": {"type": "integer", "minimum": 1}
+            }
+        },
+        "failure_codes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^kv_[a-z0-9_]+$"}
+        },
+        "claims": {"$ref": "#/$defs/claims"},
+        "audit": {"$ref": "#/$defs/zero_audit"}
+    },
+    "$defs": {
+        "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "not": {
+                "const": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+        },
+        "nonnegative_number": {"type": "number", "minimum": 0},
+        "experiment": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "executed",
+                "prefill_count",
+                "transport",
+                "source_prefix_sha256",
+                "result_digest_sha256",
+                "first_token_distribution_digest_sha256",
+                "first_token_argmax_digest_sha256",
+                "lineage"
+            ],
+            "properties": {
+                "executed": {"type": "boolean"},
+                "prefill_count": {"type": "integer", "minimum": 0},
+                "transport": {
+                    "enum": ["none_isolated_reprefill", "explicit_local_copy"]
+                },
+                "source_prefix_sha256": {"$ref": "#/$defs/sha256"},
+                "result_digest_sha256": {"$ref": "#/$defs/sha256"},
+                "first_token_distribution_digest_sha256": {"$ref": "#/$defs/sha256"},
+                "first_token_argmax_digest_sha256": {"$ref": "#/$defs/sha256"},
+                "lineage": {"$ref": "#/$defs/lineage"}
+            }
+        },
+        "lineage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "model_identity_sha256",
+                "tokenizer_identity_sha256",
+                "serialization_identity_sha256",
+                "template_identity_sha256",
+                "ordered_prefix_sha256",
+                "token_order_sha256",
+                "position_sha256",
+                "attention_mask_sha256",
+                "rope_sha256",
+                "attention_implementation_sha256",
+                "dtype_policy_sha256",
+                "quantization_policy_sha256",
+                "adapter_off_policy_sha256",
+                "adapter_lineage_sha256",
+                "route_commit_sha256",
+                "plan_commit_sha256",
+                "layer_layout_sha256",
+                "boundary_name",
+                "boundary_commit_sha256",
+                "adapter_state",
+                "source_cache_present",
+                "source_cache_complete",
+                "prefix_length"
+            ],
+            "properties": {
+                "model_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "tokenizer_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "template_identity_sha256": {"$ref": "#/$defs/sha256"},
+                "ordered_prefix_sha256": {"$ref": "#/$defs/sha256"},
+                "token_order_sha256": {"$ref": "#/$defs/sha256"},
+                "position_sha256": {"$ref": "#/$defs/sha256"},
+                "attention_mask_sha256": {"$ref": "#/$defs/sha256"},
+                "rope_sha256": {"$ref": "#/$defs/sha256"},
+                "attention_implementation_sha256": {"$ref": "#/$defs/sha256"},
+                "dtype_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "quantization_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "adapter_off_policy_sha256": {"$ref": "#/$defs/sha256"},
+                "adapter_lineage_sha256": {"$ref": "#/$defs/sha256"},
+                "route_commit_sha256": {"$ref": "#/$defs/sha256"},
+                "plan_commit_sha256": {"$ref": "#/$defs/sha256"},
+                "layer_layout_sha256": {"$ref": "#/$defs/sha256"},
+                "boundary_name": {"const": "route_plan_commit"},
+                "boundary_commit_sha256": {"$ref": "#/$defs/sha256"},
+                "adapter_state": {"const": "adapter_off_frozen_base"},
+                "source_cache_present": {"type": "boolean"},
+                "source_cache_complete": {"type": "boolean"},
+                "prefix_length": {"type": "integer", "minimum": 1}
+            }
+        },
+        "layer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "layer_index",
+                "attention_kind",
+                "window",
+                "retained_start",
+                "retained_end",
+                "retained_length",
+                "isolated_value_sha256",
+                "handoff_value_sha256",
+                "value_equal",
+                "pointer_equal_observed",
+                "storage_shared_claimed"
+            ],
+            "properties": {
+                "layer_index": {"type": "integer", "minimum": 0, "maximum": 25},
+                "attention_kind": {"enum": ["sliding", "full"]},
+                "window": {"oneOf": [{"const": 512}, {"type": "null"}]},
+                "retained_start": {"type": "integer", "minimum": 0},
+                "retained_end": {"type": "integer", "minimum": 1},
+                "retained_length": {"type": "integer", "minimum": 1},
+                "isolated_value_sha256": {"$ref": "#/$defs/sha256"},
+                "handoff_value_sha256": {"$ref": "#/$defs/sha256"},
+                "value_equal": {"type": "boolean"},
+                "pointer_equal_observed": {"type": "boolean"},
+                "storage_shared_claimed": {"const": false}
+            }
+        },
+        "claims": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "diagnostic_only",
+                "proxy_only",
+                "exact_prefix_value_handoff",
+                "prefill_compute_handoff",
+                "shared_storage",
+                "zero_copy",
+                "full_generation_kv_shared",
+                "rdma",
+                "physical_execution_completed",
+                "formal"
+            ],
+            "properties": {
+                "diagnostic_only": {"const": true},
+                "proxy_only": {"const": true},
+                "exact_prefix_value_handoff": {"type": "boolean"},
+                "prefill_compute_handoff": {"type": "boolean"},
+                "shared_storage": {"const": false},
+                "zero_copy": {"const": false},
+                "full_generation_kv_shared": {"const": false},
+                "rdma": {"const": false},
+                "physical_execution_completed": {"type": "boolean"},
+                "formal": {"const": false}
+            }
+        },
+        "zero_audit": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "dataset_body_reads",
+                "raw_token_ids_persisted",
+                "sample_bodies_persisted",
+                "gold_reads",
+                "heldout_body_reads",
+                "protected_reads",
+                "provider_requests",
+                "network_requests"
+            ],
+            "properties": {
+                "dataset_body_reads": {"const": 0},
+                "raw_token_ids_persisted": {"const": 0},
+                "sample_bodies_persisted": {"const": 0},
+                "gold_reads": {"const": 0},
+                "heldout_body_reads": {"const": 0},
+                "protected_reads": {"const": 0},
+                "provider_requests": {"const": 0},
+                "network_requests": {"const": 0}
+            }
+        }
+    },
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "status": {"const": "passed_diagnostic_prefix_value_handoff"}
+                }
+            },
+            "then": {
+                "properties": {
+                    "failure_codes": {"maxItems": 0},
+                    "claims": {
+                        "properties": {
+                            "exact_prefix_value_handoff": {"const": true},
+                            "prefill_compute_handoff": {"const": true},
+                            "physical_execution_completed": {"const": true}
+                        }
+                    }
+                }
+            },
+            "else": {
+                "properties": {
+                    "failure_codes": {"minItems": 1},
+                    "claims": {
+                        "properties": {
+                            "exact_prefix_value_handoff": {"const": false},
+                            "prefill_compute_handoff": {"const": false}
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

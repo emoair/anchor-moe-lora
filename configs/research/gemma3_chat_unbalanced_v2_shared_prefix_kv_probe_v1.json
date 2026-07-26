@@ -1,0 +1,182 @@
+{
+    "schema_version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-config.v1",
+    "profile_id": "gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1",
+    "status": "model_free_contract_ready_physical_execution_pending",
+    "schemas": {
+        "config": {
+            "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1_config.schema.json",
+            "version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-config.v1",
+            "sha256": "d26f0e3c0425110f04628662d8a5f1e55b8e289c32d2b4061dab1887e69c9855"
+        },
+        "receipt": {
+            "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1_receipt.schema.json",
+            "version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-receipt.v1",
+            "sha256": "2912400fcfc30118a5a3ce2546b3132d958c0e0541e3b9a7af59f7ccf243056c"
+        }
+    },
+    "consumer_preflight": {
+        "logical_receipt_path": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_consumer_v1/preflight_receipt.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1",
+        "required_status": "passed",
+        "receipt_sha256": "pending",
+        "receipt_schema_sha256": "pending",
+        "artifact_tree_digest_sha256": "pending",
+        "shard_inventory_sha256": "pending",
+        "source_identity_from_receipt_only": true,
+        "candidate_identity_hardcoded": false,
+        "body_reads_required": false
+    },
+    "training_run": {
+        "logical_receipt_path_template": "artifacts/diagnostics/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1/{run_id}/run_receipt.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-multiarm-run-receipt.v1",
+        "required_status": "passed_diagnostic_multiarm_training",
+        "receipt_sha256": "pending",
+        "receipt_schema_sha256": "pending",
+        "adapter_inventory_sha256": "pending",
+        "run_id": "pending"
+    },
+    "trusted_lineage_context": {
+        "logical_context_path_template": "artifacts/diagnostics/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1/{run_id}/trusted_lineage_context.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-trusted-lineage-context.v1",
+        "required_status": "passed_authenticated_external_lineage",
+        "context_sha256": "pending",
+        "context_schema_sha256": "pending",
+        "external_to_experiments": true
+    },
+    "model": {
+        "architecture": "Gemma3ForCausalLM",
+        "layers": 26,
+        "sliding_layers": 22,
+        "full_layers": 4,
+        "sliding_window": 512,
+        "sliding_window_pattern": 6,
+        "full_layer_indices": [5, 11, 17, 23],
+        "layer_layout_sha256": "c91ce27e10e43629e0c0c78b5f69473ddeeed9b2a444dc084da2a116cd49dd98",
+        "model_identity_sha256": "pending",
+        "tokenizer_identity_sha256": "pending",
+        "serialization_identity_sha256": "pending",
+        "template_identity_sha256": "pending",
+        "attention_implementation_sha256": "pending",
+        "dtype_policy_sha256": "pending",
+        "quantization_policy_sha256": "pending",
+        "adapter_off_policy_sha256": "pending"
+    },
+    "handoff": {
+        "boundary_name": "route_plan_commit",
+        "source_adapter_state": "adapter_off_frozen_base",
+        "source_prefix": "identical_ordered_serialized_prefix",
+        "transport": "explicit_local_copy",
+        "retained_span_algorithm": "full_0_to_boundary__sliding_max_0_boundary_minus_512_to_boundary",
+        "lineage_fields": [
+            "model_identity_sha256",
+            "tokenizer_identity_sha256",
+            "serialization_identity_sha256",
+            "template_identity_sha256",
+            "ordered_prefix_sha256",
+            "token_order_sha256",
+            "position_sha256",
+            "attention_mask_sha256",
+            "rope_sha256",
+            "attention_implementation_sha256",
+            "dtype_policy_sha256",
+            "quantization_policy_sha256",
+            "adapter_off_policy_sha256",
+            "adapter_lineage_sha256",
+            "route_commit_sha256",
+            "plan_commit_sha256",
+            "layer_layout_sha256"
+        ],
+        "expert_tail": "private_append_only",
+        "cache_miss_policy": "fail_closed_no_silent_reprefill"
+    },
+    "synthetic_cases": {
+        "prefix_lengths": [127, 511, 512, 513, 1025],
+        "required_mutations": [
+            "model_identity_drift",
+            "tokenizer_identity_drift",
+            "serialization_identity_drift",
+            "template_identity_drift",
+            "ordered_prefix_drift",
+            "token_order_drift",
+            "position_drift",
+            "attention_mask_drift",
+            "rope_drift",
+            "attention_implementation_drift",
+            "dtype_policy_drift",
+            "quantization_policy_drift",
+            "adapter_off_policy_drift",
+            "adapter_lineage_drift",
+            "route_commit_drift",
+            "plan_commit_drift",
+            "layer_layout_drift",
+            "adapter_not_off",
+            "boundary_commit_drift",
+            "source_cache_miss",
+            "retained_span_drift",
+            "source_cache_mutation",
+            "private_tail_alias",
+            "pointer_only_claim_upgrade"
+        ]
+    },
+    "physical_receipt": {
+        "required_arms": ["isolated_reprefill", "one_prefill_explicit_local_copy"],
+        "required_layer_value_comparison": "all_26_layers_retained_span_exact_value_digest",
+        "required_first_token_diagnostic": "exact_distribution_digest_and_argmax_match",
+        "required_source_unchanged_check": true,
+        "required_cross_mutation_check": true,
+        "required_private_tail_check": "append_only_non_aliasing",
+        "required_performance_metrics": [
+            "isolated_prefill_ms",
+            "handoff_prefill_ms",
+            "handoff_copy_ms",
+            "first_token_ms",
+            "peak_device_bytes",
+            "repetitions"
+        ]
+    },
+    "failure_codes": [
+        "kv_adapter_state_invalid",
+        "kv_boundary_commit_mismatch",
+        "kv_cache_miss",
+        "kv_claim_inflation",
+        "kv_config_invalid",
+        "kv_consumer_preflight_pending",
+        "kv_first_token_mismatch",
+        "kv_layer_layout_mismatch",
+        "kv_layer_value_mismatch",
+        "kv_lineage_mismatch",
+        "kv_physical_backend_required",
+        "kv_private_tail_alias",
+        "kv_receipt_invalid",
+        "kv_retained_span_mismatch",
+        "kv_source_cache_mutated",
+        "kv_storage_claim_forbidden",
+        "kv_training_run_pending",
+        "kv_trusted_lineage_context_pending"
+    ],
+    "claims": {
+        "diagnostic_only": true,
+        "proxy_only": true,
+        "exact_prefix_value_handoff": true,
+        "prefill_compute_handoff": true,
+        "shared_storage": false,
+        "zero_copy": false,
+        "full_generation_kv_shared": false,
+        "rdma": false,
+        "same_object_is_proof": false,
+        "same_pointer_is_proof": false,
+        "physical_execution_completed": false,
+        "formal": false
+    },
+    "audit": {
+        "dataset_body_reads": 0,
+        "raw_token_ids_read": 0,
+        "gold_reads": 0,
+        "heldout_body_reads": 0,
+        "protected_reads": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "provider_requests": 0,
+        "network_requests": 0
+    }
+}

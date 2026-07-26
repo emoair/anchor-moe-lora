@@ -1,0 +1,220 @@
+{
+    "schema_version": "anchor.gemma3-chat-unbalanced-v2-generation-eval-config.v1",
+    "profile_id": "gemma3_chat_unbalanced_v2_generation_eval_v1",
+    "status": "model_free_contract_ready_execution_pending",
+    "schemas": {
+        "config": {
+            "path": "configs/research/gemma3_chat_unbalanced_v2_generation_eval_v1_config.schema.json",
+            "version": "anchor.gemma3-chat-unbalanced-v2-generation-eval-config.v1",
+            "sha256": "40b6854579ac8fee592ae41d93cd7ee000ee97c808886635cd95e3ba0c1a21c2"
+        },
+        "receipt": {
+            "path": "configs/research/gemma3_chat_unbalanced_v2_generation_eval_v1_receipt.schema.json",
+            "version": "anchor.gemma3-chat-unbalanced-v2-generation-eval-receipt.v1",
+            "sha256": "c81fcd41c031b00b4b86e1b8ead799c9e9bda154a86fe53cacf8eb2b6ed358a2"
+        }
+    },
+    "consumer_preflight": {
+        "logical_receipt_path": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_consumer_v1/preflight_receipt.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-preflight-receipt.sharded-v1",
+        "required_status": "passed",
+        "receipt_sha256": "pending",
+        "receipt_schema_sha256": "pending",
+        "artifact_tree_digest_sha256": "pending",
+        "shard_inventory_sha256": "pending",
+        "identity_from_receipt_only": true,
+        "candidate_identity_hardcoded": false
+    },
+    "training_run": {
+        "logical_receipt_path_template": "artifacts/diagnostics/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1/{run_id}/run_receipt.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-multiarm-run-receipt.v1",
+        "required_status": "passed_diagnostic_multiarm_training",
+        "receipt_sha256": "pending",
+        "receipt_schema_sha256": "pending",
+        "adapter_inventory_sha256": "pending",
+        "run_id": "pending",
+        "fresh_base_required": true,
+        "fresh_adapter_required": true,
+        "resume_allowed": false
+    },
+    "kv_probe": {
+        "logical_receipt_path_template": "artifacts/diagnostics/gemma3_chat_unbalanced_v2_shared_prefix_kv_probe_v1/{run_id}/receipt.json",
+        "required_schema_version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-probe-receipt.v1",
+        "required_status": "passed_diagnostic_prefix_value_handoff",
+        "receipt_sha256": "pending",
+        "receipt_schema_sha256": "pending",
+        "exact_prefix_value_handoff_required": true,
+        "shared_storage_required": false,
+        "zero_copy_required": false,
+        "rdma_required": false
+    },
+    "dataset_inventory": {
+        "source": "authenticated_consumer_preflight_receipt",
+        "shard_inventory_sha256": "pending",
+        "physical_paths_hardcoded": false,
+        "components": {
+            "tool_comparison_eval": {
+                "logical_id": "tool_comparison_eval",
+                "records": 400,
+                "training_eligible": false,
+                "shards_from_inventory": true
+            },
+            "planner_comparison_eval": {
+                "logical_id": "planner_comparison_eval",
+                "records": 240,
+                "training_eligible": false,
+                "shards_from_inventory": true
+            },
+            "router": {
+                "logical_id": "emotion_router",
+                "train": 80,
+                "eval_proxy": 20,
+                "total": 100,
+                "shards_from_inventory": true
+            },
+            "identity_probe": {
+                "logical_id": "identity_probe",
+                "records": 50,
+                "training_eligible": false,
+                "shards_from_inventory": true
+            },
+            "wrong_route_proxy": {
+                "logical_id": "wrong_route_eval_proxy",
+                "records": 860,
+                "training_eligible": false,
+                "shards_from_inventory": true
+            }
+        }
+    },
+    "matrix": {
+        "tool": {
+            "records": 400,
+            "arms": ["tool_base", "tool_q_only", "tool_q_plus_micro_o"],
+            "slots": 1200,
+            "strata": {
+                "seen_template_interpolation": 160,
+                "argument_composition_proxy": 120,
+                "cross_language_transfer_proxy": 120
+            }
+        },
+        "planner": {
+            "records": 240,
+            "arms": [
+                "planner_base",
+                "planner_q_only",
+                "planner_o_only",
+                "planner_q_plus_micro_o"
+            ],
+            "slots": 960,
+            "strata": {
+                "task_classification": 80,
+                "expert_selection": 80,
+                "commit_boundary": 80
+            }
+        },
+        "router": {"train": 80, "eval_proxy": 20, "slots": 100},
+        "identity": {
+            "records": 50,
+            "arms": ["identity_base", "identity_correct_route", "identity_wrong_route"],
+            "slots": 150
+        },
+        "wrong_route": {
+            "records": 860,
+            "derangements": ["derangement_1", "derangement_2", "derangement_3"],
+            "slots": 2580,
+            "strategy": "deterministic_from_authenticated_role_labels"
+        },
+        "total_slots": 4990
+    },
+    "metrics": {
+        "tool": [
+            "json_parse",
+            "closed_schema",
+            "tool_name_exact",
+            "arguments_exact",
+            "grounding_consistent",
+            "execution_projection_exact"
+        ],
+        "planner": [
+            "plan_format",
+            "task_class_exact",
+            "selected_expert_exact",
+            "single_total_to_branch",
+            "no_return_to_general",
+            "commit_boundary_exact"
+        ],
+        "router": ["top1_accuracy", "macro_f1", "confusion_aggregate"],
+        "identity": [
+            "air_attribution",
+            "provider_misattribution_absent",
+            "identity_fact_route_invariant"
+        ],
+        "wrong_route": [
+            "primary_metric",
+            "correct_minus_wrong_delta",
+            "wrong_route_format_leak_absent"
+        ],
+        "performance": [
+            "count",
+            "latency_ms_mean",
+            "latency_ms_p50",
+            "latency_ms_p95",
+            "throughput_units_per_second"
+        ]
+    },
+    "numeric_rule": {
+        "version": "decimal-string-quantized-1e-12-v1",
+        "encoding": "fixed_12_decimal_places",
+        "quantum": "0.000000000001",
+        "rounding": "ROUND_HALF_EVEN"
+    },
+    "aggregation": {
+        "aggregate_only": true,
+        "sample_bodies_persisted": 0,
+        "raw_token_ids_persisted": 0,
+        "per_record_arrays_persisted": 0,
+        "record_identifiers_persisted": 0,
+        "eval_proxy_is_heldout": false,
+        "rates_recomputed_from_counts": true,
+        "atomic_receipt": true
+    },
+    "failure_codes": [
+        "eval_aggregate_only_violation",
+        "eval_config_invalid",
+        "eval_consumer_preflight_pending",
+        "eval_count_mismatch",
+        "eval_dataset_inventory_mismatch",
+        "eval_identity_mismatch",
+        "eval_kv_probe_pending",
+        "eval_physical_backend_required",
+        "eval_rate_mismatch",
+        "eval_receipt_invalid",
+        "eval_training_run_pending"
+    ],
+    "claims": {
+        "diagnostic_only": true,
+        "proxy_only": true,
+        "quality_validated": false,
+        "generalization_validated": false,
+        "eval_proxy_is_heldout": false,
+        "wrong_route_is_causal_proof": false,
+        "kv_exact_prefix_value_required": true,
+        "kv_shared_storage_claimed": false,
+        "kv_zero_copy_claimed": false,
+        "kv_rdma_claimed": false,
+        "physical_execution_completed": false,
+        "formal": false,
+        "release": false
+    },
+    "audit": {
+        "dataset_body_reads": 0,
+        "raw_token_ids_read": 0,
+        "gold_reads": 0,
+        "heldout_body_reads": 0,
+        "protected_reads": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "provider_requests": 0,
+        "network_requests": 0
+    }
+}
