@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-source-approval-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_kind",
+    "decision",
+    "manifest_sha256",
+    "partition_set_sha256",
+    "producer_release_attestation_sha256",
+    "producer_release_commit",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.source-approval.v2"
+    },
+    "dataset_kind": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "decision": {"const": "APPROVED"},
+    "manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "partition_set_sha256": {"$ref": "#/$defs/sha256"},
+    "producer_release_attestation_sha256": {"$ref": "#/$defs/sha256"},
+    "producer_release_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "identity_sha256", "decision"],
+        "properties": {
+          "role": {
+            "enum": [
+              "producer_independent_release",
+              "deterministic_source_projection"
+            ]
+          },
+          "identity_sha256": {"$ref": "#/$defs/sha256"},
+          "decision": {"const": "APPROVED"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

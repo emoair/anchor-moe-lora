@@ -1,0 +1,10 @@
+{
+  "case_file_sha256": "89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655",
+  "checked_at": "2026-07-26T15:56:54Z",
+  "content_read": false,
+  "decision": "PASS",
+  "manifest_sha256": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c",
+  "physical_mode": "clean_lf_checkout",
+  "prebulk_receipt_sha256": "cf445089a94fd772ce1976560682e93d50a2d5b1d4c2503e441ac6058717d257",
+  "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.heldout-gate-receipt.v1"
+}

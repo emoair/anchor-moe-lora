@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-source-record-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "task_bundle",
+    "semantic",
+    "role",
+    "language",
+    "split",
+    "teacher_input",
+    "gemma_serialization_identity_sha256",
+    "teacher_contract",
+    "guards"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.source-record.v1"
+    },
+    "record_id": {"$ref": "#/$defs/safeId"},
+    "task_bundle": {"$ref": "#/$defs/safeId"},
+    "semantic": {"$ref": "#/$defs/safeId"},
+    "role": {
+      "enum": ["humor", "serious", "angry", "tool", "review", "router", "identity"]
+    },
+    "language": {"enum": ["zh-CN", "en"]},
+    "split": {"const": "train"},
+    "teacher_input": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768
+    },
+    "gemma_serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "teacher_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompt_template_id",
+        "output_schema_id",
+        "identity_class",
+        "allowed_tools",
+        "allowed_evidence_ids",
+        "router_options"
+      ],
+      "properties": {
+        "prompt_template_id": {"$ref": "#/$defs/safeId"},
+        "output_schema_id": {"$ref": "#/$defs/safeId"},
+        "identity_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "allowed_tools": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeId"}
+        },
+        "allowed_evidence_ids": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeId"}
+        },
+        "router_options": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeId"}
+        }
+      }
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temporal_scope",
+        "forbidden_scope",
+        "target_leakage_sha256",
+        "references"
+      ],
+      "properties": {
+        "temporal_scope": {"const": "current"},
+        "forbidden_scope": {"const": false},
+        "target_leakage_sha256": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "references": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["record_id", "task_bundle"],
+            "properties": {
+              "record_id": {"$ref": "#/$defs/safeId"},
+              "task_bundle": {"$ref": "#/$defs/safeId"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    }
+  }
+}

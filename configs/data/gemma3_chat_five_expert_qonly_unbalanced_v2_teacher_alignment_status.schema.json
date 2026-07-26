@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-status-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_kind",
+    "state",
+    "profile",
+    "phase",
+    "updated_at",
+    "total",
+    "queued",
+    "inflight",
+    "succeeded",
+    "rejected",
+    "retried",
+    "role_counts",
+    "language_counts",
+    "provider_usage",
+    "rate",
+    "cooldown_until",
+    "hashes",
+    "resume",
+    "cost_guard",
+    "kill_switch",
+    "blockers",
+    "content_free"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.status.v1"
+    },
+    "dataset_kind": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "state": {
+      "enum": [
+        "running",
+        "complete",
+        "cooldown",
+        "blocked",
+        "blocked_uncertain_dispatch",
+        "provider_quota_exhausted"
+      ]
+    },
+    "profile": {
+      "enum": [
+        "smoke_exact1",
+        "bounded_small_c1",
+        "bulk_c30",
+        "bulk_c16"
+      ]
+    },
+    "phase": {"enum": ["smoke_exact1", "bounded_small", "bulk"]},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "total": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "queued": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "inflight": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "succeeded": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "rejected": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "retried": {"type": "integer", "minimum": 0, "maximum": 3520},
+    "role_counts": {"$ref": "#/$defs/countMap"},
+    "language_counts": {"$ref": "#/$defs/countMap"},
+    "provider_usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "input_tokens", "output_tokens", "usage_only"],
+      "properties": {
+        "requests": {"type": "integer", "minimum": 0},
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "usage_only": {"const": true}
+      }
+    },
+    "rate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobs_per_second", "eta_seconds"],
+      "properties": {
+        "jobs_per_second": {"type": ["number", "null"], "minimum": 0},
+        "eta_seconds": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "cooldown_until": {"type": ["string", "null"], "format": "date-time"},
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "config",
+        "campaign",
+        "model",
+        "implementation",
+        "contracts"
+      ],
+      "properties": {
+        "source": {"$ref": "#/$defs/sha256"},
+        "config": {"$ref": "#/$defs/sha256"},
+        "campaign": {"$ref": "#/$defs/sha256"},
+        "model": {"$ref": "#/$defs/sha256"},
+        "implementation": {"$ref": "#/$defs/sha256"},
+        "contracts": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed",
+        "uncertain",
+        "group_commits_replayed",
+        "duplicate_paid_call_prevention"
+      ],
+      "properties": {
+        "completed": {"type": "integer", "minimum": 0},
+        "uncertain": {"type": "integer", "minimum": 0},
+        "group_commits_replayed": {"const": true},
+        "duplicate_paid_call_prevention": {
+          "const": "uncertain_never_redispatched"
+        }
+      }
+    },
+    "cost_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "used_units",
+        "maximum_units",
+        "marginal_currency_cost_known"
+      ],
+      "properties": {
+        "basis": {"const": "subscription_quota_wire_request"},
+        "used_units": {"type": "integer", "minimum": 0},
+        "maximum_units": {"type": "integer", "minimum": 1},
+        "marginal_currency_cost_known": {"const": false}
+      }
+    },
+    "kill_switch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["armed", "checked_before_each_dispatch"],
+      "properties": {
+        "armed": {"type": "boolean"},
+        "checked_before_each_dispatch": {"const": true}
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+      }
+    },
+    "content_free": {"const": true}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "countMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3520
+      }
+    }
+  }
+}

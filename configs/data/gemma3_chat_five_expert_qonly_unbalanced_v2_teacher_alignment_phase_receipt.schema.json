@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-phase-receipt-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "schema_version",
+    "receipt_kind",
+    "profile",
+    "phase",
+    "profile_sha256",
+    "job_count",
+    "succeeded",
+    "rejected",
+    "completed_set_sha256",
+    "planner_dag_contract_sha256",
+    "planner_overlay_schema_sha256",
+    "binding",
+    "completed_at",
+    "content_retained",
+    "planner_body_retained",
+    "hmac_sha256"
+  ],
+  "properties": {
+    "id": {"$ref": "#/$defs/sha256"},
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.phase-receipt.v1"
+    },
+    "receipt_kind": {"const": "phase"},
+    "profile": {
+      "enum": [
+        "smoke_exact1",
+        "bounded_small_c1",
+        "bulk_c30",
+        "bulk_c16"
+      ]
+    },
+    "phase": {"enum": ["smoke_exact1", "bounded_small", "bulk"]},
+    "profile_sha256": {"$ref": "#/$defs/sha256"},
+    "job_count": {"type": "integer", "minimum": 1, "maximum": 3520},
+    "succeeded": {"type": "integer", "minimum": 1, "maximum": 3520},
+    "rejected": {"const": 0},
+    "completed_set_sha256": {"$ref": "#/$defs/sha256"},
+    "planner_dag_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "planner_overlay_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "campaign_sha256",
+        "source_identity_sha256",
+        "manifest_sha256",
+        "protected_test_identity_sha256",
+        "planner_dag_contract_sha256",
+        "derived_planner_overlay_schema_sha256",
+        "model_binding_sha256",
+        "implementation_sha256",
+        "prompt_version",
+        "profile_id",
+        "profile_sha256"
+      ],
+      "properties": {
+        "campaign_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "protected_test_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "planner_dag_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_planner_overlay_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "model_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v1"},
+        "profile_id": {
+          "enum": [
+            "smoke_exact1",
+            "bounded_small_c1",
+            "bulk_c30",
+            "bulk_c16"
+          ]
+        },
+        "profile_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "completed_at": {"type": "string", "format": "date-time"},
+    "content_retained": {"const": false},
+    "planner_body_retained": {"const": false},
+    "hmac_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

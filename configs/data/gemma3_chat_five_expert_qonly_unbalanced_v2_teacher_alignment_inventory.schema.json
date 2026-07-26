@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-inventory-v1",
+  "oneOf": [
+    {"$ref": "#/$defs/lineInventory"},
+    {"$ref": "#/$defs/forbiddenInventory"},
+    {"$ref": "#/$defs/identityInventory"}
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "lineInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "line_number",
+        "record_id_sha256",
+        "source_line_sha256",
+        "content_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.line-inventory.v1"
+        },
+        "line_number": {"type": "integer", "minimum": 1},
+        "record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "content_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "forbiddenInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id_sha256",
+        "source_line_sha256",
+        "content_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.forbidden-inventory.v1"
+        },
+        "record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "content_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "identityInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "record_id_sha256"],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.forbidden-inventory.v1"
+        },
+        "record_id_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

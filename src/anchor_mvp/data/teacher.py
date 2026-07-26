@@ -16,7 +16,7 @@ import random
 import re
 import threading
 import time
-from typing import Any, Literal, Mapping, Protocol
+from typing import Any, Callable, Literal, Mapping, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -132,7 +132,9 @@ class Teacher(Protocol):
     @property
     def provider_provenance(self) -> dict[str, Any]: ...
 
-    async def complete(self, *, system: str, user: str) -> str: ...
+    async def complete(
+        self, *, system: str, user: str, idempotency_key: str | None = None
+    ) -> str: ...
 
 
 class _CompletionText(str):
@@ -171,8 +173,9 @@ class _Budget:
 class CompatibleTeacher:
     """OpenAI/Anthropic-compatible client with optional protocol fallback.
 
-    The credential is read at call time from ``api_key_env`` and is never stored
-    in configuration, payload provenance, exceptions, or logs.
+    The credential is read at call time from an optional in-process provider or
+    from ``api_key_env`` for legacy callers. It is never included in payload
+    provenance, exceptions, or logs.
     """
 
     base_url: str = "https://api.kimi.com/coding/"
@@ -181,6 +184,9 @@ class CompatibleTeacher:
     fallback_protocol: APIProtocol | None = "openai"
     fallback_base_url: str = "https://api.kimi.com/coding/v1"
     api_key_env: str = "KIMI_API_KEY"
+    credential_provider: Callable[[], str] | None = field(
+        default=None, repr=False, compare=False
+    )
     anthropic_version: str = "2023-06-01"
     user_agent: str = "anchor-moe-lora/0.1"
     timeout_seconds: float = 600.0
@@ -325,13 +331,21 @@ class CompatibleTeacher:
             raise RuntimeError("usage budget owner must be unused")
         self._budget = owner._budget
 
-    async def complete(self, *, system: str, user: str) -> str:
+    async def complete(
+        self, *, system: str, user: str, idempotency_key: str | None = None
+    ) -> str:
         self._completion_context.set(None)
+        validated_idempotency_key = _validate_idempotency_key(idempotency_key)
         primary_protocol = self.protocol
         primary_base_url = self.base_url
         try:
             return await self._with_retries(
-                primary_protocol, primary_base_url, system, user, self.max_tokens
+                primary_protocol,
+                primary_base_url,
+                system,
+                user,
+                self.max_tokens,
+                validated_idempotency_key,
             )
         except _ProtocolError as error:
             # A task prompt may contain private code or user context. Never
@@ -404,6 +418,7 @@ class CompatibleTeacher:
         system: str,
         user: str,
         max_tokens: int,
+        idempotency_key: str | None = None,
     ) -> str:
         last_error: Exception | None = None
         retry_reasons: list[str] = []
@@ -422,9 +437,16 @@ class CompatibleTeacher:
         )
         for attempt in range(self.max_retries + 1):
             try:
-                result = await asyncio.to_thread(
-                    self._request_sync, protocol, base_url, system, user, max_tokens
+                request_args: tuple[Any, ...] = (
+                    protocol,
+                    base_url,
+                    system,
+                    user,
+                    max_tokens,
                 )
+                if idempotency_key is not None:
+                    request_args = (*request_args, idempotency_key)
+                result = await asyncio.to_thread(self._request_sync, *request_args)
                 completion = (
                     dict(result.completion)
                     if isinstance(result, _CompletionText) and result.completion
@@ -500,12 +522,26 @@ class CompatibleTeacher:
         system: str,
         user: str,
         max_tokens: int,
+        idempotency_key: str | None = None,
     ) -> str:
-        api_key = os.environ.get(self.api_key_env)
-        if not api_key:
-            raise TeacherError(
-                f"credential environment variable {self.api_key_env} is not set"
-            )
+        if self.credential_provider is not None:
+            try:
+                api_key = self.credential_provider()
+            except Exception:
+                raise TeacherError("credential memory slot is unavailable") from None
+            if (
+                not isinstance(api_key, str)
+                or not api_key
+                or api_key != api_key.strip()
+                or any(marker in api_key for marker in ("\x00", "\r", "\n"))
+            ):
+                raise TeacherError("credential memory slot is unavailable")
+        else:
+            api_key = os.environ.get(self.api_key_env)
+            if not api_key:
+                raise TeacherError(
+                    f"credential environment variable {self.api_key_env} is not set"
+                )
         self._budget.reserve_request()
         if protocol == "anthropic":
             endpoint = _anthropic_endpoint(base_url)
@@ -577,6 +613,8 @@ class CompatibleTeacher:
                 "Authorization": f"Bearer {api_key}",
                 "User-Agent": self.user_agent,
             }
+        if idempotency_key is not None:
+            headers["Idempotency-Key"] = idempotency_key
         request = Request(
             endpoint,
             data=json.dumps(payload).encode("utf-8"),
@@ -691,7 +729,10 @@ class MockTeacher:
         await asyncio.sleep(0)
         return '{"ok":true}'
 
-    async def complete(self, *, system: str, user: str) -> str:
+    async def complete(
+        self, *, system: str, user: str, idempotency_key: str | None = None
+    ) -> str:
+        del idempotency_key
         await asyncio.sleep(0)
         marker = _marker(user, "ANCHOR_TASK")
         index = int(_marker(user, "SEED_INDEX") or "0")
@@ -1606,6 +1647,20 @@ def _retry_delay_seconds(attempt: int, retry_after_seconds: float = 0.0) -> floa
     floor = max(exponential, provider_hint)
     jitter = random.random() * min(0.5, exponential * 0.25)
     return min(8.0, floor + jitter)
+
+
+def _validate_idempotency_key(value: str | None) -> str | None:
+    """Validate an optional provider replay key without retaining request data."""
+
+    if value is None:
+        return None
+    if (
+        not isinstance(value, str)
+        or not 16 <= len(value) <= 200
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]*", value) is None
+    ):
+        raise TeacherError("teacher idempotency key is invalid")
+    return value
 
 
 def _anthropic_endpoint(base_url: str) -> str:

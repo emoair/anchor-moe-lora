@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-record-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_kind",
+    "idempotency_key",
+    "record_id",
+    "task_bundle",
+    "semantic",
+    "role",
+    "language",
+    "split",
+    "source_binding",
+    "teacher_binding",
+    "derived_planner_overlay",
+    "output",
+    "usage",
+    "attempts",
+    "binding",
+    "validated_at",
+    "hidden_reasoning_retained"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.record.v1"
+    },
+    "dataset_kind": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "idempotency_key": {"$ref": "#/$defs/sha256"},
+    "record_id": {"$ref": "#/$defs/safeId"},
+    "task_bundle": {"$ref": "#/$defs/safeId"},
+    "semantic": {"$ref": "#/$defs/safeId"},
+    "role": {
+      "enum": ["humor", "serious", "angry", "tool", "review", "router", "identity"]
+    },
+    "language": {"enum": ["zh-CN", "en"]},
+    "split": {"const": "train"},
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_line_sha256",
+        "content_identity_sha256",
+        "gemma_serialization_identity_sha256",
+        "manifest_sha256",
+        "task_bundle"
+      ],
+      "properties": {
+        "source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "content_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "gemma_serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "task_bundle": {"$ref": "#/$defs/safeId"}
+      }
+    },
+    "teacher_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "protocol",
+        "base_url",
+        "model",
+        "force_model",
+        "discovery",
+        "prompt_version",
+        "prompt_template_id",
+        "prompt_template_sha256",
+        "output_schema_id",
+        "output_schema_sha256"
+      ],
+      "properties": {
+        "provider": {"const": "custom-openai-responses"},
+        "protocol": {"const": "openai_responses"},
+        "base_url": {
+          "const": "https://ark.cn-beijing.volces.com/api/coding/v3"
+        },
+        "model": {"const": "glm-5-2-260617"},
+        "force_model": {"const": true},
+        "discovery": {"const": false},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v1"},
+        "prompt_template_id": {"$ref": "#/$defs/safeId"},
+        "prompt_template_sha256": {"$ref": "#/$defs/sha256"},
+        "output_schema_id": {"$ref": "#/$defs/safeId"},
+        "output_schema_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "derived_planner_overlay": {
+      "type": "object"
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {"enum": ["natural_text", "structured_json"]},
+        "value": {}
+      }
+    },
+    "usage": {"$ref": "#/$defs/usage"},
+    "attempts": {"$ref": "#/$defs/attempts"},
+    "binding": {"$ref": "#/$defs/binding"},
+    "validated_at": {"type": "string", "format": "date-time"},
+    "hidden_reasoning_retained": {"const": false}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_tokens", "output_tokens", "total_tokens"],
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "total_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "attempts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wire_attempts",
+        "retry_count",
+        "retry_reasons",
+        "response_id"
+      ],
+      "properties": {
+        "wire_attempts": {"type": "integer", "minimum": 1, "maximum": 3},
+        "retry_count": {"type": "integer", "minimum": 0, "maximum": 2},
+        "retry_reasons": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {"type": "string", "maxLength": 64}
+        },
+        "response_id": {
+          "type": ["string", "null"],
+          "maxLength": 128
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "campaign_sha256",
+        "source_identity_sha256",
+        "manifest_sha256",
+        "protected_test_identity_sha256",
+        "planner_dag_contract_sha256",
+        "derived_planner_overlay_schema_sha256",
+        "model_binding_sha256",
+        "implementation_sha256",
+        "prompt_version",
+        "profile_id",
+        "profile_sha256"
+      ],
+      "properties": {
+        "campaign_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "protected_test_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "planner_dag_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_planner_overlay_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "model_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v1"},
+        "profile_id": {
+          "enum": [
+            "smoke_exact1",
+            "bounded_small_c1",
+            "bulk_c30",
+            "bulk_c16"
+          ]
+        },
+        "profile_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

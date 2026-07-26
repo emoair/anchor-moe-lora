@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-source-final-manifest-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_kind",
+    "status",
+    "manifest_id",
+    "producer_release",
+    "partitions",
+    "forbidden_sources",
+    "logical_identity",
+    "projection_contract"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.source-final-manifest.v2"
+    },
+    "dataset_kind": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "status": {"const": "FINAL"},
+    "manifest_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "producer_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_version",
+        "artifact_lifecycle_status",
+        "artifact_root",
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "manifest_sha256",
+        "build_receipt_sha256",
+        "tree_sha256",
+        "output_inventory_sha256",
+        "release_attestation_path",
+        "release_attestation_sha256",
+        "release_attestation_sidecar_physical_sha256",
+        "manifest_schema_path",
+        "manifest_schema_sha256",
+        "release_attestation_schema_path",
+        "release_attestation_schema_sha256",
+        "physical_file_count",
+        "payload_file_count",
+        "sidecar_file_count",
+        "physical_files"
+      ],
+      "properties": {
+        "artifact_version": {"type": "string"},
+        "artifact_lifecycle_status": {"type": "string"},
+        "artifact_root": {"type": "string"},
+        "producer_candidate_commit": {"$ref": "#/$defs/sha1"},
+        "producer_release_commit": {"$ref": "#/$defs/sha1"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "build_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "tree_sha256": {"$ref": "#/$defs/sha256"},
+        "output_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "release_attestation_path": {"type": "string"},
+        "release_attestation_sha256": {"$ref": "#/$defs/sha256"},
+        "release_attestation_sidecar_physical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_schema_path": {"type": "string"},
+        "manifest_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "release_attestation_schema_path": {"type": "string"},
+        "release_attestation_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "physical_file_count": {"const": 46},
+        "payload_file_count": {"const": 23},
+        "sidecar_file_count": {"const": 23},
+        "physical_files": {
+          "type": "array",
+          "minItems": 46,
+          "maxItems": 46,
+          "items": {"$ref": "#/$defs/physicalFile"}
+        }
+      }
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/trainShard0"},
+        {"$ref": "#/$defs/trainShard1"},
+        {"$ref": "#/$defs/routerTrain"}
+      ],
+      "items": false
+    },
+    "forbidden_sources": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/forbiddenSource"}
+    },
+    "logical_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 10,
+      "maxProperties": 10,
+      "patternProperties": {
+        "^[a-z0-9_]+sha256$": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "projection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_order",
+        "role_mapping",
+        "identity_projection",
+        "target_fields_excluded",
+        "forbidden_fields_excluded",
+        "train_selected_rows",
+        "router_selected_rows",
+        "identity_selected_rows",
+        "total_selected_rows",
+        "content_materialized_in_overlay"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.source-projection.v2"
+        },
+        "source_order": {
+          "const": "producer_train_shard_order_then_router_source_order"
+        },
+        "role_mapping": {
+          "const": {
+            "humor": "humor",
+            "serious": "serious",
+            "angry_style": "angry",
+            "tool_call": "tool",
+            "review_audit": "review",
+            "emotion_router": "router"
+          }
+        },
+        "identity_projection": {
+          "const": "identity_aligned_tool_call_direct_no_tool_to_identity"
+        },
+        "target_fields_excluded": {
+          "const": ["target", "route_plan_target", "oracle"]
+        },
+        "forbidden_fields_excluded": {
+          "const": ["future", "forbidden", "heldout"]
+        },
+        "train_selected_rows": {"const": 3440},
+        "router_selected_rows": {"const": 80},
+        "identity_selected_rows": {"const": 20},
+        "total_selected_rows": {"const": 3520},
+        "content_materialized_in_overlay": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "physicalFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "bytes", "sha256", "kind"],
+      "properties": {
+        "relative_path": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 52428799},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "kind": {"enum": ["payload", "sha256_sidecar"]}
+      }
+    },
+    "partitionBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "shard_index",
+        "producer_relative_path",
+        "physical_row_count",
+        "selected_row_count",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {"enum": ["train", "router_train"]},
+        "shard_index": {"type": "integer", "minimum": 0, "maximum": 1},
+        "producer_relative_path": {"type": "string"},
+        "physical_row_count": {"type": "integer", "minimum": 1},
+        "selected_row_count": {"type": "integer", "minimum": 1},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 52428799},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "trainShard0": {
+      "allOf": [
+        {"$ref": "#/$defs/partitionBase"},
+        {
+          "properties": {
+            "kind": {"const": "train"},
+            "shard_index": {"const": 0},
+            "producer_relative_path": {
+              "const": "train/chat-00000-of-00002.jsonl"
+            },
+            "physical_row_count": {"const": 1770},
+            "selected_row_count": {"const": 1770}
+          }
+        }
+      ]
+    },
+    "trainShard1": {
+      "allOf": [
+        {"$ref": "#/$defs/partitionBase"},
+        {
+          "properties": {
+            "kind": {"const": "train"},
+            "shard_index": {"const": 1},
+            "producer_relative_path": {
+              "const": "train/chat-00001-of-00002.jsonl"
+            },
+            "physical_row_count": {"const": 1670},
+            "selected_row_count": {"const": 1670}
+          }
+        }
+      ]
+    },
+    "routerTrain": {
+      "allOf": [
+        {"$ref": "#/$defs/partitionBase"},
+        {
+          "properties": {
+            "kind": {"const": "router_train"},
+            "shard_index": {"const": 0},
+            "producer_relative_path": {
+              "const": "components/router/records.jsonl"
+            },
+            "physical_row_count": {"const": 100},
+            "selected_row_count": {"const": 80}
+          }
+        }
+      ]
+    },
+    "forbiddenSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "producer_relative_path",
+        "physical_row_count",
+        "selected_row_count",
+        "selection",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "eval_proxy",
+            "router_eval",
+            "tool_comparison_eval",
+            "planner_comparison_eval",
+            "identity_eval"
+          ]
+        },
+        "producer_relative_path": {"type": "string"},
+        "physical_row_count": {"type": "integer", "minimum": 1},
+        "selected_row_count": {"type": "integer", "minimum": 1},
+        "selection": {
+          "enum": ["all_rows", "split_eval_proxy", "unique_task_bundles"]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

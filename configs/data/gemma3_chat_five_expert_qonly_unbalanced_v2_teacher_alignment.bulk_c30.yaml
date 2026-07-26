@@ -1,0 +1,123 @@
+# Gate C: all 3,520 frozen source-train jobs, primary c30. The exact1 and bounded-small
+# HMAC receipts must both be green under identical source/model/config/impl
+# bindings. At most one request-local retry is allowed per remaining job.
+schema_version: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.config.v1
+dataset_kind: gemma3_chat_five_expert_qonly_unbalanced_v2
+namespace: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment
+profile_id: bulk_c30
+
+provider:
+  preset: custom-openai-responses
+  protocol: openai_responses
+  base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+  model: glm-5-2-260617
+  force_model: true
+  discover_models: false
+  credential_source: controller_memory_slot
+  credential_slot: ark_coding_api_key
+  credential_injection: anonymous_stdin_or_process_channel
+  user_agent: anchor-unbalanced-v2-batch/1
+
+source_binding:
+  state: final_frozen
+  final_root: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_source_v2
+  manifest_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_source_v2/manifest.json
+  manifest_sha256: 2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214
+  manifest_sha256_sidecar_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_source_v2/manifest.json.sha256
+  approval_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_source_v2/source_approval.json
+  approval_sha256: 58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9
+  approval_sha256_sidecar_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_source_v2/source_approval.json.sha256
+  expected_partition_counts:
+    train: 3440
+    router_train: 80
+  expected_forbidden_counts:
+    eval_proxy: 860
+    router_eval: 20
+    tool_comparison_eval: 400
+    planner_comparison_eval: 240
+    identity_eval: 10
+  expected_identity_train_count: 20
+  expected_total_jobs: 3520
+
+protected_test_binding:
+  state: protected_source_id_inventory
+  dataset_id: swebench-full-bank-v1
+  source_id_count: 19008
+  inventory_path: D:/LLM/anchor-moe-lora/fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/source_ids.sha256.jsonl
+  inventory_bytes: 1235520
+  inventory_sha256: 9d068d921795f7ffcafbb88c9b029e47d1d3253934c163998ef01ad72d378a95
+  inventory_manifest_path: D:/LLM/anchor-moe-lora/fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/manifest.json
+  inventory_manifest_sha256: 52bdf58cb903c807ba66a0c427ec5a968854164f4be8f54e3c79f3ff7b81d365
+  canonical_manifest_path: D:/LLM/anchor-moe-lora/datasets/public/swebench-full-bank-v1/manifest.json
+  canonical_manifest_sha256: 55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28
+  body_files_read: 0
+  formal: false
+  training_eligible: false
+
+heldout_binding:
+  state: verified_metadata_receipt
+  receipt_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_alignment_heldout_gate_v1/heldout_gate_receipt.json
+  receipt_sha256: 117216e935c76ba42291e35f06289e3e41f2d1ea4ea7dcb08eb8507ad0f60088
+  expected_case_file_sha256: 89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655
+  expected_manifest_sha256: 1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c
+  expected_prebulk_receipt_sha256: cf445089a94fd772ce1976560682e93d50a2d5b1d4c2503e441ac6058717d257
+  required_physical_mode: clean_lf_checkout
+
+output:
+  root: data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001
+  group_commit_size: 30
+  receipt_hmac_key_source: runtime_random_controller_memory
+  kill_switch_env: UNBALANCED_V2_KILL_SWITCH
+  kill_switch_file: KILL_SWITCH
+
+contracts:
+  prompt_version: unbalanced-v2-ark-final-only-v1
+  profile_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_profile.schema.json
+  source_manifest_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_manifest.schema.json
+  source_approval_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_approval.schema.json
+  source_record_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_record.schema.json
+  inventory_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_inventory.schema.json
+  output_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_record.schema.json
+  receipt_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_receipt.schema.json
+  phase_receipt_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_phase_receipt.schema.json
+  heldout_receipt_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_heldout_receipt.schema.json
+  status_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_status.schema.json
+  derived_planner_overlay_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_derived_planner_overlay.schema.json
+
+limits:
+  allowed_phases: [bulk]
+  concurrency: 30
+  external_concurrency_ceiling: 30
+  max_retries: 1
+  timeout_seconds: 600
+  wall_clock_deadline_seconds: 900
+  cooldown_seconds: 7200
+  max_input_chars_per_job: 32768
+  max_input_tokens_per_request: 8192
+  max_requests: 7025
+  max_input_tokens_total: 57548800
+  max_output_tokens_total: 7193600
+  cost_basis: subscription_quota_wire_request
+  max_cost_units: 7025
+  max_smoke_jobs: 32
+
+smoke_quota:
+  roles: [humor, serious, angry, tool, review, router, identity]
+  languages: [zh-CN, en]
+  identity_classes:
+    [air_attribution, false_google_attribution, false_openai_attribution]
+  require_role_language_pairs: true
+  exact1_selector:
+    role: identity
+    language: zh-CN
+    identity_class: air_attribution
+    ordering: source_partition_line_order
+    ordinal: 0
+  bounded_job_count: 15
+
+prerequisites:
+  required_phases: [smoke_exact1, bounded_small]
+  profile_paths:
+    smoke_exact1: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.smoke_exact1.yaml
+    bounded_small: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bounded_small_c1.yaml
+  fallback_trigger: null

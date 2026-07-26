@@ -193,6 +193,69 @@ STATUS_PATHS: frozenset[PathKey] = frozenset(
         ("usage_checkpoint_policy", "maximum_seconds"),
     }
 )
+UNBALANCED_DATASET_KIND = "gemma3_chat_five_expert_qonly_unbalanced_v2"
+UNBALANCED_MARKER_PATHS: frozenset[PathKey] = frozenset(
+    {
+        ("schema_version",),
+        ("dataset_kind",),
+        ("namespace",),
+        ("source_identity_sha256",),
+        ("campaign_sha256",),
+    }
+)
+UNBALANCED_STATUS_PATHS: frozenset[PathKey] = frozenset(
+    {
+        ("schema_version",),
+        ("dataset_kind",),
+        ("state",),
+        ("profile",),
+        ("phase",),
+        ("updated_at",),
+        ("total",),
+        ("queued",),
+        ("inflight",),
+        ("succeeded",),
+        ("rejected",),
+        ("retried",),
+        *(
+            ("role_counts", role)
+            for role in (
+                "humor",
+                "serious",
+                "angry",
+                "tool",
+                "review",
+                "router",
+                "identity",
+            )
+        ),
+        *(("language_counts", language) for language in ("zh-CN", "en")),
+        ("provider_usage", "requests"),
+        ("provider_usage", "input_tokens"),
+        ("provider_usage", "output_tokens"),
+        ("provider_usage", "usage_only"),
+        ("rate", "jobs_per_second"),
+        ("rate", "eta_seconds"),
+        ("cooldown_until",),
+        ("hashes", "source"),
+        ("hashes", "config"),
+        ("hashes", "campaign"),
+        ("hashes", "model"),
+        ("hashes", "implementation"),
+        ("hashes", "contracts"),
+        ("resume", "completed"),
+        ("resume", "uncertain"),
+        ("resume", "group_commits_replayed"),
+        ("resume", "duplicate_paid_call_prevention"),
+        ("cost_guard", "basis"),
+        ("cost_guard", "used_units"),
+        ("cost_guard", "maximum_units"),
+        ("cost_guard", "marginal_currency_cost_known"),
+        ("kill_switch", "armed"),
+        ("kill_switch", "checked_before_each_dispatch"),
+        ("content_free",),
+    }
+)
 
 
 class MetadataJsonError(ValueError):
@@ -870,8 +933,11 @@ class IncrementalJsonl:
 class StatusReader:
     """Cached selective reader for the non-append automation status file."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self, path: Path, *, selected: frozenset[PathKey] = STATUS_PATHS
+    ) -> None:
         self.path = path
+        self.selected = selected
         self.signature: tuple[int, int] | None = None
         self.metadata: dict[PathKey, object] = {}
         self.last_mtime: float | None = None
@@ -894,7 +960,7 @@ class StatusReader:
         self.last_mtime = stat.st_mtime
         raw = self.path.read_bytes()
         try:
-            self.metadata = scan_metadata(raw, STATUS_PATHS)
+            self.metadata = scan_metadata(raw, self.selected)
             self.invalid_sha256 = None
         except (MetadataJsonError, ValueError, TypeError):
             self.metadata = {}
@@ -923,6 +989,251 @@ def _known_percent(value: int, budgets: set[int]) -> dict[str, object]:
         exact=len(budgets) == 1,
         source="provider_usage_lower_bound",
     )
+
+
+def _safe_sha256(value: object) -> str | None:
+    if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value):
+        return value
+    return None
+
+
+def _safe_nonnegative_number(value: object) -> float | None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or value < 0
+        or value != value
+        or value in {float("inf"), float("-inf")}
+    ):
+        return None
+    return float(value)
+
+
+def _unbalanced_marker(path: Path) -> bool:
+    """Detect the additive dataset kind without materializing any row body."""
+
+    marker = path / "dataset.json"
+    if not marker.exists():
+        return False
+    try:
+        raw = marker.read_bytes()
+    except OSError as error:
+        raise ValueError("cannot read shard dataset marker") from error
+    if len(raw) > 64 * 1024:
+        raise ValueError("shard dataset marker is too large")
+    try:
+        metadata = scan_metadata(raw, UNBALANCED_MARKER_PATHS)
+    except (MetadataJsonError, ValueError, TypeError) as error:
+        raise ValueError("shard dataset marker is invalid") from error
+    dataset_kind = metadata.get(("dataset_kind",))
+    if dataset_kind != UNBALANCED_DATASET_KIND:
+        raise ValueError("shard dataset marker kind is unsupported")
+    if (
+        _safe_sha256(metadata.get(("source_identity_sha256",))) is None
+        or _safe_sha256(metadata.get(("campaign_sha256",))) is None
+    ):
+        raise ValueError("shard dataset marker identity is invalid")
+    return True
+
+
+class UnbalancedShardMonitor:
+    """Selective, body-free reader for the unbalanced alignment status."""
+
+    def __init__(self, label: str, path: Path) -> None:
+        self.label = label
+        self.path = path
+        self.status_reader = StatusReader(
+            path / STATUS_FILE, selected=UNBALANCED_STATUS_PATHS
+        )
+
+    def refresh(self, _now_monotonic: float) -> bool:
+        return self.status_reader.refresh()
+
+    def public(self, _catalog: CatalogService | None = None) -> dict[str, object]:
+        metadata = self.status_reader.metadata
+        invalid = self.status_reader.invalid_sha256
+        state = (
+            _safe_enum(metadata.get(("state",)), fallback_prefix="unknown-state")
+            if metadata.get(("state",)) is not None
+            else "untracked"
+        )
+        total = _safe_nonnegative_int(metadata.get(("total",)))
+        counters: dict[str, int | None] = {
+            name: _safe_nonnegative_int(metadata.get((name,)))
+            for name in (
+                "queued",
+                "inflight",
+                "succeeded",
+                "rejected",
+                "retried",
+            )
+        }
+        role_counts = {
+            role: value
+            for role in (
+                "humor",
+                "serious",
+                "angry",
+                "tool",
+                "review",
+                "router",
+                "identity",
+            )
+            if (value := _safe_nonnegative_int(metadata.get(("role_counts", role))))
+            is not None
+        }
+        language_counts = {
+            language: value
+            for language in ("zh-CN", "en")
+            if (
+                value := _safe_nonnegative_int(
+                    metadata.get(("language_counts", language))
+                )
+            )
+            is not None
+        }
+        usage_only = metadata.get(("provider_usage", "usage_only")) is True
+        request_value = _safe_nonnegative_int(
+            metadata.get(("provider_usage", "requests"))
+        )
+        input_tokens = _safe_nonnegative_int(
+            metadata.get(("provider_usage", "input_tokens"))
+        )
+        output_tokens = _safe_nonnegative_int(
+            metadata.get(("provider_usage", "output_tokens"))
+        )
+        status_exact = invalid is None and bool(metadata)
+        hashes = {
+            name: _safe_sha256(metadata.get(("hashes", name)))
+            for name in (
+                "source",
+                "config",
+                "campaign",
+                "model",
+                "implementation",
+                "contracts",
+            )
+        }
+        hashes_exact = status_exact and all(
+            value is not None for value in hashes.values()
+        )
+        jobs_per_second = _safe_nonnegative_number(
+            metadata.get(("rate", "jobs_per_second"))
+        )
+        eta_seconds = _safe_nonnegative_number(metadata.get(("rate", "eta_seconds")))
+        cooldown_until = _safe_observed_at(metadata.get(("cooldown_until",)))
+        updated_at = _safe_observed_at(metadata.get(("updated_at",)))
+        reasons: list[str] = []
+        if invalid is not None:
+            reasons.append("file_parse_error")
+        if state == "cooldown":
+            reasons.append("provider_cooldown")
+        diagnostics_summary = (
+            "attention"
+            if reasons or state not in {"running", "complete", "cooldown"}
+            else ("complete" if state == "complete" else "running")
+        )
+        return {
+            "label": self.label,
+            "dataset_kind": UNBALANCED_DATASET_KIND,
+            "state": state,
+            "profile": _safe_enum(
+                metadata.get(("profile",)), fallback_prefix="unknown-profile"
+            ),
+            "phase": _safe_enum(
+                metadata.get(("phase",)), fallback_prefix="unknown-phase"
+            ),
+            "jobs": {
+                "total": _metric(
+                    total,
+                    exact=status_exact and total is not None,
+                    source="unbalanced_status",
+                ),
+                **{
+                    name: _metric(
+                        value,
+                        exact=status_exact and value is not None,
+                        source="unbalanced_status",
+                    )
+                    for name, value in counters.items()
+                },
+            },
+            "role_counts": dict(sorted(role_counts.items())),
+            "language_counts": dict(sorted(language_counts.items())),
+            "tokens": {
+                "input": _metric(
+                    input_tokens,
+                    exact=status_exact and usage_only and input_tokens is not None,
+                    source="provider_usage_checkpoint",
+                ),
+                "output": _metric(
+                    output_tokens,
+                    exact=status_exact and usage_only and output_tokens is not None,
+                    source="provider_usage_checkpoint",
+                ),
+            },
+            "requests": _metric(
+                request_value,
+                exact=status_exact and usage_only and request_value is not None,
+                source="provider_usage_checkpoint",
+            ),
+            "rate": {
+                "jobs_per_second": jobs_per_second,
+                "eta_seconds": eta_seconds,
+            },
+            "cooldown_until": cooldown_until,
+            "hashes": {**hashes, "exact": hashes_exact},
+            "resume": {
+                "completed": _safe_nonnegative_int(
+                    metadata.get(("resume", "completed"))
+                ),
+                "uncertain": _safe_nonnegative_int(
+                    metadata.get(("resume", "uncertain"))
+                ),
+                "group_commits_replayed": (
+                    metadata.get(("resume", "group_commits_replayed")) is True
+                ),
+                "duplicate_paid_call_prevention": (
+                    metadata.get(("resume", "duplicate_paid_call_prevention"))
+                    == "uncertain_never_redispatched"
+                ),
+            },
+            "cost_guard": {
+                "basis": _safe_enum(
+                    metadata.get(("cost_guard", "basis")),
+                    fallback_prefix="unknown-cost-basis",
+                ),
+                "used_units": _safe_nonnegative_int(
+                    metadata.get(("cost_guard", "used_units"))
+                ),
+                "maximum_units": _safe_nonnegative_int(
+                    metadata.get(("cost_guard", "maximum_units"))
+                ),
+                "marginal_currency_cost_known": (
+                    metadata.get(("cost_guard", "marginal_currency_cost_known")) is True
+                ),
+            },
+            "kill_switch_armed": (metadata.get(("kill_switch", "armed")) is True),
+            "updated_at": updated_at,
+            "privacy": {
+                "content_free": True,
+                "provider_usage_only": True,
+                "paths_returned": False,
+            },
+            "errors": {
+                "status_error": (
+                    {"source": "unbalanced_status", "sha256": invalid}
+                    if invalid is not None
+                    else None
+                )
+            },
+            "diagnostics": {
+                "summary": diagnostics_summary,
+                "reason_codes": reasons,
+                "observed_at": updated_at,
+                "cooldown_until": cooldown_until,
+            },
+        }
 
 
 class ShardMonitor:
@@ -1458,7 +1769,13 @@ class DashboardEngine:
         *,
         catalog: CatalogService | None = None,
     ) -> None:
-        self.monitors = [ShardMonitor(label, path) for label, path in shards]
+        self.monitors: list[ShardMonitor] = []
+        self.unbalanced_monitors: list[UnbalancedShardMonitor] = []
+        for label, path in shards:
+            if _unbalanced_marker(path):
+                self.unbalanced_monitors.append(UnbalancedShardMonitor(label, path))
+            else:
+                self.monitors.append(ShardMonitor(label, path))
         self.catalog = catalog
         self.lock = threading.Lock()
         self.logs: deque[dict[str, object]] = deque(maxlen=MAX_LOG_ENTRIES)
@@ -1472,7 +1789,7 @@ class DashboardEngine:
         """
 
         with self.lock:
-            for monitor in self.monitors:
+            for monitor in [*self.monitors, *self.unbalanced_monitors]:
                 if monitor.label == label:
                     if monitor.path == path:
                         return
@@ -1481,16 +1798,107 @@ class DashboardEngine:
                     )
                 if monitor.path == path:
                     return
-            self.monitors.append(ShardMonitor(label, path))
+            if _unbalanced_marker(path):
+                self.unbalanced_monitors.append(UnbalancedShardMonitor(label, path))
+            else:
+                self.monitors.append(ShardMonitor(label, path))
 
     def snapshot(self) -> dict[str, object]:
         with self.lock:
+            promoted: list[ShardMonitor] = []
+            for monitor in self.monitors:
+                if _unbalanced_marker(monitor.path):
+                    self.unbalanced_monitors.append(
+                        UnbalancedShardMonitor(monitor.label, monitor.path)
+                    )
+                    promoted.append(monitor)
+            if promoted:
+                self.monitors = [
+                    monitor for monitor in self.monitors if monitor not in promoted
+                ]
             now_monotonic = time.monotonic()
             for monitor in self.monitors:
                 monitor.refresh(now_monotonic)
+            for monitor in self.unbalanced_monitors:
+                monitor.refresh(now_monotonic)
             shards = [monitor.public(self.catalog) for monitor in self.monitors]
+            unbalanced = [
+                monitor.public(self.catalog) for monitor in self.unbalanced_monitors
+            ]
             self._record_changes(shards)
-            return self._compose(shards)
+            snapshot = self._compose(shards)
+            snapshot["unbalanced_shards"] = unbalanced
+            snapshot["unbalanced_totals"] = self._compose_unbalanced(unbalanced)
+            return snapshot
+
+    def _compose_unbalanced(
+        self, shards: Sequence[dict[str, object]]
+    ) -> dict[str, object]:
+        counter_names = (
+            "total",
+            "queued",
+            "inflight",
+            "succeeded",
+            "rejected",
+            "retried",
+        )
+        jobs: dict[str, dict[str, object]] = {}
+        for name in counter_names:
+            jobs[name] = _sum_public_metrics(
+                [
+                    shard.get("jobs", {}).get(name)
+                    if isinstance(shard.get("jobs"), Mapping)
+                    else None
+                    for shard in shards
+                ],
+                source="sum_unbalanced_status_checkpoints",
+            )
+        role_counts: Counter[str] = Counter()
+        language_counts: Counter[str] = Counter()
+        for shard in shards:
+            roles = shard.get("role_counts")
+            if isinstance(roles, Mapping):
+                role_counts.update(
+                    {
+                        str(name): int(value)
+                        for name, value in roles.items()
+                        if isinstance(value, int) and not isinstance(value, bool)
+                    }
+                )
+            languages = shard.get("language_counts")
+            if isinstance(languages, Mapping):
+                language_counts.update(
+                    {
+                        str(name): int(value)
+                        for name, value in languages.items()
+                        if isinstance(value, int) and not isinstance(value, bool)
+                    }
+                )
+        requests = _sum_public_metrics(
+            [shard.get("requests") for shard in shards],
+            source="sum_unbalanced_provider_usage_checkpoints",
+        )
+        tokens = {
+            name: _sum_public_metrics(
+                [
+                    shard.get("tokens", {}).get(name)
+                    if isinstance(shard.get("tokens"), Mapping)
+                    else None
+                    for shard in shards
+                ],
+                source="sum_unbalanced_provider_usage_checkpoints",
+            )
+            for name in ("input", "output")
+        }
+        return {
+            "jobs": jobs,
+            "role_counts": dict(sorted(role_counts.items())),
+            "language_counts": dict(sorted(language_counts.items())),
+            "requests": requests,
+            "tokens": tokens,
+            "shard_count": len(shards),
+            "content_free": True,
+        }
 
     def _record_changes(self, shards: Sequence[dict[str, object]]) -> None:
         at = datetime.now(timezone.utc).isoformat()
@@ -2148,6 +2556,26 @@ def parse_shards(values: Sequence[str]) -> list[tuple[str, Path]]:
 
 
 def _terminal_summary(snapshot: Mapping[str, object]) -> str:
+    unbalanced = snapshot.get("unbalanced_totals")
+    if isinstance(unbalanced, Mapping):
+        shard_count = unbalanced.get("shard_count")
+        jobs = unbalanced.get("jobs")
+        if (
+            isinstance(shard_count, int)
+            and shard_count > 0
+            and isinstance(jobs, Mapping)
+        ):
+            succeeded = jobs.get("succeeded")
+            succeeded_value = (
+                succeeded.get("value") if isinstance(succeeded, Mapping) else None
+            )
+            queued = jobs.get("queued")
+            queued_value = queued.get("value") if isinstance(queued, Mapping) else None
+            return (
+                f"unbalanced_succeeded={succeeded_value} "
+                f"unbalanced_queued={queued_value} "
+                f"unbalanced_shards={shard_count}"
+            )
     totals = snapshot.get("totals", {})
     if not isinstance(totals, Mapping):
         return "snapshot unavailable"

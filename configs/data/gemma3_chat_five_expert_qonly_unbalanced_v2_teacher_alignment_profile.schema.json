@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-teacher-alignment-profile-v1",
+  "title": "Gemma3 Chat unbalanced-v2 teacher alignment profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_kind",
+    "namespace",
+    "profile_id",
+    "provider",
+    "source_binding",
+    "protected_test_binding",
+    "heldout_binding",
+    "output",
+    "contracts",
+    "limits",
+    "smoke_quota",
+    "prerequisites"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.config.v1"
+    },
+    "dataset_kind": {
+      "const": "gemma3_chat_five_expert_qonly_unbalanced_v2"
+    },
+    "namespace": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment"
+    },
+    "profile_id": {
+      "enum": ["smoke_exact1", "bounded_small_c1", "bulk_c30", "bulk_c16"]
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "protocol",
+        "base_url",
+        "model",
+        "force_model",
+        "discover_models",
+        "credential_source",
+        "credential_slot",
+        "credential_injection",
+        "user_agent"
+      ],
+      "properties": {
+        "preset": {"const": "custom-openai-responses"},
+        "protocol": {"const": "openai_responses"},
+        "base_url": {
+          "const": "https://ark.cn-beijing.volces.com/api/coding/v3"
+        },
+        "model": {"const": "glm-5-2-260617"},
+        "force_model": {"const": true},
+        "discover_models": {"const": false},
+        "credential_source": {"const": "controller_memory_slot"},
+        "credential_slot": {"const": "ark_coding_api_key"},
+        "credential_injection": {
+          "const": "anonymous_stdin_or_process_channel"
+        },
+        "user_agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+        }
+      }
+    },
+    "protected_test_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "dataset_id",
+        "source_id_count",
+        "inventory_path",
+        "inventory_bytes",
+        "inventory_sha256",
+        "inventory_manifest_path",
+        "inventory_manifest_sha256",
+        "canonical_manifest_path",
+        "canonical_manifest_sha256",
+        "body_files_read",
+        "formal",
+        "training_eligible"
+      ],
+      "properties": {
+        "state": {"const": "protected_source_id_inventory"},
+        "dataset_id": {"const": "swebench-full-bank-v1"},
+        "source_id_count": {"const": 19008},
+        "inventory_path": {
+          "const": "D:/LLM/anchor-moe-lora/fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/source_ids.sha256.jsonl"
+        },
+        "inventory_bytes": {"const": 1235520},
+        "inventory_sha256": {
+          "const": "9d068d921795f7ffcafbb88c9b029e47d1d3253934c163998ef01ad72d378a95"
+        },
+        "inventory_manifest_path": {
+          "const": "D:/LLM/anchor-moe-lora/fixtures/research/qwen_toy_prerequisite_v1/inventories/swebench_source/manifest.json"
+        },
+        "inventory_manifest_sha256": {
+          "const": "52bdf58cb903c807ba66a0c427ec5a968854164f4be8f54e3c79f3ff7b81d365"
+        },
+        "canonical_manifest_path": {
+          "const": "D:/LLM/anchor-moe-lora/datasets/public/swebench-full-bank-v1/manifest.json"
+        },
+        "canonical_manifest_sha256": {
+          "const": "55c84236e42a803d029ce961fcce064b0b894b632e2789191c3ed1e106ebcf28"
+        },
+        "body_files_read": {"const": 0},
+        "formal": {"const": false},
+        "training_eligible": {"const": false}
+      }
+    },
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "final_root",
+        "manifest_path",
+        "manifest_sha256",
+        "manifest_sha256_sidecar_path",
+        "approval_path",
+        "approval_sha256",
+        "approval_sha256_sidecar_path",
+        "expected_partition_counts",
+        "expected_forbidden_counts",
+        "expected_identity_train_count",
+        "expected_total_jobs"
+      ],
+      "properties": {
+        "state": {"enum": ["pending_final_identity", "final_frozen"]},
+        "final_root": {"type": ["string", "null"]},
+        "manifest_path": {"type": ["string", "null"]},
+        "manifest_sha256": {"type": "string"},
+        "manifest_sha256_sidecar_path": {"type": ["string", "null"]},
+        "approval_path": {"type": ["string", "null"]},
+        "approval_sha256": {"type": "string"},
+        "approval_sha256_sidecar_path": {"type": ["string", "null"]},
+        "expected_partition_counts": {
+          "const": {"train": 3440, "router_train": 80}
+        },
+        "expected_forbidden_counts": {
+          "const": {
+            "eval_proxy": 860,
+            "router_eval": 20,
+            "tool_comparison_eval": 400,
+            "planner_comparison_eval": 240,
+            "identity_eval": 10
+          }
+        },
+        "expected_identity_train_count": {"const": 20},
+        "expected_total_jobs": {"const": 3520}
+      }
+    },
+    "heldout_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "receipt_path",
+        "receipt_sha256",
+        "expected_case_file_sha256",
+        "expected_manifest_sha256",
+        "expected_prebulk_receipt_sha256",
+        "required_physical_mode"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "environment_physical_eol_and_missing_ignored_receipt",
+            "verified_metadata_receipt"
+          ]
+        },
+        "receipt_path": {"type": ["string", "null"]},
+        "receipt_sha256": {"type": "string"},
+        "expected_case_file_sha256": {
+          "const": "89c50fb201124e5d1df1ac9e1dd4308dfbee69605c56b0b4c20636a80cc46655"
+        },
+        "expected_manifest_sha256": {
+          "const": "1ac7240d700a67458dc713b66ff085f1e51795b26cdacff688063bc60af3194c"
+        },
+        "expected_prebulk_receipt_sha256": {
+          "const": "cf445089a94fd772ce1976560682e93d50a2d5b1d4c2503e441ac6058717d257"
+        },
+        "required_physical_mode": {
+          "enum": ["clean_lf_checkout", "authenticated_readonly_overlay"]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "group_commit_size",
+        "receipt_hmac_key_source",
+        "kill_switch_env",
+        "kill_switch_file"
+      ],
+      "properties": {
+        "root": {"type": "string", "minLength": 1},
+        "group_commit_size": {"type": "integer", "minimum": 1, "maximum": 64},
+        "receipt_hmac_key_source": {
+          "const": "runtime_random_controller_memory"
+        },
+        "kill_switch_env": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "kill_switch_file": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+$"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompt_version",
+        "profile_schema_path",
+        "source_manifest_schema_path",
+        "source_approval_schema_path",
+        "source_record_schema_path",
+        "inventory_schema_path",
+        "output_schema_path",
+        "receipt_schema_path",
+        "phase_receipt_schema_path",
+        "heldout_receipt_schema_path",
+        "status_schema_path",
+        "derived_planner_overlay_schema_path"
+      ],
+      "properties": {
+        "prompt_version": {
+          "const": "unbalanced-v2-ark-final-only-v1"
+        },
+        "profile_schema_path": {"type": "string", "minLength": 1},
+        "source_manifest_schema_path": {"type": "string", "minLength": 1},
+        "source_approval_schema_path": {"type": "string", "minLength": 1},
+        "source_record_schema_path": {"type": "string", "minLength": 1},
+        "inventory_schema_path": {"type": "string", "minLength": 1},
+        "output_schema_path": {"type": "string", "minLength": 1},
+        "receipt_schema_path": {"type": "string", "minLength": 1},
+        "phase_receipt_schema_path": {"type": "string", "minLength": 1},
+        "heldout_receipt_schema_path": {"type": "string", "minLength": 1},
+        "status_schema_path": {"type": "string", "minLength": 1},
+        "derived_planner_overlay_schema_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_phases",
+        "concurrency",
+        "external_concurrency_ceiling",
+        "max_retries",
+        "timeout_seconds",
+        "wall_clock_deadline_seconds",
+        "cooldown_seconds",
+        "max_input_chars_per_job",
+        "max_input_tokens_per_request",
+        "max_requests",
+        "max_input_tokens_total",
+        "max_output_tokens_total",
+        "cost_basis",
+        "max_cost_units",
+        "max_smoke_jobs"
+      ],
+      "properties": {
+        "allowed_phases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["smoke_exact1", "bounded_small", "bulk"]}
+        },
+        "concurrency": {"type": "integer", "minimum": 1, "maximum": 30},
+        "external_concurrency_ceiling": {"const": 30},
+        "max_retries": {"type": "integer", "minimum": 0, "maximum": 2},
+        "timeout_seconds": {"type": "number", "minimum": 1, "maximum": 3600},
+        "wall_clock_deadline_seconds": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 21600
+        },
+        "cooldown_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "max_input_chars_per_job": {"const": 32768},
+        "max_input_tokens_per_request": {"const": 8192},
+        "max_requests": {"type": "integer", "minimum": 1},
+        "max_input_tokens_total": {"type": "integer", "minimum": 1},
+        "max_output_tokens_total": {"type": "integer", "minimum": 1},
+        "cost_basis": {"const": "subscription_quota_wire_request"},
+        "max_cost_units": {"type": "integer", "minimum": 1},
+        "max_smoke_jobs": {"const": 32}
+      }
+    },
+    "smoke_quota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roles",
+        "languages",
+        "identity_classes",
+        "require_role_language_pairs",
+        "exact1_selector",
+        "bounded_job_count"
+      ],
+      "properties": {
+        "roles": {
+          "const": ["humor", "serious", "angry", "tool", "review", "router", "identity"]
+        },
+        "languages": {"const": ["zh-CN", "en"]},
+        "identity_classes": {
+          "const": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "require_role_language_pairs": {"const": true},
+        "exact1_selector": {
+          "const": {
+            "role": "identity",
+            "language": "zh-CN",
+            "identity_class": "air_attribution",
+            "ordering": "source_partition_line_order",
+            "ordinal": 0
+          }
+        },
+        "bounded_job_count": {"const": 15}
+      }
+    },
+    "prerequisites": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_phases",
+        "profile_paths",
+        "fallback_trigger"
+      ],
+      "properties": {
+        "required_phases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["smoke_exact1", "bounded_small"]}
+        },
+        "profile_paths": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "smoke_exact1": {"type": "string", "minLength": 1},
+            "bounded_small": {"type": "string", "minLength": 1},
+            "bulk_primary": {"type": "string", "minLength": 1}
+          }
+        },
+        "fallback_trigger": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from_profile",
+                "allowed_reason_codes",
+                "require_no_uncertain_dispatches"
+              ],
+              "properties": {
+                "from_profile": {"const": "bulk_c30"},
+                "allowed_reason_codes": {
+                  "const": [
+                    "provider_rate_limit",
+                    "provider_instability_reconciled"
+                  ]
+                },
+                "require_no_uncertain_dispatches": {"const": true}
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

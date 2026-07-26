@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor://schemas/gemma3-chat-unbalanced-v2-derived-planner-overlay-v1",
+  "title": "Body-free derived hierarchical planner overlay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "source_record_id_sha256",
+    "source_line_sha256",
+    "content_identity_sha256",
+    "idempotency_key",
+    "labels",
+    "references",
+    "path",
+    "latent_packet",
+    "planner_dag_contract_sha256",
+    "overlay_schema_sha256",
+    "source_body_retained",
+    "hidden_reasoning_retained",
+    "overlay_identity_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.derived-planner-overlay.v1"
+    },
+    "state": {"const": "body_free_identity_placeholder"},
+    "source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+    "source_line_sha256": {"$ref": "#/$defs/sha256"},
+    "content_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/sha256"},
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_type", "emotion", "tool_family", "review"],
+      "properties": {
+        "task_type": {
+          "enum": ["tool", "emotion", "chat_vs_work", "review"]
+        },
+        "emotion": {
+          "type": ["string", "null"],
+          "enum": ["humor", "serious", "angry", null]
+        },
+        "tool_family": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeId"}
+        },
+        "review": {
+          "type": ["string", "null"],
+          "enum": ["pass", "fail", null]
+        }
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["salient", "evidence"],
+      "properties": {
+        "salient": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["record_id", "task_bundle"],
+            "properties": {
+              "record_id": {"$ref": "#/$defs/safeId"},
+              "task_bundle": {"$ref": "#/$defs/safeId"}
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safeId"}
+        }
+      }
+    },
+    "path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "global_planner",
+        "specialist_planner",
+        "output_expert",
+        "single_path"
+      ],
+      "properties": {
+        "global_planner": {"const": "global_planner"},
+        "specialist_planner": {
+          "enum": ["tool_planner", "emotion_planner", "mode_planner"]
+        },
+        "output_expert": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router",
+            "identity"
+          ]
+        },
+        "single_path": {"const": true}
+      }
+    },
+    "latent_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "dimension",
+        "serialization",
+        "position_binding",
+        "commit_digest_sha256",
+        "recomputable_boundary_sha256",
+        "hidden_chain_of_thought"
+      ],
+      "properties": {
+        "present": {"const": false},
+        "dimension": {"const": 256},
+        "serialization": {"const": "canonical_f32_le_v1"},
+        "position_binding": {"const": "explicit_absolute_position_v1"},
+        "commit_digest_sha256": {"$ref": "#/$defs/sha256"},
+        "recomputable_boundary_sha256": {"$ref": "#/$defs/sha256"},
+        "hidden_chain_of_thought": {"const": false}
+      }
+    },
+    "planner_dag_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "overlay_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "source_body_retained": {"const": false},
+    "hidden_reasoning_retained": {"const": false},
+    "overlay_identity_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    }
+  }
+}
