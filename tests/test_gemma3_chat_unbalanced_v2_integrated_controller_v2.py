@@ -15,6 +15,13 @@ from anchor_mvp.data import gemma3_chat_unbalanced_v2_integrated_controller_v2 a
 from anchor_mvp.data import gemma3_chat_unbalanced_v2_live_controller as v1
 
 
+ACTIVE_CONFIG_PATH = (
+    batch.REPO_ROOT / "configs/data/"
+    "gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_"
+    "consumer_rollover_v2.json"
+)
+
+
 def _inventory() -> batch.SourceInventory:
     return batch.SourceInventory(
         records=(),
@@ -64,7 +71,7 @@ def _bound_for_tmp(
     v1.BoundProfiles,
     dict[str, batch.AdapterConfig],
 ]:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     canonical = integrated.base_controller
     common = dict(canonical.common_identity)
     common["output_root"] = str(tmp_path / "data" / "integrated-run")
@@ -273,17 +280,17 @@ def test_authenticated_c16_path_finalizes_c16_output(tmp_path: Path) -> None:
 def test_v1_bytes_remain_bound_and_v2_dry_run_is_non_live(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     assert integrated.base_controller.physical_sha256 == (
-        "39e5df222f6cc4f5b0a57fbbf4b1c173711830defbaea682f1a0425e852af591"
+        "efcb752a8f8c99e8556048e2e32bc627dd792c235732820522dccab586d2dff7"
     )
     assert integrated.base_controller.controller_implementation_sha256 == (
         "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595"
     )
     assert integrated.base_controller.teacher_implementation_sha256 == (
-        "f4e463dc322d8a3618f559b77fda9eff08dbd9e3a03703236b2f9a1bda821d75"
+        "01e35771bdc8a24ae15c1390f5f08a48597fb9b5b0f0f83bd094516bf8df0a59"
     )
-    assert v2.main(["--dry-run"]) == 2
+    assert v2.main(["--config", str(ACTIVE_CONFIG_PATH), "--dry-run"]) == 2
     output = capsys.readouterr().out
     assert "runtime_hmac_slot_unloaded" in output
     assert '"network_requests": 0' in output
@@ -291,7 +298,7 @@ def test_v1_bytes_remain_bound_and_v2_dry_run_is_non_live(
 
 
 def test_default_finalizer_loader_is_python310_compatible_and_not_cached() -> None:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     snapshot = integrated.snapshots["teacher_implementation"]
     tree = ast.parse(snapshot.raw, feature_version=(3, 10))
     assert not any(
@@ -308,7 +315,7 @@ def test_default_finalizer_loader_is_python310_compatible_and_not_cached() -> No
 
 
 def test_default_finalizer_entrypoint_executes_and_fails_closed_body_free() -> None:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     profile = batch.load_config(integrated.base_controller.profile_map["bulk_c30"].path)
     slots = _runtime_slots()
     slots.close()
@@ -361,7 +368,7 @@ def test_cli_config_and_internal_file_same_content_symlinks_fail_closed(
 def test_finalizer_implementation_drift_after_config_load_fails_closed(
     tmp_path: Path,
 ) -> None:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     canonical = integrated.snapshots["teacher_implementation"]
     copied_path = tmp_path / "teacher_finalizer.py"
     copied_path.write_bytes(canonical.raw)
@@ -397,7 +404,7 @@ def test_base_and_profile_anchor_drift_fail_closed(
     tmp_path: Path,
     snapshot_key: str,
 ) -> None:
-    integrated = v2.load_integrated_config()
+    integrated = v2.load_integrated_config(ACTIVE_CONFIG_PATH)
     raw = integrated.snapshots[snapshot_key].raw
     path = tmp_path / f"{snapshot_key}.bin"
     path.write_bytes(raw)

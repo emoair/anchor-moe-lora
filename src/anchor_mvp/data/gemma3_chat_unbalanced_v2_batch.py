@@ -68,8 +68,87 @@ PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
 BASE_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
 MODEL = "glm-5-2-260617"
+_NATURAL_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "final_answer": {
+            "type": "string",
+            "minLength": 1,
+        }
+    },
+    "required": ["final_answer"],
+    "additionalProperties": False,
+}
+RESPONSES_TEXT_FORMAT_BY_ROLE = {
+    role: {
+        "type": "json_schema",
+        "name": f"gemma3_chat_{role}_natural_v1",
+        "description": (
+            "One provider-wire JSON envelope containing the public natural-language "
+            f"{role} answer. The envelope is removed before Teacher records are written."
+        ),
+        "strict": True,
+        "schema": _NATURAL_RESPONSE_SCHEMA,
+    }
+    for role in ("humor", "serious", "angry")
+}
+RESPONSES_TEXT_FORMAT_BY_ROLE.update(
+    {
+        "review": {
+            "type": "json_schema",
+            "name": "gemma3_chat_review_v1",
+            "description": "A closed offline review verdict and correction object.",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "faults": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "correction": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "null"},
+                        ]
+                    },
+                },
+                "required": ["verdict", "faults", "correction"],
+                "additionalProperties": False,
+            },
+        },
+        "router": {
+            "type": "json_schema",
+            "name": "gemma3_chat_router_v1",
+            "description": "One terminal global-to-specialist routing decision.",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "route": {
+                        "type": "string",
+                        "enum": ["humor", "serious", "angry"],
+                    },
+                    "plan": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["execute_selected_specialist"],
+                        },
+                        "minItems": 1,
+                        "maxItems": 1,
+                    },
+                    "stop": {"type": "boolean", "enum": [True]},
+                },
+                "required": ["route", "plan", "stop"],
+                "additionalProperties": False,
+            },
+        },
+    }
+)
 REQUEST_POLICY = {
-    "schema_version": f"{NAMESPACE}.ark-responses-request-policy.v2",
+    "schema_version": f"{NAMESPACE}.ark-responses-request-policy.v3",
     "provider": PROVIDER_PRESET,
     "protocol": PROTOCOL,
     "base_url": BASE_URL,
@@ -79,6 +158,17 @@ REQUEST_POLICY = {
     "max_output_tokens": "omitted_provider_intrinsic_only",
     "stream": False,
     "store": False,
+    "response_format": {
+        "wire_path": "text.format",
+        "native_type": "json_schema",
+        "strict": True,
+        "formats_by_role": RESPONSES_TEXT_FORMAT_BY_ROLE,
+        "raw_text_roles": ["identity"],
+        "local_validator_only_roles": ["tool"],
+        "tool_native_schema_blocker": (
+            "authenticated_tool_argument_schema_unavailable"
+        ),
+    },
 }
 CREDENTIAL_SOURCE = "controller_memory_slot"
 CREDENTIAL_SLOT = "ark_coding_api_key"
@@ -6036,6 +6126,7 @@ def build_teachers(
             thinking_effort="low",
             thinking_budget_tokens=0,
             responses_thinking_policy="explicit_disabled",
+            responses_text_format=RESPONSES_TEXT_FORMAT_BY_ROLE.get(role),
             # The Ark coding Responses endpoint intermittently terminated SSE
             # before response.completed.  A non-streaming Responses request
             # preserves the one-request/idempotency contract without replaying

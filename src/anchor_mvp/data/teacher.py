@@ -8,6 +8,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+import hashlib
 import hmac
 from http.client import IncompleteRead, RemoteDisconnected
 import json
@@ -35,6 +36,95 @@ THINKING_EFFORTS: tuple[ThinkingEffort, ...] = (
 _RETRYABLE_HTTP_STATUSES = frozenset(
     {408, 499, 500, 502, 503, 504, 520, 521, 522, 523, 524}
 )
+_RESPONSES_FORMAT_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _canonical_responses_text_format(
+    value: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None]:
+    """Freeze one provider-native Responses ``text.format`` value.
+
+    Only strict, named JSON Schema formats with recursively closed object
+    nodes are accepted. The canonical JSON snapshot, rather than the caller's
+    mutable mapping, is used for every wire request.
+    """
+
+    if value is None:
+        return None, None
+    if not isinstance(value, Mapping):
+        raise ValueError("Responses text format must be an object")
+    try:
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        frozen = json.loads(encoded)
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("Responses text format must be canonical JSON") from error
+    allowed = {"type", "schema", "name", "description", "strict"}
+    required = {"type", "schema", "name", "strict"}
+    if set(frozen) - allowed or not required <= set(frozen):
+        raise ValueError("Responses text format fields are not closed")
+    if frozen["type"] != "json_schema" or frozen["strict"] is not True:
+        raise ValueError("Responses text format must be strict json_schema")
+    name = frozen["name"]
+    if not isinstance(name, str) or _RESPONSES_FORMAT_NAME_RE.fullmatch(name) is None:
+        raise ValueError("Responses text format name is invalid")
+    description = frozen.get("description")
+    if description is not None and (
+        not isinstance(description, str)
+        or not description
+        or description != description.strip()
+        or len(description) > 1024
+    ):
+        raise ValueError("Responses text format description is invalid")
+
+    def verify_schema(node: Any) -> None:
+        if not isinstance(node, dict):
+            raise ValueError("Responses JSON Schema node must be an object")
+        if "$ref" in node or "$defs" in node:
+            raise ValueError("Responses JSON Schema references are unsupported")
+        alternatives = node.get("anyOf")
+        if alternatives is not None:
+            if (
+                not isinstance(alternatives, list)
+                or len(alternatives) < 2
+                or len(alternatives) > 8
+            ):
+                raise ValueError("Responses JSON Schema anyOf is invalid")
+            for alternative in alternatives:
+                verify_schema(alternative)
+        node_type = node.get("type")
+        if node_type == "object":
+            properties = node.get("properties")
+            required_names = node.get("required")
+            if (
+                not isinstance(properties, dict)
+                or not properties
+                or node.get("additionalProperties") is not False
+                or not isinstance(required_names, list)
+                or any(not isinstance(item, str) for item in required_names)
+                or len(required_names) != len(set(required_names))
+                or set(required_names) != set(properties)
+            ):
+                raise ValueError("Responses JSON Schema object is not closed")
+            for property_schema in properties.values():
+                verify_schema(property_schema)
+        elif node_type == "array":
+            if "items" not in node:
+                raise ValueError("Responses JSON Schema array items are missing")
+            verify_schema(node["items"])
+        elif node_type not in {"string", "boolean", "integer", "number", "null", None}:
+            raise ValueError("Responses JSON Schema type is unsupported")
+        if node_type is None and alternatives is None:
+            raise ValueError("Responses JSON Schema node has no type")
+
+    verify_schema(frozen["schema"])
+    digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return encoded, digest
 
 
 class TeacherError(RuntimeError):
@@ -202,6 +292,9 @@ class CompatibleTeacher:
     responses_thinking_policy: Literal["unspecified", "explicit_disabled"] = (
         "unspecified"
     )
+    responses_text_format: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
     stream_openai: bool = True
     stream_options_include_usage: bool = False
     wall_clock_deadline_seconds: float = 900.0
@@ -215,6 +308,8 @@ class CompatibleTeacher:
     _completion_context: ContextVar[dict[str, Any] | None] = field(
         init=False, repr=False
     )
+    _responses_text_format_json: str | None = field(init=False, repr=False)
+    _responses_text_format_sha256: str | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         protocols = ("anthropic", "openai", "openai_responses")
@@ -262,6 +357,17 @@ class CompatibleTeacher:
             raise ValueError(
                 "explicit Responses thinking disable requires non-thinking Responses"
             )
+        (
+            self._responses_text_format_json,
+            self._responses_text_format_sha256,
+        ) = _canonical_responses_text_format(self.responses_text_format)
+        if self._responses_text_format_json is not None and (
+            self.protocol != "openai_responses"
+            or self.fallback_protocol not in (None, "openai_responses")
+        ):
+            raise ValueError(
+                "Responses text format requires Responses-only protocol routing"
+            )
         uses_anthropic = (
             self.protocol == "anthropic" or self.fallback_protocol == "anthropic"
         )
@@ -292,6 +398,10 @@ class CompatibleTeacher:
             "thinking_budget_tokens": self.thinking_budget_tokens,
             "thinking_budget_applied": self.thinking_enabled,
             "responses_thinking_policy": self.responses_thinking_policy,
+            "responses_text_format": {
+                "enabled": self._responses_text_format_json is not None,
+                "sha256": self._responses_text_format_sha256,
+            },
             "stream_openai": self.stream_openai,
             "stream_options_include_usage": self.stream_options_include_usage,
             "wall_clock_deadline_seconds": self.wall_clock_deadline_seconds,
@@ -378,6 +488,7 @@ class CompatibleTeacher:
                 user,
                 self.max_tokens,
                 validated_idempotency_key,
+                self._responses_text_format_json,
             )
         except _ProtocolError as error:
             # A task prompt may contain private code or user context. Never
@@ -458,6 +569,7 @@ class CompatibleTeacher:
         user: str,
         max_tokens: int | None,
         idempotency_key: str | None = None,
+        responses_text_format_json: str | None = None,
     ) -> str:
         last_error: Exception | None = None
         retry_reasons: list[str] = []
@@ -485,6 +597,10 @@ class CompatibleTeacher:
                 )
                 if idempotency_key is not None:
                     request_args = (*request_args, idempotency_key)
+                if responses_text_format_json is not None:
+                    if idempotency_key is None:
+                        request_args = (*request_args, None)
+                    request_args = (*request_args, responses_text_format_json)
                 result = await asyncio.to_thread(self._request_sync, *request_args)
                 completion = (
                     dict(result.completion)
@@ -562,7 +678,13 @@ class CompatibleTeacher:
         user: str,
         max_tokens: int | None,
         idempotency_key: str | None = None,
+        responses_text_format_json: str | None = None,
     ) -> str:
+        if responses_text_format_json is not None and (
+            protocol != "openai_responses"
+            or responses_text_format_json != self._responses_text_format_json
+        ):
+            raise TeacherError("Responses text format identity mismatch")
         if self.credential_provider is not None:
             try:
                 api_key = self.credential_provider()
@@ -652,6 +774,8 @@ class CompatibleTeacher:
                 payload["temperature"] = self.temperature
                 if self.responses_thinking_policy == "explicit_disabled":
                     payload["thinking"] = {"type": "disabled"}
+            if responses_text_format_json is not None:
+                payload["text"] = {"format": json.loads(responses_text_format_json)}
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",

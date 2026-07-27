@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
 from http.client import IncompleteRead
 import json
@@ -734,6 +735,122 @@ def test_openai_responses_thinking_off_is_explicit(monkeypatch) -> None:
     assert "reasoning" not in captured["body"]
     assert "max_output_tokens" not in captured["body"]
     assert teacher.usage_snapshot == {"requests": 1, "output_tokens": 1}
+
+
+def test_openai_responses_strict_text_format_uses_exact_wire_and_probe_omits_it(
+    monkeypatch,
+) -> None:
+    captured: list[dict] = []
+    response_format = {
+        "type": "json_schema",
+        "name": "natural_answer_v1",
+        "description": "One closed provider-wire answer envelope.",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "final_answer": {"type": "string", "minLength": 1},
+            },
+            "required": ["final_answer"],
+            "additionalProperties": False,
+        },
+    }
+
+    def fake_urlopen(request, timeout):
+        del timeout
+        body = json.loads(request.data.decode("utf-8"))
+        captured.append(body)
+        output = '{"final_answer":"ok"}' if "text" in body else '{"ok":true}'
+        return _Response(
+            {
+                "id": f"resp_{len(captured)}",
+                "status": "completed",
+                "output_text": output,
+                "usage": {"output_tokens": 1},
+            }
+        )
+
+    monkeypatch.setenv("ARK_TEST_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="ark-model-id",
+        protocol="openai_responses",
+        fallback_protocol=None,
+        api_key_env="ARK_TEST_KEY",
+        thinking_enabled=False,
+        stream_openai=False,
+        max_retries=0,
+        max_tokens=None,
+        max_requests=2,
+        max_output_tokens_total=None,
+        responses_thinking_policy="explicit_disabled",
+        responses_text_format=response_format,
+    )
+    assert (
+        asyncio.run(
+            teacher.complete(
+                system="system",
+                user="user",
+                idempotency_key="a" * 64,
+            )
+        )
+        == '{"final_answer":"ok"}'
+    )
+    assert asyncio.run(teacher.probe()) == '{"ok":true}'
+    assert captured[0]["text"] == {"format": response_format}
+    assert captured[0]["thinking"] == {"type": "disabled"}
+    assert "max_output_tokens" not in captured[0]
+    assert "response_format" not in captured[0]
+    assert "text" not in captured[1]
+    canonical = json.dumps(
+        response_format,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    assert teacher.generation_params["responses_text_format"] == {
+        "enabled": True,
+        "sha256": hashlib.sha256(canonical).hexdigest(),
+    }
+
+
+@pytest.mark.parametrize(
+    "response_format",
+    [
+        {
+            "type": "json_schema",
+            "name": "not_closed",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {"answer": {"type": "string"}},
+                "required": ["answer"],
+            },
+        },
+        {
+            "type": "json_schema",
+            "name": "not_strict",
+            "strict": False,
+            "schema": {
+                "type": "object",
+                "properties": {"answer": {"type": "string"}},
+                "required": ["answer"],
+                "additionalProperties": False,
+            },
+        },
+    ],
+)
+def test_openai_responses_text_format_rejects_nonclosed_or_nonstrict_schema(
+    response_format,
+) -> None:
+    with pytest.raises(ValueError, match="Responses"):
+        CompatibleTeacher(
+            protocol="openai_responses",
+            fallback_protocol=None,
+            responses_text_format=response_format,
+        )
 
 
 def test_openai_responses_probe_keeps_output_limit_omitted(monkeypatch) -> None:

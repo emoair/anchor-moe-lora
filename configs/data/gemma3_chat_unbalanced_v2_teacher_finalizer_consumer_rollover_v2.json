@@ -2,7 +2,7 @@
   "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-finalizer.config.v1",
   "namespace": "gemma3_chat_unbalanced_v2_teacher_alignment_v2",
   "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.py",
-  "implementation_sha256": "4b0c929f7ce90beb9e9a023695ab3fb05368a352b8943d9020068d484895bc2f",
+  "implementation_sha256": "6a29e07c5389badfbc039c65a18963456454a381a5588e3f15b0811d1feb1206",
   "source": {
     "artifact_root": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
     "main_shards": [

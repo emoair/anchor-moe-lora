@@ -74,8 +74,98 @@ def test_live_teachers_use_unbounded_non_streaming_responses() -> None:
             teacher.responses_thinking_policy == "explicit_disabled"
             for teacher in teachers.values()
         )
+        assert set(batch.RESPONSES_TEXT_FORMAT_BY_ROLE) == {
+            "humor",
+            "serious",
+            "angry",
+            "review",
+            "router",
+        }
+        for role, teacher in teachers.items():
+            format_binding = teacher.generation_params["responses_text_format"]
+            if role in batch.RESPONSES_TEXT_FORMAT_BY_ROLE:
+                assert format_binding == {
+                    "enabled": True,
+                    "sha256": batch._hash_object(
+                        batch.RESPONSES_TEXT_FORMAT_BY_ROLE[role]
+                    ),
+                }
+            else:
+                assert format_binding == {"enabled": False, "sha256": None}
+        assert batch.REQUEST_POLICY["schema_version"].endswith(
+            ".ark-responses-request-policy.v3"
+        )
+        assert batch.REQUEST_POLICY["response_format"]["formats_by_role"] == (
+            batch.RESPONSES_TEXT_FORMAT_BY_ROLE
+        )
+        assert batch.REQUEST_POLICY["response_format"]["raw_text_roles"] == ["identity"]
+        assert batch.REQUEST_POLICY["response_format"][
+            "local_validator_only_roles"
+        ] == ["tool"]
     finally:
         slots.close()
+
+
+def test_batch_role_format_reaches_real_responses_wire_without_affecting_identity(
+    monkeypatch,
+) -> None:
+    captured: list[dict[str, Any]] = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "id": f"resp-{len(captured)}",
+                    "status": "completed",
+                    "output": [
+                        {
+                            "type": "message",
+                            "content": [
+                                {
+                                    "type": "output_text",
+                                    "text": '{"final_answer":"ok"}',
+                                }
+                            ],
+                        }
+                    ],
+                    "usage": {"input_tokens": 1, "output_tokens": 1},
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        del timeout
+        captured.append(json.loads(request.data.decode("utf-8")))
+        return Response()
+
+    monkeypatch.setattr("anchor_mvp.data.teacher.urlopen", fake_urlopen)
+    config = batch.load_config(PROFILE_PATHS["smoke_exact1"])
+    for role in ("humor", "identity"):
+        slots = _runtime_slots()
+        try:
+            teacher = batch.build_teachers(config, slots)[role]
+            asyncio.run(
+                teacher.complete(
+                    system="system",
+                    user="user",
+                    idempotency_key=("a" if role == "humor" else "b") * 64,
+                )
+            )
+        finally:
+            slots.close()
+    assert captured[0]["text"] == {
+        "format": batch.RESPONSES_TEXT_FORMAT_BY_ROLE["humor"]
+    }
+    assert captured[0]["thinking"] == {"type": "disabled"}
+    assert "max_output_tokens" not in captured[0]
+    assert "response_format" not in captured[0]
+    assert "text" not in captured[1]
+    assert captured[1]["thinking"] == {"type": "disabled"}
 
 
 def test_failure_attempts_keep_only_body_free_retry_reason_codes() -> None:

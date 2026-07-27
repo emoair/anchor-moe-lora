@@ -514,6 +514,30 @@ def build_source_joins(
     return tuple(joins)
 
 
+def _same_json_shape(left: Any, right: Any) -> bool:
+    if isinstance(left, Mapping) or isinstance(right, Mapping):
+        if not isinstance(left, Mapping) or not isinstance(right, Mapping):
+            return False
+        if (
+            any(not isinstance(key, str) for key in left)
+            or any(not isinstance(key, str) for key in right)
+            or set(left) != set(right)
+        ):
+            return False
+        return all(_same_json_shape(left[key], right[key]) for key in left)
+    if isinstance(left, list) or isinstance(right, list):
+        return (
+            isinstance(left, list)
+            and isinstance(right, list)
+            and len(left) == len(right)
+            and all(
+                _same_json_shape(left_item, right_item)
+                for left_item, right_item in zip(left, right, strict=True)
+            )
+        )
+    return type(left) is type(right) and left == right
+
+
 def _canonical_teacher_target(
     join: SourceJoin,
     alignment: Mapping[str, Any],
@@ -540,20 +564,37 @@ def _canonical_teacher_target(
         raise batch.AdapterError("teacher_final_alignment_binding_drift")
     kind = output.get("kind")
     value = output.get("value")
-    identity_tool = (
-        join.source_asset == "tool_call" and join.source_record.role == "identity"
-    )
-    if join.source_asset in {"humor", "serious", "angry_style"} or identity_tool:
+    source_role = join.source_record.role
+    if source_role in {*batch.STYLE_NATURAL_TRANSPORT_ROLES, "identity"}:
         if kind != "natural_text" or not isinstance(value, str):
             raise batch.AdapterError("teacher_final_natural_target_invalid")
         target = value
-    else:
+        provider_wire = (
+            _canonical_bytes({"final_answer": value}).decode("utf-8")
+            if source_role in batch.STYLE_NATURAL_TRANSPORT_ROLES
+            else value
+        )
+    elif source_role in {"tool", "review", "router"}:
         if kind != "structured_json" or not isinstance(value, Mapping):
             raise batch.AdapterError("teacher_final_structured_target_invalid")
         target = _canonical_bytes(value).decode("utf-8")
-    # Re-run the frozen validator over the deterministic serialization.
-    validated = batch.validate_teacher_output(join.source_record, target)
-    if validated != dict(output):
+        provider_wire = target
+    else:
+        raise batch.AdapterError("teacher_final_target_role_unsupported")
+    # Reconstruct the exact provider-wire shape from the authenticated source
+    # role, then require the frozen validator to reproduce the persisted
+    # semantic projection byte-for-byte and shape-for-shape.
+    validated = batch.validate_teacher_output(join.source_record, provider_wire)
+    expected = dict(output)
+    if (
+        not isinstance(validated, Mapping)
+        or set(validated) != {"kind", "value"}
+        or not _same_json_shape(validated, expected)
+        or not hmac.compare_digest(
+            _canonical_bytes(validated),
+            _canonical_bytes(expected),
+        )
+    ):
         raise batch.AdapterError("teacher_final_target_revalidation_drift")
     return target
 

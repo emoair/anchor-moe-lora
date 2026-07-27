@@ -50,13 +50,13 @@
       "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py"
     },
     "batch_implementation_sha256": {
-      "const": "38ccdffeb86fe4bc61db567eb9fc6b342d396ae16c5b1e9ac7851f1d428cbbf7"
+      "const": "fe47f8cd47b884c5484f2cf8c5cd0ec42a73ecfb788ec490aabc88c627b8bf9d"
     },
     "teacher_implementation_path": {
       "const": "src/anchor_mvp/data/teacher.py"
     },
     "teacher_implementation_sha256": {
-      "const": "f4e463dc322d8a3618f559b77fda9eff08dbd9e3a03703236b2f9a1bda821d75"
+      "const": "01e35771bdc8a24ae15c1390f5f08a48597fb9b5b0f0f83bd094516bf8df0a59"
     },
     "consumer_release_binding": {
       "oneOf": [
@@ -150,7 +150,7 @@
           "const": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9"
         },
         "campaign_sha256": {
-          "const": "6d6d75a7242db4ae3d179723a730bcc4878ee2c71020c4ca8a90ac5966a2f0f0"
+          "const": "2d88de9ea8ff40a70ee528bfa7fc8a4f46e417dba410d6cd08c6b2e7f90a3fef"
         },
         "model_binding_sha256": {
           "const": "8eeff6e2c1e06cb0ae5a894faed0a67427604e7828fdda740f6faf60f873fe80"

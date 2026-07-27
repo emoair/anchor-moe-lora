@@ -280,7 +280,7 @@ def _fixture() -> tuple[
                     "kind": "structured_json",
                     "value": {
                         "route": "serious",
-                        "plan": ["answer directly"],
+                        "plan": list(batch.ROUTER_TERMINAL_PLAN),
                         "stop": True,
                     },
                 },
@@ -305,6 +305,102 @@ def _record_validator() -> Draft202012Validator:
     value = json.loads(RECORD_SCHEMA.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(value)
     return Draft202012Validator(value)
+
+
+def test_style_projection_reconstructs_wire_but_persists_natural_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inventory, main_rows, router_rows, alignment_rows = _fixture()
+    joins = finalizer.build_source_joins(
+        inventory,
+        main_rows=main_rows,
+        router_rows=router_rows,
+    )
+    alignment_by_id = {str(item["record_id"]): item for item in alignment_rows}
+    join = next(
+        item
+        for item in joins
+        if item.source_record.role == "humor" and not item.identity_aligned
+    )
+    alignment = alignment_by_id[join.record_id]
+    expected = str(alignment["output"]["value"])
+    original_validator = batch.validate_teacher_output
+    provider_wires: list[str] = []
+
+    def capture_provider_wire(source: batch.SourceRecord, text: str) -> dict[str, Any]:
+        provider_wires.append(text)
+        return original_validator(source, text)
+
+    monkeypatch.setattr(batch, "validate_teacher_output", capture_provider_wire)
+    target = finalizer._canonical_teacher_target(join, alignment)
+
+    assert target == expected
+    assert provider_wires == [
+        json.dumps(
+            {"final_answer": expected},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    ]
+
+
+def test_malformed_natural_semantic_shape_fails_closed() -> None:
+    inventory, main_rows, router_rows, alignment_rows = _fixture()
+    joins = finalizer.build_source_joins(
+        inventory,
+        main_rows=main_rows,
+        router_rows=router_rows,
+    )
+    alignment_by_id = {str(item["record_id"]): item for item in alignment_rows}
+    join = next(
+        item
+        for item in joins
+        if item.source_record.role == "humor" and not item.identity_aligned
+    )
+    original = alignment_by_id[join.record_id]
+    malformed = {
+        **original,
+        "output": {
+            "kind": "natural_text",
+            "value": {"final_answer": "nested transport is not semantic prose"},
+        },
+    }
+
+    with pytest.raises(
+        batch.AdapterError,
+        match="teacher final natural target invalid",
+    ):
+        finalizer._canonical_teacher_target(join, malformed)
+
+
+def test_structured_tool_review_and_router_projections_do_not_regress() -> None:
+    inventory, main_rows, router_rows, alignment_rows = _fixture()
+    joins = finalizer.build_source_joins(
+        inventory,
+        main_rows=main_rows,
+        router_rows=router_rows,
+    )
+    alignment_by_id = {str(item["record_id"]): item for item in alignment_rows}
+    selected = [
+        next(
+            item
+            for item in joins
+            if item.source_record.role == role and not item.identity_aligned
+        )
+        for role in ("tool", "review", "router")
+    ]
+
+    for join in selected:
+        alignment = alignment_by_id[join.record_id]
+        target = finalizer._canonical_teacher_target(join, alignment)
+        assert json.loads(target) == alignment["output"]["value"]
+        assert target == json.dumps(
+            alignment["output"]["value"],
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
 
 
 def test_exact_consumer_projection_and_role_aware_targets() -> None:
@@ -447,7 +543,7 @@ def test_identity_false_attribution_and_unbound_idempotency_fail_closed() -> Non
     }
     with pytest.raises(
         batch.AdapterError,
-        match="teacher final identity false attribution",
+        match="identity false attribution",
     ):
         finalizer.project_teacher_records(joins, poisoned)
 
