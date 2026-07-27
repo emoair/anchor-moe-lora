@@ -184,3 +184,4 @@ scripts/research/run_gemma3_chat_unbalanced_v2_* text eol=lf
 tests/test_gemma3_chat_unbalanced_v2_* text eol=lf
 docs/research/gemma3_chat_unbalanced_v2_* text eol=lf
 fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/** text eol=lf
+fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/** text eol=lf

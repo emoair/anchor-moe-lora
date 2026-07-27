@@ -393,10 +393,18 @@ def _training_prompts() -> list[runtime.SourcePrompt]:
     return values
 
 
-def test_pending_v2_handoff_blocks_gpu_before_source_or_output(
+@pytest.mark.parametrize(
+    "wrong_status",
+    ["released", "pending_exact_producer_v2_handoff", "wrong"],
+)
+def test_wrong_teacher_schema_state_blocks_gpu_before_source_or_output(
     monkeypatch: pytest.MonkeyPatch,
+    wrong_status: str,
 ) -> None:
     config, config_sha = runtime.load_config()
+    config = copy.deepcopy(config)
+    config["teacher_final"]["binding_schema_release_status"] = wrong_status
+    config["teacher_final"]["record_schema_release_status"] = wrong_status
     called = False
 
     def forbidden_source(_value: object) -> None:
@@ -427,6 +435,71 @@ def test_pending_v2_handoff_blocks_gpu_before_source_or_output(
             attestation_sha256=SHA,
         )
     assert called is False
+
+
+def test_validate_distinguishes_bound_schemas_from_teacher_final_readiness() -> None:
+    config, config_sha = runtime.load_config()
+    binding_sha, record_sha = runtime._released_teacher_schema_identities(config)
+    result = runtime._validate_only(config, config_sha)
+
+    assert binding_sha == config["teacher_final"]["binding_schema_sha256"]
+    assert record_sha == config["teacher_final"]["record_schema_sha256"]
+    assert result["teacher_schema_physical_bytes_bound"] is True
+    assert result["gpu_execution_ready"] is False
+    assert (
+        result["gpu_execution_blocker"]
+        == "teacher_final_materialization_and_external_release_pending"
+    )
+
+
+def test_explicit_teacher_preflight_reaches_given_binding_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _ = runtime.load_config()
+    observed: dict[str, object] = {}
+
+    class FakeTeacher:
+        def public_identity(self) -> dict[str, object]:
+            return _teacher_identity()
+
+    def fake_authenticate(
+        binding_path: str | Path,
+        *,
+        expected_binding_sha256: str,
+        expected_binding_schema_sha256: str,
+        expected_record_schema_sha256: str,
+    ) -> tuple[FakeTeacher, dict[str, object]]:
+        observed.update(
+            {
+                "binding_path": binding_path,
+                "binding_sha256": expected_binding_sha256,
+                "binding_schema_sha256": expected_binding_schema_sha256,
+                "record_schema_sha256": expected_record_schema_sha256,
+            }
+        )
+        return FakeTeacher(), {}
+
+    monkeypatch.setattr(runtime, "authenticate_teacher_final", fake_authenticate)
+    monkeypatch.setattr(runtime, "terminal_recheck_teacher", lambda _teacher: None)
+    result = runtime.preflight_teacher_final(
+        config,
+        binding_path="given-teacher-binding.json",
+        binding_sha256=SHA,
+    )
+
+    assert observed == {
+        "binding_path": "given-teacher-binding.json",
+        "binding_sha256": SHA,
+        "binding_schema_sha256": (config["teacher_final"]["binding_schema_sha256"]),
+        "record_schema_sha256": config["teacher_final"]["record_schema_sha256"],
+    }
+    assert result["status"] == "passed"
+    assert (
+        result[
+            "all_binding_manifest_receipt_attestation_shard_identities_authenticated"
+        ]
+        is True
+    )
 
 
 def test_v1_teacher_rejected_and_exact_v2_record_schema() -> None:
@@ -998,7 +1071,7 @@ def test_launcher_validates_released_teacher_before_gpu_or_lock_access() -> None
     assert "GPU execution remains fail-closed" in launcher[ready_gate:helper_import]
 
 
-def test_released_bad_teacher_binding_stops_powershell_before_gpu_and_lock() -> None:
+def test_pending_teacher_final_stops_powershell_before_preflight_gpu_and_lock() -> None:
     if os.name != "nt":
         pytest.skip("PowerShell launcher gate is Windows-specific")
     project = runtime._project_root()
@@ -1028,8 +1101,12 @@ def test_released_bad_teacher_binding_stops_powershell_before_gpu_and_lock() -> 
         )
         released = copy.deepcopy(raw_config)
         teacher = released["teacher_final"]
-        teacher["binding_schema_release_status"] = "released"
-        teacher["record_schema_release_status"] = "released"
+        teacher["binding_schema_release_status"] = (
+            "exact_producer_v2_physical_bytes_bound"
+        )
+        teacher["record_schema_release_status"] = (
+            "exact_producer_v2_physical_bytes_bound"
+        )
         teacher["binding_schema_sha256"] = hashlib.sha256(
             (project / runtime.TEACHER_BINDING_SCHEMA_PATH).read_bytes()
         ).hexdigest()
@@ -1097,7 +1174,11 @@ def test_released_bad_teacher_binding_stops_powershell_before_gpu_and_lock() -> 
         )
         assert result.returncode != 0
         output = result.stdout + result.stderr
-        assert "Teacher FINAL physical preflight failed" in output, output
+        assert (
+            "GPU execution remains fail-closed: "
+            "teacher_final_materialization_and_external_release_pending"
+        ) in output, output
+        assert "Teacher FINAL physical preflight failed" not in output
         assert not marker.exists()
         lock_after = (
             None

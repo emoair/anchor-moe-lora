@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-preflight-receipt.v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher release implementation preflight receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "operation",
+    "binding_sha256",
+    "binding_schema_sha256",
+    "implementation_sha256",
+    "producer",
+    "independent_review",
+    "post_distillation_teacher_final",
+    "resource_counters"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-preflight-receipt.v2"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "operation": {
+      "const": "immutable_git_release_implementation_preflight"
+    },
+    "binding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "binding_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "implementation_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "exact_files",
+        "file_inventory_sha256",
+        "replace_refs_used",
+        "worktree_bytes_used"
+      ],
+      "properties": {
+        "commit": {
+          "const": "b88e749d4d19b6366d4b841c95a4fe46285c9c15"
+        },
+        "tree": {
+          "const": "b9d83b10eb5e62e5661ec8f57e9152fc11317156"
+        },
+        "exact_files": {
+          "const": 20
+        },
+        "file_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "replace_refs_used": {
+          "const": false
+        },
+        "worktree_bytes_used": {
+          "const": false
+        }
+      }
+    },
+    "independent_review": {
+      "const": {
+        "status": "passed",
+        "p0": 0,
+        "p1": 0,
+        "p2": 0
+      }
+    },
+    "post_distillation_teacher_final": {
+      "const": {
+        "state": "pending_materialization_and_external_release",
+        "artifact_authenticated": false,
+        "training_consumable": false
+      }
+    },
+    "resource_counters": {
+      "const": {
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "teacher_record_bodies_read": 0,
+        "raw_token_ids_read": 0
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

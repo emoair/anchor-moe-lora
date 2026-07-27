@@ -1,0 +1,166 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-binding.v2",
+  "status": "release_implementation_authenticated_teacher_final_pending",
+  "producer": {
+    "repository_default": "../anchor-moe-lora-gemma3-chat-v1",
+    "repository_environment": "ANCHOR_GEMMA3_UNBALANCED_V2_PRODUCER_REPOSITORY",
+    "commit": "b88e749d4d19b6366d4b841c95a4fe46285c9c15",
+    "tree": "b9d83b10eb5e62e5661ec8f57e9152fc11317156",
+    "exact_files": 20,
+    "file_inventory_sha256": "b4ce22ee510ffc87c79c6992ef932cdd40fcf153da05e60c7b9ff78fb83f7db3"
+  },
+  "independent_review": {
+    "status": "passed",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "reviewer_distinct_from_implementer": true
+  },
+  "exact_files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "c6452ce93ec6598b376c9508d277ed1981cf0edbbdd8b85c07746d726d4416ac",
+      "bytes": 16290
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json",
+      "sha256": "41020aa6103a52f13919d164be679da110b6260b2ba27ad1c866bcb305dc3a87",
+      "bytes": 8755
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_v2.json",
+      "sha256": "ed5ce77e336270b0015bb1eaf7d0f049906f4a3f470542ee7915e668d49f3fe4",
+      "bytes": 3332
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_v2.schema.json",
+      "sha256": "b8825df006e864f27d40006454750c53cc19050cbf835cc0ba29f7252a0f415a",
+      "bytes": 5369
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_build_receipt_v2.schema.json",
+      "sha256": "2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404",
+      "bytes": 2972
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_manifest_v2.schema.json",
+      "sha256": "3c2cdb0ac404b74797425448de05a8d536d922d57671ab79eadcd730b04d99cb",
+      "bytes": 10672
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json",
+      "sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+      "bytes": 1558
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_attestation_v2.schema.json",
+      "sha256": "260f78af651a8e987894e1142bd98611c7eda0578d2caa10a9ccbedb711782b3",
+      "bytes": 13649
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_v2.schema.json",
+      "sha256": "380000588a9dbeb8764d43254f04abbe32f6feb4072b95a307502a11df62cd3d",
+      "bytes": 9336
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.json",
+      "sha256": "cff032da9c68af660aad3369a4a46ee694e691e14456ae3ce29179f9f9f4bf9b",
+      "bytes": 4473
+    },
+    {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.schema.json",
+      "sha256": "b3bb16e512f59344da3a6858825af486a8d4877b5c09bac1f353758d1f6435f0",
+      "bytes": 6452
+    },
+    {
+      "path": "docs/research/gemma3_chat_unbalanced_v2_teacher_final_release_v2.md",
+      "sha256": "81864e97a65d0d62d7db39561274378e8521d64086659099f0775fd46082794b",
+      "bytes": 8477
+    },
+    {
+      "path": "docs/research/gemma3_chat_unbalanced_v2_teacher_final_release_v2.zh-CN.md",
+      "sha256": "77a12d000c4baf8790a63652f6b82e1af726c9dcd3496b256a31f1d9dce75785",
+      "bytes": 8168
+    },
+    {
+      "path": "scripts/data/review_gemma3_chat_unbalanced_v2_teacher_final_release_v2.py",
+      "sha256": "7ade49ceb7b5a5c01698e32e5e0487887786070d152cf010d2f7958fe9452a59",
+      "bytes": 222
+    },
+    {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_integrated_controller_v2.py",
+      "sha256": "b5be563ec7fe3729d05d7429c3053271d6e261d1dee2d4f3543c8338605aa821",
+      "bytes": 40097
+    },
+    {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_v2.py",
+      "sha256": "7438a7d32a7dfac12b2d584e39d32db6d6c8016214d259432aec7202afa7f175",
+      "bytes": 62990
+    },
+    {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.py",
+      "sha256": "4b0c929f7ce90beb9e9a023695ab3fb05368a352b8943d9020068d484895bc2f",
+      "bytes": 63908
+    },
+    {
+      "path": "tests/test_gemma3_chat_unbalanced_v2_integrated_controller_v2.py",
+      "sha256": "6d33d4564c7fdf5a90c8364f732b476505e42077ed507b78af7fafc15ae883dd",
+      "bytes": 13338
+    },
+    {
+      "path": "tests/test_gemma3_chat_unbalanced_v2_teacher_final_release_v2.py",
+      "sha256": "cd615897be2605abc107e70ae7050732364d48e1f4355e3d94e86f84ab1ea5ae",
+      "bytes": 25570
+    },
+    {
+      "path": "tests/test_gemma3_chat_unbalanced_v2_teacher_finalizer_v1.py",
+      "sha256": "cfea2fa013b7381fa3efed05fd8b4f2435f0d7c3bacfa41e1d1026cbde4d6d7c",
+      "bytes": 20936
+    }
+  ],
+  "contracts": {
+    "integrated_controller": {
+      "config_sha256": "ed5ce77e336270b0015bb1eaf7d0f049906f4a3f470542ee7915e668d49f3fe4",
+      "schema_sha256": "b8825df006e864f27d40006454750c53cc19050cbf835cc0ba29f7252a0f415a",
+      "implementation_sha256": "b5be563ec7fe3729d05d7429c3053271d6e261d1dee2d4f3543c8338605aa821"
+    },
+    "teacher_finalizer": {
+      "config_sha256": "cff032da9c68af660aad3369a4a46ee694e691e14456ae3ce29179f9f9f4bf9b",
+      "schema_sha256": "b3bb16e512f59344da3a6858825af486a8d4877b5c09bac1f353758d1f6435f0",
+      "implementation_sha256": "4b0c929f7ce90beb9e9a023695ab3fb05368a352b8943d9020068d484895bc2f"
+    },
+    "external_release": {
+      "implementation_sha256": "7438a7d32a7dfac12b2d584e39d32db6d6c8016214d259432aec7202afa7f175",
+      "wrapper_sha256": "7ade49ceb7b5a5c01698e32e5e0487887786070d152cf010d2f7958fe9452a59",
+      "attestation_schema_sha256": "260f78af651a8e987894e1142bd98611c7eda0578d2caa10a9ccbedb711782b3",
+      "manifest_schema_sha256": "380000588a9dbeb8764d43254f04abbe32f6feb4072b95a307502a11df62cd3d",
+      "binding_schema_sha256": "41020aa6103a52f13919d164be679da110b6260b2ba27ad1c866bcb305dc3a87"
+    },
+    "teacher_schemas": {
+      "record_sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+      "manifest_sha256": "3c2cdb0ac404b74797425448de05a8d536d922d57671ab79eadcd730b04d99cb",
+      "build_receipt_sha256": "2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404"
+    }
+  },
+  "post_distillation_teacher_final": {
+    "state": "pending_materialization_and_external_release",
+    "binding_sha256": null,
+    "manifest_sha256": null,
+    "release_attestation_sha256": null,
+    "public_identity_sha256": null,
+    "training_consumable": false
+  },
+  "claims": {
+    "immutable_git_bytes_authenticated": true,
+    "worktree_bytes_used": false,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "teacher_record_bodies_read": 0,
+    "teacher_final_materialized": false,
+    "training_authorized": false,
+    "formal": false,
+    "live": false
+  }
+}

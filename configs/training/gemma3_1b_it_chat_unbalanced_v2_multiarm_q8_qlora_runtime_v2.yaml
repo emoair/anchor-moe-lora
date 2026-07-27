@@ -21,16 +21,31 @@ source:
   immutable_git_objects_required: true
   replace_refs_and_grafts_forbidden: true
 
+teacher_release_implementation:
+  binding_path: configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.json
+  binding_sha256: 096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d
+  binding_schema_path: configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.schema.json
+  binding_schema_sha256: 6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694
+  preflight_implementation_path: src/anchor_mvp/training/gemma3_chat_unbalanced_v2_teacher_release_preflight_v2.py
+  preflight_implementation_sha256: 2d94616033d7028c9232b889b59bd89495ec3cdefa0df59979e2a6a13ae63bef
+  preflight_receipt_path: fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json
+  preflight_receipt_sha256: f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2
+  preflight_receipt_schema_path: configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_receipt_v2.schema.json
+  preflight_receipt_schema_sha256: de28a1c60684c89bc9167bed664c35d512485ef0c0e12c5081f70b4b3b2fb82e
+  producer_commit: b88e749d4d19b6366d4b841c95a4fe46285c9c15
+  producer_tree: b9d83b10eb5e62e5661ec8f57e9152fc11317156
+  post_distillation_teacher_final_state: pending_materialization_and_external_release
+
 teacher_final:
   required_for_gpu_execution: true
   binding_schema_version: anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2
   record_schema_version: anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2
   binding_schema: configs/training/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json
-  binding_schema_release_status: pending_exact_producer_v2_handoff
-  binding_schema_sha256: null
+  binding_schema_release_status: exact_producer_v2_physical_bytes_bound
+  binding_schema_sha256: 41020aa6103a52f13919d164be679da110b6260b2ba27ad1c866bcb305dc3a87
   record_schema: configs/training/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json
-  record_schema_release_status: pending_exact_producer_v2_handoff
-  record_schema_sha256: null
+  record_schema_release_status: exact_producer_v2_physical_bytes_bound
+  record_schema_sha256: 5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef
   expected_records: 3520
   expected_main_records: 3440
   expected_router_records: 80

@@ -1114,15 +1114,21 @@ def validate_config(config: Mapping[str, Any]) -> None:
         or teacher.get("binding_schema") != TEACHER_BINDING_SCHEMA_PATH.as_posix()
         or teacher.get("record_schema") != TEACHER_RECORD_SCHEMA_PATH.as_posix()
         or binding_schema_release_status
-        not in {"pending_exact_producer_v2_handoff", "released"}
+        not in {
+            "pending_exact_producer_v2_handoff",
+            "exact_producer_v2_physical_bytes_bound",
+        }
         or record_schema_release_status
-        not in {"pending_exact_producer_v2_handoff", "released"}
-        or (binding_schema_release_status == "released")
+        not in {
+            "pending_exact_producer_v2_handoff",
+            "exact_producer_v2_physical_bytes_bound",
+        }
+        or (binding_schema_release_status == "exact_producer_v2_physical_bytes_bound")
         != (
             isinstance(binding_schema_sha, str)
             and _SHA256_RE.fullmatch(binding_schema_sha) is not None
         )
-        or (record_schema_release_status == "released")
+        or (record_schema_release_status == "exact_producer_v2_physical_bytes_bound")
         != (
             isinstance(record_schema_sha, str)
             and _SHA256_RE.fullmatch(record_schema_sha) is not None
@@ -1244,12 +1250,14 @@ def validate_config(config: Mapping[str, Any]) -> None:
 def _released_teacher_schema_identities(
     config: Mapping[str, Any],
 ) -> tuple[str, str]:
-    """Return released v2 schema identities or stop before any execution."""
+    """Return physically bound v2 schema identities or stop before execution."""
 
     teacher = _mapping(config.get("teacher_final"), "runtime_teacher_invalid")
     if (
-        teacher.get("binding_schema_release_status") != "released"
-        or teacher.get("record_schema_release_status") != "released"
+        teacher.get("binding_schema_release_status")
+        != "exact_producer_v2_physical_bytes_bound"
+        or teacher.get("record_schema_release_status")
+        != "exact_producer_v2_physical_bytes_bound"
     ):
         raise MultiArmRuntimeError("teacher_v2_physical_handoff_pending")
     binding_sha = _require_sha(
@@ -3402,10 +3410,7 @@ def execute_runtime(
 
 def _validate_only(config: Mapping[str, Any], config_sha256: str) -> dict[str, object]:
     teacher = _mapping(config["teacher_final"], "runtime_teacher_invalid")
-    teacher_released = (
-        teacher["binding_schema_release_status"] == "released"
-        and teacher["record_schema_release_status"] == "released"
-    )
+    _released_teacher_schema_identities(config)
     return {
         "schema_version": CONFIG_VERSION,
         "status": "passed",
@@ -3415,9 +3420,10 @@ def _validate_only(config: Mapping[str, Any], config_sha256: str) -> dict[str, o
         "teacher_final_required_for_gpu_execution": True,
         "teacher_binding_v2_release_status": teacher["binding_schema_release_status"],
         "teacher_record_v2_release_status": teacher["record_schema_release_status"],
-        "gpu_execution_ready": teacher_released,
+        "teacher_schema_physical_bytes_bound": True,
+        "gpu_execution_ready": False,
         "gpu_execution_blocker": (
-            None if teacher_released else "teacher_v2_physical_handoff_pending"
+            "teacher_final_materialization_and_external_release_pending"
         ),
         "producer_original_target_fallback": False,
         "gpu_requested": False,

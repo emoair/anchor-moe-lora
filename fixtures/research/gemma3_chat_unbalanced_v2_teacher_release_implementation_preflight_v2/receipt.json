@@ -1,0 +1,35 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-preflight-receipt.v2",
+  "status": "passed",
+  "operation": "immutable_git_release_implementation_preflight",
+  "binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+  "binding_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+  "implementation_sha256": "2d94616033d7028c9232b889b59bd89495ec3cdefa0df59979e2a6a13ae63bef",
+  "producer": {
+    "commit": "b88e749d4d19b6366d4b841c95a4fe46285c9c15",
+    "tree": "b9d83b10eb5e62e5661ec8f57e9152fc11317156",
+    "exact_files": 20,
+    "file_inventory_sha256": "b4ce22ee510ffc87c79c6992ef932cdd40fcf153da05e60c7b9ff78fb83f7db3",
+    "replace_refs_used": false,
+    "worktree_bytes_used": false
+  },
+  "independent_review": {
+    "status": "passed",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0
+  },
+  "post_distillation_teacher_final": {
+    "state": "pending_materialization_and_external_release",
+    "artifact_authenticated": false,
+    "training_consumable": false
+  },
+  "resource_counters": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "teacher_record_bodies_read": 0,
+    "raw_token_ids_read": 0
+  }
+}

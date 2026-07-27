@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-binding.v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher release implementation binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "producer",
+    "independent_review",
+    "exact_files",
+    "contracts",
+    "post_distillation_teacher_final",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-release-implementation-binding.v2"
+    },
+    "status": {
+      "const": "release_implementation_authenticated_teacher_final_pending"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_default",
+        "repository_environment",
+        "commit",
+        "tree",
+        "exact_files",
+        "file_inventory_sha256"
+      ],
+      "properties": {
+        "repository_default": {
+          "const": "../anchor-moe-lora-gemma3-chat-v1"
+        },
+        "repository_environment": {
+          "const": "ANCHOR_GEMMA3_UNBALANCED_V2_PRODUCER_REPOSITORY"
+        },
+        "commit": {
+          "const": "b88e749d4d19b6366d4b841c95a4fe46285c9c15"
+        },
+        "tree": {
+          "const": "b9d83b10eb5e62e5661ec8f57e9152fc11317156"
+        },
+        "exact_files": {
+          "const": 20
+        },
+        "file_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "independent_review": {
+      "const": {
+        "status": "passed",
+        "p0": 0,
+        "p1": 0,
+        "p2": 0,
+        "reviewer_distinct_from_implementer": true
+      }
+    },
+    "exact_files": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/git_file"
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integrated_controller",
+        "teacher_finalizer",
+        "external_release",
+        "teacher_schemas"
+      ],
+      "properties": {
+        "integrated_controller": {
+          "$ref": "#/$defs/config_schema_implementation"
+        },
+        "teacher_finalizer": {
+          "$ref": "#/$defs/config_schema_implementation"
+        },
+        "external_release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "implementation_sha256",
+            "wrapper_sha256",
+            "attestation_schema_sha256",
+            "manifest_schema_sha256",
+            "binding_schema_sha256"
+          ],
+          "properties": {
+            "implementation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "wrapper_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "attestation_schema_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "manifest_schema_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "binding_schema_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "teacher_schemas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "record_sha256",
+            "manifest_sha256",
+            "build_receipt_sha256"
+          ],
+          "properties": {
+            "record_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "build_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "post_distillation_teacher_final": {
+      "const": {
+        "state": "pending_materialization_and_external_release",
+        "binding_sha256": null,
+        "manifest_sha256": null,
+        "release_attestation_sha256": null,
+        "public_identity_sha256": null,
+        "training_consumable": false
+      }
+    },
+    "claims": {
+      "const": {
+        "immutable_git_bytes_authenticated": true,
+        "worktree_bytes_used": false,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "teacher_record_bodies_read": 0,
+        "teacher_final_materialized": false,
+        "training_authorized": false,
+        "formal": false,
+        "live": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.\\-/]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        }
+      }
+    },
+    "config_schema_implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_sha256",
+        "schema_sha256",
+        "implementation_sha256"
+      ],
+      "properties": {
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@
     "config": {
       "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2_config.schema.json",
       "version": "anchor.gemma3-chat-unbalanced-v2-shared-prefix-kv-runtime-config.v2",
-      "sha256": "9da2d91d1ab6506a850d0b21c35eb2727987029c94408cf61367e4f6f3483274"
+      "sha256": "5b336cc3a29d525f84ec5a45e337eb54b1e457f386927ce3b50b2306973db848"
     },
     "receipt": {
       "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2_receipt.schema.json",
@@ -36,6 +36,21 @@
     "sidecar_sha256": "aebd6c53788214c8fcf7783f64a60f4ffc97343c040d5422e7ca79a8fd7afbc3",
     "schema_sha256": "d0510caebb6a18f0ccade5386ce5007da8d9452a1badf5618a00aba75fc5bdde",
     "required_status": "passed"
+  },
+  "teacher_release_implementation": {
+    "binding_path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.json",
+    "binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+    "binding_schema_path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.schema.json",
+    "binding_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+    "preflight_implementation_path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_teacher_release_preflight_v2.py",
+    "preflight_implementation_sha256": "2d94616033d7028c9232b889b59bd89495ec3cdefa0df59979e2a6a13ae63bef",
+    "preflight_receipt_path": "fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json",
+    "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+    "preflight_receipt_schema_path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_receipt_v2.schema.json",
+    "preflight_receipt_schema_sha256": "de28a1c60684c89bc9167bed664c35d512485ef0c0e12c5081f70b4b3b2fb82e",
+    "producer_commit": "b88e749d4d19b6366d4b841c95a4fe46285c9c15",
+    "producer_tree": "b9d83b10eb5e62e5661ec8f57e9152fc11317156",
+    "post_distillation_teacher_final_state": "pending_materialization_and_external_release"
   },
   "producer_final": {
     "candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
