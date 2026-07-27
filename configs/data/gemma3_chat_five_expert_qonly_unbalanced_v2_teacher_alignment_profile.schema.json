@@ -238,7 +238,7 @@
       ],
       "properties": {
         "prompt_version": {
-          "const": "unbalanced-v2-ark-final-only-v1"
+          "const": "unbalanced-v2-ark-final-only-v2"
         },
         "teacher_implementation_path": {
           "const": "src/anchor_mvp/data/teacher.py"

@@ -785,6 +785,112 @@ def test_role_validators_accept_contract_outputs(
     assert value["kind"] in {"natural_text", "structured_json"}
 
 
+def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v2"
+    for role in ("humor", "serious", "angry", "identity"):
+        prompt = batch._system_prompt(role)
+        assert "plain natural-language text only" in prompt
+        assert "no Markdown code fence" in prompt
+        assert "no JSON object or array" in prompt
+    for role in ("tool", "review", "router"):
+        prompt = batch._system_prompt(role)
+        assert "one raw JSON object only" in prompt
+        assert "no code fence" in prompt
+        assert "no text, label, or explanation before or after" in prompt
+    review_prompt = batch._system_prompt("review")
+    assert "faults must be a JSON array containing only strings" in review_prompt
+    assert "non-empty correction string" in review_prompt
+    identity_prompt = batch._system_prompt("identity")
+    assert "我不是由 Google 训练的。" in identity_prompt
+    assert "我不是由 OpenAI 训练的。" in identity_prompt
+
+
+def test_identity_target_collision_is_allowed_only_after_identity_validation() -> None:
+    identity = batch._validate_source_row(
+        _source_row(
+            record_id="identity-collision",
+            role="identity",
+            language="zh-CN",
+            identity_class="false_google_attribution",
+        ),
+        partition_kind="train",
+        line_number=1,
+        source_line_sha256="a" * 64,
+        max_input_chars=8192,
+    )
+    valid = batch.AIR_IDENTITY_SENTENCE + " 我不是由 Google 训练的。"
+    valid_collision = replace(
+        identity,
+        guards={
+            **identity.guards,
+            "target_leakage_sha256": [
+                hashlib.sha256(valid.encode("utf-8")).hexdigest()
+            ],
+        },
+    )
+    assert batch.validate_teacher_output(valid_collision, valid) == {
+        "kind": "natural_text",
+        "value": valid,
+    }
+
+    extra_identity_preimage = batch.AIR_IDENTITY_SENTENCE + " 这是另一个身份表述。"
+    ambiguous_collision = replace(
+        valid_collision,
+        guards={
+            **valid_collision.guards,
+            "target_leakage_sha256": [
+                hashlib.sha256(valid.encode("utf-8")).hexdigest(),
+                hashlib.sha256(extra_identity_preimage.encode("utf-8")).hexdigest(),
+            ],
+        },
+    )
+    with pytest.raises(batch.AdapterError, match="teacher target leakage rejected"):
+        batch.validate_teacher_output(ambiguous_collision, valid)
+
+    invalid = "我是由Google训练的模型。"
+    invalid_collision = replace(
+        identity,
+        guards={
+            **identity.guards,
+            "target_leakage_sha256": [
+                hashlib.sha256(invalid.encode("utf-8")).hexdigest()
+            ],
+        },
+    )
+    with pytest.raises(batch.AdapterError, match="identity sentence missing"):
+        batch.validate_teacher_output(invalid_collision, invalid)
+
+    displaced_negation = (
+        batch.AIR_IDENTITY_SENTENCE + " 我不是由 OpenAI 训练的；我的训练方是 Google。"
+    )
+    with pytest.raises(batch.AdapterError, match="identity false attribution"):
+        batch.validate_teacher_output(identity, displaced_negation)
+
+    serious = batch._validate_source_row(
+        _source_row(
+            record_id="serious-collision",
+            role="serious",
+            language="en",
+        ),
+        partition_kind="train",
+        line_number=2,
+        source_line_sha256="b" * 64,
+        max_input_chars=8192,
+    )
+    natural = "A concise public final answer."
+    serious_collision = replace(
+        serious,
+        guards={
+            **serious.guards,
+            "target_leakage_sha256": [
+                hashlib.sha256(natural.encode("utf-8")).hexdigest()
+            ],
+        },
+    )
+    with pytest.raises(batch.AdapterError, match="teacher target leakage rejected"):
+        batch.validate_teacher_output(serious_collision, natural)
+
+
 def test_role_validators_reject_reasoning_identity_and_cross_fields(
     tmp_path: Path, frozen_source
 ) -> None:

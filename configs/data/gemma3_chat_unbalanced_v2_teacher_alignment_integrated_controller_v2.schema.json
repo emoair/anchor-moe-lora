@@ -52,13 +52,13 @@
           "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.v1.json"
         },
         "config_sha256": {
-          "const": "32038fa29a89825f7e9bd314c062874247f0d934952b2c0f55a7355175820f7b"
+          "const": "63e8e72b1027786adb89e363b4c0fc283587cd505b241d19155eea8c2490d258"
         },
         "schema_path": {
           "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json"
         },
         "schema_sha256": {
-          "const": "4a9c0458a3266c60d7ea5ddacedbe5112438f6a6299ae4a426be9c1b248b172f"
+          "const": "b1888e2995ffd0e1146a2798a6097e4b52ff7153f199e509811ea48cc583d993"
         },
         "implementation_path": {
           "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py"
