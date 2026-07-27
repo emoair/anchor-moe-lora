@@ -1100,8 +1100,18 @@ def test_secure_wrapper_is_v3_bound_and_prompts_only_after_preflight() -> None:
     )
     assert "D:\\LLM\\anchor-moe-lora-gemma3-chat-rollover-v3" in wrapper
     assert "consumer_identity_rollover_v2" not in wrapper
-    assert wrapper.index("$preflight = Get-ControllerPreflight") < wrapper.index(
-        "$credential = Read-Host"
+    assert '$credentialEnvironmentVariableName = "glm5.2key"' in wrapper
+    assert (
+        wrapper.index("$preflight = Get-ControllerPreflight")
+        < wrapper.index(
+            "$credentialText = [System.Environment]::GetEnvironmentVariable"
+        )
+        < wrapper.index("$credential = Read-Host")
+    )
+    assert "$startInfo.EnvironmentVariables.Remove(" in wrapper
+    assert (
+        "credential_environment_variable = $credentialEnvironmentVariableName"
+        in wrapper
     )
     assert wrapper.count("-AsSecureString") == 1
     assert "--credential-stdin" in wrapper

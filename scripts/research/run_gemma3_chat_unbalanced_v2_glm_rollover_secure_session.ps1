@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $moduleName = "anchor_mvp.data.gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3"
+$credentialEnvironmentVariableName = "glm5.2key"
 $executeBootstrapBase64 = (
     "aW1wb3J0IG9zLHJ1bnB5LHN5cztzaW5rPW9zLm9wZW4ob3MuZGV2bnVsbCxvcy5PX1dST05M" +
     "WSk7b3MuZHVwMihzaW5rLDEpIGlmIHNpbmshPTEgZWxzZSBOb25lO29zLmR1cDIoc2luaywy" +
@@ -96,6 +97,33 @@ function Write-SecureAsciiLine {
     }
 }
 
+function Convert-AsciiEnvironmentCredential {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    if ($Value.Length -lt 1) {
+        throw "secure_session_credential_empty"
+    }
+    $secure = [System.Security.SecureString]::new()
+    try {
+        foreach ($character in $Value.ToCharArray()) {
+            $codePoint = [int][char]$character
+            if ($codePoint -lt 0x21 -or $codePoint -gt 0x7e) {
+                throw "secure_session_credential_not_ascii"
+            }
+            $secure.AppendChar($character)
+        }
+        $secure.MakeReadOnly()
+        return $secure
+    }
+    catch {
+        $secure.Dispose()
+        throw
+    }
+}
+
 function New-ControllerStartInfo {
     param(
         [Parameter(Mandatory = $true)]
@@ -116,6 +144,15 @@ function New-ControllerStartInfo {
     $startInfo.RedirectStandardError = $RedirectOutput
     $startInfo.CreateNoWindow = $true
     $startInfo.EnvironmentVariables["PYTHONPATH"] = $sourceRoot
+    if (
+        $startInfo.EnvironmentVariables.ContainsKey(
+            $credentialEnvironmentVariableName
+        )
+    ) {
+        $startInfo.EnvironmentVariables.Remove(
+            $credentialEnvironmentVariableName
+        )
+    }
     return $startInfo
 }
 
@@ -256,14 +293,23 @@ try {
     }
     $unexpectedBlockers = @($unexpectedBlockers | Sort-Object -Unique)
     $ready = $unexpectedBlockers.Count -eq 0
+    $environmentCredentialAvailable = -not [string]::IsNullOrEmpty(
+        [System.Environment]::GetEnvironmentVariable(
+            $credentialEnvironmentVariableName,
+            [System.EnvironmentVariableTarget]::Process
+        )
+    )
     if ($ValidateOnly -or -not $ready) {
         [pscustomobject]@{
             schema_version = "anchor.gemma3-glm-rollover-secure-session.v1"
             state = if ($ready) { "ready" } else { "blocked" }
             blockers = $unexpectedBlockers
-            credential_prompt_would_open = $ready
+            credential_prompt_would_open = (
+                $ready -and -not $environmentCredentialAvailable
+            )
             credential_inputs_per_controller = 1
             credential_transport = "anonymous_stdin"
+            credential_environment_variable = $credentialEnvironmentVariableName
             credential_persisted = $false
             cross_process_resume = $false
             output_root_relative = $relativeOutputRoot.Replace("\", "/")
@@ -274,9 +320,26 @@ try {
         exit 2
     }
 
-    $credential = Read-Host `
-        -Prompt "Ark API key (one input; memory-only for this controller)" `
-        -AsSecureString
+    $credentialText = [System.Environment]::GetEnvironmentVariable(
+        $credentialEnvironmentVariableName,
+        [System.EnvironmentVariableTarget]::Process
+    )
+    $credentialSource = "process_environment"
+    if ([string]::IsNullOrEmpty($credentialText)) {
+        $credentialSource = "secure_prompt"
+        $credential = Read-Host `
+            -Prompt "Ark API key (one input; memory-only for this controller)" `
+            -AsSecureString
+    }
+    else {
+        try {
+            $credential = Convert-AsciiEnvironmentCredential `
+                -Value $credentialText
+        }
+        finally {
+            $credentialText = $null
+        }
+    }
     try {
         $startInfo = New-ControllerStartInfo `
             -Arguments (
@@ -336,6 +399,7 @@ try {
             state = if ($exitCode -eq 0) { "complete" } else { "blocked" }
             controller_exit_code = $exitCode
             credential_inputs = 1
+            credential_source = $credentialSource
             credential_persisted = $false
             cross_process_resume = $false
         } | ConvertTo-Json -Compress
