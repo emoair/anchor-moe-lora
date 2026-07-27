@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-postrelease-aggregate-receipt.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "operation",
+    "config_sha256",
+    "binding",
+    "idempotency_key_sha256",
+    "stages",
+    "next_stage",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-postrelease-aggregate-receipt.v2"
+    },
+    "status": {
+      "const": "validated_stub_no_execution"
+    },
+    "operation": {
+      "const": "validate_only"
+    },
+    "config_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "producer_commit",
+        "producer_tree",
+        "schema_sha256",
+        "required_status"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_commit": {
+          "const": "878e27dbc41e8dafc43b6462279a814f53d232b5"
+        },
+        "producer_tree": {
+          "const": "566e84d30bc934def4a52b48f3fd65b2639665ae"
+        },
+        "schema_sha256": {
+          "const": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca"
+        },
+        "required_status": {
+          "const": "released_pending_consumer_acceptance"
+        }
+      }
+    },
+    "idempotency_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/smoke_stage"
+        },
+        {
+          "$ref": "#/$defs/full_stage"
+        },
+        {
+          "$ref": "#/$defs/generation_eval_stage"
+        },
+        {
+          "$ref": "#/$defs/kv_stage"
+        }
+      ],
+      "items": false
+    },
+    "next_stage": {
+      "const": "smoke"
+    },
+    "claims": {
+      "const": {
+        "body_free": true,
+        "execution_performed": false,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "sample_bodies_read": false,
+        "raw_token_ids_read": false,
+        "secret_material_read": false,
+        "fallback_used": false,
+        "formal": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "smoke_stage": {
+      "$ref": "#/$defs/stage",
+      "properties": {
+        "name": {
+          "const": "smoke"
+        },
+        "status": {
+          "const": "pending_external_execution"
+        },
+        "requires": {
+          "const": []
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "full_stage": {
+      "$ref": "#/$defs/stage",
+      "properties": {
+        "name": {
+          "const": "full"
+        },
+        "status": {
+          "const": "pending_external_execution"
+        },
+        "requires": {
+          "const": [
+            "smoke"
+          ]
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "generation_eval_stage": {
+      "$ref": "#/$defs/stage",
+      "properties": {
+        "name": {
+          "const": "generation_eval"
+        },
+        "status": {
+          "const": "pending_external_execution"
+        },
+        "requires": {
+          "const": [
+            "full"
+          ]
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "kv_stage": {
+      "$ref": "#/$defs/stage",
+      "properties": {
+        "name": {
+          "const": "kv"
+        },
+        "status": {
+          "const": "pending_external_execution"
+        },
+        "requires": {
+          "const": [
+            "generation_eval"
+          ]
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "requires",
+        "binding_sha256"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "requires": {
+          "type": "array"
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

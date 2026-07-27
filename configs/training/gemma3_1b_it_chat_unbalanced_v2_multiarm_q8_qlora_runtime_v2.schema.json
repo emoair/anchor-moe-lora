@@ -11,6 +11,7 @@
     "model_free_contract",
     "source",
     "teacher_release_implementation",
+    "teacher_rollover",
     "teacher_final",
     "model",
     "quantization",
@@ -35,6 +36,9 @@
     "teacher_release_implementation": {
       "$ref": "#/$defs/teacherReleaseImplementation"
     },
+    "teacher_rollover": {
+      "$ref": "#/$defs/teacherRollover"
+    },
     "teacher_final": {
       "type": "object",
       "additionalProperties": false,
@@ -48,6 +52,10 @@
         "record_schema",
         "record_schema_release_status",
         "record_schema_sha256",
+        "required_binding_status",
+        "required_binding_filename",
+        "external_authenticated_producer_root_required",
+        "consumer_prerequisite_commit",
         "expected_records",
         "expected_main_records",
         "expected_router_records",
@@ -69,22 +77,32 @@
           "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-record.v2"
         },
         "binding_schema": {
-          "const": "configs/training/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json"
+          "const": "configs/training/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json"
         },
         "binding_schema_release_status": {
-          "const": "exact_producer_v2_physical_bytes_bound"
+          "const": "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
         },
         "binding_schema_sha256": {
-          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+          "const": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca"
         },
         "record_schema": {
           "const": "configs/training/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
         },
         "record_schema_release_status": {
-          "const": "exact_producer_v2_physical_bytes_bound"
+          "const": "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
         },
         "record_schema_sha256": {
-          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+          "const": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef"
+        },
+        "required_binding_status": {
+          "const": "released_pending_consumer_acceptance"
+        },
+        "required_binding_filename": {
+          "const": "teacher_alignment_binding.v2.json"
+        },
+        "external_authenticated_producer_root_required": {"const": true},
+        "consumer_prerequisite_commit": {
+          "const": "6240ae111182104f22f08e1a569deae866c6e210"
         },
         "expected_records": {"const": 3520},
         "expected_main_records": {"const": 3440},
@@ -105,49 +123,7 @@
             "source_asset"
           ]
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "binding_schema_release_status": {
-                "const": "exact_producer_v2_physical_bytes_bound"
-              }
-            },
-            "required": ["binding_schema_release_status"]
-          },
-          "then": {
-            "properties": {
-              "binding_schema_sha256": {"$ref": "#/$defs/sha256"}
-            }
-          },
-          "else": {
-            "properties": {
-              "binding_schema_sha256": {"type": "null"}
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "record_schema_release_status": {
-                "const": "exact_producer_v2_physical_bytes_bound"
-              }
-            },
-            "required": ["record_schema_release_status"]
-          },
-          "then": {
-            "properties": {
-              "record_schema_sha256": {"$ref": "#/$defs/sha256"}
-            }
-          },
-          "else": {
-            "properties": {
-              "record_schema_sha256": {"type": "null"}
-            }
-          }
-        }
-      ]
+      }
     },
     "model": {"$ref": "#/$defs/object"},
     "quantization": {"$ref": "#/$defs/object"},
@@ -223,7 +199,112 @@
         "preflight_receipt_schema_sha256": "de28a1c60684c89bc9167bed664c35d512485ef0c0e12c5081f70b4b3b2fb82e",
         "producer_commit": "b88e749d4d19b6366d4b841c95a4fe46285c9c15",
         "producer_tree": "b9d83b10eb5e62e5661ec8f57e9152fc11317156",
-        "post_distillation_teacher_final_state": "pending_materialization_and_external_release"
+        "post_distillation_teacher_final_state": "superseded_by_consumer_rollover_v3",
+        "consumable": false
+      }
+    },
+    "teacherRollover": {
+      "const": {
+        "status": "additive_v3_physical_handoff_required",
+        "producer_repository_env": "ANCHOR_GEMMA3_UNBALANCED_V2_PRODUCER_REPOSITORY",
+        "producer_repository_default": "D:/LLM/anchor-moe-lora-gemma3-chat-rollover-v3",
+        "producer_branch": "research/gemma3-teacher-final-consumer-rollover-v3",
+        "producer_commit": "878e27dbc41e8dafc43b6462279a814f53d232b5",
+        "producer_parent": "f23ed037983a5556fe309c92a5391c81a02da5f2",
+        "producer_tree": "566e84d30bc934def4a52b48f3fd65b2639665ae",
+        "binding_filename": "teacher_alignment_binding.v2.json",
+        "physical_identity": {
+          "gitattributes": {
+            "path": ".gitattributes",
+            "sha256": "345238b9d68eb55865d5bd11e7dfe58cb332ea060fd7d371a04e6327a56b2276",
+            "bytes": 17848,
+            "kind": "text"
+          },
+          "config": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.json",
+            "sha256": "6664bee43d144d07673ac3457020727180bb047f52bedb05b09aa2cd69e37ae5",
+            "bytes": 3475,
+            "kind": "json"
+          },
+          "config_schema": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.schema.json",
+            "sha256": "b459f014f959817887be47a172d366a9ddfce41b06d3d4e89feb26f360e63515",
+            "bytes": 3523,
+            "kind": "json_schema"
+          },
+          "attestation_schema": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_attestation_consumer_rollover_v3.schema.json",
+            "sha256": "926a86b8e6c2e92d81097f8a4ac4a2e41c5449ebd956e4c90791562170895486",
+            "bytes": 13703,
+            "kind": "json_schema"
+          },
+          "release_manifest_schema": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_consumer_rollover_v3.schema.json",
+            "sha256": "865b5fe67afbdb67c70bcdabb862544fd9a6b9abcbd9c148e6d1f0102e81936c",
+            "bytes": 9408,
+            "kind": "json_schema"
+          },
+          "execute_implementation": {
+            "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py",
+            "sha256": "a80c3c85239c033412ced8e95328c9189e4207ecde99a150f6f3e91e8c920086",
+            "bytes": 17007,
+            "kind": "python"
+          },
+          "release_implementation": {
+            "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py",
+            "sha256": "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc",
+            "bytes": 63615,
+            "kind": "python"
+          },
+          "tests": {
+            "path": "tests/test_gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py",
+            "sha256": "2c9ce0077b6e6859677c12ab8d7dd0cdc0dc3f755a01e1f6f3f02e6d99932e40",
+            "bytes": 15515,
+            "kind": "python"
+          }
+        },
+        "schemas": {
+          "binding": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json",
+            "sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+            "bytes": 8773
+          },
+          "release_manifest": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_consumer_rollover_v3.schema.json",
+            "sha256": "865b5fe67afbdb67c70bcdabb862544fd9a6b9abcbd9c148e6d1f0102e81936c",
+            "bytes": 9408
+          },
+          "attestation": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_attestation_consumer_rollover_v3.schema.json",
+            "sha256": "926a86b8e6c2e92d81097f8a4ac4a2e41c5449ebd956e4c90791562170895486",
+            "bytes": 13703
+          },
+          "candidate_manifest": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_manifest_consumer_rollover_v2.schema.json",
+            "sha256": "9552f8091cfd6d0de61a0b2cf5559a8460ac41d74a06e1af10392747d2f63e13",
+            "bytes": 10162
+          },
+          "build_receipt": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_build_receipt_v2.schema.json",
+            "sha256": "2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404",
+            "bytes": 2972
+          },
+          "record": {
+            "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json",
+            "sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+            "bytes": 1558
+          }
+        },
+        "release_implementation": {
+          "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py",
+          "sha256": "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc",
+          "bytes": 63615
+        },
+        "legacy_v1_consumable": false,
+        "legacy_v2_consumable": false,
+        "legacy_f23_consumable": false,
+        "legacy_implementation_binding_consumable": false,
+        "fallback_allowed": false
       }
     },
     "sha256": {

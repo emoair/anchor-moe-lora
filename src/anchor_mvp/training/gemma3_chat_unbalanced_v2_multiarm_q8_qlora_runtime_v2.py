@@ -86,7 +86,7 @@ CONFIG_SCHEMA_PATH: Final = Path(
 )
 TEACHER_BINDING_SCHEMA_PATH: Final = Path(
     "configs/training/"
-    "gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json"
+    "gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json"
 )
 TEACHER_RECORD_SCHEMA_PATH: Final = Path(
     "configs/training/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
@@ -161,6 +161,141 @@ _LORA_RE: Final = re.compile(
 _MIB: Final = 1024 * 1024
 _MAX_METADATA_BYTES: Final = 16_000_000
 _TEACHER_AUTHORITY = object()
+ROLLOVER_PRODUCER_BRANCH: Final = "research/gemma3-teacher-final-consumer-rollover-v3"
+ROLLOVER_PRODUCER_COMMIT: Final = "878e27dbc41e8dafc43b6462279a814f53d232b5"
+ROLLOVER_PRODUCER_PARENT: Final = "f23ed037983a5556fe309c92a5391c81a02da5f2"
+ROLLOVER_PRODUCER_TREE: Final = "566e84d30bc934def4a52b48f3fd65b2639665ae"
+ROLLOVER_BINDING_FILENAME: Final = "teacher_alignment_binding.v2.json"
+ROLLOVER_PHYSICAL_IDENTITY_SPECS: Final = {
+    "gitattributes": {
+        "path": ".gitattributes",
+        "sha256": "345238b9d68eb55865d5bd11e7dfe58cb332ea060fd7d371a04e6327a56b2276",
+        "bytes": 17848,
+        "kind": "text",
+    },
+    "config": {
+        "path": (
+            "configs/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.json"
+        ),
+        "sha256": "6664bee43d144d07673ac3457020727180bb047f52bedb05b09aa2cd69e37ae5",
+        "bytes": 3475,
+        "kind": "json",
+    },
+    "config_schema": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.schema.json"
+        ),
+        "sha256": "b459f014f959817887be47a172d366a9ddfce41b06d3d4e89feb26f360e63515",
+        "bytes": 3523,
+        "kind": "json_schema",
+    },
+    "attestation_schema": {
+        "path": (
+            "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_"
+            "attestation_consumer_rollover_v3.schema.json"
+        ),
+        "sha256": "926a86b8e6c2e92d81097f8a4ac4a2e41c5449ebd956e4c90791562170895486",
+        "bytes": 13703,
+        "kind": "json_schema",
+    },
+    "release_manifest_schema": {
+        "path": (
+            "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_"
+            "consumer_rollover_v3.schema.json"
+        ),
+        "sha256": "865b5fe67afbdb67c70bcdabb862544fd9a6b9abcbd9c148e6d1f0102e81936c",
+        "bytes": 9408,
+        "kind": "json_schema",
+    },
+    "execute_implementation": {
+        "path": (
+            "src/anchor_mvp/data/"
+            "gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py"
+        ),
+        "sha256": "a80c3c85239c033412ced8e95328c9189e4207ecde99a150f6f3e91e8c920086",
+        "bytes": 17007,
+        "kind": "python",
+    },
+    "release_implementation": {
+        "path": (
+            "src/anchor_mvp/data/"
+            "gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py"
+        ),
+        "sha256": "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc",
+        "bytes": 63615,
+        "kind": "python",
+    },
+    "tests": {
+        "path": (
+            "tests/test_gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py"
+        ),
+        "sha256": "2c9ce0077b6e6859677c12ab8d7dd0cdc0dc3f755a01e1f6f3f02e6d99932e40",
+        "bytes": 15515,
+        "kind": "python",
+    },
+}
+ROLLOVER_SCHEMA_SPECS: Final = {
+    "binding": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_teacher_alignment_binding_"
+            "consumer_rollover_v2.schema.json"
+        ),
+        "sha256": ("491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca"),
+        "bytes": 8773,
+    },
+    "release_manifest": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_teacher_final_release_manifest_"
+            "consumer_rollover_v3.schema.json"
+        ),
+        "sha256": ("865b5fe67afbdb67c70bcdabb862544fd9a6b9abcbd9c148e6d1f0102e81936c"),
+        "bytes": 9408,
+    },
+    "attestation": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_teacher_final_release_"
+            "attestation_consumer_rollover_v3.schema.json"
+        ),
+        "sha256": ("926a86b8e6c2e92d81097f8a4ac4a2e41c5449ebd956e4c90791562170895486"),
+        "bytes": 13703,
+    },
+    "candidate_manifest": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_teacher_final_manifest_"
+            "consumer_rollover_v2.schema.json"
+        ),
+        "sha256": ("9552f8091cfd6d0de61a0b2cf5559a8460ac41d74a06e1af10392747d2f63e13"),
+        "bytes": 10162,
+    },
+    "build_receipt": {
+        "path": (
+            "configs/data/"
+            "gemma3_chat_unbalanced_v2_teacher_final_build_receipt_v2.schema.json"
+        ),
+        "sha256": ("2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404"),
+        "bytes": 2972,
+    },
+    "record": {
+        "path": (
+            "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
+        ),
+        "sha256": ("5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef"),
+        "bytes": 1558,
+    },
+}
+ROLLOVER_RELEASE_IMPLEMENTATION: Final = {
+    "path": (
+        "src/anchor_mvp/data/"
+        "gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py"
+    ),
+    "sha256": "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc",
+    "bytes": 63615,
+}
 
 
 class MultiArmRuntimeError(RuntimeError):
@@ -184,6 +319,20 @@ class TeacherFilePin:
     bytes: int
     sidecar_sha256: str
     sidecar_bytes: int
+
+
+@dataclass(frozen=True)
+class AuthenticatedRolloverProducer:
+    root: Path
+    commit: str
+    parent: str
+    tree: str
+    physical_identity_sha256: Mapping[str, str]
+    schema_values: Mapping[str, Mapping[str, Any]]
+    schema_sha256: Mapping[str, str]
+    execute_implementation_sha256: str
+    release_implementation_sha256: str
+    _directory_identities: tuple[DirectoryIdentity, ...]
 
 
 @dataclass(frozen=True)
@@ -212,17 +361,21 @@ class AuthenticatedTeacherFinal:
     schema_version: str
     binding_path: Path
     binding_sha256: str
+    binding_sidecar_sha256: str
+    binding_sidecar_bytes: int
     binding_schema_sha256: str
     artifact_root: Path
     manifest: TeacherFilePin
-    record_schema: TeacherFilePin
+    record_schema_sha256: str
     release_receipt: TeacherFilePin
     release_attestation: TeacherFilePin
+    metadata_files: tuple[TeacherFilePin, ...]
     shards: tuple[TeacherFilePin, ...]
     shard_assets: tuple[str, ...]
     shard_records: tuple[int, ...]
     shard_inventory_sha256: str
     public_identity_sha256: str
+    producer: AuthenticatedRolloverProducer
     _directory_identities: tuple[DirectoryIdentity, ...]
     _authority: object
 
@@ -234,7 +387,7 @@ class AuthenticatedTeacherFinal:
             "binding_sha256": self.binding_sha256,
             "binding_schema_sha256": self.binding_schema_sha256,
             "manifest_sha256": self.manifest.sha256,
-            "record_schema_sha256": self.record_schema.sha256,
+            "record_schema_sha256": self.record_schema_sha256,
             "release_receipt_sha256": self.release_receipt.sha256,
             "release_attestation_sha256": self.release_attestation.sha256,
             "shard_inventory_sha256": self.shard_inventory_sha256,
@@ -500,6 +653,229 @@ def _recheck_directory_chain(
         observed = _directory_identity(expected.path, code=code)
         if observed != expected:
             raise MultiArmRuntimeError(code)
+
+
+def _schema_from_authenticated_git(
+    raw: bytes,
+    *,
+    code: str,
+) -> Mapping[str, Any]:
+    value = _strict_json(raw, code)
+    try:
+        Draft202012Validator.check_schema(value)
+    except SchemaError:
+        raise MultiArmRuntimeError(code) from None
+    return value
+
+
+def _rollover_producer_root(
+    config: Mapping[str, Any],
+    repository: str | Path | None,
+) -> Path:
+    rollover = _mapping(
+        config.get("teacher_rollover"),
+        "teacher_rollover_config_invalid",
+    )
+    raw: str
+    if repository is not None and str(repository).strip():
+        raw = str(repository)
+    else:
+        environment_name = str(rollover.get("producer_repository_env", ""))
+        environment_value = os.environ.get(environment_name, "")
+        raw = (
+            environment_value
+            if environment_value
+            else str(rollover.get("producer_repository_default", ""))
+        )
+    if not raw or raw != raw.strip():
+        raise MultiArmRuntimeError("teacher_rollover_producer_root_missing")
+    requested = Path(raw)
+    if not requested.is_absolute():
+        requested = _project_root() / requested
+    root = Path(os.path.abspath(requested))
+    _directory_identity(root, code="teacher_rollover_producer_root_invalid")
+    return root
+
+
+def _authenticate_rollover_producer_root(
+    root: Path,
+) -> AuthenticatedRolloverProducer:
+    """Authenticate the additive rollover commit and exact schema Git blobs."""
+
+    root = Path(os.path.abspath(root))
+    root_chain = _directory_chain(
+        root,
+        [root],
+        code="teacher_rollover_producer_root_invalid",
+    )
+    try:
+        reader = source_runtime.GitObjectReader(root)
+        if reader.object_type(ROLLOVER_PRODUCER_COMMIT) != "commit":
+            raise MultiArmRuntimeError("teacher_rollover_producer_commit_invalid")
+        observed_tree = reader.tree_for_commit(ROLLOVER_PRODUCER_COMMIT)
+        if observed_tree != ROLLOVER_PRODUCER_TREE:
+            raise MultiArmRuntimeError("teacher_rollover_producer_tree_drift")
+        tree = reader.tree_entries(ROLLOVER_PRODUCER_COMMIT)
+        physical_identity_sha256: dict[str, str] = {}
+        physical_identity_raw: dict[str, bytes] = {}
+        for name, expected in ROLLOVER_PHYSICAL_IDENTITY_SPECS.items():
+            pin = reader.verify_blob(
+                tree,
+                path=str(expected["path"]),
+                expected_sha256=str(expected["sha256"]),
+                expected_bytes=int(expected["bytes"]),
+                kind=str(expected["kind"]),
+            )
+            physical_identity_sha256[name] = pin.sha256
+            physical_identity_raw[name] = reader.blob_bytes(pin.oid)
+        identity_config = _strict_json(
+            physical_identity_raw["config"],
+            "teacher_rollover_v3_config_invalid",
+        )
+        identity_schema = _schema_from_authenticated_git(
+            physical_identity_raw["config_schema"],
+            code="teacher_rollover_v3_config_schema_invalid",
+        )
+        try:
+            Draft202012Validator(identity_schema).validate(identity_config)
+        except ValidationError:
+            raise MultiArmRuntimeError(
+                "teacher_rollover_v3_config_schema_mismatch"
+            ) from None
+        authenticated_artifacts = _mapping(
+            identity_config.get("authenticated_artifacts"),
+            "teacher_rollover_v3_authenticated_artifacts_invalid",
+        )
+        expected_v3_artifacts = {
+            "rollover_v3_implementation": "execute_implementation",
+            "release_implementation": "release_implementation",
+            "attestation_schema": "attestation_schema",
+            "release_manifest_schema": "release_manifest_schema",
+        }
+        if (
+            identity_config.get("schema_version")
+            != "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v3"
+            or identity_config.get("status") != "ready_model_free"
+            or any(
+                dict(
+                    _mapping(
+                        authenticated_artifacts.get(config_name),
+                        "teacher_rollover_v3_authenticated_artifact_invalid",
+                    )
+                )
+                != {
+                    key: value
+                    for key, value in ROLLOVER_PHYSICAL_IDENTITY_SPECS[
+                        identity_name
+                    ].items()
+                    if key != "kind"
+                }
+                for config_name, identity_name in expected_v3_artifacts.items()
+            )
+            or dict(
+                _mapping(
+                    authenticated_artifacts.get("binding_schema"),
+                    "teacher_rollover_v3_binding_schema_invalid",
+                )
+            )
+            != ROLLOVER_SCHEMA_SPECS["binding"]
+            or identity_config.get("claims", {}).get("consumer_prerequisite_commit")
+            != "6240ae111182104f22f08e1a569deae866c6e210"
+            or identity_config.get("claims", {}).get("binding_schema_sha256")
+            != ROLLOVER_SCHEMA_SPECS["binding"]["sha256"]
+        ):
+            raise MultiArmRuntimeError("teacher_rollover_v3_contract_drift")
+        schema_values: dict[str, Mapping[str, Any]] = {}
+        schema_sha256: dict[str, str] = {}
+        for name, expected in ROLLOVER_SCHEMA_SPECS.items():
+            pin = reader.verify_blob(
+                tree,
+                path=str(expected["path"]),
+                expected_sha256=str(expected["sha256"]),
+                expected_bytes=int(expected["bytes"]),
+                kind="json_schema",
+            )
+            raw = reader.blob_bytes(pin.oid)
+            schema_values[name] = _schema_from_authenticated_git(
+                raw,
+                code=f"teacher_rollover_{name}_schema_invalid",
+            )
+            schema_sha256[name] = pin.sha256
+        implementation = reader.verify_blob(
+            tree,
+            path=str(ROLLOVER_RELEASE_IMPLEMENTATION["path"]),
+            expected_sha256=str(ROLLOVER_RELEASE_IMPLEMENTATION["sha256"]),
+            expected_bytes=int(ROLLOVER_RELEASE_IMPLEMENTATION["bytes"]),
+            kind="python",
+        )
+        reader.assert_no_replacement_or_graft()
+    except source_runtime.RuntimeSourceError as exc:
+        raise MultiArmRuntimeError(
+            f"teacher_rollover_git_authentication_failed:{exc}"
+        ) from None
+
+    _stable_file(
+        _project_root() / TEACHER_BINDING_SCHEMA_PATH,
+        expected_sha256=schema_sha256["binding"],
+        expected_bytes=int(ROLLOVER_SCHEMA_SPECS["binding"]["bytes"]),
+        code="teacher_binding_schema_local_identity_drift",
+    )
+    _stable_file(
+        _project_root() / TEACHER_RECORD_SCHEMA_PATH,
+        expected_sha256=schema_sha256["record"],
+        expected_bytes=int(ROLLOVER_SCHEMA_SPECS["record"]["bytes"]),
+        code="teacher_record_schema_local_identity_drift",
+    )
+    _recheck_directory_chain(
+        root_chain,
+        code="teacher_rollover_producer_root_changed",
+    )
+    return AuthenticatedRolloverProducer(
+        root=root,
+        commit=ROLLOVER_PRODUCER_COMMIT,
+        parent=ROLLOVER_PRODUCER_PARENT,
+        tree=ROLLOVER_PRODUCER_TREE,
+        physical_identity_sha256=physical_identity_sha256,
+        schema_values=schema_values,
+        schema_sha256=schema_sha256,
+        execute_implementation_sha256=physical_identity_sha256[
+            "execute_implementation"
+        ],
+        release_implementation_sha256=implementation.sha256,
+        _directory_identities=root_chain,
+    )
+
+
+def authenticate_rollover_producer(
+    config: Mapping[str, Any],
+    repository: str | Path | None,
+) -> AuthenticatedRolloverProducer:
+    return _authenticate_rollover_producer_root(
+        _rollover_producer_root(config, repository)
+    )
+
+
+def _recheck_rollover_producer(
+    expected: AuthenticatedRolloverProducer,
+) -> None:
+    _recheck_directory_chain(
+        expected._directory_identities,
+        code="teacher_rollover_producer_root_changed",
+    )
+    observed = _authenticate_rollover_producer_root(expected.root)
+    if (
+        observed.commit != expected.commit
+        or observed.parent != expected.parent
+        or observed.tree != expected.tree
+        or dict(observed.physical_identity_sha256)
+        != dict(expected.physical_identity_sha256)
+        or dict(observed.schema_sha256) != dict(expected.schema_sha256)
+        or observed.execute_implementation_sha256
+        != expected.execute_implementation_sha256
+        or observed.release_implementation_sha256
+        != expected.release_implementation_sha256
+    ):
+        raise MultiArmRuntimeError("teacher_rollover_producer_identity_changed")
 
 
 def _assert_owned_directory(
@@ -1102,6 +1478,49 @@ def validate_config(config: Mapping[str, Any]) -> None:
         or source.get("replace_refs_and_grafts_forbidden") is not True
     ):
         raise MultiArmRuntimeError("runtime_source_contract_drift")
+    rollover = _mapping(
+        config.get("teacher_rollover"),
+        "runtime_teacher_rollover_invalid",
+    )
+    if (
+        rollover.get("status") != "additive_v3_physical_handoff_required"
+        or rollover.get("producer_repository_env")
+        != "ANCHOR_GEMMA3_UNBALANCED_V2_PRODUCER_REPOSITORY"
+        or rollover.get("producer_repository_default")
+        != "D:/LLM/anchor-moe-lora-gemma3-chat-rollover-v3"
+        or rollover.get("producer_branch") != ROLLOVER_PRODUCER_BRANCH
+        or rollover.get("producer_commit") != ROLLOVER_PRODUCER_COMMIT
+        or rollover.get("producer_parent") != ROLLOVER_PRODUCER_PARENT
+        or rollover.get("producer_tree") != ROLLOVER_PRODUCER_TREE
+        or rollover.get("binding_filename") != ROLLOVER_BINDING_FILENAME
+        or dict(
+            _mapping(
+                rollover.get("physical_identity"),
+                "runtime_teacher_rollover_physical_identity_invalid",
+            )
+        )
+        != ROLLOVER_PHYSICAL_IDENTITY_SPECS
+        or dict(
+            _mapping(
+                rollover.get("schemas"),
+                "runtime_teacher_rollover_schemas_invalid",
+            )
+        )
+        != ROLLOVER_SCHEMA_SPECS
+        or dict(
+            _mapping(
+                rollover.get("release_implementation"),
+                "runtime_teacher_rollover_implementation_invalid",
+            )
+        )
+        != ROLLOVER_RELEASE_IMPLEMENTATION
+        or rollover.get("legacy_v1_consumable") is not False
+        or rollover.get("legacy_v2_consumable") is not False
+        or rollover.get("legacy_f23_consumable") is not False
+        or rollover.get("legacy_implementation_binding_consumable") is not False
+        or rollover.get("fallback_allowed") is not False
+    ):
+        raise MultiArmRuntimeError("runtime_teacher_rollover_contract_drift")
     teacher = _mapping(config.get("teacher_final"), "runtime_teacher_invalid")
     binding_schema_release_status = teacher.get("binding_schema_release_status")
     record_schema_release_status = teacher.get("record_schema_release_status")
@@ -1114,29 +1533,17 @@ def validate_config(config: Mapping[str, Any]) -> None:
         or teacher.get("binding_schema") != TEACHER_BINDING_SCHEMA_PATH.as_posix()
         or teacher.get("record_schema") != TEACHER_RECORD_SCHEMA_PATH.as_posix()
         or binding_schema_release_status
-        not in {
-            "pending_exact_producer_v2_handoff",
-            "exact_producer_v2_physical_bytes_bound",
-        }
+        != "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
         or record_schema_release_status
-        not in {
-            "pending_exact_producer_v2_handoff",
-            "exact_producer_v2_physical_bytes_bound",
-        }
-        or (binding_schema_release_status == "exact_producer_v2_physical_bytes_bound")
-        != (
-            isinstance(binding_schema_sha, str)
-            and _SHA256_RE.fullmatch(binding_schema_sha) is not None
-        )
-        or (record_schema_release_status == "exact_producer_v2_physical_bytes_bound")
-        != (
-            isinstance(record_schema_sha, str)
-            and _SHA256_RE.fullmatch(record_schema_sha) is not None
-        )
-        or (binding_schema_release_status == "pending_exact_producer_v2_handoff")
-        != (binding_schema_sha is None)
-        or (record_schema_release_status == "pending_exact_producer_v2_handoff")
-        != (record_schema_sha is None)
+        != "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
+        or binding_schema_sha != ROLLOVER_SCHEMA_SPECS["binding"]["sha256"]
+        or record_schema_sha != ROLLOVER_SCHEMA_SPECS["record"]["sha256"]
+        or teacher.get("required_binding_status")
+        != "released_pending_consumer_acceptance"
+        or teacher.get("required_binding_filename") != ROLLOVER_BINDING_FILENAME
+        or teacher.get("external_authenticated_producer_root_required") is not True
+        or teacher.get("consumer_prerequisite_commit")
+        != "6240ae111182104f22f08e1a569deae866c6e210"
         or teacher.get("expected_records") != 3520
         or teacher.get("expected_main_records") != 3440
         or teacher.get("expected_router_records") != 80
@@ -1249,17 +1656,18 @@ def validate_config(config: Mapping[str, Any]) -> None:
 
 def _released_teacher_schema_identities(
     config: Mapping[str, Any],
-) -> tuple[str, str]:
+    producer_repository: str | Path | None = None,
+) -> tuple[AuthenticatedRolloverProducer, str, str]:
     """Return physically bound v2 schema identities or stop before execution."""
 
     teacher = _mapping(config.get("teacher_final"), "runtime_teacher_invalid")
     if (
         teacher.get("binding_schema_release_status")
-        != "exact_producer_v2_physical_bytes_bound"
+        != "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
         or teacher.get("record_schema_release_status")
-        != "exact_producer_v2_physical_bytes_bound"
+        != "authenticated_additive_rollover_v3_git_and_local_bytes_bound"
     ):
-        raise MultiArmRuntimeError("teacher_v2_physical_handoff_pending")
+        raise MultiArmRuntimeError("teacher_v3_physical_handoff_invalid")
     binding_sha = _require_sha(
         teacher.get("binding_schema_sha256"),
         "teacher_binding_schema_sha_invalid",
@@ -1278,7 +1686,13 @@ def _released_teacher_schema_identities(
         expected_sha256=record_sha,
         code="teacher_record_schema_local_identity_drift",
     )
-    return binding_sha, record_sha
+    producer = authenticate_rollover_producer(config, producer_repository)
+    if (
+        producer.schema_sha256["binding"] != binding_sha
+        or producer.schema_sha256["record"] != record_sha
+    ):
+        raise MultiArmRuntimeError("teacher_rollover_schema_identity_drift")
+    return producer, binding_sha, record_sha
 
 
 def _teacher_file_pin(
@@ -1327,142 +1741,391 @@ def _teacher_file_pin(
     )
 
 
+def _producer_canonical_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _producer_canonical_sha256(value: object) -> str:
+    return _sha256(_producer_canonical_bytes(value))
+
+
+def _producer_domain_sha256(domain: str, value: object) -> str:
+    return _sha256(domain.encode("ascii") + b"\0" + _producer_canonical_bytes(value))
+
+
+def _relative_under(root: Path, value: object, *, code: str) -> Path:
+    relative = str(value)
+    posix = PurePosixPath(relative)
+    if (
+        not relative
+        or relative != relative.strip()
+        or posix.is_absolute()
+        or ".." in posix.parts
+    ):
+        raise MultiArmRuntimeError(code)
+    path = Path(os.path.abspath(root.joinpath(*posix.parts)))
+    try:
+        path.relative_to(root)
+    except ValueError:
+        raise MultiArmRuntimeError(code) from None
+    return path
+
+
+def _metadata_file_pin(
+    root: Path,
+    relative: str,
+    *,
+    sha256: object,
+    sidecar_sha256: object,
+    code: str,
+) -> tuple[TeacherFilePin, bytes]:
+    path = _relative_under(root, relative, code=f"{code}_path_invalid")
+    expected_sha = _require_sha(sha256, f"{code}_sha_invalid")
+    expected_sidecar_sha = _require_sha(
+        sidecar_sha256,
+        f"{code}_sidecar_sha_invalid",
+    )
+    raw = _stable_file(
+        path,
+        expected_sha256=expected_sha,
+        code=f"{code}_identity_drift",
+    )
+    if not raw or len(raw) >= 50 * 1024 * 1024:
+        raise MultiArmRuntimeError(f"{code}_size_invalid")
+    sidecar_path = path.with_name(path.name + ".sha256")
+    expected_sidecar = f"{expected_sha}  {path.name}\n".encode("ascii")
+    sidecar = _stable_file(
+        sidecar_path,
+        expected_sha256=expected_sidecar_sha,
+        expected_bytes=len(expected_sidecar),
+        code=f"{code}_sidecar_identity_drift",
+    )
+    if sidecar != expected_sidecar:
+        raise MultiArmRuntimeError(f"{code}_sidecar_content_invalid")
+    return (
+        TeacherFilePin(
+            path=path,
+            sha256=expected_sha,
+            bytes=len(raw),
+            sidecar_sha256=expected_sidecar_sha,
+            sidecar_bytes=len(sidecar),
+        ),
+        raw,
+    )
+
+
+def _canonical_metadata_document(raw: bytes, *, code: str) -> Mapping[str, Any]:
+    value = _strict_json(raw, code)
+    if _canonical_json(value) != raw:
+        raise MultiArmRuntimeError(f"{code}_not_canonical")
+    return value
+
+
+def _validate_rollover_document(
+    producer: AuthenticatedRolloverProducer,
+    schema_name: str,
+    value: Mapping[str, Any],
+    *,
+    code: str,
+) -> None:
+    try:
+        Draft202012Validator(producer.schema_values[schema_name]).validate(value)
+    except ValidationError as exc:
+        raise MultiArmRuntimeError(f"{code}:{exc.validator}") from None
+
+
+def _exact_tree_paths(
+    root: Path,
+    expected: set[str],
+    *,
+    code: str,
+) -> None:
+    observed: set[str] = set()
+    try:
+        for current, directories, files in os.walk(root, followlinks=False):
+            current_path = Path(current)
+            _directory_identity(current_path, code=code)
+            for directory in directories:
+                _directory_identity(current_path / directory, code=code)
+            for name in files:
+                path = current_path / name
+                value = path.lstat()
+                if (
+                    not stat.S_ISREG(value.st_mode)
+                    or stat.S_ISLNK(value.st_mode)
+                    or _is_reparse(value)
+                ):
+                    raise MultiArmRuntimeError(code)
+                relative = path.relative_to(root).as_posix()
+                if relative in observed:
+                    raise MultiArmRuntimeError(code)
+                observed.add(relative)
+    except MultiArmRuntimeError:
+        raise
+    except OSError:
+        raise MultiArmRuntimeError(code) from None
+    if observed != expected:
+        raise MultiArmRuntimeError(code)
+
+
+def _candidate_physical_tree_sha256(
+    root: Path,
+    pins: Sequence[TeacherFilePin],
+) -> str:
+    entries = [
+        {
+            "path": pin.path.relative_to(root).as_posix(),
+            "sha256": pin.sha256,
+            "bytes": pin.bytes,
+        }
+        for pin in pins
+    ]
+    entries.extend(
+        {
+            "path": pin.path.with_name(pin.path.name + ".sha256")
+            .relative_to(root)
+            .as_posix(),
+            "sha256": pin.sidecar_sha256,
+            "bytes": pin.sidecar_bytes,
+        }
+        for pin in pins
+    )
+    return _producer_domain_sha256(
+        "anchor.gemma3-chat-unbalanced-v2-teacher-final-physical-tree.v2",
+        sorted(entries, key=lambda item: str(item["path"])),
+    )
+
+
 def authenticate_teacher_final(
     binding_path: str | Path,
     *,
     expected_binding_sha256: str,
-    expected_binding_schema_sha256: str,
+    producer: AuthenticatedRolloverProducer,
     expected_record_schema_sha256: str,
 ) -> tuple[AuthenticatedTeacherFinal, Mapping[str, Any]]:
-    """Authenticate all Teacher FINAL metadata/shards before body parsing."""
+    """Authenticate the unique additive rollover handoff before body parsing."""
 
     expected_sha = _require_sha(
         expected_binding_sha256, "teacher_binding_expected_sha_invalid"
     )
-    binding_schema_sha = _require_sha(
-        expected_binding_schema_sha256,
-        "teacher_binding_schema_expected_sha_invalid",
-    )
+    binding_schema_sha = producer.schema_sha256["binding"]
     record_schema_sha = _require_sha(
         expected_record_schema_sha256,
         "teacher_record_schema_expected_sha_invalid",
     )
-    _stable_file(
-        _project_root() / TEACHER_BINDING_SCHEMA_PATH,
-        expected_sha256=binding_schema_sha,
-        code="teacher_binding_schema_local_identity_drift",
-    )
-    _stable_file(
-        _project_root() / TEACHER_RECORD_SCHEMA_PATH,
-        expected_sha256=record_schema_sha,
-        code="teacher_record_schema_local_identity_drift",
-    )
+    if record_schema_sha != producer.schema_sha256["record"]:
+        raise MultiArmRuntimeError("teacher_record_schema_identity_drift")
     requested = Path(binding_path)
     if not requested.is_absolute():
-        requested = _project_root() / requested
+        requested = producer.root / requested
     requested = Path(os.path.abspath(requested))
     try:
-        requested.relative_to(_project_root())
+        requested.relative_to(producer.root)
     except ValueError:
         raise MultiArmRuntimeError("teacher_binding_path_escaped") from None
     binding_chain = _directory_chain(
-        _project_root(), [requested], code="teacher_binding_parent_chain_invalid"
+        producer.root,
+        [requested],
+        code="teacher_binding_parent_chain_invalid",
     )
     raw = _stable_file(
         requested,
         expected_sha256=expected_sha,
         code="teacher_binding_identity_drift",
     )
+    expected_binding_sidecar = f"{expected_sha}  {requested.name}\n".encode("ascii")
+    binding_sidecar_sha = _sha256(expected_binding_sidecar)
     sidecar_raw = _stable_file(
         requested.with_name(requested.name + ".sha256"),
-        expected_sha256=_sha256(f"{expected_sha}  {requested.name}\n".encode("ascii")),
-        expected_bytes=len(f"{expected_sha}  {requested.name}\n".encode("ascii")),
+        expected_sha256=binding_sidecar_sha,
+        expected_bytes=len(expected_binding_sidecar),
         code="teacher_binding_sidecar_identity_drift",
     )
-    if sidecar_raw != f"{expected_sha}  {requested.name}\n".encode("ascii"):
+    if sidecar_raw != expected_binding_sidecar:
         raise MultiArmRuntimeError("teacher_binding_sidecar_content_invalid")
-    binding = _strict_json(raw, "teacher_binding_json_invalid")
-    if _canonical_json(binding) != raw:
-        raise MultiArmRuntimeError("teacher_binding_not_canonical")
-    try:
-        _load_schema(_project_root() / TEACHER_BINDING_SCHEMA_PATH).validate(binding)
-    except ValidationError as exc:
-        raise MultiArmRuntimeError(
-            f"teacher_binding_schema_mismatch:{exc.validator}"
-        ) from None
+    binding = _canonical_metadata_document(raw, code="teacher_binding_json_invalid")
+    _validate_rollover_document(
+        producer,
+        "binding",
+        binding,
+        code="teacher_binding_schema_mismatch",
+    )
     if (
         binding.get("schema_version") != TEACHER_BINDING_VERSION
-        or binding.get("status") != "passed"
+        or binding.get("status") != "released_pending_consumer_acceptance"
         or binding.get("namespace") != "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
     ):
         raise MultiArmRuntimeError("teacher_binding_contract_drift")
-    producer = _mapping(
-        binding.get("producer_source"), "teacher_producer_source_invalid"
+
+    candidate = _mapping(binding["candidate"], "teacher_candidate_invalid")
+    release = _mapping(binding["release"], "teacher_release_invalid")
+    counts = _mapping(binding["counts"], "teacher_counts_invalid")
+    logical_identity = _mapping(
+        binding["logical_identity"],
+        "teacher_logical_identity_invalid",
     )
-    if producer != {
-        "candidate_commit": source_runtime.PRODUCER_CANDIDATE_COMMIT,
-        "release_commit": source_runtime.PRODUCER_RELEASE_COMMIT,
-        "release_tree": source_runtime.PRODUCER_RELEASE_TREE,
-        "tree_digest_sha256": (
-            "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
-        ),
-    }:
-        raise MultiArmRuntimeError("teacher_producer_source_identity_drift")
-    artifact_relative = str(binding.get("artifact_root", ""))
-    artifact_posix = PurePosixPath(artifact_relative)
+    ordered_shards = _sequence(
+        binding["ordered_shards"],
+        "teacher_shards_invalid",
+    )
     if (
-        not artifact_relative
-        or artifact_posix.is_absolute()
-        or ".." in artifact_posix.parts
+        release.get("binding_schema_sha256") != binding_schema_sha
+        or release.get("final_manifest_schema_sha256")
+        != producer.schema_sha256["release_manifest"]
+        or release.get("attestation_schema_sha256")
+        != producer.schema_sha256["attestation"]
+        or release.get("release_implementation_sha256")
+        != producer.release_implementation_sha256
+        or _producer_canonical_sha256(ordered_shards)
+        != logical_identity.get("shard_inventory_sha256")
     ):
-        raise MultiArmRuntimeError("teacher_artifact_root_invalid")
-    artifact_root = Path(
-        os.path.abspath(_project_root().joinpath(*artifact_posix.parts))
+        raise MultiArmRuntimeError("teacher_release_identity_drift")
+
+    release_root = _relative_under(
+        producer.root,
+        release["release_root"],
+        code="teacher_release_root_invalid",
     )
-    try:
-        artifact_root.relative_to(_project_root())
-    except ValueError:
-        raise MultiArmRuntimeError("teacher_artifact_root_escaped") from None
+    if requested != release_root / ROLLOVER_BINDING_FILENAME:
+        raise MultiArmRuntimeError("teacher_binding_not_unique_rollover_handoff")
+    if release_root.name != f"release-{candidate['physical_tree_sha256']}":
+        raise MultiArmRuntimeError("teacher_release_candidate_tree_identity_drift")
+    artifact_root = _relative_under(
+        producer.root,
+        candidate["artifact_root"],
+        code="teacher_artifact_root_invalid",
+    )
     if not artifact_root.is_dir():
         raise MultiArmRuntimeError("teacher_artifact_root_missing")
+    if not release_root.is_dir():
+        raise MultiArmRuntimeError("teacher_release_root_missing")
     artifact_chain = _directory_chain(
-        _project_root(),
-        [artifact_root],
+        producer.root,
+        [artifact_root, release_root],
         code="teacher_artifact_parent_chain_invalid",
     )
-    manifest = _teacher_file_pin(
-        artifact_root, binding["manifest"], code="teacher_manifest"
+
+    manifest, manifest_raw = _metadata_file_pin(
+        release_root,
+        str(release["final_manifest_path"]),
+        sha256=release["final_manifest_sha256"],
+        sidecar_sha256=release["final_manifest_sidecar_sha256"],
+        code="teacher_final_manifest",
     )
-    record_schema = _teacher_file_pin(
-        artifact_root,
-        binding["record_schema"],
-        code="teacher_record_schema",
+    final_manifest = _canonical_metadata_document(
+        manifest_raw,
+        code="teacher_final_manifest_json_invalid",
     )
-    if record_schema.sha256 != record_schema_sha:
-        raise MultiArmRuntimeError("teacher_record_schema_identity_drift")
-    local_record_schema = _stable_file(
-        _project_root() / TEACHER_RECORD_SCHEMA_PATH,
-        expected_sha256=record_schema_sha,
-        code="local_teacher_record_schema_identity_drift",
+    _validate_rollover_document(
+        producer,
+        "release_manifest",
+        final_manifest,
+        code="teacher_final_manifest_schema_mismatch",
     )
-    if _sha256(local_record_schema) != record_schema.sha256:
-        raise MultiArmRuntimeError("teacher_record_schema_cross_identity_drift")
-    release_receipt = _teacher_file_pin(
-        artifact_root,
-        binding["release_receipt"],
-        code="teacher_release_receipt",
-    )
-    release_attestation = _teacher_file_pin(
-        artifact_root,
-        binding["release_attestation"],
+
+    release_attestation, attestation_raw = _metadata_file_pin(
+        release_root,
+        str(release["attestation_path"]),
+        sha256=release["attestation_sha256"],
+        sidecar_sha256=release["attestation_sidecar_sha256"],
         code="teacher_release_attestation",
     )
-    shard_values = _sequence(binding["shards"], "teacher_shards_invalid")
+    attestation = _canonical_metadata_document(
+        attestation_raw,
+        code="teacher_release_attestation_json_invalid",
+    )
+    _validate_rollover_document(
+        producer,
+        "attestation",
+        attestation,
+        code="teacher_release_attestation_schema_mismatch",
+    )
+
+    attested_candidate = _mapping(
+        attestation["candidate_identity"],
+        "teacher_attested_candidate_invalid",
+    )
+    for key in (
+        "artifact_root",
+        "physical_tree_sha256",
+        "manifest_sha256",
+        "build_receipt_sha256",
+        "output_inventory_sha256",
+        "payload_tree_sha256",
+    ):
+        if attested_candidate.get(key) != candidate.get(key):
+            raise MultiArmRuntimeError("teacher_candidate_attestation_drift")
+
+    candidate_manifest, candidate_manifest_raw = _metadata_file_pin(
+        artifact_root,
+        "manifest.json",
+        sha256=candidate["manifest_sha256"],
+        sidecar_sha256=attested_candidate["manifest_sidecar_sha256"],
+        code="teacher_candidate_manifest",
+    )
+    candidate_manifest_value = _canonical_metadata_document(
+        candidate_manifest_raw,
+        code="teacher_candidate_manifest_json_invalid",
+    )
+    _validate_rollover_document(
+        producer,
+        "candidate_manifest",
+        candidate_manifest_value,
+        code="teacher_candidate_manifest_schema_mismatch",
+    )
+
+    release_receipt, build_receipt_raw = _metadata_file_pin(
+        artifact_root,
+        "build_receipt.json",
+        sha256=candidate["build_receipt_sha256"],
+        sidecar_sha256=attested_candidate["build_receipt_sidecar_sha256"],
+        code="teacher_release_receipt",
+    )
+    build_receipt = _canonical_metadata_document(
+        build_receipt_raw,
+        code="teacher_release_receipt_json_invalid",
+    )
+    _validate_rollover_document(
+        producer,
+        "build_receipt",
+        build_receipt,
+        code="teacher_release_receipt_schema_mismatch",
+    )
+
+    output_inventory, output_inventory_raw = _metadata_file_pin(
+        artifact_root,
+        "output_inventory.json",
+        sha256=candidate["output_inventory_sha256"],
+        sidecar_sha256=attested_candidate["output_inventory_sidecar_sha256"],
+        code="teacher_output_inventory",
+    )
+    output_inventory_value = _canonical_metadata_document(
+        output_inventory_raw,
+        code="teacher_output_inventory_json_invalid",
+    )
+    release_request, release_request_raw = _metadata_file_pin(
+        artifact_root,
+        "release_attestation.request.json",
+        sha256=attested_candidate["release_request_sha256"],
+        sidecar_sha256=attested_candidate["release_request_sidecar_sha256"],
+        code="teacher_release_request",
+    )
+    _canonical_metadata_document(
+        release_request_raw,
+        code="teacher_release_request_json_invalid",
+    )
+
     shard_pins: list[TeacherFilePin] = []
     shard_assets: list[str] = []
     shard_records: list[int] = []
     paths: set[Path] = set()
-    for raw_shard in shard_values:
+    for raw_shard in ordered_shards:
         shard = _mapping(raw_shard, "teacher_shard_invalid")
         pin = _teacher_file_pin(artifact_root, shard, code="teacher_shard")
         asset = str(shard["asset"])
@@ -1476,18 +2139,16 @@ def authenticate_teacher_final(
         shard_pins.append(pin)
         shard_assets.append(asset)
         shard_records.append(records)
-    counts = _mapping(binding["counts"], "teacher_counts_invalid")
+
     if (
         counts
         != {
             "records": 3520,
             "main_records": 3440,
             "router_records": 80,
+            "source_assets": EXPECTED_ASSET_COUNTS,
             "train_identity_bundles": 20,
             "train_identity_records": 100,
-            "accepted": 3520,
-            "rejected": 0,
-            "uncertain": 0,
         }
         or sum(shard_records) != 3520
         or sum(
@@ -1504,21 +2165,217 @@ def authenticate_teacher_final(
         != 80
     ):
         raise MultiArmRuntimeError("teacher_count_contract_drift")
-    shard_inventory_sha = _canonical_sha256(
+
+    expected_candidate_consumer = {
+        **dict(binding["consumer_prerequisite"]),
+        "commit": binding["consumer_prerequisite"]["consumer_commit"],
+        "teacher_binding_version": (
+            "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding."
+            "consumer-rollover-v2"
+        ),
+    }
+    expected_candidate_consumer.pop("consumer_commit")
+    candidate_record_schema = _mapping(
+        candidate_manifest_value["record_schema"],
+        "teacher_candidate_record_schema_invalid",
+    )
+    expected_manifest_counts = {
+        "records": 3520,
+        "main_records": 3440,
+        "router_records": 80,
+        "accepted": 3520,
+        "rejected": 0,
+        "uncertain": 0,
+        "train_identity_bundles": 20,
+        "train_identity_records": 100,
+        "source_assets": EXPECTED_ASSET_COUNTS,
+    }
+    if (
+        candidate_manifest_value["source"] != binding["source"]
+        or candidate_manifest_value["consumer"] != expected_candidate_consumer
+        or candidate_manifest_value["counts"] != expected_manifest_counts
+        or candidate_manifest_value["logical_identity"] != logical_identity
+        or candidate_manifest_value["shards"] != list(ordered_shards)
+        or candidate_record_schema
+        != {
+            "path": ROLLOVER_SCHEMA_SPECS["record"]["path"],
+            "sha256": record_schema_sha,
+            "bytes": ROLLOVER_SCHEMA_SPECS["record"]["bytes"],
+        }
+    ):
+        raise MultiArmRuntimeError("teacher_candidate_manifest_binding_drift")
+
+    final_binding_contract = _mapping(
+        final_manifest["binding_contract"],
+        "teacher_final_binding_contract_invalid",
+    )
+    if (
+        final_manifest["candidate"] != candidate
+        or final_manifest["source"] != binding["source"]
+        or final_manifest["counts"] != expected_manifest_counts
+        or final_manifest["logical_identity"] != logical_identity
+        or final_manifest["shards"] != list(ordered_shards)
+        or final_binding_contract
+        != {
+            "path": ROLLOVER_BINDING_FILENAME,
+            "schema_version": TEACHER_BINDING_VERSION,
+            "schema_path": ROLLOVER_SCHEMA_SPECS["binding"]["path"],
+            "schema_sha256": binding_schema_sha,
+            "status": "released_pending_consumer_acceptance",
+        }
+        or final_manifest["attestation"]["sha256"] != release_attestation.sha256
+        or final_manifest["attestation"]["sidecar_sha256"]
+        != release_attestation.sidecar_sha256
+        or final_manifest["record_schema"]["sha256"] != record_schema_sha
+        or final_manifest["record_schema"]["bytes"]
+        != ROLLOVER_SCHEMA_SPECS["record"]["bytes"]
+    ):
+        raise MultiArmRuntimeError("teacher_final_manifest_binding_drift")
+
+    attested_source = dict(
+        _mapping(attestation["source_release"], "teacher_attested_source_invalid")
+    )
+    attested_source.pop("git_parent_and_tree_recomputed", None)
+    attested_source.pop("physical_tree_digest_recomputed", None)
+    implementation_binding = _mapping(
+        attestation["implementation_binding"],
+        "teacher_attested_implementation_invalid",
+    )
+    record_audit = _mapping(
+        attestation["record_audit"],
+        "teacher_attested_record_audit_invalid",
+    )
+    if (
+        attested_source != binding["source"]
+        or implementation_binding["release_implementation_sha256"]
+        != producer.release_implementation_sha256
+        or implementation_binding["record_schema_sha256"] != record_schema_sha
+        or implementation_binding["candidate_manifest_schema_sha256"]
+        != producer.schema_sha256["candidate_manifest"]
+        or implementation_binding["candidate_build_receipt_schema_sha256"]
+        != producer.schema_sha256["build_receipt"]
+        or record_audit["ordered_shards"] != list(ordered_shards)
+        or record_audit["ordered_record_sha256"]
+        != logical_identity["record_order_sha256"]
+        or record_audit["target_projection_sha256"]
+        != logical_identity["target_projection_sha256"]
+        or record_audit["source_join_sha256"] != logical_identity["source_join_sha256"]
+        or record_audit["shard_inventory_sha256"]
+        != logical_identity["shard_inventory_sha256"]
+        or record_audit["logical_dataset_sha256"]
+        != logical_identity["logical_dataset_sha256"]
+    ):
+        raise MultiArmRuntimeError("teacher_release_attestation_binding_drift")
+
+    expected_receipt_counts = dict(expected_manifest_counts)
+    expected_receipt_counts.pop("source_assets")
+    if (
+        build_receipt["manifest_sha256"] != candidate_manifest.sha256
+        or build_receipt["manifest_bytes"] != candidate_manifest.bytes
+        or build_receipt["output_inventory_sha256"] != output_inventory.sha256
+        or build_receipt["payload_tree_sha256"] != candidate["payload_tree_sha256"]
+        or build_receipt["counts"] != expected_receipt_counts
+        or attestation["runtime_receipt"]["runtime_hmac_sha256"]
+        != build_receipt["runtime_hmac_sha256"]
+        or attestation["runtime_receipt"]["phase_receipt_inventory_sha256"]
+        != build_receipt["phase_receipt_inventory_sha256"]
+        or attestation["runtime_receipt"]["wal_chain_tip_sha256"]
+        != build_receipt["wal_chain_tip_sha256"]
+    ):
+        raise MultiArmRuntimeError("teacher_release_receipt_binding_drift")
+
+    expected_payload_inventory: list[dict[str, object]] = []
+    for pin in shard_pins:
+        expected_payload_inventory.extend(
+            [
+                {
+                    "path": pin.path.relative_to(artifact_root).as_posix(),
+                    "kind": "teacher_shard",
+                    "sha256": pin.sha256,
+                    "bytes": pin.bytes,
+                },
+                {
+                    "path": pin.path.with_name(pin.path.name + ".sha256")
+                    .relative_to(artifact_root)
+                    .as_posix(),
+                    "kind": "sha256_sidecar",
+                    "sha256": pin.sidecar_sha256,
+                    "bytes": pin.sidecar_bytes,
+                },
+            ]
+        )
+    expected_payload_inventory.extend(
         [
             {
-                "path": pin.path.relative_to(artifact_root).as_posix(),
-                "sha256": pin.sha256,
-                "bytes": pin.bytes,
-                "sidecar_sha256": pin.sidecar_sha256,
-                "records": records,
-                "asset": asset,
-            }
-            for pin, asset, records in zip(
-                shard_pins, shard_assets, shard_records, strict=True
-            )
+                "path": "manifest.json",
+                "kind": "manifest",
+                "sha256": candidate_manifest.sha256,
+                "bytes": candidate_manifest.bytes,
+            },
+            {
+                "path": "manifest.json.sha256",
+                "kind": "sha256_sidecar",
+                "sha256": candidate_manifest.sidecar_sha256,
+                "bytes": candidate_manifest.sidecar_bytes,
+            },
         ]
     )
+    if (
+        output_inventory_value.get("schema_version")
+        != "anchor.gemma3-chat-unbalanced-v2-teacher-final-output-inventory.v2"
+        or output_inventory_value.get("namespace")
+        != "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+        or output_inventory_value.get("files") != expected_payload_inventory
+        or output_inventory_value.get("payload_tree_sha256")
+        != _producer_canonical_sha256(expected_payload_inventory)
+        or output_inventory_value.get("payload_tree_sha256")
+        != candidate["payload_tree_sha256"]
+    ):
+        raise MultiArmRuntimeError("teacher_output_inventory_binding_drift")
+
+    candidate_pins = (
+        candidate_manifest,
+        release_receipt,
+        output_inventory,
+        release_request,
+        *shard_pins,
+    )
+    expected_candidate_paths = {
+        item
+        for pin in candidate_pins
+        for item in (
+            pin.path.relative_to(artifact_root).as_posix(),
+            pin.path.with_name(pin.path.name + ".sha256")
+            .relative_to(artifact_root)
+            .as_posix(),
+        )
+    }
+    _exact_tree_paths(
+        artifact_root,
+        expected_candidate_paths,
+        code="teacher_candidate_tree_inventory_drift",
+    )
+    if (
+        len(expected_candidate_paths) != attested_candidate["physical_file_count"]
+        or _candidate_physical_tree_sha256(artifact_root, candidate_pins)
+        != candidate["physical_tree_sha256"]
+    ):
+        raise MultiArmRuntimeError("teacher_candidate_physical_tree_drift")
+
+    _exact_tree_paths(
+        release_root,
+        {
+            "independent_release_attestation.json",
+            "independent_release_attestation.json.sha256",
+            "final_manifest.json",
+            "final_manifest.json.sha256",
+            ROLLOVER_BINDING_FILENAME,
+            f"{ROLLOVER_BINDING_FILENAME}.sha256",
+        },
+        code="teacher_release_tree_inventory_drift",
+    )
+
+    shard_inventory_sha = str(logical_identity["shard_inventory_sha256"])
     identity_preimage = {
         "schema_version": TEACHER_SOURCE_VERSION,
         "binding_schema_version": TEACHER_BINDING_VERSION,
@@ -1526,7 +2383,7 @@ def authenticate_teacher_final(
         "binding_sha256": expected_sha,
         "binding_schema_sha256": binding_schema_sha,
         "manifest_sha256": manifest.sha256,
-        "record_schema_sha256": record_schema.sha256,
+        "record_schema_sha256": record_schema_sha,
         "release_receipt_sha256": release_receipt.sha256,
         "release_attestation_sha256": release_attestation.sha256,
         "shard_inventory_sha256": shard_inventory_sha,
@@ -1547,12 +2404,18 @@ def authenticate_teacher_final(
         requested.with_name(requested.name + ".sha256"),
         manifest.path,
         manifest.path.with_name(manifest.path.name + ".sha256"),
-        record_schema.path,
-        record_schema.path.with_name(record_schema.path.name + ".sha256"),
         release_receipt.path,
         release_receipt.path.with_name(release_receipt.path.name + ".sha256"),
         release_attestation.path,
         release_attestation.path.with_name(release_attestation.path.name + ".sha256"),
+        *(
+            value
+            for pin in (candidate_manifest, output_inventory, release_request)
+            for value in (
+                pin.path,
+                pin.path.with_name(pin.path.name + ".sha256"),
+            )
+        ),
         *(
             value
             for pin in shard_pins
@@ -1563,8 +2426,8 @@ def authenticate_teacher_final(
         ),
     ]
     full_chain = _directory_chain(
-        _project_root(),
-        [artifact_root, *pinned_files],
+        producer.root,
+        [artifact_root, release_root, *pinned_files],
         code="teacher_full_parent_chain_invalid",
     )
     if not set(binding_chain).issubset(set(full_chain)) or not set(
@@ -1575,17 +2438,21 @@ def authenticate_teacher_final(
         schema_version=TEACHER_SOURCE_VERSION,
         binding_path=requested,
         binding_sha256=expected_sha,
+        binding_sidecar_sha256=binding_sidecar_sha,
+        binding_sidecar_bytes=len(sidecar_raw),
         binding_schema_sha256=binding_schema_sha,
         artifact_root=artifact_root,
         manifest=manifest,
-        record_schema=record_schema,
+        record_schema_sha256=record_schema_sha,
         release_receipt=release_receipt,
         release_attestation=release_attestation,
+        metadata_files=(candidate_manifest, output_inventory, release_request),
         shards=tuple(shard_pins),
         shard_assets=tuple(shard_assets),
         shard_records=tuple(shard_records),
         shard_inventory_sha256=shard_inventory_sha,
         public_identity_sha256=_canonical_sha256(identity_preimage),
+        producer=producer,
         _directory_identities=full_chain,
         _authority=_TEACHER_AUTHORITY,
     )
@@ -1605,11 +2472,20 @@ def terminal_recheck_teacher(teacher: AuthenticatedTeacherFinal) -> None:
         expected_sha256=teacher.binding_sha256,
         code="teacher_binding_changed",
     )
+    _stable_file(
+        teacher.binding_path.with_name(teacher.binding_path.name + ".sha256"),
+        expected_sha256=teacher.binding_sidecar_sha256,
+        expected_bytes=teacher.binding_sidecar_bytes,
+        code="teacher_binding_sidecar_changed",
+    )
     for label, pin in (
         ("manifest", teacher.manifest),
-        ("record_schema", teacher.record_schema),
         ("release_receipt", teacher.release_receipt),
         ("release_attestation", teacher.release_attestation),
+        *(
+            (f"metadata_{index}", pin)
+            for index, pin in enumerate(teacher.metadata_files)
+        ),
         *((f"shard_{index}", pin) for index, pin in enumerate(teacher.shards)),
     ):
         _stable_file(
@@ -1628,6 +2504,7 @@ def terminal_recheck_teacher(teacher: AuthenticatedTeacherFinal) -> None:
         teacher._directory_identities,
         code="teacher_parent_chain_changed_after_files",
     )
+    _recheck_rollover_producer(teacher.producer)
 
 
 def _source_main_prompt(record: Mapping[str, Any]) -> SourcePrompt:
@@ -3152,7 +4029,9 @@ def execute_runtime(
         != (smoke_receipt is not None and smoke_receipt_sha256 is not None)
     ):
         raise MultiArmRuntimeError("runtime_execution_arguments_invalid")
-    binding_schema_sha, record_schema_sha = _released_teacher_schema_identities(config)
+    rollover_producer, _binding_schema_sha, record_schema_sha = (
+        _released_teacher_schema_identities(config, producer_repository)
+    )
     output_root = _project_root() / str(config["output"]["artifact_root"])
     output_root.mkdir(parents=True, exist_ok=True)
     published = output_root / run_id
@@ -3171,7 +4050,7 @@ def execute_runtime(
         teacher, _binding = authenticate_teacher_final(
             teacher_binding,
             expected_binding_sha256=teacher_binding_sha256,
-            expected_binding_schema_sha256=binding_schema_sha,
+            producer=rollover_producer,
             expected_record_schema_sha256=record_schema_sha,
         )
         teacher_authenticated = True
@@ -3408,9 +4287,15 @@ def execute_runtime(
         raise
 
 
-def _validate_only(config: Mapping[str, Any], config_sha256: str) -> dict[str, object]:
+def _validate_only(
+    config: Mapping[str, Any],
+    config_sha256: str,
+    producer_repository: str | Path | None = None,
+) -> dict[str, object]:
     teacher = _mapping(config["teacher_final"], "runtime_teacher_invalid")
-    _released_teacher_schema_identities(config)
+    producer, _binding_schema_sha, _record_schema_sha = (
+        _released_teacher_schema_identities(config, producer_repository)
+    )
     return {
         "schema_version": CONFIG_VERSION,
         "status": "passed",
@@ -3421,10 +4306,20 @@ def _validate_only(config: Mapping[str, Any], config_sha256: str) -> dict[str, o
         "teacher_binding_v2_release_status": teacher["binding_schema_release_status"],
         "teacher_record_v2_release_status": teacher["record_schema_release_status"],
         "teacher_schema_physical_bytes_bound": True,
-        "gpu_execution_ready": False,
-        "gpu_execution_blocker": (
-            "teacher_final_materialization_and_external_release_pending"
+        "rollover_producer_commit": producer.commit,
+        "rollover_producer_parent": producer.parent,
+        "rollover_producer_tree": producer.tree,
+        "rollover_v3_config_sha256": producer.physical_identity_sha256["config"],
+        "rollover_v3_execute_implementation_sha256": (
+            producer.execute_implementation_sha256
         ),
+        "rollover_v3_release_implementation_sha256": (
+            producer.release_implementation_sha256
+        ),
+        "rollover_binding_schema_sha256": producer.schema_sha256["binding"],
+        "teacher_final_physical_preflight_required": True,
+        "gpu_execution_ready": True,
+        "gpu_execution_blocker": None,
         "producer_original_target_fallback": False,
         "gpu_requested": False,
         "model_loaded": False,
@@ -3441,14 +4336,17 @@ def preflight_teacher_final(
     *,
     binding_path: str | Path,
     binding_sha256: str,
+    producer_repository: str | Path | None = None,
 ) -> dict[str, object]:
     """Authenticate every Teacher FINAL physical identity without parsing rows."""
 
-    binding_schema_sha, record_schema_sha = _released_teacher_schema_identities(config)
+    producer, _binding_schema_sha, record_schema_sha = (
+        _released_teacher_schema_identities(config, producer_repository)
+    )
     teacher, _binding = authenticate_teacher_final(
         binding_path,
         expected_binding_sha256=binding_sha256,
-        expected_binding_schema_sha256=binding_schema_sha,
+        producer=producer,
         expected_record_schema_sha256=record_schema_sha,
     )
     terminal_recheck_teacher(teacher)
@@ -3456,6 +4354,15 @@ def preflight_teacher_final(
         "status": "passed",
         "operation": "teacher_final_physical_preflight",
         "teacher_final": teacher.public_identity(),
+        "rollover_producer": {
+            "commit": producer.commit,
+            "parent": producer.parent,
+            "tree": producer.tree,
+            "config_sha256": producer.physical_identity_sha256["config"],
+            "execute_implementation_sha256": (producer.execute_implementation_sha256),
+            "release_implementation_sha256": (producer.release_implementation_sha256),
+            "binding_schema_sha256": producer.schema_sha256["binding"],
+        },
         "all_binding_manifest_receipt_attestation_shard_identities_authenticated": True,
         "sample_bodies_parsed": False,
         "raw_token_ids_read": False,
@@ -3510,6 +4417,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         config,
                         binding_path=str(args.teacher_final_binding),
                         binding_sha256=str(args.teacher_final_binding_sha256),
+                        producer_repository=args.producer_repository,
                     ),
                     ensure_ascii=False,
                     sort_keys=True,
@@ -3519,7 +4427,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.execute_smoke_only and not args.execute_full:
             print(
                 json.dumps(
-                    _validate_only(config, config_sha),
+                    _validate_only(
+                        config,
+                        config_sha,
+                        producer_repository=args.producer_repository,
+                    ),
                     ensure_ascii=False,
                     sort_keys=True,
                 )

@@ -419,7 +419,7 @@ def test_wrong_teacher_schema_state_blocks_gpu_before_source_or_output(
     )
     with pytest.raises(
         runtime.MultiArmRuntimeError,
-        match="teacher_v2_physical_handoff_pending",
+        match="teacher_v3_physical_handoff_invalid",
     ):
         runtime.execute_runtime(
             config,
@@ -439,17 +439,33 @@ def test_wrong_teacher_schema_state_blocks_gpu_before_source_or_output(
 
 def test_validate_distinguishes_bound_schemas_from_teacher_final_readiness() -> None:
     config, config_sha = runtime.load_config()
-    binding_sha, record_sha = runtime._released_teacher_schema_identities(config)
+    producer, binding_sha, record_sha = runtime._released_teacher_schema_identities(
+        config
+    )
     result = runtime._validate_only(config, config_sha)
 
     assert binding_sha == config["teacher_final"]["binding_schema_sha256"]
     assert record_sha == config["teacher_final"]["record_schema_sha256"]
-    assert result["teacher_schema_physical_bytes_bound"] is True
-    assert result["gpu_execution_ready"] is False
-    assert (
-        result["gpu_execution_blocker"]
-        == "teacher_final_materialization_and_external_release_pending"
+    assert producer.commit == runtime.ROLLOVER_PRODUCER_COMMIT
+    assert producer.parent == runtime.ROLLOVER_PRODUCER_PARENT
+    assert producer.tree == runtime.ROLLOVER_PRODUCER_TREE
+    assert dict(producer.physical_identity_sha256) == {
+        name: str(spec["sha256"])
+        for name, spec in runtime.ROLLOVER_PHYSICAL_IDENTITY_SPECS.items()
+    }
+    assert result["rollover_v3_config_sha256"] == (
+        "6664bee43d144d07673ac3457020727180bb047f52bedb05b09aa2cd69e37ae5"
     )
+    assert result["rollover_v3_execute_implementation_sha256"] == (
+        "a80c3c85239c033412ced8e95328c9189e4207ecde99a150f6f3e91e8c920086"
+    )
+    assert result["rollover_v3_release_implementation_sha256"] == (
+        "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc"
+    )
+    assert result["teacher_schema_physical_bytes_bound"] is True
+    assert result["teacher_final_physical_preflight_required"] is True
+    assert result["gpu_execution_ready"] is True
+    assert result["gpu_execution_blocker"] is None
 
 
 def test_explicit_teacher_preflight_reaches_given_binding_authentication(
@@ -466,14 +482,14 @@ def test_explicit_teacher_preflight_reaches_given_binding_authentication(
         binding_path: str | Path,
         *,
         expected_binding_sha256: str,
-        expected_binding_schema_sha256: str,
+        producer: runtime.AuthenticatedRolloverProducer,
         expected_record_schema_sha256: str,
     ) -> tuple[FakeTeacher, dict[str, object]]:
         observed.update(
             {
                 "binding_path": binding_path,
                 "binding_sha256": expected_binding_sha256,
-                "binding_schema_sha256": expected_binding_schema_sha256,
+                "binding_schema_sha256": producer.schema_sha256["binding"],
                 "record_schema_sha256": expected_record_schema_sha256,
             }
         )
@@ -958,7 +974,7 @@ def test_phase_run_and_failure_receipts_are_strict_draft202012() -> None:
         "run_id": "unit-failure",
         "mode": "smoke_only",
         "error_type": "MultiArmRuntimeError",
-        "error_code": "teacher_v2_physical_handoff_pending",
+        "error_code": "teacher_v3_physical_handoff_invalid",
         "last_completed_arm": None,
         "source_authenticated": False,
         "teacher_final_authenticated": False,
@@ -1047,6 +1063,7 @@ def test_launcher_validates_released_teacher_before_gpu_or_lock_access() -> None
         runtime._project_root()
         / "scripts/research/run_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.ps1"
     ).read_text(encoding="utf-8")
+    validation_arguments = launcher.index("$ValidationArguments =")
     validation = launcher.index("$ValidationRaw =")
     ready_gate = launcher.index("$Validation.gpu_execution_ready")
     teacher_preflight = launcher.index("$TeacherPreflightRaw =")
@@ -1067,11 +1084,32 @@ def test_launcher_validates_released_teacher_before_gpu_or_lock_access() -> None
         < gpu_probe
         < lock_acquire
     )
-    assert "--validate" in launcher[validation:ready_gate]
+    assert "--validate" in launcher[validation_arguments:validation]
     assert "GPU execution remains fail-closed" in launcher[ready_gate:helper_import]
 
 
-def test_pending_teacher_final_stops_powershell_before_preflight_gpu_and_lock() -> None:
+def test_secure_wrapper_is_v3_bound_and_prompts_only_after_preflight() -> None:
+    wrapper = (
+        runtime._project_root() / "scripts/research/"
+        "run_gemma3_chat_unbalanced_v2_glm_rollover_secure_session.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "anchor_mvp.data.gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3"
+        in wrapper
+    )
+    assert "D:\\LLM\\anchor-moe-lora-gemma3-chat-rollover-v3" in wrapper
+    assert "consumer_identity_rollover_v2" not in wrapper
+    assert wrapper.index("$preflight = Get-ControllerPreflight") < wrapper.index(
+        "$credential = Read-Host"
+    )
+    assert wrapper.count("-AsSecureString") == 1
+    assert "--credential-stdin" in wrapper
+    assert "--implementer-id" in wrapper
+    assert "--reviewer-id" in wrapper
+
+
+def test_invalid_teacher_final_stops_powershell_before_gpu_and_lock() -> None:
     if os.name != "nt":
         pytest.skip("PowerShell launcher gate is Windows-specific")
     project = runtime._project_root()
@@ -1100,19 +1138,6 @@ def test_pending_teacher_final_stops_powershell_before_preflight_gpu_and_lock() 
             (project / runtime.CONFIG_PATH).read_text(encoding="utf-8")
         )
         released = copy.deepcopy(raw_config)
-        teacher = released["teacher_final"]
-        teacher["binding_schema_release_status"] = (
-            "exact_producer_v2_physical_bytes_bound"
-        )
-        teacher["record_schema_release_status"] = (
-            "exact_producer_v2_physical_bytes_bound"
-        )
-        teacher["binding_schema_sha256"] = hashlib.sha256(
-            (project / runtime.TEACHER_BINDING_SCHEMA_PATH).read_bytes()
-        ).hexdigest()
-        teacher["record_schema_sha256"] = hashlib.sha256(
-            (project / runtime.TEACHER_RECORD_SCHEMA_PATH).read_bytes()
-        ).hexdigest()
         config_path.write_text(
             runtime.yaml.safe_dump(
                 released,
@@ -1174,11 +1199,7 @@ def test_pending_teacher_final_stops_powershell_before_preflight_gpu_and_lock() 
         )
         assert result.returncode != 0
         output = result.stdout + result.stderr
-        assert (
-            "GPU execution remains fail-closed: "
-            "teacher_final_materialization_and_external_release_pending"
-        ) in output, output
-        assert "Teacher FINAL physical preflight failed" not in output
+        assert "Teacher FINAL physical preflight failed" in output, output
         assert not marker.exists()
         lock_after = (
             None

@@ -1,0 +1,75 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-postrelease-coordinator-config.v2",
+  "status": "stub_validate_only",
+  "binding": {
+    "producer_commit": "878e27dbc41e8dafc43b6462279a814f53d232b5",
+    "producer_tree": "566e84d30bc934def4a52b48f3fd65b2639665ae",
+    "schema_sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+    "required_status": "released_pending_consumer_acceptance",
+    "filename": "teacher_alignment_binding.v2.json",
+    "unique_binding_sha256_required": true,
+    "legacy_v1_consumable": false,
+    "fallback_allowed": false
+  },
+  "stages": [
+    {
+      "name": "smoke",
+      "runner": "scripts/research/run_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py",
+      "operation": "--execute-smoke-only",
+      "requires": []
+    },
+    {
+      "name": "full",
+      "runner": "scripts/research/run_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py",
+      "operation": "--execute-full",
+      "requires": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "generation_eval",
+      "runner": "scripts/research/run_gemma3_chat_unbalanced_v2_generation_eval_runtime_v2.py",
+      "operation": "--execute",
+      "requires": [
+        "full"
+      ]
+    },
+    {
+      "name": "kv",
+      "runner": "scripts/research/run_gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2.py",
+      "operation": "--execute",
+      "requires": [
+        "generation_eval"
+      ]
+    }
+  ],
+  "transition_contract": {
+    "ordered": [
+      "smoke",
+      "full",
+      "generation_eval",
+      "kv"
+    ],
+    "same_binding_sha256_every_stage": true,
+    "passed_predecessor_receipt_required": true,
+    "idempotency_domain": "anchor.gemma3-chat-unbalanced-v2-postrelease.v2",
+    "aggregate_receipt_body_free": true,
+    "create_once_no_replace": true
+  },
+  "receipt_schema": {
+    "path": "configs/research/gemma3_chat_unbalanced_v2_postrelease_aggregate_receipt_v2.schema.json",
+    "version": "anchor.gemma3-chat-unbalanced-v2-postrelease-aggregate-receipt.v2"
+  },
+  "claims": {
+    "execution_enabled": false,
+    "validate_only": true,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "sample_bodies_read": false,
+    "raw_token_ids_read": false,
+    "secret_material_read": false,
+    "formal": false
+  }
+}

@@ -70,8 +70,20 @@ if ($Mode -eq "SmokeOnly" -and -not [string]::IsNullOrWhiteSpace(
     throw "SmokeOnly must not consume a prior checkpoint or receipt"
 }
 
-$ValidationRaw = & $PythonExecutable -I $RunnerPath `
-    --config $ConfigFullPath --validate
+$ValidationArguments = @(
+    "-I",
+    $RunnerPath,
+    "--config",
+    $ConfigFullPath,
+    "--validate"
+)
+if (-not [string]::IsNullOrWhiteSpace($ProducerRepository)) {
+    $ValidationArguments += @(
+        "--producer-repository",
+        [IO.Path]::GetFullPath($ProducerRepository)
+    )
+}
+$ValidationRaw = & $PythonExecutable @ValidationArguments
 if ($LASTEXITCODE -ne 0) {
     throw "model-free runtime validation failed"
 }
@@ -87,11 +99,24 @@ if ($Validation.status -ne "passed" -or
         [string]$Validation.gpu_execution_blocker)
 }
 
-$TeacherPreflightRaw = & $PythonExecutable -I $RunnerPath `
-    --config $ConfigFullPath `
-    --preflight-teacher-final `
-    --teacher-final-binding $TeacherFullPath `
-    --teacher-final-binding-sha256 $TeacherFinalBindingSha256
+$TeacherPreflightArguments = @(
+    "-I",
+    $RunnerPath,
+    "--config",
+    $ConfigFullPath,
+    "--preflight-teacher-final",
+    "--teacher-final-binding",
+    $TeacherFullPath,
+    "--teacher-final-binding-sha256",
+    $TeacherFinalBindingSha256
+)
+if (-not [string]::IsNullOrWhiteSpace($ProducerRepository)) {
+    $TeacherPreflightArguments += @(
+        "--producer-repository",
+        [IO.Path]::GetFullPath($ProducerRepository)
+    )
+}
+$TeacherPreflightRaw = & $PythonExecutable @TeacherPreflightArguments
 if ($LASTEXITCODE -ne 0) {
     throw "Teacher FINAL physical preflight failed"
 }
@@ -364,12 +389,13 @@ try {
             [IO.Path]::GetFullPath($ProducerRepository)
         )
     }
-    $ExitCode = Invoke-AnchorGemmaQ8PythonAndWait `
+    $ProcessResult = Invoke-AnchorGemmaQ8PythonAndWait `
         -PythonExecutable $PythonExecutable `
         -ArgumentList $Arguments `
         -CanonicalLockStream $LockStream `
         -CanonicalLockPath $CanonicalLockPath `
         -WorkingDirectory $ProjectRoot
+    $ExitCode = [int]$ProcessResult.exit_code
     if ($ExitCode -ne 0) {
         throw "runtime exited with code $ExitCode"
     }

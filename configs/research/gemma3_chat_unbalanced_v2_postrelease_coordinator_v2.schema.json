@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-postrelease-coordinator-config.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "binding",
+    "stages",
+    "transition_contract",
+    "receipt_schema",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-postrelease-coordinator-config.v2"
+    },
+    "status": {
+      "const": "stub_validate_only"
+    },
+    "binding": {
+      "const": {
+        "producer_commit": "878e27dbc41e8dafc43b6462279a814f53d232b5",
+        "producer_tree": "566e84d30bc934def4a52b48f3fd65b2639665ae",
+        "schema_sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+        "required_status": "released_pending_consumer_acceptance",
+        "filename": "teacher_alignment_binding.v2.json",
+        "unique_binding_sha256_required": true,
+        "legacy_v1_consumable": false,
+        "fallback_allowed": false
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/smoke"
+        },
+        {
+          "$ref": "#/$defs/full"
+        },
+        {
+          "$ref": "#/$defs/generation"
+        },
+        {
+          "$ref": "#/$defs/kv"
+        }
+      ],
+      "items": false
+    },
+    "transition_contract": {
+      "const": {
+        "ordered": [
+          "smoke",
+          "full",
+          "generation_eval",
+          "kv"
+        ],
+        "same_binding_sha256_every_stage": true,
+        "passed_predecessor_receipt_required": true,
+        "idempotency_domain": "anchor.gemma3-chat-unbalanced-v2-postrelease.v2",
+        "aggregate_receipt_body_free": true,
+        "create_once_no_replace": true
+      }
+    },
+    "receipt_schema": {
+      "const": {
+        "path": "configs/research/gemma3_chat_unbalanced_v2_postrelease_aggregate_receipt_v2.schema.json",
+        "version": "anchor.gemma3-chat-unbalanced-v2-postrelease-aggregate-receipt.v2"
+      }
+    },
+    "claims": {
+      "const": {
+        "execution_enabled": false,
+        "validate_only": true,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "sample_bodies_read": false,
+        "raw_token_ids_read": false,
+        "secret_material_read": false,
+        "formal": false
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "runner",
+        "operation",
+        "requires"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "runner": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "smoke": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "name": {
+              "const": "smoke"
+            },
+            "runner": {
+              "const": "scripts/research/run_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py"
+            },
+            "operation": {
+              "const": "--execute-smoke-only"
+            },
+            "requires": {
+              "const": []
+            }
+          }
+        }
+      ]
+    },
+    "full": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "name": {
+              "const": "full"
+            },
+            "runner": {
+              "const": "scripts/research/run_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py"
+            },
+            "operation": {
+              "const": "--execute-full"
+            },
+            "requires": {
+              "const": [
+                "smoke"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "generation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "name": {
+              "const": "generation_eval"
+            },
+            "runner": {
+              "const": "scripts/research/run_gemma3_chat_unbalanced_v2_generation_eval_runtime_v2.py"
+            },
+            "operation": {
+              "const": "--execute"
+            },
+            "requires": {
+              "const": [
+                "full"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "kv": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "name": {
+              "const": "kv"
+            },
+            "runner": {
+              "const": "scripts/research/run_gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2.py"
+            },
+            "operation": {
+              "const": "--execute"
+            },
+            "requires": {
+              "const": [
+                "generation_eval"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
