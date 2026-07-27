@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $moduleName = "anchor_mvp.data.gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3"
-$credentialEnvironmentVariableName = "glm5.2key"
+$credentialEnvironmentVariableName = "glmkey"
 $consumerRepositoryEnvironmentVariableName = (
     "ANCHOR_GEMMA3_UNBALANCED_V2_CONSUMER_REPOSITORY"
 )

@@ -1101,7 +1101,7 @@ def test_secure_wrapper_is_v3_bound_and_prompts_only_after_preflight() -> None:
     assert "D:\\LLM\\anchor-moe-lora-gemma3-chat-rollover-v3" in wrapper
     assert "D:\\LLM\\anchor-moe-lora-consumer-preflight-clean-6240" in wrapper
     assert "consumer_identity_rollover_v2" not in wrapper
-    assert '$credentialEnvironmentVariableName = "glm5.2key"' in wrapper
+    assert '$credentialEnvironmentVariableName = "glmkey"' in wrapper
     assert (
         wrapper.index("$preflight = Get-ControllerPreflight")
         < wrapper.index(
