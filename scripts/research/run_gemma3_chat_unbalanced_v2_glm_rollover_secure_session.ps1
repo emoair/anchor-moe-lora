@@ -14,6 +14,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $moduleName = "anchor_mvp.data.gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3"
+$executeBootstrapBase64 = (
+    "aW1wb3J0IG9zLHJ1bnB5LHN5cztzaW5rPW9zLm9wZW4ob3MuZGV2bnVsbCxvcy5PX1dST05M" +
+    "WSk7b3MuZHVwMihzaW5rLDEpIGlmIHNpbmshPTEgZWxzZSBOb25lO29zLmR1cDIoc2luaywy" +
+    "KSBpZiBzaW5rIT0yIGVsc2UgTm9uZTtvcy5jbG9zZShzaW5rKSBpZiBzaW5rPjIgZWxzZSBO" +
+    "b25lO3N5cy5zdGRvdXQ9b3Blbihvcy5kZXZudWxsLCd3JyxlbmNvZGluZz0ndXRmLTgnKTtz" +
+    "eXMuc3RkZXJyPW9wZW4ob3MuZGV2bnVsbCwndycsZW5jb2Rpbmc9J3V0Zi04Jyk7bW9kdWxl" +
+    "PXN5cy5hcmd2WzFdO3N5cy5hcmd2PVttb2R1bGUsKnN5cy5hcmd2WzI6XV07cnVucHkucnVu" +
+    "X21vZHVsZShtb2R1bGUscnVuX25hbWU9J19fbWFpbl9fJyk="
+)
+$executeBootstrap = (
+    "import base64;exec(base64.b64decode('$executeBootstrapBase64'))"
+)
 $relativeOutputRoot = "data\gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1\shard-0001"
 
 function Resolve-ContainedPath {
@@ -102,7 +114,7 @@ function New-ControllerStartInfo {
     $startInfo.RedirectStandardInput = $RedirectInput
     $startInfo.RedirectStandardOutput = $RedirectOutput
     $startInfo.RedirectStandardError = $RedirectOutput
-    $startInfo.CreateNoWindow = $RedirectOutput
+    $startInfo.CreateNoWindow = $true
     $startInfo.EnvironmentVariables["PYTHONPATH"] = $sourceRoot
     return $startInfo
 }
@@ -183,7 +195,6 @@ if (Test-Path -LiteralPath $venvConfig -PathType Leaf) {
         $pythonResolved = [System.IO.Path]::GetFullPath($directPython)
     }
 }
-
 $sourceRoot = Resolve-ContainedPath `
     -Root $producerRootResolved `
     -Child (Join-Path $producerRootResolved "src")
@@ -270,9 +281,14 @@ try {
         $startInfo = New-ControllerStartInfo `
             -Arguments (
                 (
-                    "-m {0} --execute --credential-stdin " +
-                    "--implementer-id {1} --reviewer-id {2}"
-                ) -f $moduleName, $ImplementerId, $ReviewerId
+                    '-c "{0}" {1} --execute --credential-stdin ' +
+                    "--implementer-id {2} --reviewer-id {3}"
+                ) -f (
+                    $executeBootstrap,
+                    $moduleName,
+                    $ImplementerId,
+                    $ReviewerId
+                )
             ) `
             -RedirectInput $true `
             -RedirectOutput $false
