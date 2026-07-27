@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-final-release-manifest.consumer-rollover-v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher FINAL external release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "lifecycle_status",
+    "candidate",
+    "attestation",
+    "binding_contract",
+    "source",
+    "controller",
+    "record_schema",
+    "counts",
+    "logical_identity",
+    "shards",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-release-manifest.v2"
+    },
+    "namespace": {
+      "const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+    },
+    "lifecycle_status": {
+      "const": "independently_released_consumer_binding_pending"
+    },
+    "candidate": {
+      "$ref": "#/$defs/candidate"
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "schema_path",
+        "schema_sha256",
+        "sha256",
+        "sidecar_sha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "independent_release_attestation.json"
+        },
+        "schema_path": {
+          "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_attestation_v2.schema.json"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "binding_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "schema_version",
+        "schema_path",
+        "schema_sha256",
+        "status"
+      ],
+      "properties": {
+        "path": {
+          "const": "teacher_alignment_binding.v2.json"
+        },
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.v2"
+        },
+        "schema_path": {
+          "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "status": {
+          "const": "released_pending_consumer_acceptance"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "producer_release_tree",
+        "producer_tree_digest_sha256",
+        "source_overlay_manifest_sha256",
+        "producer_manifest_sha256"
+      ],
+      "properties": {
+        "producer_candidate_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "producer_release_commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "producer_release_tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "producer_tree_digest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_overlay_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integrated_controller_config_sha256",
+        "integrated_controller_implementation_sha256",
+        "base_controller_config_sha256",
+        "base_controller_implementation_sha256",
+        "finalizer_config_sha256",
+        "finalizer_implementation_sha256",
+        "release_implementation_sha256"
+      ],
+      "properties": {
+        "integrated_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "integrated_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "release_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "record_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "all_rows_valid"
+      ],
+      "properties": {
+        "path": {
+          "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "all_rows_valid": {
+          "const": true
+        }
+      }
+    },
+    "counts": {
+      "const": {
+        "records": 3520,
+        "main_records": 3440,
+        "router_records": 80,
+        "accepted": 3520,
+        "rejected": 0,
+        "uncertain": 0,
+        "train_identity_bundles": 20,
+        "train_identity_records": 100,
+        "source_assets": {
+          "humor": 240,
+          "serious": 240,
+          "angry_style": 240,
+          "tool_call": 1360,
+          "review_audit": 1360,
+          "planner_router": 80
+        }
+      }
+    },
+    "logical_identity": {
+      "$ref": "#/$defs/logical_identity"
+    },
+    "shards": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/shard"
+      }
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_root",
+        "manifest_sha256",
+        "build_receipt_sha256",
+        "output_inventory_sha256",
+        "payload_tree_sha256",
+        "physical_tree_sha256"
+      ],
+      "properties": {
+        "artifact_root": {
+          "type": "string",
+          "pattern": "^data/gemma3_chat_unbalanced_v2_teacher_alignment_finalizer_v1/candidate-[0-9a-f]{32}$"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "physical_tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "logical_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_order_sha256",
+        "target_projection_sha256",
+        "source_join_sha256",
+        "shard_inventory_sha256",
+        "logical_dataset_sha256"
+      ],
+      "properties": {
+        "record_order_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "target_projection_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_join_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "shard_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_dataset_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "shard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes",
+        "records",
+        "asset",
+        "first_record_id_sha256",
+        "last_record_id_sha256",
+        "first_task_bundle_sha256",
+        "last_task_bundle_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(train|router)/teacher-[0-9]{5}-of-[0-9]{5}\\.jsonl$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 70,
+          "maximum": 160
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3520
+        },
+        "asset": {
+          "enum": [
+            "main_train",
+            "planner_router_train"
+          ]
+        },
+        "first_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "first_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "claims": {
+      "const": {
+        "candidate": false,
+        "final": true,
+        "consumer_binding_required": true,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "live_authorized": false,
+        "quality_validated": false,
+        "generalization_validated": false
+      }
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-finalizer.config.v1",
+  "namespace": "gemma3_chat_unbalanced_v2_teacher_alignment_v2",
+  "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.py",
+  "implementation_sha256": "4b0c929f7ce90beb9e9a023695ab3fb05368a352b8943d9020068d484895bc2f",
+  "source": {
+    "artifact_root": "fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v3",
+    "main_shards": [
+      {
+        "path": "train/chat-00000-of-00002.jsonl",
+        "sha256": "9c2fe5ba2b199be12f11f9d9e1a76c2d8de1474732997cb8d30b984f2477b215",
+        "bytes": 29909786,
+        "records": 1770
+      },
+      {
+        "path": "train/chat-00001-of-00002.jsonl",
+        "sha256": "1d8facb574a7341d1b43933da30f8ea2c0f977bec5920a83661c0619cb463522",
+        "bytes": 29935528,
+        "records": 1670
+      }
+    ],
+    "router_records": {
+      "path": "components/router/records.jsonl",
+      "sha256": "f41b865b4c65cf849c92499a0ea19ea53f2ce37f7424fa8e154543bff81f61b8",
+      "bytes": 938700,
+      "records": 100,
+      "selected_train_records": 80
+    },
+    "producer_manifest": {
+      "path": "manifest.json",
+      "sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+      "bytes": 34236
+    },
+    "release_identity": {
+      "producer_candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+      "producer_release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+      "producer_release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+      "producer_tree_digest_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c",
+      "source_overlay_manifest_sha256": "2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214",
+      "producer_manifest_sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499"
+    }
+  },
+  "schemas": {
+    "record": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json",
+      "sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+      "bytes": 1558
+    },
+    "manifest": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_manifest_consumer_rollover_v2.schema.json",
+      "sha256": "9552f8091cfd6d0de61a0b2cf5559a8460ac41d74a06e1af10392747d2f63e13",
+      "bytes": 10162
+    },
+    "build_receipt": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_build_receipt_v2.schema.json",
+      "sha256": "2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404",
+      "bytes": 2972
+    }
+  },
+  "consumer": {
+    "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+    "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+    "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+    "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+    "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+    "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+    "teacher_binding_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.consumer-rollover-v2"
+  },
+  "output": {
+    "parent": "data/gemma3_chat_unbalanced_v2_teacher_alignment_finalizer_v1",
+    "directory_naming": "candidate-${controller_run_id}",
+    "publication": "atomic_create_once_no_replace",
+    "shard_order": "producer_train_source_order_then_router_train_source_order",
+    "bundle_boundary": "never_split_task_bundle",
+    "max_payload_bytes": 51380224,
+    "max_files": 32
+  },
+  "runtime_contract": {
+    "execution_phase": "after_exact1_bounded15_bulk_before_runtime_slots_close",
+    "required_phase_receipts": [
+      "smoke_exact1",
+      "bounded_small",
+      "bulk"
+    ],
+    "required_succeeded": 3520,
+    "required_rejected": 0,
+    "required_uncertain": 0,
+    "runtime_hmac_scope": "same_process_only",
+    "external_release_review_required": true
+  },
+  "claims": {
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_requests": 0,
+    "gpu_requests": 0,
+    "identity_eval_probe_body_reads": 0,
+    "router_mixed_file_eval_proxy_rows_parsed": 20,
+    "router_eval_proxy_rows_emitted_to_teacher_train": 0,
+    "candidate": true,
+    "final": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "live_authorized": false
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v2",
+  "status": "ready_model_free",
+  "repository": {
+    "path": "D:/LLM/anchor-moe-lora-neural-swarm",
+    "environment": "ANCHOR_GEMMA3_UNBALANCED_V2_CONSUMER_REPOSITORY",
+    "branch": "research/gemma3-chat-unbalanced-v2-training",
+    "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+    "parent": "77023259c1da2049acbc55306034d00e9cf093ce",
+    "tree": "7e9a72a5cebd11666fd6174bce6b2e37135ca6ec",
+    "exact_file_count": 17,
+    "exact_file_inventory_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+    "git_executable": {
+      "path": "C:/Program Files/Git/mingw64/bin/git.exe",
+      "bytes": 4344208,
+      "sha256": "d09a1324132aa9da4b4c2b14242dcac893539a735fab288136b101156434a55a"
+    }
+  },
+  "exact_files": [
+    {"change": "M", "path": ".gitattributes", "sha256": "9c3237004c8ab8d4ccd0eb4042c2827558db1a524888f11f6014fd3184299669", "bytes": 12601},
+    {"change": "M", "path": "configs/research/gemma3_chat_unbalanced_v2_generation_eval_runtime_v2.json", "sha256": "9511048d1167c9b177bcbe5d61b570ad0bca9df817d85fe1a53bf63063d916b8", "bytes": 7143},
+    {"change": "M", "path": "configs/research/gemma3_chat_unbalanced_v2_generation_eval_runtime_v2.schema.json", "sha256": "32f09564205d8a84ec66fb9529e45e363816c33c20ebb5fba7645ef926c276e8", "bytes": 16329},
+    {"change": "M", "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2.json", "sha256": "82ce545b1efd784ea9082850dd44eeacfce25092d653d657f400bde7e2960ea2", "bytes": 10620},
+    {"change": "M", "path": "configs/research/gemma3_chat_unbalanced_v2_shared_prefix_kv_runtime_v2_config.schema.json", "sha256": "5b336cc3a29d525f84ec5a45e337eb54b1e457f386927ce3b50b2306973db848", "bytes": 20930},
+    {"change": "M", "path": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.schema.json", "sha256": "b12d5eacbb98938a9fa536000add9bc0eb9b6db32f4f6b75d71033ef55ccddb3", "bytes": 8445},
+    {"change": "M", "path": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.yaml", "sha256": "484c4ac3f53d7086a4d00f5d0c1fea061188f4e77e74e06a4b10a9587081f9d8", "bytes": 9133},
+    {"change": "M", "path": "configs/training/gemma3_chat_unbalanced_v2_teacher_alignment_binding_v2.schema.json", "sha256": "41020aa6103a52f13919d164be679da110b6260b2ba27ad1c866bcb305dc3a87", "bytes": 8755},
+    {"change": "A", "path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.json", "sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d", "bytes": 6983},
+    {"change": "A", "path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.schema.json", "sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694", "bytes": 5542},
+    {"change": "A", "path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_receipt_v2.schema.json", "sha256": "de28a1c60684c89bc9167bed664c35d512485ef0c0e12c5081f70b4b3b2fb82e", "bytes": 2502},
+    {"change": "A", "path": "fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json", "sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2", "bytes": 1259},
+    {"change": "A", "path": "fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json.sha256", "sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1", "bytes": 79},
+    {"change": "M", "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py", "sha256": "0cc06ffbc7301a015ca30ebe6e6b5ab219b73262f0f3b1a6dfa326ed73d26fe1", "bytes": 132583},
+    {"change": "A", "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_teacher_release_preflight_v2.py", "sha256": "2d94616033d7028c9232b889b59bd89495ec3cdefa0df59979e2a6a13ae63bef", "bytes": 14409},
+    {"change": "M", "path": "tests/test_gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py", "sha256": "9516727001354cf984a6eac8e419e989fbb3668eee68f8d2876dbbdac14e3c7f", "bytes": 44740},
+    {"change": "A", "path": "tests/test_gemma3_chat_unbalanced_v2_teacher_release_preflight_v2.py", "sha256": "e3ecb2069562eaa6dde19bfb946c43bd40180cdbf336da4a01e0dd54c5031e27", "bytes": 7969}
+  ],
+  "authenticated_documents": {
+    "binding": {"path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.json", "sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d"},
+    "binding_schema": {"path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_binding_v2.schema.json", "sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694"},
+    "preflight_receipt": {"path": "fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json", "sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2"},
+    "preflight_receipt_sidecar": {"path": "fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/receipt.json.sha256", "sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1"},
+    "preflight_receipt_schema": {"path": "configs/training/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_receipt_v2.schema.json", "sha256": "de28a1c60684c89bc9167bed664c35d512485ef0c0e12c5081f70b4b3b2fb82e"},
+    "preflight_implementation": {"path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_teacher_release_preflight_v2.py", "sha256": "2d94616033d7028c9232b889b59bd89495ec3cdefa0df59979e2a6a13ae63bef"}
+  },
+  "teacher_chain": {
+    "finalizer": {
+      "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+      "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+      "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+      "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+      "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+      "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+      "teacher_binding_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.consumer-rollover-v2"
+    },
+    "final_manifest": {
+      "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+      "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+      "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+      "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+      "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+      "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+      "teacher_binding_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.consumer-rollover-v2"
+    },
+    "external_binding": {
+      "consumer_commit": "6240ae111182104f22f08e1a569deae866c6e210",
+      "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+      "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+      "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+      "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+      "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe"
+    }
+  },
+  "claims": {
+    "old_consumer_commit_consumable": false,
+    "old_finalizer_consumable": false,
+    "old_manifest_consumable": false,
+    "old_binding_consumable": false,
+    "provider_requests": 0,
+    "network_requests": 0,
+    "model_loads": 0,
+    "gpu_requests": 0,
+    "training_authorized": false,
+    "formal": false,
+    "live": false
+  }
+}

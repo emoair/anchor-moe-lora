@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "repository",
+    "exact_files",
+    "authenticated_documents",
+    "teacher_chain",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v2"
+    },
+    "status": {
+      "const": "ready_model_free"
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "environment",
+        "branch",
+        "commit",
+        "parent",
+        "tree",
+        "exact_file_count",
+        "exact_file_inventory_sha256",
+        "git_executable"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 3},
+        "environment": {
+          "const": "ANCHOR_GEMMA3_UNBALANCED_V2_CONSUMER_REPOSITORY"
+        },
+        "branch": {
+          "const": "research/gemma3-chat-unbalanced-v2-training"
+        },
+        "commit": {
+          "const": "6240ae111182104f22f08e1a569deae866c6e210"
+        },
+        "parent": {
+          "const": "77023259c1da2049acbc55306034d00e9cf093ce"
+        },
+        "tree": {
+          "const": "7e9a72a5cebd11666fd6174bce6b2e37135ca6ec"
+        },
+        "exact_file_count": {"const": 17},
+        "exact_file_inventory_sha256": {
+          "const": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe"
+        },
+        "git_executable": {
+          "const": {
+            "path": "C:/Program Files/Git/mingw64/bin/git.exe",
+            "bytes": 4344208,
+            "sha256": "d09a1324132aa9da4b4c2b14242dcac893539a735fab288136b101156434a55a"
+          }
+        }
+      }
+    },
+    "exact_files": {
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "items": {"$ref": "#/$defs/file"}
+    },
+    "authenticated_documents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "binding_schema",
+        "preflight_receipt",
+        "preflight_receipt_sidecar",
+        "preflight_receipt_schema",
+        "preflight_implementation"
+      ],
+      "properties": {
+        "binding": {"$ref": "#/$defs/pin"},
+        "binding_schema": {"$ref": "#/$defs/pin"},
+        "preflight_receipt": {"$ref": "#/$defs/pin"},
+        "preflight_receipt_sidecar": {"$ref": "#/$defs/pin"},
+        "preflight_receipt_schema": {"$ref": "#/$defs/pin"},
+        "preflight_implementation": {"$ref": "#/$defs/pin"}
+      }
+    },
+    "teacher_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finalizer", "final_manifest", "external_binding"],
+      "properties": {
+        "finalizer": {"$ref": "#/$defs/consumer"},
+        "final_manifest": {"$ref": "#/$defs/consumer"},
+        "external_binding": {"$ref": "#/$defs/prerequisite"}
+      }
+    },
+    "claims": {
+      "const": {
+        "old_consumer_commit_consumable": false,
+        "old_finalizer_consumable": false,
+        "old_manifest_consumable": false,
+        "old_binding_consumable": false,
+        "provider_requests": 0,
+        "network_requests": 0,
+        "model_loads": 0,
+        "gpu_requests": 0,
+        "training_authorized": false,
+        "formal": false,
+        "live": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["change", "path", "sha256", "bytes"],
+      "properties": {
+        "change": {"enum": ["A", "M"]},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 52428799}
+      }
+    },
+    "pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "consumer": {
+      "const": {
+        "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+        "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+        "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+        "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+        "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+        "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+        "teacher_binding_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.consumer-rollover-v2"
+      }
+    },
+    "prerequisite": {
+      "const": {
+        "consumer_commit": "6240ae111182104f22f08e1a569deae866c6e210",
+        "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+        "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+        "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+        "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+        "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe"
+      }
+    }
+  }
+}

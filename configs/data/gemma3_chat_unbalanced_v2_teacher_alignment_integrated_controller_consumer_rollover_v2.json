@@ -1,0 +1,55 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-integrated-controller.config.v2",
+  "controller_id": "gemma3-chat-unbalanced-v2-glm-integrated-controller-v2",
+  "controller_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_consumer_rollover_v2.schema.json",
+  "controller_schema_sha256": "05bd526428678546689fbf6bc2adb63c0e3dc0578ba34467f14ed26a7fce5b8e",
+  "controller_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_integrated_controller_v2.py",
+  "controller_implementation_sha256": "b5be563ec7fe3729d05d7429c3053271d6e261d1dee2d4f3543c8338605aa821",
+  "base_controller": {
+    "config_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.v1.json",
+    "config_sha256": "244ec05765c24504df74f988a63d0eadea4b6783a1b2fdc6ba2407c9b6518e08",
+    "schema_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json",
+    "schema_sha256": "5613ad98972f3eae604fd518d6bcb73c514b57f24135f331d0c1edf4575d6b39",
+    "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py",
+    "implementation_sha256": "9de21660ae2b8537ff0bba766caa58e7edf3aca0177dee89ff349d6718d890cb",
+    "ancestor_commit": "adfa03e225441f010e80f3b2010aec5484a5a90b"
+  },
+  "teacher_finalizer": {
+    "config_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_finalizer_consumer_rollover_v2.json",
+    "config_sha256": "36797a76d1d37b71ec1a527e5ed828effa025b526ec95f701877c56c533d6f32",
+    "config_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_finalizer_consumer_rollover_v2.schema.json",
+    "config_schema_sha256": "2ea4a1c70e8343dc35624df8000b5b6b960288221040030045abd66c5f6bbc95",
+    "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_finalizer_v1.py",
+    "implementation_sha256": "4b0c929f7ce90beb9e9a023695ab3fb05368a352b8943d9020068d484895bc2f",
+    "record_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json",
+    "record_schema_sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+    "manifest_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_manifest_consumer_rollover_v2.schema.json",
+    "manifest_schema_sha256": "9552f8091cfd6d0de61a0b2cf5559a8460ac41d74a06e1af10392747d2f63e13",
+    "build_receipt_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_build_receipt_v2.schema.json",
+    "build_receipt_schema_sha256": "2042d5e50491e31cc9ae99dd1d6f1de9329103a551e81c8579da52c5ffe39404"
+  },
+  "lifecycle": {
+    "stage_order": [
+      "smoke_exact1",
+      "bounded_small_c1",
+      "bulk_c30_or_authenticated_c16",
+      "teacher_final_materialization"
+    ],
+    "teacher_finalization_position": "before_runtime_slots_close",
+    "runtime_hmac_continuity_required": true,
+    "external_release_review_required": true,
+    "v1_history_preserved": true,
+    "v1_superseded_for_live": true
+  },
+  "claims": {
+    "provider_requests_added_by_finalizer": 0,
+    "network_requests_added_by_finalizer": 0,
+    "model_requests_added_by_finalizer": 0,
+    "gpu_requests_added_by_finalizer": 0,
+    "candidate": true,
+    "final": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "live_authorized": false
+  }
+}

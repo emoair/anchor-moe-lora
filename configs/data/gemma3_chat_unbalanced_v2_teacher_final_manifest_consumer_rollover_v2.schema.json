@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-teacher-final-manifest.consumer-rollover-v2",
+  "title": "Gemma 3 unbalanced-v2 Teacher FINAL candidate manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "artifact_version",
+    "lifecycle_status",
+    "record_schema",
+    "source",
+    "controller",
+    "consumer",
+    "counts",
+    "identity_audit",
+    "shards",
+    "logical_identity",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final-manifest.v2"
+    },
+    "namespace": {
+      "const": "gemma3_chat_unbalanced_v2_teacher_alignment_v2"
+    },
+    "artifact_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-teacher-final.sharded.v2"
+    },
+    "lifecycle_status": {
+      "const": "candidate_pending_independent_release_review"
+    },
+    "record_schema": {
+      "$ref": "#/$defs/file_pin"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_candidate_commit",
+        "producer_release_commit",
+        "producer_release_tree",
+        "producer_tree_digest_sha256",
+        "source_overlay_manifest_sha256",
+        "producer_manifest_sha256"
+      ],
+      "properties": {
+        "producer_candidate_commit": {
+          "const": "c5080249aa103d6cac09f0a55e51982b68524480"
+        },
+        "producer_release_commit": {
+          "const": "304be2b86f82aad7ddade80fae04528bf2801977"
+        },
+        "producer_release_tree": {
+          "const": "9bf154d481623b696dbc8a4bdf276967710b7214"
+        },
+        "producer_tree_digest_sha256": {
+          "const": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+        },
+        "source_overlay_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "controller_ancestor_commit",
+        "integrated_controller_config_sha256",
+        "integrated_controller_implementation_sha256",
+        "base_controller_config_sha256",
+        "base_controller_implementation_sha256",
+        "batch_implementation_sha256",
+        "finalizer_config_sha256",
+        "finalizer_implementation_sha256"
+      ],
+      "properties": {
+        "controller_ancestor_commit": {
+          "const": "adfa03e225441f010e80f3b2010aec5484a5a90b"
+        },
+        "integrated_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "integrated_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_controller_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "batch_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "finalizer_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "consumer": {
+      "const": {
+        "commit": "6240ae111182104f22f08e1a569deae866c6e210",
+        "source_binding_sha256": "096c33110a1a3d0941154e89270319a7cf48dd33432296cae298b8ec469ce21d",
+        "preflight_receipt_sha256": "f1c1e643d28e0367a4aa29630a937caf5d0f9771c4180a0b270f80a9d816b9b2",
+        "preflight_receipt_sidecar_sha256": "e19f3bb3a197e4faa28d45bcb0e7ba0bbb5e58d0a390b4b090467cbfbddb61f1",
+        "shared_schema_sha256": "6a13d32119afe8e70a4b621a98ddbae3f6ffbe9aa3a5a09283d36f39eb0b4694",
+        "normalized_binding_sha256": "8ad5798827b5d88b3ac4ca179c65a699650fbfc587051f363b8638c4c21253fe",
+        "teacher_binding_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-binding.consumer-rollover-v2"
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "main_records",
+        "router_records",
+        "accepted",
+        "rejected",
+        "uncertain",
+        "train_identity_bundles",
+        "train_identity_records",
+        "source_assets"
+      ],
+      "properties": {
+        "records": {
+          "const": 3520
+        },
+        "main_records": {
+          "const": 3440
+        },
+        "router_records": {
+          "const": 80
+        },
+        "accepted": {
+          "const": 3520
+        },
+        "rejected": {
+          "const": 0
+        },
+        "uncertain": {
+          "const": 0
+        },
+        "train_identity_bundles": {
+          "const": 20
+        },
+        "train_identity_records": {
+          "const": 100
+        },
+        "source_assets": {
+          "const": {
+            "humor": 240,
+            "serious": 240,
+            "angry_style": 240,
+            "tool_call": 1360,
+            "review_audit": 1360,
+            "planner_router": 80
+          }
+        }
+      }
+    },
+    "identity_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_identity_sentence",
+        "producer_all_source_bundles",
+        "producer_all_source_records",
+        "teacher_train_bundles",
+        "teacher_train_records",
+        "producer_eval_bundles",
+        "producer_eval_records",
+        "identity_probe_inventory_sha256",
+        "identity_eval_probe_body_reads",
+        "router_mixed_file_eval_proxy_rows_parsed",
+        "router_eval_proxy_rows_emitted_to_teacher_train",
+        "train_target_consistency_passed"
+      ],
+      "properties": {
+        "stable_identity_sentence": {
+          "const": "我是由Air训练的测试模型。"
+        },
+        "producer_all_source_bundles": {
+          "const": 30
+        },
+        "producer_all_source_records": {
+          "const": 150
+        },
+        "teacher_train_bundles": {
+          "const": 20
+        },
+        "teacher_train_records": {
+          "const": 100
+        },
+        "producer_eval_bundles": {
+          "const": 10
+        },
+        "producer_eval_records": {
+          "const": 50
+        },
+        "identity_probe_inventory_sha256": {
+          "const": "5740338f0dd5800cbcb76b7ef0671fd26fd4f096b5fea05a21f11eb3e99e56c5"
+        },
+        "identity_eval_probe_body_reads": {
+          "const": 0
+        },
+        "router_mixed_file_eval_proxy_rows_parsed": {
+          "const": 20
+        },
+        "router_eval_proxy_rows_emitted_to_teacher_train": {
+          "const": 0
+        },
+        "train_target_consistency_passed": {
+          "const": true
+        }
+      }
+    },
+    "shards": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/shard"
+      }
+    },
+    "logical_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_order_sha256",
+        "target_projection_sha256",
+        "source_join_sha256",
+        "shard_inventory_sha256",
+        "logical_dataset_sha256"
+      ],
+      "properties": {
+        "record_order_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "target_projection_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_join_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "shard_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_dataset_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "claims": {
+      "const": {
+        "candidate": true,
+        "final": false,
+        "independent_release_review": "pending",
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "live_authorized": false,
+        "hidden_reasoning_retained": false,
+        "secret_material_retained": false,
+        "provider_body_retained": false,
+        "eval_proxy_in_training_shards": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.\\-/]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        }
+      }
+    },
+    "shard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "sidecar_sha256",
+        "sidecar_bytes",
+        "records",
+        "asset",
+        "first_record_id_sha256",
+        "last_record_id_sha256",
+        "first_task_bundle_sha256",
+        "last_task_bundle_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(train|router)/teacher-[0-9]{5}-of-[0-9]{5}\\.jsonl$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        },
+        "sidecar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sidecar_bytes": {
+          "type": "integer",
+          "minimum": 70,
+          "maximum": 256
+        },
+        "records": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3440
+        },
+        "asset": {
+          "enum": [
+            "main_train",
+            "planner_router_train"
+          ]
+        },
+        "first_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "first_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "last_task_bundle_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}
