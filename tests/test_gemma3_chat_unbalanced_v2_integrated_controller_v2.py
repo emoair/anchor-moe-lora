@@ -275,7 +275,7 @@ def test_v1_bytes_remain_bound_and_v2_dry_run_is_non_live(
 ) -> None:
     integrated = v2.load_integrated_config()
     assert integrated.base_controller.physical_sha256 == (
-        "63e8e72b1027786adb89e363b4c0fc283587cd505b241d19155eea8c2490d258"
+        "abd14f0b3b5fa14a648c6e6bd8204faaa981e2ab3eabf3f82dae1794111c609d"
     )
     assert integrated.base_controller.controller_implementation_sha256 == (
         "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595"

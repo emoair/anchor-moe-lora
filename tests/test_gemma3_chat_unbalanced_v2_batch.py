@@ -786,12 +786,14 @@ def test_role_validators_accept_contract_outputs(
 
 
 def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
-    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v2"
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v3"
     for role in ("humor", "serious", "angry", "identity"):
         prompt = batch._system_prompt(role)
         assert "plain natural-language text only" in prompt
         assert "no Markdown code fence" in prompt
         assert "no JSON object or array" in prompt
+        assert "first non-whitespace character must not be { or [" in prompt
+        assert "never wrap prose inside an object or array" in prompt
     for role in ("tool", "review", "router"):
         prompt = batch._system_prompt(role)
         assert "one raw JSON object only" in prompt
@@ -800,9 +802,78 @@ def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
     review_prompt = batch._system_prompt("review")
     assert "faults must be a JSON array containing only strings" in review_prompt
     assert "non-empty correction string" in review_prompt
+    tool_prompt = batch._system_prompt("tool")
+    assert "final_answer must be one non-empty, trimmed" in tool_prompt
+    assert "never null, a number, an object, or an array" in tool_prompt
+    assert "arguments must be a JSON object" in tool_prompt
+    assert "evidence_ids must be a non-empty JSON array" in tool_prompt
+    router_prompt = batch._system_prompt("router")
+    assert "must not contain the substring route" in router_prompt
+    assert "route_to_general" in router_prompt
+    assert "delegate back to a router/planner/controller" in router_prompt
     identity_prompt = batch._system_prompt("identity")
     assert "我不是由 Google 训练的。" in identity_prompt
     assert "我不是由 OpenAI 训练的。" in identity_prompt
+
+
+def test_live_rejection_contracts_remain_closed_and_have_valid_counterparts() -> None:
+    def source(role: str) -> batch.SourceRecord:
+        return batch._validate_source_row(
+            _source_row(
+                record_id=f"live-rejection-{role}",
+                role=role,
+                language="en",
+            ),
+            partition_kind="router_train" if role == "router" else "train",
+            line_number=1,
+            source_line_sha256=hashlib.sha256(role.encode("utf-8")).hexdigest(),
+            max_input_chars=8192,
+        )
+
+    serious = source("serious")
+    with pytest.raises(batch.AdapterError, match="natural text json rejected"):
+        batch.validate_teacher_output(
+            serious, '{"answer":"Plain prose in an envelope."}'
+        )
+    assert batch.validate_teacher_output(
+        serious, "Plain prose without an envelope."
+    ) == {
+        "kind": "natural_text",
+        "value": "Plain prose without an envelope.",
+    }
+
+    tool = source("tool")
+    invalid_tool = {
+        "final_answer": {"text": "42"},
+        "tool_call": {"name": "calculator", "arguments": {"x": 42}},
+        "evidence_ids": tool.teacher_contract["allowed_evidence_ids"],
+    }
+    with pytest.raises(batch.AdapterError, match="tool final answer invalid"):
+        batch.validate_teacher_output(tool, json.dumps(invalid_tool))
+    valid_tool = {**invalid_tool, "final_answer": "42"}
+    assert (
+        batch.validate_teacher_output(tool, json.dumps(valid_tool))["value"][
+            "final_answer"
+        ]
+        == "42"
+    )
+
+    router = source("router")
+    with pytest.raises(batch.AdapterError, match="router recursive route rejected"):
+        batch.validate_teacher_output(
+            router,
+            json.dumps({"route": "style", "plan": ["route_to_general"], "stop": True}),
+        )
+    assert batch.validate_teacher_output(
+        router,
+        json.dumps(
+            {"route": "style", "plan": ["compose specialist answer"], "stop": True}
+        ),
+    )["value"] == {
+        "route": "style",
+        "plan": ["compose specialist answer"],
+        "stop": True,
+    }
 
 
 def test_identity_target_collision_is_allowed_only_after_identity_validation() -> None:

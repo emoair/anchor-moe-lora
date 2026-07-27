@@ -62,7 +62,7 @@ PHASE_RECEIPT_SCHEMA_VERSION = f"{NAMESPACE}.phase-receipt.v1"
 EVENT_SCHEMA_VERSION = f"{NAMESPACE}.event.v1"
 STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
-PROMPT_VERSION = "unbalanced-v2-ark-final-only-v2"
+PROMPT_VERSION = "unbalanced-v2-ark-final-only-v3"
 
 PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
@@ -4036,7 +4036,9 @@ def _system_prompt(role: str) -> str:
     )
     natural_text = (
         "Return plain natural-language text only: no JSON object or array, no key-value "
-        "envelope, no Markdown code fence, and no answer/final prefix label. "
+        "envelope, no Markdown code fence, and no answer/final prefix label. The first "
+        "non-whitespace character must not be { or [, and the final non-whitespace "
+        "character must not be } or ]; never wrap prose inside an object or array. "
     )
     raw_json = (
         "Return one raw JSON object only: no Markdown, no code fence, and no text, label, "
@@ -4059,8 +4061,11 @@ def _system_prompt(role: str) -> str:
         "tool": (
             raw_json
             + "The object must have exactly the keys final_answer, tool_call, and "
-            "evidence_ids. tool_call must have only name and arguments. Use only the "
-            "allowed tool and evidence identifiers supplied in the request."
+            "evidence_ids. final_answer must be one non-empty, trimmed natural-language "
+            "JSON string, never null, a number, an object, or an array. tool_call must "
+            "have only name and arguments; name must be one allowed tool identifier and "
+            "arguments must be a JSON object. evidence_ids must be a non-empty JSON array "
+            "containing only allowed evidence identifier strings supplied in the request."
         ),
         "review": (
             raw_json
@@ -4074,7 +4079,11 @@ def _system_prompt(role: str) -> str:
             + "Perform exactly one global-to-specialist routing decision, then exit. The "
             "object must have exactly the keys route, plan, and stop. route must be one "
             "allowed option, plan must be a non-empty flat JSON array containing only "
-            "strings, and stop must be true."
+            "strings, and stop must be true. After selecting route, every plan item must "
+            "describe downstream specialist execution only and must not contain the "
+            "substring route, request another routing decision, use route_to_general, "
+            "delegate back to a router/planner/controller, aggregate, vote, or return to "
+            "general control."
         ),
         "identity": (
             natural_text
