@@ -1,0 +1,75 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v3",
+  "status": "ready_model_free",
+  "authenticated_artifacts": {
+    "source_rollover_config": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v2.json",
+      "sha256": "456d03d651c2adb998b54fd66526b8151712283918379b74e0d81a7fa1885a0d",
+      "bytes": 8123
+    },
+    "source_rollover_schema": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v2.schema.json",
+      "sha256": "a4ccae1ce2f8beebd71dffa8c0d5d600dd2b8c22aee6ae4e0861d349a71f286e",
+      "bytes": 5549
+    },
+    "source_rollover_implementation": {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v2.py",
+      "sha256": "a6473c868950bf527b4aaa8443cfadaaddcd2e51f8fcafb45a8d13e500bd8a7e",
+      "bytes": 16884
+    },
+    "integrated_controller_config": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_consumer_rollover_v2.json",
+      "sha256": "68761b873a8420244b9aed9acafb6d3fd6d8e6f4c6269b115c50bdc74226b558",
+      "bytes": 3404
+    },
+    "rollover_v3_implementation": {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py",
+      "sha256": "a80c3c85239c033412ced8e95328c9189e4207ecde99a150f6f3e91e8c920086",
+      "bytes": 17007
+    },
+    "release_implementation": {
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py",
+      "sha256": "75143aaf366bbb9db0e0d81d7763d0b901d045d4e2c45c45deb078d91e0a75fc",
+      "bytes": 63615
+    },
+    "attestation_schema": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_attestation_consumer_rollover_v3.schema.json",
+      "sha256": "926a86b8e6c2e92d81097f8a4ac4a2e41c5449ebd956e4c90791562170895486",
+      "bytes": 13703
+    },
+    "release_manifest_schema": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_consumer_rollover_v3.schema.json",
+      "sha256": "865b5fe67afbdb67c70bcdabb862544fd9a6b9abcbd9c148e6d1f0102e81936c",
+      "bytes": 9408
+    },
+    "binding_schema": {
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json",
+      "sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+      "bytes": 8773
+    }
+  },
+  "ordering": {
+    "controller_stages": [
+      "smoke_exact1",
+      "bounded_small_c1",
+      "bulk_c30_or_authenticated_c16",
+      "teacher_final_candidate_materialization"
+    ],
+    "candidate_materialization": "before_runtime_slots_close",
+    "runtime_slots_close": "after_candidate_materialization",
+    "external_release": "after_runtime_slots_close",
+    "external_release_required_for_complete": true
+  },
+  "claims": {
+    "consumer_prerequisite_commit": "6240ae111182104f22f08e1a569deae866c6e210",
+    "binding_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json",
+    "binding_schema_sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+    "provider_requests_added_by_external_release": 0,
+    "network_requests_added_by_external_release": 0,
+    "model_loads_added_by_external_release": 0,
+    "gpu_requests_added_by_external_release": 0,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "live_authorized": false
+  }
+}

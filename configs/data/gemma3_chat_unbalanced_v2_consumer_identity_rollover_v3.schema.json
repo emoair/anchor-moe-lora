@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v3",
+  "title": "Gemma 3 unbalanced-v2 reachable consumer rollover v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "authenticated_artifacts",
+    "ordering",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2-consumer-identity-rollover.v3"
+    },
+    "status": {
+      "const": "ready_model_free"
+    },
+    "authenticated_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_rollover_config",
+        "source_rollover_schema",
+        "source_rollover_implementation",
+        "integrated_controller_config",
+        "rollover_v3_implementation",
+        "release_implementation",
+        "attestation_schema",
+        "release_manifest_schema",
+        "binding_schema"
+      ],
+      "properties": {
+        "source_rollover_config": {
+          "$ref": "#/$defs/file"
+        },
+        "source_rollover_schema": {
+          "$ref": "#/$defs/file"
+        },
+        "source_rollover_implementation": {
+          "$ref": "#/$defs/file"
+        },
+        "integrated_controller_config": {
+          "$ref": "#/$defs/file"
+        },
+        "rollover_v3_implementation": {
+          "$ref": "#/$defs/file"
+        },
+        "release_implementation": {
+          "$ref": "#/$defs/file"
+        },
+        "attestation_schema": {
+          "$ref": "#/$defs/file"
+        },
+        "release_manifest_schema": {
+          "$ref": "#/$defs/file"
+        },
+        "binding_schema": {
+          "$ref": "#/$defs/file"
+        }
+      }
+    },
+    "ordering": {
+      "const": {
+        "controller_stages": [
+          "smoke_exact1",
+          "bounded_small_c1",
+          "bulk_c30_or_authenticated_c16",
+          "teacher_final_candidate_materialization"
+        ],
+        "candidate_materialization": "before_runtime_slots_close",
+        "runtime_slots_close": "after_candidate_materialization",
+        "external_release": "after_runtime_slots_close",
+        "external_release_required_for_complete": true
+      }
+    },
+    "claims": {
+      "const": {
+        "consumer_prerequisite_commit": "6240ae111182104f22f08e1a569deae866c6e210",
+        "binding_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_binding_consumer_rollover_v2.schema.json",
+        "binding_schema_sha256": "491eb5a085884a17fcd02ec7335f0ff226a77bf701dd984947175c04e895faca",
+        "provider_requests_added_by_external_release": 0,
+        "network_requests_added_by_external_release": 0,
+        "model_loads_added_by_external_release": 0,
+        "gpu_requests_added_by_external_release": 0,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "live_authorized": false
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 240,
+          "pattern": "^[A-Za-z0-9_./-]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428799
+        }
+      }
+    }
+  }
+}
