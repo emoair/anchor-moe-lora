@@ -786,14 +786,26 @@ def test_role_validators_accept_contract_outputs(
 
 
 def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
-    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v3"
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v4"
     for role in ("humor", "serious", "angry", "identity"):
         prompt = batch._system_prompt(role)
-        assert "plain natural-language text only" in prompt
-        assert "no Markdown code fence" in prompt
-        assert "no JSON object or array" in prompt
+        assert "unwrapped plain natural-language answer itself" in prompt
+        assert "Begin immediately with the first ordinary-language word" in prompt
+        assert "Do not serialize, quote, or wrap the answer" in prompt
+        for envelope_key in (
+            "answer",
+            "final_answer",
+            "response",
+            "content",
+            "text",
+            "message",
+            "result",
+            "output",
+        ):
+            assert envelope_key in prompt
         assert "first non-whitespace character must not be { or [" in prompt
-        assert "never wrap prose inside an object or array" in prompt
+        assert "Immediately before sending, silently inspect the draft" in prompt
+        assert "discard the wrapper and rewrite only the inner prose" in prompt
     for role in ("tool", "review", "router"):
         prompt = batch._system_prompt(role)
         assert "one raw JSON object only" in prompt

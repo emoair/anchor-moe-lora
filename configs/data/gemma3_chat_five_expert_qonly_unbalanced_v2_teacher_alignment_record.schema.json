@@ -82,7 +82,7 @@
         "model": {"const": "glm-5-2-260617"},
         "force_model": {"const": true},
         "discovery": {"const": false},
-        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v3"},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v4"},
         "prompt_template_id": {"$ref": "#/$defs/safeId"},
         "prompt_template_sha256": {"$ref": "#/$defs/sha256"},
         "output_schema_id": {"$ref": "#/$defs/safeId"},
@@ -180,7 +180,7 @@
         "model_binding_sha256": {"$ref": "#/$defs/sha256"},
         "implementation_sha256": {"$ref": "#/$defs/sha256"},
         "teacher_implementation_sha256": {"$ref": "#/$defs/sha256"},
-        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v3"},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v4"},
         "profile_id": {
           "enum": [
             "smoke_exact1",

@@ -62,7 +62,7 @@ PHASE_RECEIPT_SCHEMA_VERSION = f"{NAMESPACE}.phase-receipt.v1"
 EVENT_SCHEMA_VERSION = f"{NAMESPACE}.event.v1"
 STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
-PROMPT_VERSION = "unbalanced-v2-ark-final-only-v3"
+PROMPT_VERSION = "unbalanced-v2-ark-final-only-v4"
 
 PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
@@ -4035,10 +4035,16 @@ def _system_prompt(role: str) -> str:
         "output grammar literally. "
     )
     natural_text = (
-        "Return plain natural-language text only: no JSON object or array, no key-value "
-        "envelope, no Markdown code fence, and no answer/final prefix label. The first "
-        "non-whitespace character must not be { or [, and the final non-whitespace "
-        "character must not be } or ]; never wrap prose inside an object or array. "
+        "Your entire response must be the unwrapped plain natural-language answer itself. "
+        "Begin immediately with the first ordinary-language word or CJK character of the "
+        "answer and end immediately after its final sentence. Do not serialize, quote, or "
+        "wrap the answer as a JSON object, array, JSON string, key-value envelope, Markdown "
+        "code fence, or field. Never emit an envelope key or prefix such as answer, "
+        "final_answer, response, content, text, message, result, or output, whether or not "
+        "braces are present. The first non-whitespace character must not be { or [, and the "
+        "final non-whitespace character must not be } or ]. Immediately before sending, "
+        "silently inspect the draft: if it begins with {, [, a wrapping quote, or any field "
+        "label followed by : or =, discard the wrapper and rewrite only the inner prose. "
     )
     raw_json = (
         "Return one raw JSON object only: no Markdown, no code fence, and no text, label, "

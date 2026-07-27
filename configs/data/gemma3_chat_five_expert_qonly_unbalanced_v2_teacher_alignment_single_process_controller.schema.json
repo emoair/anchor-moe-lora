@@ -50,7 +50,7 @@
       "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py"
     },
     "batch_implementation_sha256": {
-      "const": "13e24b5e8960fa510239a977c74a59d7b8d4a1b9f34dd22031f8a445a81eed44"
+      "const": "ec3b0fdf4ff6cf013a0bd4078ebb9539fff5e584ed1f55cfdea82a7311f792d7"
     },
     "teacher_implementation_path": {
       "const": "src/anchor_mvp/data/teacher.py"
@@ -150,7 +150,7 @@
           "const": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9"
         },
         "campaign_sha256": {
-          "const": "f185e64dc7defb74ea80d2772f2c6aa37edf53202a8485b720261402dde35989"
+          "const": "6090824d6aa6f36fb77e6e641dc3210b10f31a613fe78c5c77bc22948cd7ab70"
         },
         "model_binding_sha256": {
           "const": "8eeff6e2c1e06cb0ae5a894faed0a67427604e7828fdda740f6faf60f873fe80"
@@ -518,7 +518,7 @@
               "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.smoke_exact1.yaml"
             },
             "sha256": {
-              "const": "30c9081168166dc5d0f95cab99d529c90dae90225e0a6d83d8fe11657a3e747c"
+              "const": "d6ec9812d2ea1d73d155374852e0ca07c34a3df875fcbcf4017a6abb0a3c8552"
             }
           }
         }
@@ -544,7 +544,7 @@
               "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bounded_small_c1.yaml"
             },
             "sha256": {
-              "const": "220aff98496eeebbbb8ddc2963fdeb1179a2b4e9ff6f722dec003cd63bc74796"
+              "const": "f70a02d795ea18612dcb84d56358accaf42339c326b2f2deebf3aae1b4cf5fdb"
             }
           }
         }
@@ -570,7 +570,7 @@
               "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml"
             },
             "sha256": {
-              "const": "1b25f4b2eafee13b7e229498964fef55a67e470798a1d38484597f25c7300398"
+              "const": "0f7d01f156ac4f89926024951c45807ccdacd9ec23cb76c2e7e09aa2e5c7a7ed"
             }
           }
         }
@@ -596,7 +596,7 @@
               "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c16.yaml"
             },
             "sha256": {
-              "const": "1f63488a811e399b148950e2db109a662797065f5492be494f6106d0ffb2f94a"
+              "const": "afcb6b8563a6496623caa023ba5143d8345c7216d8a9b5c4826d556b1313caed"
             }
           }
         }
