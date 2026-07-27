@@ -92,6 +92,8 @@ class ControllerConfig:
     controller_implementation_sha256: str
     batch_implementation_path: Path
     batch_implementation_sha256: str
+    teacher_implementation_path: Path
+    teacher_implementation_sha256: str
     consumer_release_binding: dict[str, Any]
     controller_runtime: dict[str, Any]
     wal: dict[str, Any]
@@ -278,6 +280,17 @@ def load_controller_config(path: Path = DEFAULT_CONFIG_PATH) -> ControllerConfig
     batch_sha256 = _sha256_file(batch_path)
     if value["batch_implementation_sha256"] != batch_sha256:
         raise batch.AdapterError("controller_batch_implementation_drift")
+    teacher_path = _resolve_repo_file(
+        value["teacher_implementation_path"],
+        reason="controller_teacher_path_invalid",
+    )
+    teacher_raw = _stable_read(
+        teacher_path,
+        reason="controller_teacher_implementation_snapshot_drift",
+    )
+    teacher_sha256 = _sha256_bytes(teacher_raw)
+    if value["teacher_implementation_sha256"] != teacher_sha256:
+        raise batch.AdapterError("controller_teacher_implementation_drift")
     profiles = tuple(
         ProfileSpec(
             stage=str(item["stage"]),
@@ -306,6 +319,16 @@ def load_controller_config(path: Path = DEFAULT_CONFIG_PATH) -> ControllerConfig
         raise batch.AdapterError("controller_implementation_terminal_snapshot_drift")
     if _sha256_file(batch_path) != batch_sha256:
         raise batch.AdapterError("controller_batch_implementation_drift")
+    if (
+        _stable_read(
+            teacher_path,
+            reason="controller_teacher_implementation_terminal_snapshot_drift",
+        )
+        != teacher_raw
+    ):
+        raise batch.AdapterError(
+            "controller_teacher_implementation_terminal_snapshot_drift"
+        )
     return ControllerConfig(
         path=config_path,
         physical_sha256=_sha256_bytes(raw),
@@ -315,6 +338,8 @@ def load_controller_config(path: Path = DEFAULT_CONFIG_PATH) -> ControllerConfig
         controller_implementation_sha256=controller_implementation_sha256,
         batch_implementation_path=batch_path,
         batch_implementation_sha256=batch_sha256,
+        teacher_implementation_path=teacher_path,
+        teacher_implementation_sha256=teacher_sha256,
         consumer_release_binding=dict(value["consumer_release_binding"]),
         controller_runtime=dict(value["controller_runtime"]),
         wal=dict(value["wal"]),
@@ -345,6 +370,8 @@ def _validate_profile(
         or value.campaign_sha256 != common["campaign_sha256"]
         or value.model_binding_sha256 != common["model_binding_sha256"]
         or value.implementation_sha256 != controller.batch_implementation_sha256
+        or value.contract_hashes.get("teacher_implementation_path")
+        != controller.teacher_implementation_sha256
         or value.output_root != expected_root
         or spec.phase not in value.limits.allowed_phases
     ):
@@ -394,6 +421,8 @@ def _recheck_bound_artifacts(bound: BoundProfiles) -> None:
         != controller.controller_implementation_sha256
         or _sha256_file(controller.batch_implementation_path)
         != controller.batch_implementation_sha256
+        or _sha256_file(controller.teacher_implementation_path)
+        != controller.teacher_implementation_sha256
         or controller.controller_implementation_sha256
         != bound.controller_implementation_sha256
     ):
@@ -1035,6 +1064,9 @@ class AuthenticatedBatchState(batch.BatchState):
             "manifest_sha256": self.controller_binding["manifest_sha256"],
             "model_binding_sha256": self.config.model_binding_sha256,
             "batch_implementation_sha256": self.config.implementation_sha256,
+            "teacher_implementation_sha256": self.controller_binding[
+                "teacher_implementation_sha256"
+            ],
             "controller_config_sha256": self.controller_binding[
                 "controller_config_sha256"
             ],
@@ -1136,6 +1168,8 @@ class AuthenticatedBatchState(batch.BatchState):
                 != self.controller_binding["manifest_sha256"]
                 or payload.get("controller_config_sha256")
                 != self.controller_binding["controller_config_sha256"]
+                or payload.get("teacher_implementation_sha256")
+                != self.controller_binding["teacher_implementation_sha256"]
             ):
                 raise batch.AdapterError("controller_wal_entry_identity_drift")
             profile_id = payload.get("active_profile_id")
@@ -1241,6 +1275,9 @@ class AuthenticatedBatchState(batch.BatchState):
             "manifest_sha256": self.controller_binding["manifest_sha256"],
             "controller_config_sha256": self.controller_binding[
                 "controller_config_sha256"
+            ],
+            "teacher_implementation_sha256": self.controller_binding[
+                "teacher_implementation_sha256"
             ],
             "body": dict(body),
             "content_retained": False,
@@ -1931,6 +1968,9 @@ class SingleProcessController:
             "controller_implementation_sha256": (
                 self.bound.controller_implementation_sha256
             ),
+            "teacher_implementation_sha256": (
+                self.bound.controller.teacher_implementation_sha256
+            ),
             "source_identity_sha256": inventory.source_identity_sha256,
             "manifest_sha256": inventory.manifest_sha256,
             "protected_test_identity_sha256": (inventory.readonly_test_identity_sha256),
@@ -2140,6 +2180,9 @@ class SingleProcessController:
                     ),
                     "batch_implementation": (
                         self.bound.controller.batch_implementation_sha256
+                    ),
+                    "teacher_implementation": (
+                        self.bound.controller.teacher_implementation_sha256
                     ),
                     "profiles": {
                         item.profile_id: item.sha256

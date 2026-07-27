@@ -223,6 +223,7 @@
       "additionalProperties": false,
       "required": [
         "prompt_version",
+        "teacher_implementation_path",
         "profile_schema_path",
         "source_manifest_schema_path",
         "source_approval_schema_path",
@@ -238,6 +239,9 @@
       "properties": {
         "prompt_version": {
           "const": "unbalanced-v2-ark-final-only-v1"
+        },
+        "teacher_implementation_path": {
+          "const": "src/anchor_mvp/data/teacher.py"
         },
         "profile_schema_path": {"type": "string", "minLength": 1},
         "source_manifest_schema_path": {"type": "string", "minLength": 1},
@@ -300,7 +304,7 @@
         "max_input_tokens_per_request": {"const": 8192},
         "max_requests": {"type": "integer", "minimum": 1},
         "max_input_tokens_total": {"type": "integer", "minimum": 1},
-        "max_output_tokens_total": {"type": "integer", "minimum": 1},
+        "max_output_tokens_total": {"type": "null"},
         "cost_basis": {"const": "subscription_quota_wire_request"},
         "max_cost_units": {"type": "integer", "minimum": 1},
         "max_smoke_jobs": {"const": 32}

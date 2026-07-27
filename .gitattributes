@@ -176,6 +176,7 @@ scripts/data/build_gemma3_chat_unbalanced_v2_source_overlay.py text eol=lf
 scripts/observability/distillation_dashboard.py text eol=lf
 src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py text eol=lf
 src/anchor_mvp/data/teacher.py text eol=lf
+tests/test_data_teacher.py text eol=lf
 tests/test_gemma3_chat_unbalanced_v2_batch.py text eol=lf
 fixtures/research/gemma3_chat_five_expert_qonly_unbalanced_distilled_v2_sharded_v1/** text eol=lf
 configs/research/gemma3_chat_five_expert_qonly_unbalanced_v2_final.json text eol=lf

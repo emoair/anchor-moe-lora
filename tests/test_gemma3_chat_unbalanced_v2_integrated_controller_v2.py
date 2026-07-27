@@ -275,10 +275,13 @@ def test_v1_bytes_remain_bound_and_v2_dry_run_is_non_live(
 ) -> None:
     integrated = v2.load_integrated_config()
     assert integrated.base_controller.physical_sha256 == (
-        "244ec05765c24504df74f988a63d0eadea4b6783a1b2fdc6ba2407c9b6518e08"
+        "32038fa29a89825f7e9bd314c062874247f0d934952b2c0f55a7355175820f7b"
     )
     assert integrated.base_controller.controller_implementation_sha256 == (
-        "9de21660ae2b8537ff0bba766caa58e7edf3aca0177dee89ff349d6718d890cb"
+        "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595"
+    )
+    assert integrated.base_controller.teacher_implementation_sha256 == (
+        "f4e463dc322d8a3618f559b77fda9eff08dbd9e3a03703236b2f9a1bda821d75"
     )
     assert v2.main(["--dry-run"]) == 2
     output = capsys.readouterr().out

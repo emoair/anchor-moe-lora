@@ -151,7 +151,7 @@ class _CompletionText(str):
 @dataclass
 class _Budget:
     max_requests: int
-    max_output_tokens_total: int
+    max_output_tokens_total: int | None
     requests: int = 0
     output_tokens: int = 0
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -165,7 +165,10 @@ class _Budget:
     def add_output(self, count: int) -> None:
         with self.lock:
             self.output_tokens += max(0, count)
-            if self.output_tokens > self.max_output_tokens_total:
+            if (
+                self.max_output_tokens_total is not None
+                and self.output_tokens > self.max_output_tokens_total
+            ):
                 raise BudgetExceeded("teacher output-token budget exhausted")
 
 
@@ -192,15 +195,18 @@ class CompatibleTeacher:
     timeout_seconds: float = 600.0
     max_retries: int = 1
     temperature: float = 0.2
-    max_tokens: int = 4096
+    max_tokens: int | None = 4096
     thinking_enabled: bool = True
     thinking_effort: ThinkingEffort = "medium"
     thinking_budget_tokens: int = 1024
+    responses_thinking_policy: Literal["unspecified", "explicit_disabled"] = (
+        "unspecified"
+    )
     stream_openai: bool = True
     stream_options_include_usage: bool = False
     wall_clock_deadline_seconds: float = 900.0
     max_requests: int = 4100
-    max_output_tokens_total: int = 12_500_000
+    max_output_tokens_total: int | None = 12_500_000
     provider_preset: str = "legacy-kimi-code"
     model_source: str = "legacy_config"
     discovery_status: str = "skipped"
@@ -224,10 +230,20 @@ class CompatibleTeacher:
         )
         if (
             self.max_requests < 1
-            or self.max_output_tokens_total < 1
-            or self.max_tokens < 1
+            or (
+                self.max_output_tokens_total is not None
+                and self.max_output_tokens_total < 1
+            )
+            or (self.max_tokens is not None and self.max_tokens < 1)
         ):
             raise ValueError("teacher budgets must be positive")
+        if self.max_tokens is None and (
+            self.protocol != "openai_responses"
+            or self.fallback_protocol not in (None, "openai_responses")
+        ):
+            raise ValueError(
+                "an omitted per-request output limit requires Responses protocol"
+            )
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
         if self.wall_clock_deadline_seconds <= 0:
@@ -238,10 +254,19 @@ class CompatibleTeacher:
             raise ValueError(
                 f"thinking_effort must be one of {sorted(THINKING_EFFORTS)}"
             )
+        if self.responses_thinking_policy == "explicit_disabled" and (
+            self.thinking_enabled
+            or self.protocol != "openai_responses"
+            or self.fallback_protocol not in (None, "openai_responses")
+        ):
+            raise ValueError(
+                "explicit Responses thinking disable requires non-thinking Responses"
+            )
         uses_anthropic = (
             self.protocol == "anthropic" or self.fallback_protocol == "anthropic"
         )
         if self.thinking_enabled and uses_anthropic:
+            assert self.max_tokens is not None
             if self.thinking_budget_tokens < 1024:
                 raise ValueError("thinking_budget_tokens must be at least 1024")
             if self.max_tokens <= self.thinking_budget_tokens:
@@ -265,6 +290,8 @@ class CompatibleTeacher:
             "thinking_enabled": self.thinking_enabled,
             "thinking_effort": self.thinking_effort,
             "thinking_budget_tokens": self.thinking_budget_tokens,
+            "thinking_budget_applied": self.thinking_enabled,
+            "responses_thinking_policy": self.responses_thinking_policy,
             "stream_openai": self.stream_openai,
             "stream_options_include_usage": self.stream_options_include_usage,
             "wall_clock_deadline_seconds": self.wall_clock_deadline_seconds,
@@ -303,20 +330,25 @@ class CompatibleTeacher:
             }
 
     def limit_remaining_budget(
-        self, *, max_requests: int, max_output_tokens: int
+        self, *, max_requests: int, max_output_tokens: int | None
     ) -> None:
         """Apply a persisted scheduler's remaining budget to a fresh client."""
 
-        if max_requests < 0 or max_output_tokens < 0:
+        if max_requests < 0 or (
+            max_output_tokens is not None and max_output_tokens < 0
+        ):
             raise ValueError("remaining budgets cannot be negative")
         with self._budget.lock:
             if self._budget.requests or self._budget.output_tokens:
                 raise RuntimeError("remaining budget must be set before teacher use")
             self._budget.max_requests = min(self._budget.max_requests, max_requests)
-            self._budget.max_output_tokens_total = min(
-                self._budget.max_output_tokens_total,
-                max_output_tokens,
-            )
+            if max_output_tokens is not None:
+                current = self._budget.max_output_tokens_total
+                self._budget.max_output_tokens_total = (
+                    max_output_tokens
+                    if current is None
+                    else min(current, max_output_tokens)
+                )
 
     @property
     def usage_budget_id(self) -> int:
@@ -356,12 +388,15 @@ class CompatibleTeacher:
     async def probe(self) -> str:
         """One minimal protocol/authentication probe, preserving Thinking mode."""
 
+        configured_max_tokens = self.max_tokens or 4096
         primary_protocol = self.protocol
         primary_base_url = self.base_url
         fallback_protocol = self.fallback_protocol
         fallback_base_url = self.fallback_base_url
-        if self.thinking_enabled and primary_protocol == "anthropic":
-            probe_tokens = min(self.max_tokens, self.thinking_budget_tokens + 1)
+        if self.max_tokens is None and primary_protocol == "openai_responses":
+            probe_tokens = None
+        elif self.thinking_enabled and primary_protocol == "anthropic":
+            probe_tokens = min(configured_max_tokens, self.thinking_budget_tokens + 1)
         elif self.thinking_enabled and primary_protocol in {
             "openai",
             "openai_responses",
@@ -370,9 +405,9 @@ class CompatibleTeacher:
             # tokens entirely on a non-public reasoning field. A 32-token cap
             # can therefore authenticate successfully yet produce no final
             # content, which is a false-negative protocol probe.
-            probe_tokens = min(4096, self.max_tokens)
+            probe_tokens = min(4096, configured_max_tokens)
         else:
-            probe_tokens = min(32, self.max_tokens)
+            probe_tokens = min(32, configured_max_tokens)
         try:
             return await self._with_retries(
                 primary_protocol,
@@ -388,12 +423,16 @@ class CompatibleTeacher:
                 or not _is_explicit_compatibility_error(error)
             ):
                 raise TeacherError(_redact(str(error))) from None
-            if self.thinking_enabled and fallback_protocol == "anthropic":
-                fallback_tokens = min(self.max_tokens, self.thinking_budget_tokens + 1)
+            if self.max_tokens is None and fallback_protocol == "openai_responses":
+                fallback_tokens = None
+            elif self.thinking_enabled and fallback_protocol == "anthropic":
+                fallback_tokens = min(
+                    configured_max_tokens, self.thinking_budget_tokens + 1
+                )
             elif self.thinking_enabled:
-                fallback_tokens = min(4096, self.max_tokens)
+                fallback_tokens = min(4096, configured_max_tokens)
             else:
-                fallback_tokens = min(32, self.max_tokens)
+                fallback_tokens = min(32, configured_max_tokens)
             result = await self._with_retries(
                 fallback_protocol,
                 fallback_base_url,
@@ -417,7 +456,7 @@ class CompatibleTeacher:
         base_url: str,
         system: str,
         user: str,
-        max_tokens: int,
+        max_tokens: int | None,
         idempotency_key: str | None = None,
     ) -> str:
         last_error: Exception | None = None
@@ -521,7 +560,7 @@ class CompatibleTeacher:
         base_url: str,
         system: str,
         user: str,
-        max_tokens: int,
+        max_tokens: int | None,
         idempotency_key: str | None = None,
     ) -> str:
         if self.credential_provider is not None:
@@ -544,6 +583,7 @@ class CompatibleTeacher:
                 )
         self._budget.reserve_request()
         if protocol == "anthropic":
+            assert max_tokens is not None
             endpoint = _anthropic_endpoint(base_url)
             payload = {
                 "model": self.model,
@@ -569,6 +609,7 @@ class CompatibleTeacher:
                 "User-Agent": self.user_agent,
             }
         elif protocol == "openai":
+            assert max_tokens is not None
             endpoint = _openai_endpoint(base_url)
             payload = {
                 "model": self.model,
@@ -600,14 +641,17 @@ class CompatibleTeacher:
                 "model": self.model,
                 "instructions": system,
                 "input": user,
-                "max_output_tokens": max_tokens,
                 "stream": self.stream_openai,
                 "store": False,
             }
+            if max_tokens is not None:
+                payload["max_output_tokens"] = max_tokens
             if self.thinking_enabled:
                 payload["reasoning"] = {"effort": self.thinking_effort}
             else:
                 payload["temperature"] = self.temperature
+                if self.responses_thinking_policy == "explicit_disabled":
+                    payload["thinking"] = {"type": "disabled"}
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
@@ -966,6 +1010,12 @@ _RESPONSES_DEADLINE_CODES = frozenset(
         "timeout",
     }
 )
+_RESPONSES_INCOMPLETE_REASON_CODES = frozenset(
+    {
+        "content_filter",
+        "max_output_tokens",
+    }
+)
 _SAFE_RESPONSE_METADATA = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
 _SECRET_LIKE_METADATA = re.compile(
     r"(?:sk|key)-[A-Za-z0-9_-]{8,}|ark-[A-Za-z0-9][A-Za-z0-9_-]{20,127}",
@@ -1061,6 +1111,14 @@ def _safe_responses_error_markers(
     if isinstance(error, Mapping):
         sources.append((error, ("code", "type")))
     sources.append((value, ("code",)))
+    incomplete_details = value.get("incomplete_details")
+    if isinstance(incomplete_details, Mapping):
+        reason = incomplete_details.get("reason")
+        if (
+            isinstance(reason, str)
+            and reason.casefold() in _RESPONSES_INCOMPLETE_REASON_CODES
+        ):
+            sources.append((incomplete_details, ("reason",)))
     result: list[str] = []
     for source, keys in sources:
         for key in keys:

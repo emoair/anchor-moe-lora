@@ -59,6 +59,68 @@ def _runtime_slots() -> batch.RuntimeSecretSlots:
     )
 
 
+def test_live_teachers_use_unbounded_non_streaming_responses() -> None:
+    config = batch.load_config(PROFILE_PATHS["smoke_exact1"])
+    slots = _runtime_slots()
+    try:
+        teachers = batch.build_teachers(config, slots)
+        assert teachers
+        assert all(teacher.stream_openai is False for teacher in teachers.values())
+        assert all(teacher.max_tokens is None for teacher in teachers.values())
+        assert all(
+            teacher.max_output_tokens_total is None for teacher in teachers.values()
+        )
+        assert all(
+            teacher.responses_thinking_policy == "explicit_disabled"
+            for teacher in teachers.values()
+        )
+    finally:
+        slots.close()
+
+
+def test_failure_attempts_keep_only_body_free_retry_reason_codes() -> None:
+    class _FailedTeacher:
+        @property
+        def provider_provenance(self) -> dict[str, Any]:
+            return {
+                "attempts": {
+                    "wire_attempts": 1,
+                    "retry_count": 0,
+                    "retry_reasons": [
+                        "responses_stream_ended_before_completed",
+                        "untrusted provider prose",
+                        7,
+                    ],
+                }
+            }
+
+    assert batch._safe_attempts_after_failure(_FailedTeacher()) == {
+        "wire_attempts": 1,
+        "retry_count": 0,
+        "retry_reasons": [],
+    }
+    assert (
+        batch._body_free_provider_failure_reason(
+            TeacherError("provider prose must not be retained"), _FailedTeacher()
+        )
+        == "responses_stream_ended_before_completed"
+    )
+
+    class _NoAttemptTeacher:
+        provider_provenance: dict[str, Any] = {}
+
+    assert (
+        batch._body_free_provider_failure_reason(
+            TeacherError(
+                "teacher Responses API terminal failure "
+                "(status=failed; code=server_error)"
+            ),
+            _NoAttemptTeacher(),
+        )
+        == "provider_responses_terminal_failed_server_error"
+    )
+
+
 def _canonical(value: Any) -> bytes:
     return json.dumps(
         value,

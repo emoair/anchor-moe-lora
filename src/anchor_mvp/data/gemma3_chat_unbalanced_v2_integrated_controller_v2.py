@@ -267,6 +267,16 @@ def _load_base_controller(
         reason="integrated_base_batch_identity_drift",
     )
     snapshots["base_batch_implementation"] = batch_snapshot
+    teacher_path = _repo_file(
+        value["teacher_implementation_path"],
+        reason="integrated_base_teacher_path_invalid",
+    )
+    teacher_snapshot = _snapshot_file(
+        teacher_path,
+        expected_sha256=str(value["teacher_implementation_sha256"]),
+        reason="integrated_base_teacher_identity_drift",
+    )
+    snapshots["base_teacher_implementation"] = teacher_snapshot
 
     if (
         value.get("schema_version") != base.SCHEMA_VERSION
@@ -312,6 +322,8 @@ def _load_base_controller(
         controller_implementation_sha256=implementation_snapshot.sha256,
         batch_implementation_path=batch_path,
         batch_implementation_sha256=batch_snapshot.sha256,
+        teacher_implementation_path=teacher_path,
+        teacher_implementation_sha256=teacher_snapshot.sha256,
         consumer_release_binding=dict(value["consumer_release_binding"]),
         controller_runtime=dict(value["controller_runtime"]),
         wal=dict(value["wal"]),
@@ -865,6 +877,9 @@ class IntegratedSingleProcessController(base.SingleProcessController):
                     ),
                     "batch_implementation": (
                         self.integrated.base_controller.batch_implementation_sha256
+                    ),
+                    "teacher_implementation": (
+                        self.integrated.base_controller.teacher_implementation_sha256
                     ),
                     "teacher_finalizer_config": (
                         self.integrated.teacher_finalizer["config_sha256"]

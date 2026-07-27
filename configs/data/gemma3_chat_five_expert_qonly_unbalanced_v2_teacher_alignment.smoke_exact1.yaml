@@ -71,6 +71,7 @@ output:
 
 contracts:
   prompt_version: unbalanced-v2-ark-final-only-v1
+  teacher_implementation_path: src/anchor_mvp/data/teacher.py
   profile_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_profile.schema.json
   source_manifest_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_manifest.schema.json
   source_approval_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_approval.schema.json
@@ -95,7 +96,7 @@ limits:
   max_input_tokens_per_request: 8192
   max_requests: 1
   max_input_tokens_total: 8192
-  max_output_tokens_total: 256
+  max_output_tokens_total: null
   cost_basis: subscription_quota_wire_request
   max_cost_units: 1
   max_smoke_jobs: 32

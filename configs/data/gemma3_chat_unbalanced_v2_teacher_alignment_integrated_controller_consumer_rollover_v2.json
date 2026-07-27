@@ -2,16 +2,16 @@
   "schema_version": "anchor.gemma3-chat-unbalanced-v2-teacher-alignment-integrated-controller.config.v2",
   "controller_id": "gemma3-chat-unbalanced-v2-glm-integrated-controller-v2",
   "controller_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_consumer_rollover_v2.schema.json",
-  "controller_schema_sha256": "05bd526428678546689fbf6bc2adb63c0e3dc0578ba34467f14ed26a7fce5b8e",
+  "controller_schema_sha256": "2c9c852823cba7bb853a99329ab95057a0049475e26dfcd0fe27f88aedbe3597",
   "controller_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_integrated_controller_v2.py",
-  "controller_implementation_sha256": "b5be563ec7fe3729d05d7429c3053271d6e261d1dee2d4f3543c8338605aa821",
+  "controller_implementation_sha256": "1a6d20274ecb9867309ec1f07140a38e11da1a0945a6daf13134ee6fb9b6aa14",
   "base_controller": {
     "config_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.v1.json",
-    "config_sha256": "244ec05765c24504df74f988a63d0eadea4b6783a1b2fdc6ba2407c9b6518e08",
+    "config_sha256": "32038fa29a89825f7e9bd314c062874247f0d934952b2c0f55a7355175820f7b",
     "schema_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json",
-    "schema_sha256": "5613ad98972f3eae604fd518d6bcb73c514b57f24135f331d0c1edf4575d6b39",
+    "schema_sha256": "4a9c0458a3266c60d7ea5ddacedbe5112438f6a6299ae4a426be9c1b248b172f",
     "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py",
-    "implementation_sha256": "9de21660ae2b8537ff0bba766caa58e7edf3aca0177dee89ff349d6718d890cb",
+    "implementation_sha256": "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595",
     "ancestor_commit": "adfa03e225441f010e80f3b2010aec5484a5a90b"
   },
   "teacher_finalizer": {

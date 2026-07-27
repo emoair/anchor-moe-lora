@@ -68,10 +68,46 @@ PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
 BASE_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
 MODEL = "glm-5-2-260617"
+REQUEST_POLICY = {
+    "schema_version": f"{NAMESPACE}.ark-responses-request-policy.v2",
+    "provider": PROVIDER_PRESET,
+    "protocol": PROTOCOL,
+    "base_url": BASE_URL,
+    "model": MODEL,
+    "thinking_wire_policy": "explicit_disabled",
+    "temperature": 0.2,
+    "max_output_tokens": "omitted_provider_intrinsic_only",
+    "stream": False,
+    "store": False,
+}
 CREDENTIAL_SOURCE = "controller_memory_slot"
 CREDENTIAL_SLOT = "ark_coding_api_key"
 CREDENTIAL_INJECTION = "anonymous_stdin_or_process_channel"
 HMAC_KEY_SOURCE = "runtime_random_controller_memory"
+SAFE_PROVIDER_RETRY_REASON_CODES = frozenset(
+    {
+        "responses_stream_ended_before_completed",
+        "sse_stream_ended_before_done",
+        "sse_stream_read_interrupted",
+        "incomplete_read",
+        "remote_disconnected",
+        "transport_timeout",
+        "url_error",
+        "connection_interrupted",
+        "transport_os_error",
+        "http_408",
+        "http_499",
+        "http_500",
+        "http_502",
+        "http_503",
+        "http_504",
+        "http_520",
+        "http_521",
+        "http_522",
+        "http_523",
+        "http_524",
+    }
+)
 
 EXPECTED_PARTITION_COUNTS = {"train": 3440, "router_train": 80}
 EXPECTED_FORBIDDEN_COUNTS = {
@@ -219,15 +255,6 @@ IDENTITY_CLASSES = (
     "false_google_attribution",
     "false_openai_attribution",
 )
-ROLE_MAX_OUTPUT_TOKENS = {
-    "humor": 768,
-    "serious": 768,
-    "angry": 768,
-    "tool": 1024,
-    "review": 1024,
-    "router": 512,
-    "identity": 256,
-}
 ROLE_SCHEMA_IDS = {
     "humor": "natural-text-v1",
     "serious": "natural-text-v1",
@@ -463,6 +490,7 @@ _CONTRACT_FIELDS = frozenset(
         "heldout_receipt_schema_path",
         "status_schema_path",
         "derived_planner_overlay_schema_path",
+        "teacher_implementation_path",
     }
 )
 _LIMIT_FIELDS = frozenset(
@@ -659,7 +687,7 @@ class ProfileLimits:
     max_input_tokens_per_request: int
     max_requests: int
     max_input_tokens_total: int
-    max_output_tokens_total: int
+    max_output_tokens_total: int | None
     cost_basis: str
     max_cost_units: int
     max_smoke_jobs: int
@@ -1625,10 +1653,14 @@ def load_config(path: str | Path) -> AdapterConfig:
             reason="max_input_tokens_total_invalid",
             maximum=100000000000,
         ),
-        max_output_tokens_total=_positive_int(
-            limit_value["max_output_tokens_total"],
-            reason="max_output_tokens_total_invalid",
-            maximum=100000000000,
+        max_output_tokens_total=(
+            None
+            if limit_value["max_output_tokens_total"] is None
+            else _positive_int(
+                limit_value["max_output_tokens_total"],
+                reason="max_output_tokens_total_invalid",
+                maximum=100000000000,
+            )
         ),
         cost_basis=_safe_text(
             limit_value["cost_basis"],
@@ -1732,6 +1764,7 @@ def load_config(path: str | Path) -> AdapterConfig:
             "prompt_version": PROMPT_VERSION,
             "hashes": contract_hashes,
             "derived_planner_dag": PLANNER_DAG_CONTRACT,
+            "request_policy": REQUEST_POLICY,
         },
     }
     model_binding = {
@@ -1783,7 +1816,7 @@ def _validate_locked_profile(
             "cooldown_seconds": 7200,
             "max_requests": 1,
             "max_input_tokens_total": 8192,
-            "max_output_tokens_total": 256,
+            "max_output_tokens_total": None,
             "max_cost_units": 1,
             "group_commit_size": 1,
         },
@@ -1797,7 +1830,7 @@ def _validate_locked_profile(
             "cooldown_seconds": 7200,
             "max_requests": 15,
             "max_input_tokens_total": 122880,
-            "max_output_tokens_total": 15360,
+            "max_output_tokens_total": None,
             "max_cost_units": 15,
             "group_commit_size": 1,
         },
@@ -1811,7 +1844,7 @@ def _validate_locked_profile(
             "cooldown_seconds": 7200,
             "max_requests": 7025,
             "max_input_tokens_total": 57548800,
-            "max_output_tokens_total": 7193600,
+            "max_output_tokens_total": None,
             "max_cost_units": 7025,
             "group_commit_size": 30,
         },
@@ -1825,7 +1858,7 @@ def _validate_locked_profile(
             "cooldown_seconds": 7200,
             "max_requests": 7025,
             "max_input_tokens_total": 57548800,
-            "max_output_tokens_total": 7193600,
+            "max_output_tokens_total": None,
             "max_cost_units": 7025,
             "group_commit_size": 16,
         },
@@ -3895,6 +3928,8 @@ def derive_jobs(
             "prompt_template_sha256": template_sha,
             "output_schema_id": source.teacher_contract["output_schema_id"],
             "output_schema_sha256": output_schema_sha,
+            "campaign_sha256": config.campaign_sha256,
+            "request_policy_sha256": _hash_object(REQUEST_POLICY),
         }
         idempotency_key = _hash_object(identity)
         if idempotency_key in seen:
@@ -4512,6 +4547,9 @@ class BatchState:
             ),
             "model_binding_sha256": self.config.model_binding_sha256,
             "implementation_sha256": self.config.implementation_sha256,
+            "teacher_implementation_sha256": self.config.contract_hashes[
+                "teacher_implementation_path"
+            ],
             "prompt_version": PROMPT_VERSION,
         }
         if any(binding.get(name) != value for name, value in expected.items()):
@@ -4787,6 +4825,9 @@ class BatchState:
             ),
             "model_binding_sha256": self.config.model_binding_sha256,
             "implementation_sha256": self.config.implementation_sha256,
+            "teacher_implementation_sha256": self.config.contract_hashes[
+                "teacher_implementation_path"
+            ],
             "prompt_version": PROMPT_VERSION,
             "profile_id": self.config.profile_id,
             "profile_sha256": self.config.physical_sha256,
@@ -4801,7 +4842,7 @@ class BatchState:
             "input_tokens": (
                 self.config.limits.max_input_tokens_per_request * max_attempts
             ),
-            "output_tokens": ROLE_MAX_OUTPUT_TOKENS[job.source.role] * max_attempts,
+            "output_tokens": 0,
             "cost_units": max_attempts,
         }
         async with self._budget_lock:
@@ -4818,7 +4859,6 @@ class BatchState:
             caps = {
                 "requests": self.config.limits.max_requests,
                 "input_tokens": self.config.limits.max_input_tokens_total,
-                "output_tokens": self.config.limits.max_output_tokens_total,
                 "cost_units": self.config.limits.max_cost_units,
             }
             if any(totals[name] + reservation[name] > caps[name] for name in caps):
@@ -5590,12 +5630,12 @@ class BatchRunner:
                 attempts=_safe_attempts_after_failure(teacher),
             )
             raise
-        except (ClientDeadlineExceeded, BudgetExceeded, TeacherError):
+        except (ClientDeadlineExceeded, BudgetExceeded, TeacherError) as error:
             await self.state.append_event(
                 job=job,
                 phase=phase,
                 state="uncertain",
-                reason_code="provider_outcome_uncertain",
+                reason_code=_body_free_provider_failure_reason(error, teacher),
                 attempts=_safe_attempts_after_failure(teacher),
             )
             raise
@@ -5759,21 +5799,87 @@ def _safe_attempts_after_failure(teacher: BatchTeacher) -> dict[str, Any]:
         return {"wire_attempts": 1, "retry_count": 0, "retry_reasons": []}
     wire = attempts.get("wire_attempts")
     retry = attempts.get("retry_count")
+    retry_count = (
+        retry
+        if isinstance(retry, int) and not isinstance(retry, bool) and 0 <= retry <= 2
+        else 0
+    )
     return {
         "wire_attempts": (
             wire
             if isinstance(wire, int) and not isinstance(wire, bool) and 1 <= wire <= 3
             else 1
         ),
-        "retry_count": (
-            retry
-            if isinstance(retry, int)
-            and not isinstance(retry, bool)
-            and 0 <= retry <= 2
-            else 0
-        ),
-        "retry_reasons": [],
+        "retry_count": retry_count,
+        "retry_reasons": _safe_provider_failure_reasons(teacher)[:retry_count],
     }
+
+
+def _safe_provider_failure_reasons(teacher: BatchTeacher) -> list[str]:
+    provenance = teacher.provider_provenance
+    attempts = provenance.get("attempts") if isinstance(provenance, Mapping) else None
+    raw_reasons = (
+        attempts.get("retry_reasons") if isinstance(attempts, Mapping) else None
+    )
+    return (
+        [
+            reason
+            for reason in raw_reasons
+            if isinstance(reason, str) and reason in SAFE_PROVIDER_RETRY_REASON_CODES
+        ]
+        if isinstance(raw_reasons, list)
+        else []
+    )
+
+
+def _body_free_provider_failure_reason(
+    error: BaseException, teacher: BatchTeacher
+) -> str:
+    reasons = _safe_provider_failure_reasons(teacher)
+    if reasons:
+        return str(reasons[-1])
+    if isinstance(error, ClientDeadlineExceeded):
+        return "provider_client_deadline_exceeded"
+    if isinstance(error, BudgetExceeded):
+        return "provider_budget_exceeded"
+    status = getattr(error, "status", None)
+    if (
+        isinstance(status, int)
+        and not isinstance(status, bool)
+        and 100 <= status <= 599
+    ):
+        return f"provider_http_{status}"
+    message = str(error)
+    exact = {
+        "teacher response was not valid JSON": "provider_response_invalid_json",
+        "unexpected teacher response schema": "provider_response_schema_invalid",
+        "teacher returned no text content": "provider_response_text_missing",
+        "teacher Responses API returned no final text content": (
+            "provider_responses_final_text_missing"
+        ),
+        "teacher Responses API returned tool output without declared tools": (
+            "provider_undeclared_tool_output"
+        ),
+        "teacher response contained current credential": "provider_credential_echo_rejected",
+    }
+    if message in exact:
+        return exact[message]
+    terminal = re.fullmatch(
+        (
+            r"teacher Responses API terminal failure "
+            r"\(status=([A-Za-z0-9_.:-]{1,32}); "
+            r"code=([A-Za-z0-9_.:-]{1,128})\)"
+        ),
+        message,
+    )
+    if terminal is not None:
+        status, code = (part.casefold() for part in terminal.groups())
+        reason = f"provider_responses_terminal_{status}_{code}"
+        if len(reason) <= 96:
+            return reason
+        code_digest = hashlib.sha256(code.encode("ascii")).hexdigest()[:12]
+        return f"provider_responses_terminal_{status}_code_sha256_{code_digest}"
+    return "provider_outcome_uncertain"
 
 
 def build_teachers(
@@ -5795,11 +5901,18 @@ def build_teachers(
             wall_clock_deadline_seconds=config.limits.wall_clock_deadline_seconds,
             max_retries=config.limits.max_retries,
             temperature=0.2,
-            max_tokens=ROLE_MAX_OUTPUT_TOKENS[role],
+            # Omit max_output_tokens from Ark Responses requests. The provider's
+            # intrinsic model/context ceiling is the only output-length bound.
+            max_tokens=None,
             thinking_enabled=False,
             thinking_effort="low",
-            thinking_budget_tokens=1024,
-            stream_openai=True,
+            thinking_budget_tokens=0,
+            responses_thinking_policy="explicit_disabled",
+            # The Ark coding Responses endpoint intermittently terminated SSE
+            # before response.completed.  A non-streaming Responses request
+            # preserves the one-request/idempotency contract without replaying
+            # an outcome that may already have been billed.
+            stream_openai=False,
             stream_options_include_usage=False,
             max_requests=config.limits.max_requests,
             max_output_tokens_total=config.limits.max_output_tokens_total,
@@ -5874,7 +5987,8 @@ def public_dry_run(config: AdapterConfig) -> dict[str, Any]:
             "max_output_tokens_total": config.limits.max_output_tokens_total,
             "cost_basis": config.limits.cost_basis,
             "max_cost_units": config.limits.max_cost_units,
-            "role_output_caps": dict(ROLE_MAX_OUTPUT_TOKENS),
+            "output_token_limit_mode": "provider_intrinsic_only",
+            "role_output_caps": None,
         },
         "ramp": {
             "required_order": ["smoke_exact1", "bounded_small", "bulk"],

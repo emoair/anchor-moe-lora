@@ -694,6 +694,90 @@ def test_openai_thinking_off_sends_temperature(monkeypatch) -> None:
     assert "reasoning_effort" not in captured["body"]
 
 
+def test_openai_responses_thinking_off_is_explicit(monkeypatch) -> None:
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            {
+                "id": "resp_thinking_disabled",
+                "status": "completed",
+                "output_text": "{}",
+                "usage": {"output_tokens": 1},
+            }
+        )
+
+    monkeypatch.setenv("ARK_TEST_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="ark-model-id",
+        protocol="openai_responses",
+        fallback_protocol=None,
+        api_key_env="ARK_TEST_KEY",
+        thinking_enabled=False,
+        stream_openai=False,
+        max_retries=0,
+        max_tokens=None,
+        max_output_tokens_total=None,
+        responses_thinking_policy="explicit_disabled",
+    )
+    assert (
+        teacher._request_sync(
+            "openai_responses", teacher.base_url, "system", "user", None
+        )
+        == "{}"
+    )
+    assert captured["body"]["thinking"] == {"type": "disabled"}
+    assert captured["body"]["temperature"] == 0.2
+    assert "reasoning" not in captured["body"]
+    assert "max_output_tokens" not in captured["body"]
+    assert teacher.usage_snapshot == {"requests": 1, "output_tokens": 1}
+
+
+def test_openai_responses_probe_keeps_output_limit_omitted(monkeypatch) -> None:
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["body"] = json.loads(request.data)
+        captured["timeout"] = timeout
+        return _Response(
+            {
+                "id": "resp_probe",
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": '{"ok":true}'}],
+                    }
+                ],
+                "usage": {"output_tokens": 1},
+            }
+        )
+
+    monkeypatch.setenv("ARK_TEST_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="ark-model-id",
+        protocol="openai_responses",
+        fallback_protocol=None,
+        api_key_env="ARK_TEST_KEY",
+        thinking_enabled=False,
+        stream_openai=False,
+        max_retries=0,
+        max_tokens=None,
+        max_output_tokens_total=None,
+        responses_thinking_policy="explicit_disabled",
+    )
+    assert asyncio.run(teacher.probe()) == '{"ok":true}'
+    assert captured["url"].endswith("/responses")
+    assert captured["body"]["thinking"] == {"type": "disabled"}
+    assert "max_output_tokens" not in captured["body"]
+
+
 def test_probe_latches_openai_fallback(monkeypatch) -> None:
     teacher = CompatibleTeacher(max_retries=0)
 
@@ -974,6 +1058,28 @@ def test_openai_responses_nonstream_rejects_failure_terminal_status_without_leak
             },
             "incomplete",
             "output_limit",
+        ),
+        (
+            {
+                "type": "response.incomplete",
+                "response": {
+                    "status": "incomplete",
+                    "incomplete_details": {"reason": "max_output_tokens"},
+                },
+            },
+            "incomplete",
+            "max_output_tokens",
+        ),
+        (
+            {
+                "type": "response.incomplete",
+                "response": {
+                    "status": "incomplete",
+                    "incomplete_details": {"reason": "content_filter"},
+                },
+            },
+            "incomplete",
+            "content_filter",
         ),
         (
             {

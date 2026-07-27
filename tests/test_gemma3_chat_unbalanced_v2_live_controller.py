@@ -86,6 +86,7 @@ def _state(
     binding = {
         "controller_config_sha256": "1" * 64,
         "controller_implementation_sha256": "2" * 64,
+        "teacher_implementation_sha256": "4" * 64,
         "source_identity_sha256": inventory.source_identity_sha256,
         "manifest_sha256": inventory.manifest_sha256,
         "protected_test_identity_sha256": (inventory.readonly_test_identity_sha256),
@@ -394,6 +395,30 @@ def test_immutable_wal_detects_event_mutation_and_hmac_rotation(
     other_slots.close()
 
 
+def test_wal_entry_directly_binds_teacher_implementation(tmp_path: Path) -> None:
+    slots = _runtime_slots()
+    state, _ = _state(tmp_path, slots)
+    asyncio.run(_append_dispatch(state, _job()))
+    entry_path = state._entry_paths()[0]
+    value = json.loads(entry_path.read_text(encoding="utf-8"))
+    assert (
+        value["teacher_implementation_sha256"]
+        == state.controller_binding["teacher_implementation_sha256"]
+    )
+    value["teacher_implementation_sha256"] = "0" * 64
+    resigned = state._signed_value(
+        {name: item for name, item in value.items() if name != "hmac_sha256"}
+    )
+    entry_path.write_text(
+        json.dumps(resigned, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(batch.AdapterError) as captured:
+        state.authenticate_authority()
+    assert captured.value.reason_code == "controller_wal_entry_identity_drift"
+    slots.close()
+
+
 def test_group_prepare_terminal_cross_binding_rejects_group_mutation(
     tmp_path: Path,
 ) -> None:
@@ -486,6 +511,7 @@ def test_signed_multi_event_cooldown_ignores_status_and_detects_wal_tamper(
     binding = {
         "controller_config_sha256": "1" * 64,
         "controller_implementation_sha256": "2" * 64,
+        "teacher_implementation_sha256": "4" * 64,
         "source_identity_sha256": inventory.source_identity_sha256,
         "manifest_sha256": inventory.manifest_sha256,
         "protected_test_identity_sha256": (inventory.readonly_test_identity_sha256),
@@ -605,6 +631,35 @@ def test_controller_implementation_drift_blocks_before_consumer_or_git(
     assert controller.main(["--dry-run"]) == 2
     captured = capsys.readouterr()
     assert "controller_implementation_hash_drift" in captured.out
+    assert calls == {"consumer": 0, "git": 0}
+
+
+def test_teacher_implementation_drift_blocks_before_consumer_or_git(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    original_read = controller._stable_read
+    calls = {"consumer": 0, "git": 0}
+
+    def drift(path: Path, *, reason: str) -> bytes:
+        raw = original_read(path, reason=reason)
+        if path.resolve().name == "teacher.py":
+            return raw + b"\n# authenticated-drift-test\n"
+        return raw
+
+    def consumer_call(*_: Any, **__: Any) -> None:
+        calls["consumer"] += 1
+
+    def git_call(*_: Any, **__: Any) -> Any:
+        calls["git"] += 1
+        raise AssertionError("git must not run before teacher authentication")
+
+    monkeypatch.setattr(controller, "_stable_read", drift)
+    monkeypatch.setattr(controller, "validate_consumer_release_binding", consumer_call)
+    monkeypatch.setattr(controller.subprocess, "run", git_call)
+    assert controller.main(["--dry-run"]) == 2
+    captured = capsys.readouterr()
+    assert "controller_teacher_implementation_drift" in captured.out
     assert calls == {"consumer": 0, "git": 0}
 
 

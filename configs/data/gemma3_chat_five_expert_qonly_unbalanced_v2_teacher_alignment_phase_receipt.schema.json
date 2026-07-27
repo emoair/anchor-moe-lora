@@ -56,6 +56,7 @@
         "derived_planner_overlay_schema_sha256",
         "model_binding_sha256",
         "implementation_sha256",
+        "teacher_implementation_sha256",
         "prompt_version",
         "profile_id",
         "profile_sha256"
@@ -71,6 +72,7 @@
         },
         "model_binding_sha256": {"$ref": "#/$defs/sha256"},
         "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "teacher_implementation_sha256": {"$ref": "#/$defs/sha256"},
         "prompt_version": {"const": "unbalanced-v2-ark-final-only-v1"},
         "profile_id": {
           "enum": [
