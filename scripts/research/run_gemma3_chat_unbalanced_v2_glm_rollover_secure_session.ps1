@@ -128,6 +128,28 @@ function Convert-AsciiEnvironmentCredential {
     }
 }
 
+function Get-EnvironmentCredential {
+    foreach (
+        $target in @(
+            [System.EnvironmentVariableTarget]::Process,
+            [System.EnvironmentVariableTarget]::User,
+            [System.EnvironmentVariableTarget]::Machine
+        )
+    ) {
+        $value = [System.Environment]::GetEnvironmentVariable(
+            $credentialEnvironmentVariableName,
+            $target
+        )
+        if (-not [string]::IsNullOrEmpty($value)) {
+            return [pscustomobject]@{
+                target = $target.ToString().ToLowerInvariant()
+                value = $value
+            }
+        }
+    }
+    return $null
+}
+
 function New-ControllerStartInfo {
     param(
         [Parameter(Mandatory = $true)]
@@ -310,12 +332,15 @@ try {
     }
     $unexpectedBlockers = @($unexpectedBlockers | Sort-Object -Unique)
     $ready = $unexpectedBlockers.Count -eq 0
-    $environmentCredentialAvailable = -not [string]::IsNullOrEmpty(
-        [System.Environment]::GetEnvironmentVariable(
-            $credentialEnvironmentVariableName,
-            [System.EnvironmentVariableTarget]::Process
-        )
-    )
+    $environmentCredential = Get-EnvironmentCredential
+    $environmentCredentialAvailable = $null -ne $environmentCredential
+    $environmentCredentialScope = if ($environmentCredentialAvailable) {
+        $environmentCredential.target
+    }
+    else {
+        $null
+    }
+    $environmentCredential = $null
     if ($ValidateOnly -or -not $ready) {
         [pscustomobject]@{
             schema_version = "anchor.gemma3-glm-rollover-secure-session.v1"
@@ -327,6 +352,7 @@ try {
             credential_inputs_per_controller = 1
             credential_transport = "anonymous_stdin"
             credential_environment_variable = $credentialEnvironmentVariableName
+            credential_environment_scope = $environmentCredentialScope
             credential_persisted = $false
             cross_process_resume = $false
             output_root_relative = $relativeOutputRoot.Replace("\", "/")
@@ -337,12 +363,9 @@ try {
         exit 2
     }
 
-    $credentialText = [System.Environment]::GetEnvironmentVariable(
-        $credentialEnvironmentVariableName,
-        [System.EnvironmentVariableTarget]::Process
-    )
-    $credentialSource = "process_environment"
-    if ([string]::IsNullOrEmpty($credentialText)) {
+    $environmentCredential = Get-EnvironmentCredential
+    $credentialSource = "secure_prompt"
+    if ($null -eq $environmentCredential) {
         $credentialSource = "secure_prompt"
         $credential = Read-Host `
             -Prompt "Ark API key (one input; memory-only for this controller)" `
@@ -350,11 +373,14 @@ try {
     }
     else {
         try {
+            $credentialSource = (
+                "{0}_environment" -f $environmentCredential.target
+            )
             $credential = Convert-AsciiEnvironmentCredential `
-                -Value $credentialText
+                -Value $environmentCredential.value
         }
         finally {
-            $credentialText = $null
+            $environmentCredential = $null
         }
     }
     try {
