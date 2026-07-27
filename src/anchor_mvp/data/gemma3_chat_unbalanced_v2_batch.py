@@ -62,7 +62,7 @@ PHASE_RECEIPT_SCHEMA_VERSION = f"{NAMESPACE}.phase-receipt.v1"
 EVENT_SCHEMA_VERSION = f"{NAMESPACE}.event.v1"
 STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
-PROMPT_VERSION = "unbalanced-v2-ark-final-only-v6"
+PROMPT_VERSION = "unbalanced-v2-ark-final-only-v7"
 
 PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
@@ -250,6 +250,7 @@ PRODUCER_LOGICAL_IDENTITY = {
 
 ROLES = ("humor", "serious", "angry", "tool", "review", "router", "identity")
 STYLE_NATURAL_TRANSPORT_ROLES = frozenset({"humor", "serious", "angry"})
+ROUTER_TERMINAL_PLAN = ("execute_selected_specialist",)
 LANGUAGES = ("zh-CN", "en")
 IDENTITY_CLASSES = (
     "air_attribution",
@@ -4098,12 +4099,11 @@ def _system_prompt(role: str) -> str:
             raw_json
             + "Perform exactly one global-to-specialist routing decision, then exit. The "
             "object must have exactly the keys route, plan, and stop. route must be one "
-            "allowed option, plan must be a non-empty flat JSON array containing only "
-            "strings, and stop must be true. After selecting route, every plan item must "
-            "describe downstream specialist execution only and must not contain the "
-            "substring route, request another routing decision, use route_to_general, "
-            "delegate back to a router/planner/controller, aggregate, vote, or return to "
-            "general control."
+            "allowed option and stop must be true. plan must be exactly the one-item JSON "
+            f'array ["{ROUTER_TERMINAL_PLAN[0]}"] with no other plan text or item. '
+            "Copy that plan array verbatim; do not paraphrase it. There is no second "
+            "routing, planning, aggregation, voting, or general-control step, and the plan "
+            "must never contain route, route_to_general, router, planner, or controller."
         ),
         "identity": (
             natural_text
@@ -4396,6 +4396,8 @@ def _validate_router_output(source: SourceRecord, value: Any) -> dict[str, Any]:
         raise AdapterError("router_terminal_semantics_invalid")
     if any("route" in item.casefold() for item in plan):
         raise AdapterError("router_recursive_route_rejected")
+    if plan != list(ROUTER_TERMINAL_PLAN):
+        raise AdapterError("router_plan_contract_rejected")
     return {"route": route, "plan": plan, "stop": True}
 
 

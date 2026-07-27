@@ -592,7 +592,13 @@ def _valid_output(source: batch.SourceRecord) -> str:
     if source.role == "review":
         return json.dumps({"verdict": "pass", "faults": [], "correction": None})
     if source.role == "router":
-        return json.dumps({"route": "style", "plan": ["answer"], "stop": True})
+        return json.dumps(
+            {
+                "route": "style",
+                "plan": list(batch.ROUTER_TERMINAL_PLAN),
+                "stop": True,
+            }
+        )
     if source.role == "identity":
         return batch.IDENTITY_OUTPUT_TEMPLATES[source.identity_class]
     if source.role in batch.STYLE_NATURAL_TRANSPORT_ROLES:
@@ -783,7 +789,7 @@ def test_role_validators_accept_contract_outputs(
 
 
 def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
-    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v6"
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v7"
     for role in batch.STYLE_NATURAL_TRANSPORT_ROLES:
         assert batch.ROLE_SCHEMA_IDS[role] == "natural-text-v1"
         prompt = batch._system_prompt(role)
@@ -827,9 +833,14 @@ def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
     assert "arguments must be a JSON object" in tool_prompt
     assert "evidence_ids must be a non-empty JSON array" in tool_prompt
     router_prompt = batch._system_prompt("router")
-    assert "must not contain the substring route" in router_prompt
+    assert (
+        'plan must be exactly the one-item JSON array ["execute_selected_specialist"]'
+        in (router_prompt)
+    )
+    assert "Copy that plan array verbatim" in router_prompt
+    assert "There is no second routing" in router_prompt
     assert "route_to_general" in router_prompt
-    assert "delegate back to a router/planner/controller" in router_prompt
+    assert "router, planner, or controller" in router_prompt
     identity_prompt = batch._system_prompt("identity")
     assert (
         "output that template verbatim with nothing before or after it"
@@ -931,13 +942,28 @@ def test_live_rejection_contracts_remain_closed_and_have_valid_counterparts() ->
     assert batch.validate_teacher_output(
         router,
         json.dumps(
-            {"route": "style", "plan": ["compose specialist answer"], "stop": True}
+            {
+                "route": "style",
+                "plan": list(batch.ROUTER_TERMINAL_PLAN),
+                "stop": True,
+            }
         ),
     )["value"] == {
         "route": "style",
-        "plan": ["compose specialist answer"],
+        "plan": list(batch.ROUTER_TERMINAL_PLAN),
         "stop": True,
     }
+    with pytest.raises(batch.AdapterError, match="router plan contract rejected"):
+        batch.validate_teacher_output(
+            router,
+            json.dumps(
+                {
+                    "route": "style",
+                    "plan": ["compose specialist answer"],
+                    "stop": True,
+                }
+            ),
+        )
 
 
 def test_identity_target_collision_is_allowed_only_after_identity_validation() -> None:
