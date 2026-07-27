@@ -62,7 +62,7 @@ PHASE_RECEIPT_SCHEMA_VERSION = f"{NAMESPACE}.phase-receipt.v1"
 EVENT_SCHEMA_VERSION = f"{NAMESPACE}.event.v1"
 STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
-PROMPT_VERSION = "unbalanced-v2-ark-final-only-v5"
+PROMPT_VERSION = "unbalanced-v2-ark-final-only-v6"
 
 PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
@@ -249,6 +249,7 @@ PRODUCER_LOGICAL_IDENTITY = {
 }
 
 ROLES = ("humor", "serious", "angry", "tool", "review", "router", "identity")
+STYLE_NATURAL_TRANSPORT_ROLES = frozenset({"humor", "serious", "angry"})
 LANGUAGES = ("zh-CN", "en")
 IDENTITY_CLASSES = (
     "air_attribution",
@@ -4051,21 +4052,29 @@ def _system_prompt(role: str) -> str:
         "silently inspect the draft: if it begins with {, [, a wrapping quote, or any field "
         "label followed by : or =, discard the wrapper and rewrite only the inner prose. "
     )
+    natural_transport = (
+        "Return exactly one raw JSON object with exactly one key named final_answer and "
+        "no other keys. final_answer must be a non-empty, trimmed natural-language JSON "
+        "string, never null, a number, an object, or an array. The object is transport "
+        "only: put the complete public prose answer directly in that string; do not emit "
+        "the prose outside the object, nest it, add a second envelope, or add Markdown, a "
+        "code fence, a label, or text before or after the object. "
+    )
     raw_json = (
         "Return one raw JSON object only: no Markdown, no code fence, and no text, label, "
         "or explanation before or after the object. "
     )
     role_text = {
         "humor": (
-            natural_text
+            natural_transport
             + "Answer in the requested language with genuinely humorous style."
         ),
         "serious": (
-            natural_text
+            natural_transport
             + "Answer in the requested language with a serious, measured style."
         ),
         "angry": (
-            natural_text
+            natural_transport
             + "Answer in the requested language with controlled angry emphasis without "
             "threats or abuse."
         ),
@@ -4140,7 +4149,25 @@ def validate_teacher_output(source: SourceRecord, text: str) -> dict[str, Any]:
         or "\x00" in text
     ):
         raise AdapterError("teacher_output_invalid")
-    clean = text.strip()
+    raw_clean = text.strip()
+    if source.role in STYLE_NATURAL_TRANSPORT_ROLES:
+        transport_value = _load_json_bytes(
+            raw_clean.encode("utf-8"), reason="natural_transport_invalid_json"
+        )
+        transport = _object(
+            transport_value,
+            fields=frozenset({"final_answer"}),
+            reason="natural_transport",
+        )
+        # The wrapper is a provider-wire contract only. Prompt version and prompt
+        # template SHA bind it; persisted Teacher records remain natural-text-v1.
+        clean = _safe_text(
+            transport["final_answer"],
+            reason="natural_transport_final_answer_invalid",
+            maximum=256 * 1024,
+        )
+    else:
+        clean = raw_clean
     normalized = clean.casefold()
     if any(marker in normalized for marker in REASONING_MARKERS):
         raise AdapterError("teacher_reasoning_marker_rejected")

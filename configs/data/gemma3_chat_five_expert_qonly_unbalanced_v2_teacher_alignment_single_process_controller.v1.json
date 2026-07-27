@@ -2,11 +2,11 @@
   "schema_version": "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.single-process-controller.config.v1",
   "controller_id": "gemma3-chat-unbalanced-v2-glm-live-controller-v1",
   "controller_schema_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_single_process_controller.schema.json",
-  "controller_schema_sha256": "127dfc31c881545326d9ab0e7f6bf3f866b01fb6791e0bb2a50f4aef6217e912",
+  "controller_schema_sha256": "153acede7650b6891d863657fb534a8c13b0affbcacc79cc2b81b7a013a0b1d1",
   "controller_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py",
   "controller_implementation_sha256": "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595",
   "batch_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py",
-  "batch_implementation_sha256": "77ffd335c992a158f754a7e6807556a16e110b381f2be0cfaa83b5ab7f22bf11",
+  "batch_implementation_sha256": "ee91a49437d9c07044916f92e218a4690393abced27e2e922f021e4995b3d12f",
   "teacher_implementation_path": "src/anchor_mvp/data/teacher.py",
   "teacher_implementation_sha256": "f4e463dc322d8a3618f559b77fda9eff08dbd9e3a03703236b2f9a1bda821d75",
   "consumer_release_binding": {
@@ -43,7 +43,7 @@
   "common_identity": {
     "source_manifest_sha256": "2846a291a1f6db542dd99a55d1056ac9c393680f20c613248d3c5030c4027214",
     "source_approval_sha256": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9",
-    "campaign_sha256": "8b1591d37937f77b38cb03e87fac45eea823076ced08d30c96fdd4470c369594",
+    "campaign_sha256": "5c78d3a2a9346a06d472ad30c6b139c3fc72607905b44d9708c8d42666464ffd",
     "model_binding_sha256": "8eeff6e2c1e06cb0ae5a894faed0a67427604e7828fdda740f6faf60f873fe80",
     "output_root": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001"
   },
@@ -53,28 +53,28 @@
       "phase": "smoke_exact1",
       "profile_id": "smoke_exact1",
       "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.smoke_exact1.yaml",
-      "sha256": "c43e267c9e20d8050bc5192bf7b710f9ca273bd5e2abbcd28aabf3e03af4b8cd"
+      "sha256": "b1de5835aec7276abfcee9d14abef1e617ec2179a26e990ec73d08c752bd5935"
     },
     {
       "stage": "bounded",
       "phase": "bounded_small",
       "profile_id": "bounded_small_c1",
       "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bounded_small_c1.yaml",
-      "sha256": "814d12a0aa616b7ac75fccc9c5fbafb2e12ce26a98f3fd63ba4968d0647eb8e7"
+      "sha256": "28415ae23d94c61ba54f05f0f1248453e7f0eadb67ca17713524e8063ec73b8a"
     },
     {
       "stage": "bulk_primary",
       "phase": "bulk",
       "profile_id": "bulk_c30",
       "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml",
-      "sha256": "aa70b6b8537d03871856068d52acb91a54343276ec100ee40a3153126b214230"
+      "sha256": "279d794952df554e298290fc8ac20ebaa8fd95dfb1786bd04f1da305d2b60899"
     },
     {
       "stage": "bulk_fallback",
       "phase": "bulk",
       "profile_id": "bulk_c16",
       "path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c16.yaml",
-      "sha256": "fe088360bf4058b00688c97d011f0f1aaedbca7a40bf3ec56a2462dc16eeed66"
+      "sha256": "49d028a24270b211cbdf7fca24960ded3b0d15440bd12b2ff8548fa8036e51a3"
     }
   ],
   "lifecycle": {

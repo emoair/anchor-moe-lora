@@ -140,7 +140,7 @@
         "model_binding_sha256": {"$ref": "#/$defs/sha256"},
         "implementation_sha256": {"$ref": "#/$defs/sha256"},
         "teacher_implementation_sha256": {"$ref": "#/$defs/sha256"},
-        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v5"},
+        "prompt_version": {"const": "unbalanced-v2-ark-final-only-v6"},
         "profile_id": {
           "enum": [
             "smoke_exact1",

@@ -595,6 +595,8 @@ def _valid_output(source: batch.SourceRecord) -> str:
         return json.dumps({"route": "style", "plan": ["answer"], "stop": True})
     if source.role == "identity":
         return batch.IDENTITY_OUTPUT_TEMPLATES[source.identity_class]
+    if source.role in batch.STYLE_NATURAL_TRANSPORT_ROLES:
+        return json.dumps({"final_answer": "A concise public final answer."})
     return "A concise public final answer."
 
 
@@ -781,8 +783,18 @@ def test_role_validators_accept_contract_outputs(
 
 
 def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
-    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v5"
-    for role in ("humor", "serious", "angry", "identity"):
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v6"
+    for role in batch.STYLE_NATURAL_TRANSPORT_ROLES:
+        assert batch.ROLE_SCHEMA_IDS[role] == "natural-text-v1"
+        prompt = batch._system_prompt(role)
+        assert "exactly one key named final_answer" in prompt
+        assert "no other keys" in prompt
+        assert "non-empty, trimmed natural-language JSON string" in prompt
+        assert "never null, a number, an object, or an array" in prompt
+        assert "object is transport only" in prompt
+        assert "do not emit the prose outside the object" in prompt
+        assert "text before or after the object" in prompt
+    for role in ("identity",):
         prompt = batch._system_prompt(role)
         assert "unwrapped plain natural-language answer itself" in prompt
         assert "Begin immediately with the first ordinary-language word" in prompt
@@ -845,16 +857,54 @@ def test_live_rejection_contracts_remain_closed_and_have_valid_counterparts() ->
         )
 
     serious = source("serious")
+    valid_transport = '{"final_answer":"Plain prose from strict transport."}'
+    assert batch.validate_teacher_output(serious, valid_transport) == {
+        "kind": "natural_text",
+        "value": "Plain prose from strict transport.",
+    }
+    invalid_transports = (
+        "Plain prose without transport.",
+        '{"answer":"wrong key"}',
+        '{"final_answer":"text","extra":true}',
+        '{"final_answer":42}',
+        '{"final_answer":null}',
+        '{"final_answer":""}',
+        '{"final_answer":{"text":"nested"}}',
+        '{"final_answer":["nested"]}',
+    )
+    for invalid_transport in invalid_transports:
+        with pytest.raises(batch.AdapterError, match="natural transport"):
+            batch.validate_teacher_output(serious, invalid_transport)
+    with pytest.raises(batch.AdapterError, match="duplicate"):
+        batch.validate_teacher_output(
+            serious, '{"final_answer":"first","final_answer":"second"}'
+        )
+    with pytest.raises(batch.AdapterError, match="reasoning"):
+        batch.validate_teacher_output(
+            serious, '{"final_answer":"<think>hidden reasoning</think>"}'
+        )
+    with pytest.raises(batch.AdapterError, match="secret"):
+        batch.validate_teacher_output(
+            serious, '{"final_answer":"sk-abcdefgh must not be retained"}'
+        )
     with pytest.raises(batch.AdapterError, match="natural text json rejected"):
         batch.validate_teacher_output(
-            serious, '{"answer":"Plain prose in an envelope."}'
+            serious, '{"final_answer":"{\\"nested\\":\\"envelope\\"}"}'
         )
-    assert batch.validate_teacher_output(
-        serious, "Plain prose without an envelope."
-    ) == {
-        "kind": "natural_text",
-        "value": "Plain prose without an envelope.",
-    }
+    target_text = "A protected current target."
+    target_bound = replace(
+        serious,
+        guards={
+            **serious.guards,
+            "target_leakage_sha256": [
+                hashlib.sha256(target_text.encode("utf-8")).hexdigest()
+            ],
+        },
+    )
+    with pytest.raises(batch.AdapterError, match="teacher target leakage rejected"):
+        batch.validate_teacher_output(
+            target_bound, json.dumps({"final_answer": target_text})
+        )
 
     tool = source("tool")
     invalid_tool = {
@@ -973,7 +1023,9 @@ def test_identity_target_collision_is_allowed_only_after_identity_validation() -
         },
     )
     with pytest.raises(batch.AdapterError, match="teacher target leakage rejected"):
-        batch.validate_teacher_output(serious_collision, natural)
+        batch.validate_teacher_output(
+            serious_collision, json.dumps({"final_answer": natural})
+        )
 
 
 @pytest.mark.parametrize("identity_class", batch.IDENTITY_CLASSES)

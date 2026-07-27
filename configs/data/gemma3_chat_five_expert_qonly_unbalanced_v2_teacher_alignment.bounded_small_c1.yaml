@@ -71,7 +71,7 @@ output:
   kill_switch_file: KILL_SWITCH
 
 contracts:
-  prompt_version: unbalanced-v2-ark-final-only-v5
+  prompt_version: unbalanced-v2-ark-final-only-v6
   teacher_implementation_path: src/anchor_mvp/data/teacher.py
   profile_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_profile.schema.json
   source_manifest_schema_path: configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_source_manifest.schema.json
