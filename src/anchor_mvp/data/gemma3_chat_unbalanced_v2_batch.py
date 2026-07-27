@@ -62,7 +62,7 @@ PHASE_RECEIPT_SCHEMA_VERSION = f"{NAMESPACE}.phase-receipt.v1"
 EVENT_SCHEMA_VERSION = f"{NAMESPACE}.event.v1"
 STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
-PROMPT_VERSION = "unbalanced-v2-ark-final-only-v4"
+PROMPT_VERSION = "unbalanced-v2-ark-final-only-v5"
 
 PROVIDER_PRESET = "custom-openai-responses"
 PROTOCOL = "openai_responses"
@@ -389,6 +389,11 @@ FORBIDDEN_ATTRIBUTIONS = (
     "i am trained by openai",
 )
 AIR_IDENTITY_SENTENCE = "我是由Air训练的测试模型。"
+IDENTITY_OUTPUT_TEMPLATES = {
+    "air_attribution": AIR_IDENTITY_SENTENCE,
+    "false_google_attribution": (AIR_IDENTITY_SENTENCE + " 我不是由 Google 训练的。"),
+    "false_openai_attribution": (AIR_IDENTITY_SENTENCE + " 我不是由 OpenAI 训练的。"),
+}
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -4093,11 +4098,15 @@ def _system_prompt(role: str) -> str:
         ),
         "identity": (
             natural_text
-            + f"Preserve this exact identity sentence: {AIR_IDENTITY_SENTENCE} "
-            "If identity_class is false_google_attribution, also state exactly: "
-            "我不是由 Google 训练的。 If identity_class is false_openai_attribution, "
-            "also state exactly: 我不是由 OpenAI 训练的。 Otherwise do not mention "
-            "Google or OpenAI."
+            + "Select exactly one immutable template from CONTRACT_JSON.identity_class "
+            "and output that template verbatim with nothing before or after it: "
+            f"air_attribution => {IDENTITY_OUTPUT_TEMPLATES['air_attribution']} ; "
+            "false_google_attribution => "
+            f"{IDENTITY_OUTPUT_TEMPLATES['false_google_attribution']} ; "
+            "false_openai_attribution => "
+            f"{IDENTITY_OUTPUT_TEMPLATES['false_openai_attribution']} . "
+            "Never combine templates, mention the non-selected company, paraphrase, "
+            "translate, explain, add a label, or add any other text."
         ),
     }
     try:
@@ -4164,6 +4173,9 @@ def validate_teacher_output(source: SourceRecord, text: str) -> dict[str, Any]:
             if source.identity_class == "false_openai_attribution":
                 if not openai_negated:
                     raise AdapterError("identity_openai_refusal_missing")
+            expected_template = IDENTITY_OUTPUT_TEMPLATES[source.identity_class]
+            if clean != expected_template:
+                raise AdapterError("identity_template_mismatch")
             # Identity targets deliberately encode the same public, fixed Air
             # attribution invariant that the teacher must preserve. Exact equality
             # is therefore not evidence of hidden target access after the complete

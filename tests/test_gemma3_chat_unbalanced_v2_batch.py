@@ -594,12 +594,7 @@ def _valid_output(source: batch.SourceRecord) -> str:
     if source.role == "router":
         return json.dumps({"route": "style", "plan": ["answer"], "stop": True})
     if source.role == "identity":
-        suffix = ""
-        if source.identity_class == "false_google_attribution":
-            suffix = " 我不是由 Google 训练的。"
-        elif source.identity_class == "false_openai_attribution":
-            suffix = " 我不是由 OpenAI 训练的。"
-        return batch.AIR_IDENTITY_SENTENCE + suffix
+        return batch.IDENTITY_OUTPUT_TEMPLATES[source.identity_class]
     return "A concise public final answer."
 
 
@@ -786,7 +781,7 @@ def test_role_validators_accept_contract_outputs(
 
 
 def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
-    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v4"
+    assert batch.PROMPT_VERSION == "unbalanced-v2-ark-final-only-v5"
     for role in ("humor", "serious", "angry", "identity"):
         prompt = batch._system_prompt(role)
         assert "unwrapped plain natural-language answer itself" in prompt
@@ -824,8 +819,15 @@ def test_role_prompts_lock_plain_text_and_raw_json_grammars() -> None:
     assert "route_to_general" in router_prompt
     assert "delegate back to a router/planner/controller" in router_prompt
     identity_prompt = batch._system_prompt("identity")
-    assert "我不是由 Google 训练的。" in identity_prompt
-    assert "我不是由 OpenAI 训练的。" in identity_prompt
+    assert (
+        "output that template verbatim with nothing before or after it"
+        in identity_prompt
+    )
+    for identity_class, template in batch.IDENTITY_OUTPUT_TEMPLATES.items():
+        assert f"{identity_class} => {template}" in identity_prompt
+    assert "Never combine templates" in identity_prompt
+    assert "mention the non-selected company" in identity_prompt
+    assert "paraphrase, translate, explain" in identity_prompt
 
 
 def test_live_rejection_contracts_remain_closed_and_have_valid_counterparts() -> None:
@@ -901,7 +903,7 @@ def test_identity_target_collision_is_allowed_only_after_identity_validation() -
         source_line_sha256="a" * 64,
         max_input_chars=8192,
     )
-    valid = batch.AIR_IDENTITY_SENTENCE + " 我不是由 Google 训练的。"
+    valid = batch.IDENTITY_OUTPUT_TEMPLATES["false_google_attribution"]
     valid_collision = replace(
         identity,
         guards={
@@ -972,6 +974,46 @@ def test_identity_target_collision_is_allowed_only_after_identity_validation() -
     )
     with pytest.raises(batch.AdapterError, match="teacher target leakage rejected"):
         batch.validate_teacher_output(serious_collision, natural)
+
+
+@pytest.mark.parametrize("identity_class", batch.IDENTITY_CLASSES)
+def test_identity_class_uses_one_exact_template_and_source_target_contract(
+    identity_class: str,
+) -> None:
+    identity = batch._validate_source_row(
+        _source_row(
+            record_id=f"identity-template-{identity_class}",
+            role="identity",
+            language="zh-CN",
+            identity_class=identity_class,
+        ),
+        partition_kind="train",
+        line_number=1,
+        source_line_sha256=hashlib.sha256(identity_class.encode("utf-8")).hexdigest(),
+        max_input_chars=8192,
+    )
+    source_target_sha = hashlib.sha256(
+        batch.AIR_IDENTITY_SENTENCE.encode("utf-8")
+    ).hexdigest()
+    bound = replace(
+        identity,
+        guards={
+            **identity.guards,
+            "target_leakage_sha256": [source_target_sha],
+        },
+    )
+    template = batch.IDENTITY_OUTPUT_TEMPLATES[identity_class]
+    assert batch.validate_teacher_output(bound, template) == {
+        "kind": "natural_text",
+        "value": template,
+    }
+    with pytest.raises(batch.AdapterError, match="identity"):
+        batch.validate_teacher_output(bound, template + " 额外说明。")
+    for other_class, other_template in batch.IDENTITY_OUTPUT_TEMPLATES.items():
+        if other_class == identity_class:
+            continue
+        with pytest.raises(batch.AdapterError, match="identity"):
+            batch.validate_teacher_output(bound, other_template)
 
 
 def test_role_validators_reject_reasoning_identity_and_cross_fields(
