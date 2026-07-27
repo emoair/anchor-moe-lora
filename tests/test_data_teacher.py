@@ -54,6 +54,16 @@ class _ChunkedResponse:
         self.closed = True
 
 
+def _chat_usage(
+    *, prompt_tokens: int = 1, completion_tokens: int = 1
+) -> dict[str, int]:
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
+
+
 def test_anthropic_request_uses_verified_headers(monkeypatch) -> None:
     captured = {}
 
@@ -114,7 +124,7 @@ def test_openai_endpoint_fallback_shape(monkeypatch) -> None:
         return _Response(
             {
                 "choices": [{"message": {"content": "{}"}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 
@@ -132,6 +142,93 @@ def test_openai_endpoint_fallback_shape(monkeypatch) -> None:
     assert captured["body"]["reasoning_effort"] == "medium"
     assert "temperature" not in captured["body"]
     assert "stream" not in captured["body"]
+
+
+def test_openai_nonstream_standard_usage_enters_body_free_provenance(
+    monkeypatch,
+) -> None:
+    private_body_marker = "provider-private-body-must-not-enter-provenance"
+    public_content = '{"final_answer":"public"}'
+
+    def fake_urlopen(request, timeout):
+        del request, timeout
+        return _Response(
+            {
+                "id": "chatcmpl_safe_123",
+                "choices": [{"message": {"content": public_content}}],
+                "usage": _chat_usage(prompt_tokens=7, completion_tokens=3),
+                "provider_prose": private_body_marker,
+            }
+        )
+
+    monkeypatch.setenv("KIMI_API_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        protocol="openai",
+        fallback_protocol=None,
+        stream_openai=False,
+        max_retries=0,
+    )
+
+    async def run():
+        text = await teacher.complete(system="system", user="user")
+        return text, teacher.provider_provenance
+
+    text, provenance = asyncio.run(run())
+    assert text == public_content
+    assert provenance["completion"] == {
+        "response_id": "chatcmpl_safe_123",
+        "usage": {
+            "input_tokens": 7,
+            "output_tokens": 3,
+            "total_tokens": 10,
+        },
+    }
+    assert private_body_marker not in json.dumps(provenance, sort_keys=True)
+    assert public_content not in json.dumps(provenance, sort_keys=True)
+
+
+@pytest.mark.parametrize(
+    "usage",
+    [
+        None,
+        {"prompt_tokens": 1, "completion_tokens": 1},
+        {"prompt_tokens": True, "completion_tokens": 1, "total_tokens": 2},
+        {"prompt_tokens": "1", "completion_tokens": 1, "total_tokens": 2},
+        {"prompt_tokens": 1, "completion_tokens": -1, "total_tokens": 0},
+        {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 3},
+    ],
+)
+def test_openai_nonstream_invalid_standard_usage_fails_closed(
+    monkeypatch, usage
+) -> None:
+    private_body_marker = "invalid-provider-body-must-not-enter-errors"
+    response = {
+        "id": "chatcmpl_safe_456",
+        "choices": [{"message": {"content": '{"ok":true}'}}],
+        "provider_prose": private_body_marker,
+    }
+    if usage is not None:
+        response["usage"] = usage
+
+    def fake_urlopen(request, timeout):
+        del request, timeout
+        return _Response(response)
+
+    monkeypatch.setenv("KIMI_API_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        protocol="openai",
+        fallback_protocol=None,
+        stream_openai=False,
+        max_retries=0,
+    )
+
+    with pytest.raises(
+        teacher_module.TeacherError, match="Chat response usage"
+    ) as error:
+        asyncio.run(teacher.complete(system="system", user="user"))
+    assert private_body_marker not in str(error.value)
 
 
 @pytest.mark.parametrize(
@@ -184,7 +281,7 @@ def test_compatible_teacher_accepts_high_and_max_reasoning_efforts(
         return _Response(
             {
                 "choices": [{"message": {"content": "{}"}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 
@@ -533,7 +630,7 @@ def test_url_error_retry_replays_identical_request_body(monkeypatch) -> None:
         return _Response(
             {
                 "choices": [{"message": {"content": "{}"}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 
@@ -575,7 +672,7 @@ def test_http_499_is_retried_but_only_within_the_same_request(monkeypatch) -> No
         return _Response(
             {
                 "choices": [{"message": {"content": "{}"}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 
@@ -677,7 +774,7 @@ def test_openai_thinking_off_sends_temperature(monkeypatch) -> None:
         return _Response(
             {
                 "choices": [{"message": {"content": "{}"}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 
@@ -711,7 +808,7 @@ def test_openai_chat_json_mode_freezes_wire_and_probe_omits_request_options(
         return _Response(
             {
                 "choices": [{"message": {"content": content}}],
-                "usage": {"completion_tokens": 1},
+                "usage": _chat_usage(),
             }
         )
 

@@ -159,7 +159,11 @@ def test_batch_role_format_reaches_real_chat_wire_without_affecting_identity_or_
                 {
                     "id": f"chatcmpl-{len(captured)}",
                     "choices": [{"message": {"content": '{"ok":true}'}}],
-                    "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                    "usage": {
+                        "prompt_tokens": 1,
+                        "completion_tokens": 1,
+                        "total_tokens": 2,
+                    },
                 }
             ).encode("utf-8")
 

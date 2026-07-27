@@ -914,7 +914,13 @@ class CompatibleTeacher:
                 )
             else:
                 content, output_tokens = _response_content(protocol, body)
-                completion = {}
+                if protocol == "openai":
+                    output_tokens, completion = _openai_chat_completion(
+                        body,
+                        current_credential=api_key,
+                    )
+                else:
+                    completion = {}
         if api_key and api_key in content:
             raise TeacherError("teacher response contained current credential")
         self._budget.add_output(
@@ -1131,12 +1137,44 @@ def _response_content(protocol: APIProtocol, body: Any) -> tuple[str, int | None
             tokens = body.get("usage", {}).get("output_tokens")
         else:
             content = str(body["choices"][0]["message"]["content"])
-            tokens = body.get("usage", {}).get("completion_tokens")
+            tokens = None
     except (KeyError, IndexError, TypeError):
         raise TeacherError("unexpected teacher response schema") from None
     if not content:
         raise TeacherError("teacher returned no text content")
     return content, int(tokens) if tokens is not None else None
+
+
+def _openai_chat_completion(
+    body: Any,
+    *,
+    current_credential: str | None = None,
+) -> tuple[int, dict[str, Any]]:
+    if not isinstance(body, Mapping):
+        raise TeacherError("unexpected teacher response schema")
+    raw_usage = body.get("usage")
+    if not isinstance(raw_usage, Mapping):
+        raise TeacherError("teacher Chat response usage was invalid")
+    usage: dict[str, int] = {}
+    for wire_name, public_name in (
+        ("prompt_tokens", "input_tokens"),
+        ("completion_tokens", "output_tokens"),
+        ("total_tokens", "total_tokens"),
+    ):
+        item = raw_usage.get(wire_name)
+        if type(item) is not int or not 0 <= item <= 1_000_000_000_000:
+            raise TeacherError("teacher Chat response usage was invalid")
+        usage[public_name] = item
+    if usage["total_tokens"] != usage["input_tokens"] + usage["output_tokens"]:
+        raise TeacherError("teacher Chat response usage total was inconsistent")
+    return (
+        usage["output_tokens"],
+        _responses_completion(
+            response_id=body.get("id"),
+            usage=usage,
+            current_credential=current_credential,
+        ),
+    )
 
 
 def _openai_responses_body_content(

@@ -56,7 +56,7 @@
       "const": "src/anchor_mvp/data/teacher.py"
     },
     "teacher_implementation_sha256": {
-      "const": "5545d8775adcb3b0750ebbdaea662a9fbe3f13c360827dfefc88f474de5755f9"
+      "const": "ef7accb4553251f2d5c2427409a2703eac55e9fc3f8b94e4c7e66720da89651d"
     },
     "consumer_release_binding": {
       "oneOf": [
@@ -150,7 +150,7 @@
           "const": "58855ee0b583276436677cd7ef228ca068eebef08a4fd4b2797da91fbf09d1e9"
         },
         "campaign_sha256": {
-          "const": "921720906277e02f82bfceb88b460fa8d7a6bf571946fabe938681e03ca5138d"
+          "const": "f32c7ae663fa7816e49aa9389fb483e0ebb61ab5789914a387063de39421f439"
         },
         "model_binding_sha256": {
           "const": "9cf4a4304f3ad41890f1ae32b182243e6b3db07447ee20de4ce40c91a08cc732"

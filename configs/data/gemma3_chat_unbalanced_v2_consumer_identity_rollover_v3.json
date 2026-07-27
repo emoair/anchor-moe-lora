@@ -19,7 +19,7 @@
     },
     "integrated_controller_config": {
       "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_consumer_rollover_v2.json",
-      "sha256": "963a84654330b4e680608f209c026c2bbc3954c7578d62058cb5b67516afec55",
+      "sha256": "f1ef43287b1585e0e9a3ebaeba2a80be9af7bb0394f1aaca0ae8ef172e7cb80c",
       "bytes": 3404
     },
     "rollover_v3_implementation": {
