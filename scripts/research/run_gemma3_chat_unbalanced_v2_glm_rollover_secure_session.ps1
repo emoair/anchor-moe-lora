@@ -3,6 +3,7 @@
 param(
     [string]$ProducerRoot = "D:\LLM\anchor-moe-lora-gemma3-chat-rollover-v3",
     [string]$PythonPath = "D:\LLM\envs\gemma3-keras-torch\Scripts\python.exe",
+    [string]$ConsumerRepository = "D:\LLM\anchor-moe-lora-consumer-preflight-clean-6240",
     [ValidatePattern("^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$")]
     [string]$ImplementerId = "producer.implementer",
     [ValidatePattern("^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$")]
@@ -15,6 +16,9 @@ $ErrorActionPreference = "Stop"
 
 $moduleName = "anchor_mvp.data.gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3"
 $credentialEnvironmentVariableName = "glm5.2key"
+$consumerRepositoryEnvironmentVariableName = (
+    "ANCHOR_GEMMA3_UNBALANCED_V2_CONSUMER_REPOSITORY"
+)
 $executeBootstrapBase64 = (
     "aW1wb3J0IG9zLHJ1bnB5LHN5cztzaW5rPW9zLm9wZW4ob3MuZGV2bnVsbCxvcy5PX1dST05M" +
     "WSk7b3MuZHVwMihzaW5rLDEpIGlmIHNpbmshPTEgZWxzZSBOb25lO29zLmR1cDIoc2luaywy" +
@@ -144,6 +148,9 @@ function New-ControllerStartInfo {
     $startInfo.RedirectStandardError = $RedirectOutput
     $startInfo.CreateNoWindow = $true
     $startInfo.EnvironmentVariables["PYTHONPATH"] = $sourceRoot
+    $startInfo.EnvironmentVariables[
+        $consumerRepositoryEnvironmentVariableName
+    ] = $consumerRepositoryResolved
     if (
         $startInfo.EnvironmentVariables.ContainsKey(
             $credentialEnvironmentVariableName
@@ -213,6 +220,16 @@ if ($ImplementerId.Equals(
 }
 if (-not (Test-Path -LiteralPath $producerRootResolved -PathType Container)) {
     throw "secure_session_producer_root_missing"
+}
+$consumerRepositoryResolved = [System.IO.Path]::GetFullPath(
+    $ConsumerRepository
+)
+if (
+    -not (
+        Test-Path -LiteralPath $consumerRepositoryResolved -PathType Container
+    )
+) {
+    throw "secure_session_consumer_repository_missing"
 }
 if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
     throw "secure_session_python_missing"
