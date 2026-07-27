@@ -1,29 +1,82 @@
 <!doctype html>
-<html lang="en">
+<!-- Monitor-only dashboard; keep physical bytes UTF-8/LF for stable review identities. -->
+<html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title data-i18n="page.title"></title>
   <style>
     :root {
-      --bg: #050706;
-      --surface: #0a0e0c;
-      --surface-2: #101612;
-      --line: #203128;
-      --line-bright: #355443;
-      --text: #d6e4dc;
-      --muted: #7e9989;
-      --green: #73f6a5;
-      --green-dim: #224e33;
-      --cyan: #66d9ef;
-      --amber: #ffd166;
-      --red: #ff6b6b;
+      color-scheme: dark;
+      --bg: #090909;
+      --surface: #111111;
+      --surface-2: #181818;
+      --panel: var(--surface);
+      --field: #0d0d0d;
+      --terminal-bg: #050505;
+      --line: #3f3f3f;
+      --line-bright: #777777;
+      --text: #f5f5f5;
+      --muted: #b8b8b8;
+      --accent: #ffffff;
+      --accent-inverse: #080808;
+      --hover: #242424;
+      --subtle: #1d1d1d;
+      --focus: #ffffff;
+      --green: var(--accent);
+      --green-dim: var(--line-bright);
+      --cyan: var(--text);
+      --amber: var(--text);
+      --red: var(--text);
       --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
       --sans: Inter, ui-sans-serif, system-ui, sans-serif;
     }
 
+    html[data-theme="dark"] { color-scheme: dark; }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-2: #ececea;
+      --panel: var(--surface);
+      --field: #ffffff;
+      --terminal-bg: #f0f0ee;
+      --line: #c4c4c0;
+      --line-bright: #6b6b68;
+      --text: #111111;
+      --muted: #4d4d4a;
+      --accent: #111111;
+      --accent-inverse: #ffffff;
+      --hover: #e4e4e1;
+      --subtle: #eeeeeb;
+      --focus: #111111;
+    }
+
+    @media (prefers-color-scheme: light) {
+      html[data-theme="system"] {
+        color-scheme: light;
+        --bg: #f5f5f3;
+        --surface: #ffffff;
+        --surface-2: #ececea;
+        --panel: var(--surface);
+        --field: #ffffff;
+        --terminal-bg: #f0f0ee;
+        --line: #c4c4c0;
+        --line-bright: #6b6b68;
+        --text: #111111;
+        --muted: #4d4d4a;
+        --accent: #111111;
+        --accent-inverse: #ffffff;
+        --hover: #e4e4e1;
+        --subtle: #eeeeeb;
+        --focus: #111111;
+      }
+    }
+
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
 
     html { background: var(--bg); }
 
@@ -31,15 +84,31 @@
       margin: 0;
       min-height: 100vh;
       color: var(--text);
-      background:
-        radial-gradient(circle at 85% 0%, rgba(115, 246, 165, .08), transparent 28rem),
-        linear-gradient(rgba(115, 246, 165, .015) 1px, transparent 1px),
-        var(--bg);
-      background-size: auto, 100% 4px, auto;
+      background: var(--bg);
       font-family: var(--sans);
     }
 
-    button { font: inherit; }
+    button, input, select, summary { font: inherit; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    summary:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     .shell {
       width: min(1560px, calc(100% - 32px));
@@ -94,12 +163,12 @@
       height: 9px;
       border-radius: 50%;
       background: var(--amber);
-      box-shadow: 0 0 0 5px rgba(255, 209, 102, .1);
+      box-shadow: 0 0 0 5px var(--subtle);
     }
 
     .pulse.live {
       background: var(--green);
-      box-shadow: 0 0 0 5px rgba(115, 246, 165, .1);
+      box-shadow: 0 0 0 5px var(--subtle);
     }
 
     .connection-copy { text-align: right; }
@@ -117,10 +186,24 @@
     }
 
     .refresh:hover, .refresh:focus-visible {
-      background: rgba(115, 246, 165, .08);
-      outline: 2px solid var(--green);
+      background: var(--hover);
+      outline: 2px solid var(--focus);
       outline-offset: 2px;
     }
+
+    .theme-select {
+      min-height: 38px;
+      padding: 0 30px 0 11px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--line-bright);
+      border-radius: 5px;
+      cursor: pointer;
+      font: 10px var(--mono);
+      letter-spacing: .04em;
+    }
+
+    .theme-select:hover { background: var(--hover); }
 
     .section-label {
       display: flex;
@@ -148,7 +231,7 @@
 
     .control-card {
       padding: 16px;
-      background: rgba(10, 14, 12, .96);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 7px;
     }
@@ -186,15 +269,15 @@
       min-height: 36px;
       padding: 0 11px;
       color: var(--text);
-      background: #111a14;
+      background: var(--surface-2);
       border: 1px solid var(--line-bright);
       border-radius: 4px;
       cursor: pointer;
       font: 10px var(--mono);
     }
 
-    .control-button.primary { color: #041008; background: var(--green); border-color: var(--green); font-weight: 700; }
-    .control-button.danger { color: var(--red); border-color: rgba(255, 107, 107, .38); }
+    .control-button.primary { color: var(--accent-inverse); background: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .control-button.danger { color: var(--red); border-color: var(--line-bright); }
     .control-button:disabled { opacity: .35; cursor: not-allowed; }
     .control-button:not(:disabled):focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
@@ -203,7 +286,7 @@
       margin-top: 12px;
       padding: 9px 10px;
       color: var(--muted);
-      background: #060907;
+      background: var(--field);
       border-left: 2px solid var(--line-bright);
       font: 10px/1.5 var(--mono);
       overflow-wrap: anywhere;
@@ -228,7 +311,7 @@
       height: 36px;
       padding: 0 9px;
       color: var(--text);
-      background: #060907;
+      background: var(--field);
       border: 1px solid var(--line);
       border-radius: 4px;
       font: 10px var(--mono);
@@ -254,7 +337,7 @@
       min-height: 116px;
       padding: 16px;
       overflow: hidden;
-      background: linear-gradient(145deg, rgba(16, 22, 18, .95), rgba(8, 12, 10, .98));
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 6px;
     }
@@ -266,7 +349,7 @@
       bottom: -30px;
       width: 72px;
       height: 72px;
-      border: 1px solid rgba(115, 246, 165, .08);
+      border: 1px solid var(--line);
       transform: rotate(45deg);
     }
 
@@ -278,7 +361,7 @@
     .shard-list { display: grid; gap: 12px; }
 
     .shard {
-      background: rgba(10, 14, 12, .96);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 7px;
       overflow: hidden;
@@ -290,7 +373,7 @@
       justify-content: space-between;
       gap: 20px;
       padding: 14px 16px;
-      background: rgba(16, 22, 18, .7);
+      background: var(--surface-2);
       border-bottom: 1px solid var(--line);
     }
 
@@ -300,7 +383,7 @@
     .state-pill {
       padding: 3px 8px;
       color: var(--muted);
-      background: rgba(126, 153, 137, .08);
+      background: var(--subtle);
       border: 1px solid var(--line);
       border-radius: 999px;
       font: 10px var(--mono);
@@ -308,7 +391,7 @@
     }
 
     .state-pill.running, .state-pill.complete { color: var(--green); border-color: var(--green-dim); }
-    .state-pill.stale { color: var(--amber); border-color: rgba(255, 209, 102, .3); }
+    .state-pill.stale { color: var(--amber); border-color: var(--line-bright); }
     .updated { color: var(--muted); font: 10px var(--mono); }
 
     .shard-body {
@@ -341,14 +424,14 @@
       height: 3px;
       margin-top: 10px;
       overflow: hidden;
-      background: #19221c;
+      background: var(--line);
       border-radius: 2px;
     }
 
     .bar-fill {
       width: 0;
       height: 100%;
-      background: linear-gradient(90deg, var(--green-dim), var(--green));
+      background: var(--accent);
       transition: width .35s ease;
     }
 
@@ -361,7 +444,7 @@
       margin-top: 14px;
       padding: 11px 12px;
       color: var(--muted);
-      background: rgba(115, 246, 165, .035);
+      background: var(--surface-2);
       border: 1px solid var(--line);
       font: 11px var(--mono);
     }
@@ -392,8 +475,8 @@
     .error-chip {
       padding: 3px 6px;
       color: var(--red);
-      background: rgba(255, 107, 107, .06);
-      border: 1px solid rgba(255, 107, 107, .2);
+      background: var(--subtle);
+      border: 1px solid var(--line-bright);
       border-radius: 3px;
       font: 9px var(--mono);
     }
@@ -402,10 +485,10 @@
       min-height: 210px;
       max-height: 340px;
       overflow: auto;
-      background: #030504;
+      background: var(--terminal-bg);
       border: 1px solid var(--line);
       border-radius: 6px;
-      box-shadow: inset 0 1px 22px rgba(0, 0, 0, .65);
+      box-shadow: inset 0 1px 0 var(--line);
     }
 
     .terminal-head {
@@ -416,7 +499,7 @@
       align-items: center;
       gap: 6px;
       padding: 9px 12px;
-      background: rgba(10, 14, 12, .98);
+      background: var(--surface);
       border-bottom: 1px solid var(--line);
       color: var(--muted);
       font-size: 10px;
@@ -435,7 +518,7 @@
       line-height: 1.5;
     }
 
-    .log + .log { border-top: 1px solid rgba(32, 49, 40, .34); }
+    .log + .log { border-top: 1px solid var(--line); }
     .log-level { color: var(--cyan); }
     .log-level.warning { color: var(--amber); }
     .log-detail { color: var(--text); overflow-wrap: anywhere; }
@@ -471,9 +554,9 @@
     .diagnostic-cell {
       min-width: 0;
       padding: 9px 10px;
-      border: 1px solid rgba(32, 49, 40, .72);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      background: rgba(6, 12, 9, .52);
+      background: var(--surface-2);
     }
 
     .diagnostic-cell span { display: block; color: var(--muted); font-size: 9px; }
@@ -501,6 +584,7 @@
       .topbar { flex-direction: column; }
       .connection { width: 100%; justify-content: space-between; }
       .connection-copy { text-align: left; }
+      .refresh, .theme-select { min-height: 44px; }
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
       .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .field.wide { grid-column: span 2; }
@@ -522,7 +606,7 @@
     <header class="topbar">
       <div>
         <div class="eyebrow" data-i18n="brand.eyebrow"></div>
-        <h1 data-i18n="header.title"></h1>
+        <h1 id="header-title" data-i18n="header.title"></h1>
         <p class="subtitle" data-i18n="header.subtitle"></p>
       </div>
       <div class="connection">
@@ -531,13 +615,19 @@
           <div id="connection-state" class="connection-state" data-i18n="connection.connecting"></div>
           <div id="connection-time" class="connection-time">--</div>
         </div>
+        <label class="visually-hidden" for="theme-toggle" data-i18n="theme.label"></label>
+        <select id="theme-toggle" class="theme-select" data-i18n-aria-label="theme.switch_title">
+          <option value="system" data-i18n="theme.system"></option>
+          <option value="light" data-i18n="theme.light"></option>
+          <option value="dark" data-i18n="theme.dark"></option>
+        </select>
         <button id="language-toggle" class="refresh" type="button" data-i18n-title="language.switch_title"></button>
         <button id="refresh" class="refresh" type="button" data-i18n="action.refresh"></button>
       </div>
     </header>
 
-    <div class="section-label" data-i18n="section.control"></div>
-    <section class="control-layout" data-i18n-aria-label="aria.control">
+    <div id="control-section-label" class="section-label" data-i18n="section.control" hidden></div>
+    <section id="control-section" class="control-layout" data-i18n-aria-label="aria.control" hidden>
       <article class="control-card">
         <div class="control-title">
           <h2 data-i18n="control.process_workload"></h2>
@@ -689,9 +779,15 @@
         "page.title": "Anchor · Distillation Telemetry",
         "brand.eyebrow": "anchor / telemetry",
         "header.title": "Distillation Control Surface",
+        "header.monitor_title": "Distillation Monitor",
         "header.subtitle": "read-only · provider usage · content-free · 2 s polling",
         "language.switch_title": "Switch interface language",
         "language.next": "中文",
+        "theme.label": "Appearance",
+        "theme.switch_title": "Select color theme",
+        "theme.system": "SYSTEM",
+        "theme.light": "LIGHT",
+        "theme.dark": "DARK",
         "connection.connecting": "CONNECTING",
         "connection.live_control": "LIVE / LOCAL CONTROL",
         "connection.live_readonly": "LIVE / READ-ONLY",
@@ -878,6 +974,26 @@
         "metric.retained_total_per_s": "retained total tok / s",
         "metric.stage_rows_per_min": "stage rows / min",
         "metric.eta": "eta",
+        "metric.jobs_total": "jobs total",
+        "metric.jobs_queued": "queued",
+        "metric.jobs_inflight": "in flight",
+        "metric.jobs_succeeded": "succeeded",
+        "metric.jobs_rejected": "rejected",
+        "metric.jobs_uncertain": "uncertain",
+        "metric.provider_requests": "provider requests",
+        "metric.provider_input_tokens": "provider input tokens",
+        "metric.live_speed": "live speed",
+        "metric.live_eta": "live ETA",
+        "metric.concurrency": "active dispatches",
+        "metric.phase": "phase",
+        "metric.live_estimate": "REAL-TIME ESTIMATE · body-free status",
+        "metric.event_reserved": "event / reserved",
+        "metric.event_dispatching": "event / dispatching",
+        "metric.event_committed": "event / committed",
+        "metric.event_rejected": "event / rejected",
+        "metric.event_unknown": "event count unavailable in snapshot",
+        "metric.rejection_detail_unknown": "rejection matrix unavailable in snapshot",
+        "metric.rejection_none": "no rejected event groups",
         "metric.provider_output_total": "provider output total",
         "metric.known_input_subtotal": "known input subtotal",
         "metric.known_total_subtotal": "known total subtotal",
@@ -913,6 +1029,7 @@
         "shard.external": "external / read-only",
         "shard.no_metadata": "NO SHARD METADATA",
         "errors.rejection": "seed/{reason} × {count}",
+        "errors.rejection_matrix": "{reason} · {role} · {language} × {count}",
         "errors.recent": "recent {reason} · {error} · {time}",
         "errors.count": "{name} × {count}",
         "errors.invalid_line": "{source}:L{line} #{sha}",
@@ -924,9 +1041,15 @@
         "page.title": "Anchor · 蒸馏遥测",
         "brand.eyebrow": "anchor / telemetry",
         "header.title": "蒸馏控制台",
+        "header.monitor_title": "蒸馏监控",
         "header.subtitle": "只读 · 服务商用量 · 不展示内容 · 每 2 秒轮询",
         "language.switch_title": "切换界面语言",
         "language.next": "EN",
+        "theme.label": "外观",
+        "theme.switch_title": "选择颜色主题",
+        "theme.system": "跟随系统",
+        "theme.light": "浅色",
+        "theme.dark": "深色",
         "connection.connecting": "连接中",
         "connection.live_control": "在线 / 本地控制",
         "connection.live_readonly": "在线 / 只读",
@@ -1113,6 +1236,26 @@
         "metric.retained_total_per_s": "保留总 Token/秒",
         "metric.stage_rows_per_min": "阶段行/分钟",
         "metric.eta": "预计剩余",
+        "metric.jobs_total": "任务总数",
+        "metric.jobs_queued": "排队中",
+        "metric.jobs_inflight": "执行中",
+        "metric.jobs_succeeded": "已成功",
+        "metric.jobs_rejected": "已拒绝",
+        "metric.jobs_uncertain": "不确定",
+        "metric.provider_requests": "服务商请求数",
+        "metric.provider_input_tokens": "服务商输入 Token",
+        "metric.live_speed": "实时速度",
+        "metric.live_eta": "实时预计剩余",
+        "metric.concurrency": "当前活跃调度",
+        "metric.phase": "阶段",
+        "metric.live_estimate": "实时估计 · 仅来自无正文状态",
+        "metric.event_reserved": "事件 / 已预留",
+        "metric.event_dispatching": "事件 / 派发中",
+        "metric.event_committed": "事件 / 已提交",
+        "metric.event_rejected": "事件 / 已拒绝",
+        "metric.event_unknown": "快照未提供事件计数",
+        "metric.rejection_detail_unknown": "快照未提供拒绝矩阵",
+        "metric.rejection_none": "无拒绝事件分组",
         "metric.provider_output_total": "服务商输出总量",
         "metric.known_input_subtotal": "已知输入小计",
         "metric.known_total_subtotal": "已知总量小计",
@@ -1148,6 +1291,7 @@
         "shard.external": "外部 / 只读",
         "shard.no_metadata": "暂无分片元数据",
         "errors.rejection": "种子/{reason} × {count}",
+        "errors.rejection_matrix": "{reason} · {role} · {language} × {count}",
         "errors.recent": "最近 {reason} · {error} · {time}",
         "errors.count": "{name} × {count}",
         "errors.invalid_line": "{source}:第 {line} 行 #{sha}",
@@ -1156,6 +1300,22 @@
         "models.result": "模型发现 · {status} · {count} 个模型"
       })
     });
+
+    const THEME_STORAGE_KEY = "anchor.dashboard.theme";
+    const SUPPORTED_THEMES = Object.freeze(["system", "light", "dark"]);
+
+    function defaultTheme() {
+      try {
+        const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (SUPPORTED_THEMES.includes(saved)) return saved;
+      } catch (_) {
+        // Storage can be disabled; the system preference remains the safe fallback.
+      }
+      return "system";
+    }
+
+    let theme = defaultTheme();
+    document.documentElement.dataset.theme = theme;
 
     const LANGUAGE_STORAGE_KEY = "anchor.dashboard.language";
     const SUPPORTED_LANGUAGES = Object.freeze(["en", "zh-CN"]);
@@ -1198,11 +1358,15 @@
     const summaryNode = document.getElementById("summary");
     const shardsNode = document.getElementById("shards");
     const logsNode = document.getElementById("logs");
+    const headerTitleNode = document.getElementById("header-title");
     const pulseNode = document.getElementById("pulse");
     const stateNode = document.getElementById("connection-state");
     const timeNode = document.getElementById("connection-time");
     const refreshNode = document.getElementById("refresh");
     const languageToggleNode = document.getElementById("language-toggle");
+    const themeToggleNode = document.getElementById("theme-toggle");
+    const controlSectionLabelNode = document.getElementById("control-section-label");
+    const controlSectionNode = document.getElementById("control-section");
     const processStateNode = document.getElementById("process-state");
     const workloadStateNode = document.getElementById("workload-state");
     const exitCodeNode = document.getElementById("exit-code");
@@ -1255,6 +1419,7 @@
     let lastCatalog = null;
     let lastCatalogStatus = null;
     let busy = false;
+    let controlResourcesLoaded = false;
     let connectionHealth = {
       connected: false,
       failures: 0,
@@ -1265,6 +1430,23 @@
       reconnectedUntil: null,
       lastDisconnectSeconds: null
     };
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = theme;
+      themeToggleNode.value = theme;
+      themeToggleNode.setAttribute("aria-label", `${t("theme.label")}: ${t(`theme.${theme}`)}`);
+      themeToggleNode.setAttribute("title", t("theme.switch_title"));
+    }
+
+    function setTheme(nextTheme) {
+      theme = SUPPORTED_THEMES.includes(nextTheme) ? nextTheme : "system";
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (_) {
+        // The interface still switches when storage is unavailable.
+      }
+      applyTheme();
+    }
 
     function applyLanguage() {
       document.documentElement.lang = language;
@@ -1279,6 +1461,7 @@
       });
       languageToggleNode.textContent = t("language.next");
       languageToggleNode.setAttribute("aria-label", t("language.switch_title"));
+      applyTheme();
       if (lastOptions) renderOptions(lastOptions);
       if (lastCatalog) renderCatalogOptions(lastCatalog);
       else if (lastCatalogStatus) renderCatalogStatus(lastCatalogStatus);
@@ -1514,6 +1697,105 @@
       addMetric(t("metric.eta"), duration(totals.eta_seconds), t("metric.remaining_rows"), totals.eta_seconds === null);
     }
 
+    function bodyFreeNumber(value, integer = false) {
+      if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+      if (integer && !Number.isInteger(value)) return null;
+      return value;
+    }
+
+    function bodyFreeMetric(metric) {
+      if (!metric || typeof metric !== "object") return null;
+      const value = bodyFreeNumber(metric.value);
+      return value === null ? null : {
+        value,
+        exact: metric.exact === true,
+        unknown_rows: bodyFreeNumber(metric.unknown_rows, true) || 0,
+        source: typeof metric.source === "string" ? metric.source : "unbalanced_status"
+      };
+    }
+
+    function unknownMetric(source = "unavailable_in_snapshot") {
+      return { value: null, exact: false, unknown_rows: 0, source };
+    }
+
+    function safeBodyFreeCode(value) {
+      const text = typeof value === "string" ? value : "";
+      return /^[A-Za-z0-9_.:-]{1,64}$/.test(text) ? text : null;
+    }
+
+    function unbalancedUncertainMetric(shards) {
+      if (!Array.isArray(shards) || !shards.length) return unknownMetric();
+      let total = 0;
+      for (const shard of shards) {
+        const value = bodyFreeNumber(((shard || {}).resume || {}).uncertain, true);
+        if (value === null) return unknownMetric();
+        total += value;
+      }
+      return { value: total, exact: true, unknown_rows: 0, source: "sum_unbalanced_resume" };
+    }
+
+    function renderUnbalancedSummary(snapshot) {
+      summaryNode.replaceChildren();
+      const totals = snapshot.unbalanced_totals || {};
+      const jobs = totals.jobs || {};
+      const shards = Array.isArray(snapshot.unbalanced_shards) ? snapshot.unbalanced_shards : [];
+      const single = shards.length === 1 ? shards[0] : null;
+      const rate = (single || {}).rate || {};
+      const speed = bodyFreeNumber(rate.jobs_per_second);
+      const eta = bodyFreeNumber(rate.eta_seconds);
+      const concurrency = bodyFreeNumber(totals.concurrency, true);
+      const phase = safeBodyFreeCode((single || {}).phase);
+
+      for (const [key, label] of [
+        ["total", "metric.jobs_total"],
+        ["queued", "metric.jobs_queued"],
+        ["inflight", "metric.jobs_inflight"],
+        ["succeeded", "metric.jobs_succeeded"],
+        ["rejected", "metric.jobs_rejected"]
+      ]) {
+        const metric = bodyFreeMetric(jobs[key]) || unknownMetric();
+        addMetric(t(label), metricText(metric), exactNote(metric), !metric.exact);
+      }
+      const uncertain = unbalancedUncertainMetric(shards);
+      addMetric(t("metric.jobs_uncertain"), metricText(uncertain), exactNote(uncertain), !uncertain.exact);
+      for (const [metric, label] of [
+        [bodyFreeMetric(totals.requests), "metric.provider_requests"],
+        [bodyFreeMetric((totals.tokens || {}).input), "metric.provider_input_tokens"],
+        [bodyFreeMetric((totals.tokens || {}).output), "metric.provider_output_tokens"]
+      ]) {
+        const safeMetric = metric || unknownMetric();
+        addMetric(t(label), metricText(safeMetric), exactNote(safeMetric), !safeMetric.exact);
+      }
+      addMetric(
+        t("metric.live_speed"),
+        speed === null ? t("common.unknown") : `${decimal(speed, 4)} jobs/s`,
+        speed === null ? t("metric.unknown_not_inferred") : t("metric.live_estimate"),
+        speed === null
+      );
+      addMetric(
+        t("metric.live_eta"),
+        eta === null ? t("common.unknown") : duration(eta),
+        eta === null ? t("metric.unknown_not_inferred") : t("metric.live_estimate"),
+        eta === null
+      );
+      addMetric(
+        t("metric.concurrency"),
+        concurrency === null ? t("common.unknown") : whole(concurrency),
+        concurrency === null ? t("metric.unknown_not_inferred") : exactNote({
+          value: concurrency,
+          exact: true,
+          source: "sum_unbalanced_body_free_events"
+        }),
+        concurrency === null
+      );
+      addMetric(
+        t("metric.phase"),
+        phase || t("common.unknown"),
+        phase ? exactNote({ value: 1, exact: true, source: "unbalanced_status" }) : t("metric.unknown_not_inferred"),
+        !phase
+      );
+    }
+
     function progressBar(percent) {
       const bar = node("div", "bar");
       const fill = node("div", "bar-fill");
@@ -1655,6 +1937,133 @@
       return card;
     }
 
+    function renderUnbalancedShard(shard) {
+      const card = node("article", "shard");
+      const header = node("div", "shard-header");
+      const title = node("div", "shard-title");
+      const label = safeBodyFreeCode(shard.label) || t("shard.unnamed");
+      title.append(node("h2", "", label));
+      const state = safeBodyFreeCode(shard.state);
+      title.append(node("span", `state-pill ${stateClass(state)}`, state ? displayStatus(state) : t("common.unknown")));
+      for (const value of [safeBodyFreeCode(shard.phase), safeBodyFreeCode(shard.profile)]) {
+        if (value) title.append(node("span", "state-pill", value));
+      }
+      header.append(title);
+      header.append(node("div", "updated", t("metric.updated", { time: clock(shard.updated_at) })));
+      card.append(header);
+
+      const jobs = shard.jobs || {};
+      const totalMetric = bodyFreeMetric(jobs.total) || unknownMetric();
+      const total = totalMetric.value || 0;
+      const body = node("div", "shard-body");
+      const stageZone = node("div", "stage-zone");
+      const stageGrid = node("div", "stage-grid");
+      for (const [key, labelKey] of [
+        ["queued", "metric.jobs_queued"],
+        ["inflight", "metric.jobs_inflight"],
+        ["succeeded", "metric.jobs_succeeded"],
+        ["rejected", "metric.jobs_rejected"]
+      ]) {
+        const metric = bodyFreeMetric(jobs[key]) || unknownMetric();
+        const item = node("div", "stage");
+        item.append(node("div", "stage-name", t(labelKey)));
+        const value = node("div", "stage-count", metricText(metric));
+        value.append(node("span", "stage-denom", ` / ${metricText(totalMetric)}`));
+        item.append(value);
+        item.append(progressBar(total && metric.value !== null ? metric.value * 100 / total : 0));
+        stageGrid.append(item);
+      }
+      stageZone.append(stageGrid);
+      const uncertain = bodyFreeNumber((shard.resume || {}).uncertain, true);
+      const chainLine = node("div", "chain-line");
+      chainLine.append(node("span", "", t("metric.jobs_uncertain")));
+      chainLine.append(node("span", uncertain === null ? "unknown-text" : "chain-value", uncertain === null ? t("common.unknown") : whole(uncertain)));
+      chainLine.append(node("span", "", t("metric.throughput_eta", {
+        rate: bodyFreeNumber((shard.rate || {}).jobs_per_second) === null
+          ? t("common.unknown")
+          : decimal(shard.rate.jobs_per_second, 4),
+        eta: duration(bodyFreeNumber((shard.rate || {}).eta_seconds))
+      })));
+      stageZone.append(chainLine);
+      body.append(stageZone);
+
+      const detail = node("div", "detail-zone");
+      const table = node("table", "telemetry-table");
+      const tableBody = document.createElement("tbody");
+      for (const [metric, labelKey] of [
+        [bodyFreeMetric(shard.requests), "metric.provider_requests"],
+        [bodyFreeMetric((shard.tokens || {}).input), "metric.provider_input_tokens"],
+        [bodyFreeMetric((shard.tokens || {}).output), "metric.provider_output_tokens"]
+      ]) {
+        const safeMetric = metric || unknownMetric();
+        tableBody.append(tableRow(t(labelKey), metricText(safeMetric), !safeMetric.exact));
+      }
+      const concurrency = bodyFreeNumber(shard.concurrency, true);
+      tableBody.append(tableRow(
+        t("metric.concurrency"),
+        concurrency === null ? t("common.unknown") : whole(concurrency),
+        concurrency === null
+      ));
+      const events = shard.events && typeof shard.events === "object" ? shard.events : {};
+      let exactEventCount = 0;
+      for (const [key, labelKey] of [
+        ["reserved", "metric.event_reserved"],
+        ["dispatching", "metric.event_dispatching"],
+        ["committed", "metric.event_committed"],
+        ["rejected", "metric.event_rejected"]
+      ]) {
+        const metric = bodyFreeMetric(events[key]);
+        if (metric && metric.exact) exactEventCount += 1;
+        tableBody.append(tableRow(
+          t(labelKey),
+          metric ? metricText(metric) : t("common.unknown"),
+          !metric || !metric.exact
+        ));
+      }
+      table.append(tableBody);
+      detail.append(table);
+
+      const chips = node("div", "error-row");
+      const allowedRoles = ["angry", "humor", "identity", "review", "router", "serious", "tool"];
+      for (const role of allowedRoles) {
+        const count = bodyFreeNumber((shard.role_counts || {})[role], true);
+        if (count !== null) chips.append(node("span", "error-chip", `role/${role} × ${whole(count)}`));
+      }
+      for (const languageCode of ["en", "zh-CN"]) {
+        const count = bodyFreeNumber((shard.language_counts || {})[languageCode], true);
+        if (count !== null) chips.append(node("span", "error-chip", `language/${languageCode} × ${whole(count)}`));
+      }
+      const rejectionCounts = Array.isArray(shard.rejection_counts) ? shard.rejection_counts : [];
+      const rejectionCountsExact = shard.rejection_counts_exact === true;
+      let validRejectionCount = 0;
+      for (const item of rejectionCounts) {
+        const reason = safeBodyFreeCode((item || {}).reason_code);
+        const role = safeBodyFreeCode((item || {}).role);
+        const languageCode = safeBodyFreeCode((item || {}).language);
+        const count = bodyFreeNumber((item || {}).count, true);
+        if (!reason || !allowedRoles.includes(role) || !["en", "zh-CN"].includes(languageCode) || count === null) continue;
+        validRejectionCount += 1;
+        chips.append(node("span", "error-chip", t("errors.rejection_matrix", {
+          reason,
+          role,
+          language: languageCode,
+          count: whole(count)
+        })));
+      }
+      if (!validRejectionCount && !rejectionCountsExact) {
+        chips.append(node("span", "metric-note unknown", t("metric.rejection_detail_unknown")));
+      } else if (!validRejectionCount) {
+        chips.append(node("span", "metric-note", t("metric.rejection_none")));
+      }
+      if (exactEventCount !== 4) {
+        chips.append(node("span", "metric-note unknown", t("metric.event_unknown")));
+      }
+      detail.append(chips);
+      body.append(detail);
+      card.append(body);
+      return card;
+    }
+
     function renderShards(shards, controlState) {
       shardsNode.replaceChildren();
       if (!Array.isArray(shards) || !shards.length) {
@@ -1662,6 +2071,15 @@
         return;
       }
       for (const shard of shards) shardsNode.append(renderShard(shard, controlState));
+    }
+
+    function renderUnbalancedShards(shards) {
+      shardsNode.replaceChildren();
+      if (!Array.isArray(shards) || !shards.length) {
+        shardsNode.append(node("div", "empty", t("shard.no_metadata")));
+        return;
+      }
+      for (const shard of shards) shardsNode.append(renderUnbalancedShard(shard));
     }
 
     function renderLogs(logs) {
@@ -1697,6 +2115,10 @@
     function renderControl(controlState) {
       currentControl = controlState || { enabled: false, process_state: "monitor_only" };
       const enabled = currentControl.enabled === true;
+      controlSectionLabelNode.hidden = !enabled;
+      controlSectionNode.hidden = !enabled;
+      headerTitleNode.dataset.i18n = enabled ? "header.title" : "header.monitor_title";
+      headerTitleNode.textContent = t(headerTitleNode.dataset.i18n);
       processStateNode.textContent = displayStatus(currentControl.process_state);
       workloadStateNode.textContent = displayStatus(currentControl.workload_state);
       exitCodeNode.textContent = currentControl.exit_code === null || currentControl.exit_code === undefined ? t("common.unknown") : String(currentControl.exit_code);
@@ -1713,6 +2135,11 @@
       continueNode.disabled = !enabled || currentControl.can_continue !== true || !currentControl.run_id;
       clearKeyNode.disabled = !enabled;
       probeNode.disabled = !enabled || currentControl.can_stop === true;
+      if (enabled && !controlResourcesLoaded) {
+        controlResourcesLoaded = true;
+        loadOptions();
+        loadCatalog();
+      }
       if (currentControl.last_error_code) {
         controlMessage(t("control.error", { code: currentControl.last_error_code }), "error");
       }
@@ -1974,9 +2401,17 @@
 
     function render(snapshot) {
       lastSnapshot = snapshot;
-      renderSummary(snapshot);
+      const unbalancedShards = Array.isArray(snapshot.unbalanced_shards)
+        ? snapshot.unbalanced_shards
+        : [];
+      if (unbalancedShards.length) {
+        renderUnbalancedSummary(snapshot);
+        renderUnbalancedShards(unbalancedShards);
+      } else {
+        renderSummary(snapshot);
+        renderShards(snapshot.shards, snapshot.control);
+      }
       renderControl(snapshot.control);
-      renderShards(snapshot.shards, snapshot.control);
       renderConnectionDiagnostics(snapshot);
       const lifecycle = ((snapshot.control || {}).events || []).map(item => ({
         at: item.at,
@@ -2040,9 +2475,8 @@
 
     refreshNode.addEventListener("click", poll);
     languageToggleNode.addEventListener("click", () => setLanguage(language === "en" ? "zh-CN" : "en"));
+    themeToggleNode.addEventListener("change", () => setTheme(themeToggleNode.value));
     applyLanguage();
-    loadOptions();
-    loadCatalog();
     poll();
     window.setInterval(poll, POLL_INTERVAL_MS);
     window.setInterval(() => {

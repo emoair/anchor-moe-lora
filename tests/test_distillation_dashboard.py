@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# Keep this physical test fixture UTF-8/LF to match the monitored dashboard asset.
 import hashlib
 import importlib.util
 import json
@@ -126,6 +127,141 @@ def _fixture_shard(tmp_path: Path) -> Path:
     (shard / "automation" / "status.json").write_text(
         json.dumps(status), encoding="utf-8"
     )
+    return shard
+
+
+def _unbalanced_fixture(tmp_path: Path) -> Path:
+    shard = tmp_path / "unbalanced-body-free-shard"
+    automation = shard / "automation"
+    automation.mkdir(parents=True)
+    (shard / "dataset.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "fixture",
+                "dataset_kind": dashboard.UNBALANCED_DATASET_KIND,
+                "namespace": "fixture",
+                "source_identity_sha256": "1" * 64,
+                "campaign_sha256": "2" * 64,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    (automation / "status.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "fixture",
+                "dataset_kind": dashboard.UNBALANCED_DATASET_KIND,
+                "state": "running",
+                "profile": "bulk_c30",
+                "phase": "bulk",
+                "updated_at": "2026-07-28T01:02:03+00:00",
+                "total": 4,
+                "queued": 1,
+                "inflight": 0,
+                "succeeded": 1,
+                "rejected": 2,
+                "retried": 0,
+                "role_counts": {"angry": 1},
+                "language_counts": {"en": 1},
+                "provider_usage": {
+                    "requests": 3,
+                    "input_tokens": 120,
+                    "output_tokens": 30,
+                    "usage_only": True,
+                },
+                "rate": {"jobs_per_second": 0.25, "eta_seconds": 4.0},
+                "hashes": {
+                    "source": "3" * 64,
+                    "config": "4" * 64,
+                    "campaign": "5" * 64,
+                    "model": "6" * 64,
+                    "implementation": "7" * 64,
+                    "contracts": "8" * 64,
+                },
+                "resume": {
+                    "completed": 3,
+                    "uncertain": 0,
+                    "group_commits_replayed": True,
+                    "duplicate_paid_call_prevention": ("uncertain_never_redispatched"),
+                },
+                "cost_guard": {
+                    "basis": "provider_requests",
+                    "used_units": 3,
+                    "maximum_units": 4,
+                    "marginal_currency_cost_known": False,
+                },
+                "kill_switch": {
+                    "armed": False,
+                    "checked_before_each_dispatch": True,
+                },
+                "content_free": True,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    events: list[dict] = []
+    event_number = 0
+
+    def append_event(
+        key: str,
+        state: str,
+        *,
+        reason: str,
+        role: str,
+        language: str,
+    ) -> None:
+        nonlocal event_number
+        event_number += 1
+        events.append(
+            {
+                "event_id": f"{event_number:064x}",
+                "idempotency_key": key,
+                "state": state,
+                "reason_code": reason,
+                "role": role,
+                "language": language,
+                "observed_at": f"2026-07-28T01:02:{event_number:02d}+00:00",
+                "content_retained": False,
+                "provider_body": "DO-NOT-RETURN-EVENT-BODY",
+            }
+        )
+
+    for suffix, terminal in (
+        ("a", "committed"),
+        ("b", "rejected"),
+        ("c", None),
+        ("d", "rejected"),
+    ):
+        key = suffix * 64
+        append_event(
+            key,
+            "reserved",
+            reason="budget_reserved",
+            role="angry",
+            language="en",
+        )
+        append_event(
+            key,
+            "dispatching",
+            reason="provider_dispatch",
+            role="angry",
+            language="en",
+        )
+        if terminal is not None:
+            append_event(
+                key,
+                terminal,
+                reason=(
+                    "validated"
+                    if terminal == "committed"
+                    else "natural_transport_invalid_json"
+                ),
+                role="angry",
+                language="en",
+            )
+    _append_jsonl(automation / "events.jsonl", events)
     return shard
 
 
@@ -491,6 +627,154 @@ def test_bundled_page_uses_safe_dom_updates_and_local_api_only() -> None:
     assert "replaceChildren" in asset
     assert "innerHTML" not in asset
     assert not re.search(r"<(?:script|link)\b[^>]+(?:src|href)=[\"']https?://", asset)
+
+
+def test_bundled_page_restores_neutral_theme_without_changing_metric_sources() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert '<html lang="en" data-theme="system">' in asset
+    assert '<meta name="color-scheme" content="light dark">' in asset
+    assert "--bg: #f5f5f3;" in asset
+    assert "--surface: #ffffff;" in asset
+    assert "--accent: #111111;" in asset
+    assert "#73f6a5" not in asset
+    assert 'id="theme-toggle"' in asset
+    assert 'const THEME_STORAGE_KEY = "anchor.dashboard.theme";' in asset
+    assert 'Object.freeze(["system", "light", "dark"])' in asset
+    assert "window.localStorage.setItem(THEME_STORAGE_KEY, theme)" in asset
+
+    # Presentation remains a pure projection of the body-free snapshot.
+    assert 'fetch("/api/snapshot"' in asset
+    assert (
+        'const stageNames = ["plan", "tool_policy", "frontend", "review", "security"]'
+        in asset
+    )
+    assert "const rejections = totals.seed_rejections || {};" in asset
+    assert "duration(totals.eta_seconds)" in asset
+    assert "totals.eta_seconds === null" in asset
+    assert '"metric.unknown_not_inferred": "UNKNOWN · not inferred"' in asset
+
+
+def test_bundled_monitor_view_hides_controls_and_maps_unbalanced_status() -> None:
+    asset = (
+        ROOT / "scripts" / "observability" / "dashboard_assets" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'id="control-section-label"' in asset
+    assert 'id="control-section"' in asset
+    assert "controlSectionLabelNode.hidden = !enabled;" in asset
+    assert "controlSectionNode.hidden = !enabled;" in asset
+    assert (
+        'headerTitleNode.dataset.i18n = enabled ? "header.title" : "header.monitor_title";'
+        in asset
+    )
+    assert "if (enabled && !controlResourcesLoaded)" in asset
+    initial_boot = asset.split('refreshNode.addEventListener("click", poll)', 1)[1]
+    assert "\n    loadOptions();" not in initial_boot
+    assert "\n    loadCatalog();" not in initial_boot
+
+    assert "renderUnbalancedSummary(snapshot)" in asset
+    assert "renderUnbalancedShards(unbalancedShards)" in asset
+    for field in (
+        '["total", "metric.jobs_total"]',
+        '["queued", "metric.jobs_queued"]',
+        '["inflight", "metric.jobs_inflight"]',
+        '["succeeded", "metric.jobs_succeeded"]',
+        '["rejected", "metric.jobs_rejected"]',
+        "resume || {}).uncertain",
+        "rate.jobs_per_second",
+        "rate.eta_seconds",
+        "shard.requests",
+        "shard.tokens || {}).input",
+        "shard.tokens || {}).output",
+    ):
+        assert field in asset
+    assert "bodyFreeNumber(totals.concurrency, true)" in asset
+    assert "sum_unbalanced_body_free_events" in asset
+    assert "current_active_dispatches_from_events" not in asset
+    assert "metric.live_estimate" in asset
+    assert "metric.unknown_not_inferred" in asset
+    assert "0.177456" not in asset
+    assert "19244.19" not in asset
+
+    # Rejection details are a closed body-free tuple, never free-form text.
+    assert "(item || {}).reason_code" in asset
+    assert "(item || {}).role" in asset
+    assert "(item || {}).language" in asset
+    assert "errors.rejection_matrix" in asset
+    assert "metric.rejection_detail_unknown" in asset
+    assert "metric.rejection_none" in asset
+    assert "metric.event_unknown" in asset
+
+
+def test_unbalanced_monitor_aligns_body_free_events_and_rejections(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    snapshot = dashboard.DashboardEngine([("live", shard)]).snapshot()
+    public = snapshot["unbalanced_shards"][0]
+    totals = snapshot["unbalanced_totals"]
+
+    assert public["concurrency"] == 1
+    assert public["concurrency_semantics"] == ("current_active_dispatches_from_events")
+    assert {
+        state: public["events"][state]["value"]
+        for state in ("reserved", "dispatching", "committed", "rejected")
+    } == {"reserved": 4, "dispatching": 4, "committed": 1, "rejected": 2}
+    assert all(
+        public["events"][state]["exact"] is True
+        for state in ("reserved", "dispatching", "committed", "rejected")
+    )
+    assert public["rejection_counts_exact"] is True
+    assert public["rejection_counts"] == [
+        {
+            "reason_code": "natural_transport_invalid_json",
+            "role": "angry",
+            "language": "en",
+            "count": 2,
+        }
+    ]
+    assert totals["concurrency"] == 1
+    assert totals["events"]["reserved"]["value"] == 4
+    assert totals["rejection_counts"] == public["rejection_counts"]
+    serialized = json.dumps(snapshot, ensure_ascii=False)
+    assert "DO-NOT-RETURN-EVENT-BODY" not in serialized
+    assert "a" * 64 not in serialized
+
+
+def test_unbalanced_event_policy_violation_makes_derived_fields_unknown(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    _append_jsonl(
+        shard / "automation" / "events.jsonl",
+        [
+            {
+                "event_id": "e" * 64,
+                "idempotency_key": "f" * 64,
+                "state": "reserved",
+                "reason_code": "budget_reserved",
+                "role": "angry",
+                "language": "en",
+                "observed_at": "2026-07-28T01:03:00+00:00",
+                "content_retained": True,
+                "provider_body": "DO-NOT-RETURN-POLICY-VIOLATION",
+            }
+        ],
+    )
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["concurrency"] is None
+    assert public["events"]["reserved"]["exact"] is False
+    assert public["rejection_counts_exact"] is False
+    assert public["rejection_counts"] == []
+    assert public["diagnostics"]["reason_codes"] == ["file_parse_error"]
+    serialized = json.dumps(public, ensure_ascii=False)
+    assert "DO-NOT-RETURN-POLICY-VIOLATION" not in serialized
 
 
 def test_bundled_page_freezes_last_snapshot_and_classifies_disconnects() -> None:

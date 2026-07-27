@@ -256,6 +256,26 @@ UNBALANCED_STATUS_PATHS: frozenset[PathKey] = frozenset(
         ("content_free",),
     }
 )
+UNBALANCED_EVENT_FILE = Path("automation") / "events.jsonl"
+UNBALANCED_EVENT_STATES = frozenset(
+    {"reserved", "dispatching", "retryable", "uncertain", "committed", "rejected"}
+)
+UNBALANCED_EVENT_ROLES = frozenset(
+    {"humor", "serious", "angry", "tool", "review", "router", "identity"}
+)
+UNBALANCED_EVENT_LANGUAGES = frozenset({"en", "zh-CN"})
+UNBALANCED_EVENT_PATHS: frozenset[PathKey] = frozenset(
+    {
+        ("event_id",),
+        ("idempotency_key",),
+        ("state",),
+        ("reason_code",),
+        ("role",),
+        ("language",),
+        ("observed_at",),
+        ("content_retained",),
+    }
+)
 
 
 class MetadataJsonError(ValueError):
@@ -828,6 +848,63 @@ class SeedRejectionAggregate:
         )
 
 
+@dataclass
+class UnbalancedEventAggregate:
+    """Body-free event counters and current dispatch state."""
+
+    rows: int = 0
+    by_state: Counter[str] = field(default_factory=Counter)
+    latest_state_by_key: dict[str, str] = field(default_factory=dict)
+    rejection_counts: Counter[tuple[str, str, str]] = field(default_factory=Counter)
+    latest_observed_at: str | None = None
+
+    def add(self, metadata: Mapping[PathKey, object]) -> None:
+        event_id = _safe_sha256(metadata.get(("event_id",)))
+        key = _safe_sha256(metadata.get(("idempotency_key",)))
+        state = metadata.get(("state",))
+        reason = metadata.get(("reason_code",))
+        role = metadata.get(("role",))
+        language = metadata.get(("language",))
+        observed_at = _safe_observed_at(metadata.get(("observed_at",)))
+        if (
+            event_id is None
+            or key is None
+            or state not in UNBALANCED_EVENT_STATES
+            or not isinstance(reason, str)
+            or SAFE_ENUM_RE.fullmatch(reason) is None
+            or role not in UNBALANCED_EVENT_ROLES
+            or language not in UNBALANCED_EVENT_LANGUAGES
+            or observed_at is None
+            or metadata.get(("content_retained",)) is not False
+        ):
+            raise ValueError("unbalanced event metadata is invalid")
+        allowed_next = {
+            None: {"reserved"},
+            "reserved": {"dispatching"},
+            "dispatching": {"retryable", "uncertain", "committed", "rejected"},
+            "retryable": {"reserved"},
+            "uncertain": set(),
+            "committed": set(),
+            "rejected": set(),
+        }
+        previous = self.latest_state_by_key.get(key)
+        if state not in allowed_next[previous]:
+            raise ValueError("unbalanced event transition is invalid")
+        self.rows += 1
+        self.by_state[str(state)] += 1
+        self.latest_state_by_key[key] = str(state)
+        if state == "rejected":
+            self.rejection_counts[(reason, str(role), str(language))] += 1
+        if self.latest_observed_at is None or observed_at > self.latest_observed_at:
+            self.latest_observed_at = observed_at
+
+    @property
+    def active_dispatches(self) -> int:
+        return sum(
+            state == "dispatching" for state in self.latest_state_by_key.values()
+        )
+
+
 @dataclass(frozen=True)
 class ParseError:
     source: str
@@ -853,7 +930,11 @@ class IncrementalJsonl:
         self.parse_errors: deque[ParseError] = deque(maxlen=MAX_PARSE_ERRORS)
         self.bytes_read_total = 0
         self.aggregate: (
-            StageAggregate | SeedAggregate | AttemptAggregate | SeedRejectionAggregate
+            StageAggregate
+            | SeedAggregate
+            | AttemptAggregate
+            | SeedRejectionAggregate
+            | UnbalancedEventAggregate
         )
         self._reset_aggregate()
 
@@ -866,6 +947,8 @@ class IncrementalJsonl:
             self.aggregate = AttemptAggregate()
         elif self.kind == "seed_rejection":
             self.aggregate = SeedRejectionAggregate()
+        elif self.kind == "unbalanced_event":
+            self.aggregate = UnbalancedEventAggregate()
         else:
             raise ValueError(f"unknown JSONL kind: {self.kind}")
         self.parse_errors.clear()
@@ -917,6 +1000,8 @@ class IncrementalJsonl:
                     selected = ATTEMPT_PATHS
                 elif self.kind == "seed_rejection":
                     selected = SEED_REJECTION_PATHS
+                elif self.kind == "unbalanced_event":
+                    selected = UNBALANCED_EVENT_PATHS
                 metadata = scan_metadata(raw, selected)
                 self.aggregate.add(metadata)
             except (MetadataJsonError, ValueError, TypeError):
@@ -1045,13 +1130,26 @@ class UnbalancedShardMonitor:
         self.status_reader = StatusReader(
             path / STATUS_FILE, selected=UNBALANCED_STATUS_PATHS
         )
+        self.event_reader = IncrementalJsonl(
+            path / UNBALANCED_EVENT_FILE,
+            "unbalanced_events",
+            "unbalanced_event",
+        )
 
     def refresh(self, _now_monotonic: float) -> bool:
-        return self.status_reader.refresh()
+        status_changed = self.status_reader.refresh()
+        events_changed = self.event_reader.refresh()
+        return status_changed or events_changed
 
     def public(self, _catalog: CatalogService | None = None) -> dict[str, object]:
         metadata = self.status_reader.metadata
         invalid = self.status_reader.invalid_sha256
+        event_aggregate = self.event_reader.aggregate
+        if not isinstance(event_aggregate, UnbalancedEventAggregate):
+            raise RuntimeError("unbalanced event aggregate kind drift")
+        event_errors = [item.public() for item in self.event_reader.parse_errors]
+        events_available = self.event_reader.identity is not None
+        events_exact = events_available and not event_errors
         state = (
             _safe_enum(metadata.get(("state",)), fallback_prefix="unknown-state")
             if metadata.get(("state",)) is not None
@@ -1124,7 +1222,7 @@ class UnbalancedShardMonitor:
         cooldown_until = _safe_observed_at(metadata.get(("cooldown_until",)))
         updated_at = _safe_observed_at(metadata.get(("updated_at",)))
         reasons: list[str] = []
-        if invalid is not None:
+        if invalid is not None or event_errors:
             reasons.append("file_parse_error")
         if state == "cooldown":
             reasons.append("provider_cooldown")
@@ -1132,6 +1230,30 @@ class UnbalancedShardMonitor:
             "attention"
             if reasons or state not in {"running", "complete", "cooldown"}
             else ("complete" if state == "complete" else "running")
+        )
+        event_metrics = {
+            name: _metric(
+                event_aggregate.by_state[name] if events_available else None,
+                exact=events_exact,
+                unknown_rows=len(event_errors),
+                source="unbalanced_body_free_events",
+            )
+            for name in sorted(UNBALANCED_EVENT_STATES)
+        }
+        rejection_counts = (
+            [
+                {
+                    "reason_code": reason,
+                    "role": role,
+                    "language": language,
+                    "count": count,
+                }
+                for (reason, role, language), count in sorted(
+                    event_aggregate.rejection_counts.items()
+                )
+            ]
+            if events_exact
+            else []
         )
         return {
             "label": self.label,
@@ -1181,6 +1303,13 @@ class UnbalancedShardMonitor:
                 "jobs_per_second": jobs_per_second,
                 "eta_seconds": eta_seconds,
             },
+            "concurrency": (
+                event_aggregate.active_dispatches if events_exact else None
+            ),
+            "concurrency_semantics": "current_active_dispatches_from_events",
+            "events": event_metrics,
+            "rejection_counts": rejection_counts,
+            "rejection_counts_exact": events_exact,
             "cooldown_until": cooldown_until,
             "hashes": {**hashes, "exact": hashes_exact},
             "resume": {
@@ -1225,7 +1354,8 @@ class UnbalancedShardMonitor:
                     {"source": "unbalanced_status", "sha256": invalid}
                     if invalid is not None
                     else None
-                )
+                ),
+                "event_errors": event_errors,
             },
             "diagnostics": {
                 "summary": diagnostics_summary,
@@ -1890,12 +2020,84 @@ class DashboardEngine:
             )
             for name in ("input", "output")
         }
+        concurrency_values = [
+            shard.get("concurrency")
+            for shard in shards
+            if isinstance(shard.get("concurrency"), int)
+            and not isinstance(shard.get("concurrency"), bool)
+        ]
+        concurrency = (
+            sum(int(value) for value in concurrency_values)
+            if len(concurrency_values) == len(shards)
+            else None
+        )
+        event_names = tuple(sorted(UNBALANCED_EVENT_STATES))
+        events = {
+            name: _sum_public_metrics(
+                [
+                    shard.get("events", {}).get(name)
+                    if isinstance(shard.get("events"), Mapping)
+                    else None
+                    for shard in shards
+                ],
+                source="sum_unbalanced_body_free_events",
+            )
+            for name in event_names
+        }
+        rejection_counts: Counter[tuple[str, str, str]] = Counter()
+        rejection_counts_exact = all(
+            shard.get("rejection_counts_exact") is True for shard in shards
+        )
+        if rejection_counts_exact:
+            for shard in shards:
+                values = shard.get("rejection_counts")
+                if not isinstance(values, Sequence):
+                    rejection_counts_exact = False
+                    rejection_counts.clear()
+                    break
+                for item in values:
+                    if not isinstance(item, Mapping):
+                        rejection_counts_exact = False
+                        rejection_counts.clear()
+                        break
+                    reason = item.get("reason_code")
+                    role = item.get("role")
+                    language = item.get("language")
+                    count = item.get("count")
+                    if (
+                        not isinstance(reason, str)
+                        or SAFE_ENUM_RE.fullmatch(reason) is None
+                        or role not in UNBALANCED_EVENT_ROLES
+                        or language not in UNBALANCED_EVENT_LANGUAGES
+                        or isinstance(count, bool)
+                        or not isinstance(count, int)
+                        or count < 0
+                    ):
+                        rejection_counts_exact = False
+                        rejection_counts.clear()
+                        break
+                    rejection_counts[(reason, str(role), str(language))] += count
+                if not rejection_counts_exact:
+                    break
         return {
             "jobs": jobs,
             "role_counts": dict(sorted(role_counts.items())),
             "language_counts": dict(sorted(language_counts.items())),
             "requests": requests,
             "tokens": tokens,
+            "concurrency": concurrency,
+            "concurrency_semantics": "current_active_dispatches_from_events",
+            "events": events,
+            "rejection_counts": [
+                {
+                    "reason_code": reason,
+                    "role": role,
+                    "language": language,
+                    "count": count,
+                }
+                for (reason, role, language), count in sorted(rejection_counts.items())
+            ],
+            "rejection_counts_exact": rejection_counts_exact,
             "shard_count": len(shards),
             "content_free": True,
         }
