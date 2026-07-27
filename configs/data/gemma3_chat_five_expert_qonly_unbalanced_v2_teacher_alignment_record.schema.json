@@ -74,8 +74,8 @@
         "output_schema_sha256"
       ],
       "properties": {
-        "provider": {"const": "custom-openai-responses"},
-        "protocol": {"const": "openai_responses"},
+        "provider": {"const": "custom-openai-chat-json-mode"},
+        "protocol": {"const": "openai"},
         "base_url": {
           "const": "https://ark.cn-beijing.volces.com/api/coding/v3"
         },

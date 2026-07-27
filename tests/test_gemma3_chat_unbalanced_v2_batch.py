@@ -59,8 +59,42 @@ def _runtime_slots() -> batch.RuntimeSecretSlots:
     )
 
 
-def test_live_teachers_use_unbounded_non_streaming_responses() -> None:
-    config = batch.load_config(PROFILE_PATHS["smoke_exact1"])
+def _chat_profile_path(profile: str, root: Path) -> Path:
+    value = yaml.safe_load(PROFILE_PATHS[profile].read_text(encoding="utf-8"))
+    value["provider"].update(
+        {
+            "preset": batch.PROVIDER_PRESET,
+            "protocol": batch.PROTOCOL,
+            "base_url": batch.BASE_URL,
+        }
+    )
+    path = root / PROFILE_PATHS[profile].name
+    path.write_bytes(
+        yaml.safe_dump(
+            value,
+            allow_unicode=True,
+            sort_keys=False,
+        ).encode("utf-8")
+    )
+    return path
+
+
+def _load_chat_config(profile: str, root: Path) -> batch.AdapterConfig:
+    return batch.load_config(_chat_profile_path(profile, root))
+
+
+def _chat_prerequisite_path(raw_path: str, root: Path) -> Path:
+    source_name = Path(raw_path).name
+    for profile, path in PROFILE_PATHS.items():
+        if path.name == source_name:
+            return _chat_profile_path(profile, root)
+    raise AssertionError(f"unknown prerequisite profile: {source_name}")
+
+
+def test_live_teachers_use_unbounded_non_streaming_chat_json_mode(
+    tmp_path: Path,
+) -> None:
+    config = _load_chat_config("smoke_exact1", tmp_path)
     slots = _runtime_slots()
     try:
         teachers = batch.build_teachers(config, slots)
@@ -74,42 +108,44 @@ def test_live_teachers_use_unbounded_non_streaming_responses() -> None:
             teacher.responses_thinking_policy == "explicit_disabled"
             for teacher in teachers.values()
         )
-        assert set(batch.RESPONSES_TEXT_FORMAT_BY_ROLE) == {
+        assert set(batch.CHAT_JSON_MODE_ROLES) == {
             "humor",
             "serious",
             "angry",
+            "tool",
             "review",
             "router",
         }
         for role, teacher in teachers.items():
-            format_binding = teacher.generation_params["responses_text_format"]
-            if role in batch.RESPONSES_TEXT_FORMAT_BY_ROLE:
+            assert teacher.protocol == "openai"
+            format_binding = teacher.generation_params["chat_response_format"]
+            if role in batch.CHAT_JSON_MODE_ROLES:
                 assert format_binding == {
                     "enabled": True,
-                    "sha256": batch._hash_object(
-                        batch.RESPONSES_TEXT_FORMAT_BY_ROLE[role]
-                    ),
+                    "sha256": batch.CHAT_JSON_RESPONSE_FORMAT_SHA256,
                 }
             else:
                 assert format_binding == {"enabled": False, "sha256": None}
         assert batch.REQUEST_POLICY["schema_version"].endswith(
-            ".ark-responses-request-policy.v3"
+            ".ark-chat-json-mode-request-policy.v4"
         )
-        assert batch.REQUEST_POLICY["response_format"]["formats_by_role"] == (
-            batch.RESPONSES_TEXT_FORMAT_BY_ROLE
+        assert batch.REQUEST_POLICY["endpoint"] == (
+            "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
         )
-        assert batch.REQUEST_POLICY["response_format"]["raw_text_roles"] == ["identity"]
-        assert batch.REQUEST_POLICY["response_format"][
-            "local_validator_only_roles"
-        ] == ["tool"]
+        response_policy = batch.REQUEST_POLICY["response_format"]
+        assert response_policy["canonical_value"] == {"type": "json_object"}
+        assert response_policy["native_json_mode_only"] is True
+        assert response_policy["native_strict_schema_claimed"] is False
+        assert response_policy["local_closed_validator"] is True
+        assert response_policy["omitted_roles"] == ["identity"]
     finally:
         slots.close()
 
 
-def test_batch_role_format_reaches_real_responses_wire_without_affecting_identity(
-    monkeypatch,
+def test_batch_role_format_reaches_real_chat_wire_without_affecting_identity_or_probe(
+    monkeypatch, tmp_path: Path
 ) -> None:
-    captured: list[dict[str, Any]] = []
+    captured: list[tuple[str, dict[str, Any]]] = []
 
     class Response:
         def __enter__(self):
@@ -121,31 +157,20 @@ def test_batch_role_format_reaches_real_responses_wire_without_affecting_identit
         def read(self) -> bytes:
             return json.dumps(
                 {
-                    "id": f"resp-{len(captured)}",
-                    "status": "completed",
-                    "output": [
-                        {
-                            "type": "message",
-                            "content": [
-                                {
-                                    "type": "output_text",
-                                    "text": '{"final_answer":"ok"}',
-                                }
-                            ],
-                        }
-                    ],
-                    "usage": {"input_tokens": 1, "output_tokens": 1},
+                    "id": f"chatcmpl-{len(captured)}",
+                    "choices": [{"message": {"content": '{"ok":true}'}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
             ).encode("utf-8")
 
     def fake_urlopen(request, timeout):
         del timeout
-        captured.append(json.loads(request.data.decode("utf-8")))
+        captured.append((request.full_url, json.loads(request.data.decode("utf-8"))))
         return Response()
 
     monkeypatch.setattr("anchor_mvp.data.teacher.urlopen", fake_urlopen)
-    config = batch.load_config(PROFILE_PATHS["smoke_exact1"])
-    for role in ("humor", "identity"):
+    config = _load_chat_config("smoke_exact1", tmp_path)
+    for index, role in enumerate((*batch.CHAT_JSON_MODE_ROLES, "identity")):
         slots = _runtime_slots()
         try:
             teacher = batch.build_teachers(config, slots)[role]
@@ -153,19 +178,31 @@ def test_batch_role_format_reaches_real_responses_wire_without_affecting_identit
                 teacher.complete(
                     system="system",
                     user="user",
-                    idempotency_key=("a" if role == "humor" else "b") * 64,
+                    idempotency_key=f"{index + 1:064x}",
                 )
             )
         finally:
             slots.close()
-    assert captured[0]["text"] == {
-        "format": batch.RESPONSES_TEXT_FORMAT_BY_ROLE["humor"]
-    }
-    assert captured[0]["thinking"] == {"type": "disabled"}
-    assert "max_output_tokens" not in captured[0]
-    assert "response_format" not in captured[0]
-    assert "text" not in captured[1]
-    assert captured[1]["thinking"] == {"type": "disabled"}
+    slots = _runtime_slots()
+    try:
+        probe_teacher = batch.build_teachers(config, slots)["humor"]
+        asyncio.run(probe_teacher.probe())
+    finally:
+        slots.close()
+
+    assert len(captured) == 8
+    assert all(
+        url == "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+        for url, _ in captured
+    )
+    for _, body in captured[:6]:
+        assert body["response_format"] == {"type": "json_object"}
+    assert "response_format" not in captured[6][1]
+    assert "response_format" not in captured[7][1]
+    for _, body in captured:
+        assert "max_tokens" not in body
+        assert body["thinking"] == {"type": "disabled"}
+        assert "reasoning_effort" not in body
 
 
 def test_failure_attempts_keep_only_body_free_retry_reason_codes() -> None:
@@ -586,7 +623,7 @@ def _runtime_config(
     tmp_path: Path,
     frozen_source: tuple[dict[str, Any], Path, str, dict[str, Any]],
 ) -> batch.AdapterConfig:
-    config = batch.load_config(PROFILE_PATHS[profile])
+    config = _load_chat_config(profile, tmp_path)
     source, receipt_path, receipt_sha, protected_test = frozen_source
     source_binding = {
         **config.source_binding,
@@ -603,12 +640,20 @@ def _runtime_config(
         **config.output,
         "root": str(tmp_path / "alignment-shard"),
     }
+    prerequisites = {
+        **config.prerequisites,
+        "profile_paths": {
+            phase: str(_chat_prerequisite_path(raw_path, tmp_path))
+            for phase, raw_path in config.prerequisites["profile_paths"].items()
+        },
+    }
     return replace(
         config,
         source_binding=source_binding,
         protected_test_binding=protected_test,
         heldout_binding=heldout_binding,
         output=output,
+        prerequisites=prerequisites,
     )
 
 

@@ -7,8 +7,8 @@ namespace: anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment
 profile_id: bounded_small_c1
 
 provider:
-  preset: custom-openai-responses
-  protocol: openai_responses
+  preset: custom-openai-chat-json-mode
+  protocol: openai
   base_url: https://ark.cn-beijing.volces.com/api/coding/v3
   model: glm-5-2-260617
   force_model: true

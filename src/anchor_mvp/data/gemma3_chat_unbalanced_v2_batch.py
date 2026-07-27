@@ -7,8 +7,8 @@ answers into an append-only alignment shard.
 
 No network transport is implemented here.  Real requests use
 ``CompatibleTeacher`` from :mod:`anchor_mvp.data.teacher`, including its
-body-free errors, bounded request-local retries, and strict Responses/SSE
-terminal semantics.
+body-free errors, bounded request-local retries, and strict Chat response
+parsing.
 """
 
 from __future__ import annotations
@@ -64,8 +64,8 @@ STATUS_SCHEMA_VERSION = f"{NAMESPACE}.status.v1"
 GROUP_SCHEMA_VERSION = f"{NAMESPACE}.group-commit.v1"
 PROMPT_VERSION = "unbalanced-v2-ark-final-only-v7"
 
-PROVIDER_PRESET = "custom-openai-responses"
-PROTOCOL = "openai_responses"
+PROVIDER_PRESET = "custom-openai-chat-json-mode"
+PROTOCOL = "openai"
 BASE_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
 MODEL = "glm-5-2-260617"
 _NATURAL_RESPONSE_SCHEMA = {
@@ -147,27 +147,31 @@ RESPONSES_TEXT_FORMAT_BY_ROLE.update(
         },
     }
 )
+CHAT_JSON_RESPONSE_FORMAT = {"type": "json_object"}
+CHAT_JSON_RESPONSE_FORMAT_SHA256 = hashlib.sha256(b'{"type":"json_object"}').hexdigest()
+CHAT_JSON_MODE_ROLES = ("humor", "serious", "angry", "tool", "review", "router")
+CHAT_LOCAL_VALIDATOR_ROLES = (*CHAT_JSON_MODE_ROLES, "identity")
 REQUEST_POLICY = {
-    "schema_version": f"{NAMESPACE}.ark-responses-request-policy.v3",
+    "schema_version": f"{NAMESPACE}.ark-chat-json-mode-request-policy.v4",
     "provider": PROVIDER_PRESET,
     "protocol": PROTOCOL,
     "base_url": BASE_URL,
+    "endpoint": f"{BASE_URL}/chat/completions",
     "model": MODEL,
     "thinking_wire_policy": "explicit_disabled",
     "temperature": 0.2,
-    "max_output_tokens": "omitted_provider_intrinsic_only",
+    "max_tokens": "omitted_provider_intrinsic_only",
     "stream": False,
-    "store": False,
     "response_format": {
-        "wire_path": "text.format",
-        "native_type": "json_schema",
-        "strict": True,
-        "formats_by_role": RESPONSES_TEXT_FORMAT_BY_ROLE,
-        "raw_text_roles": ["identity"],
-        "local_validator_only_roles": ["tool"],
-        "tool_native_schema_blocker": (
-            "authenticated_tool_argument_schema_unavailable"
-        ),
+        "wire_path": "response_format",
+        "canonical_value": CHAT_JSON_RESPONSE_FORMAT,
+        "canonical_sha256": CHAT_JSON_RESPONSE_FORMAT_SHA256,
+        "json_mode_roles": list(CHAT_JSON_MODE_ROLES),
+        "omitted_roles": ["identity"],
+        "native_json_mode_only": True,
+        "native_strict_schema_claimed": False,
+        "local_closed_validator": True,
+        "local_closed_validator_roles": list(CHAT_LOCAL_VALIDATOR_ROLES),
     },
 }
 CREDENTIAL_SOURCE = "controller_memory_slot"
@@ -338,7 +342,7 @@ PRODUCER_LOGICAL_IDENTITY = {
     ),
 }
 
-ROLES = ("humor", "serious", "angry", "tool", "review", "router", "identity")
+ROLES = CHAT_LOCAL_VALIDATOR_ROLES
 STYLE_NATURAL_TRANSPORT_ROLES = frozenset({"humor", "serious", "angry"})
 ROUTER_TERMINAL_PLAN = ("execute_selected_specialist",)
 LANGUAGES = ("zh-CN", "en")
@@ -6119,16 +6123,17 @@ def build_teachers(
             wall_clock_deadline_seconds=config.limits.wall_clock_deadline_seconds,
             max_retries=config.limits.max_retries,
             temperature=0.2,
-            # Omit max_output_tokens from Ark Responses requests. The provider's
+            # Omit max_tokens from Ark Chat requests. The provider's
             # intrinsic model/context ceiling is the only output-length bound.
             max_tokens=None,
             thinking_enabled=False,
             thinking_effort="low",
             thinking_budget_tokens=0,
             responses_thinking_policy="explicit_disabled",
-            responses_text_format=RESPONSES_TEXT_FORMAT_BY_ROLE.get(role),
-            # The Ark coding Responses endpoint intermittently terminated SSE
-            # before response.completed.  A non-streaming Responses request
+            chat_response_format=(
+                CHAT_JSON_RESPONSE_FORMAT if role in CHAT_JSON_MODE_ROLES else None
+            ),
+            # A non-streaming Chat request
             # preserves the one-request/idempotency contract without replaying
             # an outcome that may already have been billed.
             stream_openai=False,

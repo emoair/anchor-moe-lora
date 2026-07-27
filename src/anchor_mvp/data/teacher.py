@@ -127,6 +127,32 @@ def _canonical_responses_text_format(
     return encoded, digest
 
 
+def _canonical_chat_response_format(
+    value: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None]:
+    """Freeze the only supported Chat Completions JSON-mode declaration."""
+
+    if value is None:
+        return None, None
+    if not isinstance(value, Mapping):
+        raise ValueError("Chat response format must be an object")
+    try:
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        frozen = json.loads(encoded)
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("Chat response format must be canonical JSON") from error
+    if frozen != {"type": "json_object"}:
+        raise ValueError("Chat response format must be json_object")
+    digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return encoded, digest
+
+
 class TeacherError(RuntimeError):
     """A redacted teacher request failure."""
 
@@ -295,6 +321,9 @@ class CompatibleTeacher:
     responses_text_format: Mapping[str, Any] | None = field(
         default=None, repr=False, compare=False
     )
+    chat_response_format: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
     stream_openai: bool = True
     stream_options_include_usage: bool = False
     wall_clock_deadline_seconds: float = 900.0
@@ -310,6 +339,8 @@ class CompatibleTeacher:
     )
     _responses_text_format_json: str | None = field(init=False, repr=False)
     _responses_text_format_sha256: str | None = field(init=False, repr=False)
+    _chat_response_format_json: str | None = field(init=False, repr=False)
+    _chat_response_format_sha256: str | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         protocols = ("anthropic", "openai", "openai_responses")
@@ -332,12 +363,14 @@ class CompatibleTeacher:
             or (self.max_tokens is not None and self.max_tokens < 1)
         ):
             raise ValueError("teacher budgets must be positive")
+        protocols_without_required_output_limit = {"openai", "openai_responses"}
         if self.max_tokens is None and (
-            self.protocol != "openai_responses"
-            or self.fallback_protocol not in (None, "openai_responses")
+            self.protocol not in protocols_without_required_output_limit
+            or self.fallback_protocol
+            not in (None, *protocols_without_required_output_limit)
         ):
             raise ValueError(
-                "an omitted per-request output limit requires Responses protocol"
+                "an omitted per-request output limit requires OpenAI protocol"
             )
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -351,11 +384,11 @@ class CompatibleTeacher:
             )
         if self.responses_thinking_policy == "explicit_disabled" and (
             self.thinking_enabled
-            or self.protocol != "openai_responses"
-            or self.fallback_protocol not in (None, "openai_responses")
+            or self.protocol not in {"openai", "openai_responses"}
+            or self.fallback_protocol not in (None, "openai", "openai_responses")
         ):
             raise ValueError(
-                "explicit Responses thinking disable requires non-thinking Responses"
+                "explicit thinking disable requires non-thinking OpenAI protocol"
             )
         (
             self._responses_text_format_json,
@@ -367,6 +400,16 @@ class CompatibleTeacher:
         ):
             raise ValueError(
                 "Responses text format requires Responses-only protocol routing"
+            )
+        (
+            self._chat_response_format_json,
+            self._chat_response_format_sha256,
+        ) = _canonical_chat_response_format(self.chat_response_format)
+        if self._chat_response_format_json is not None and (
+            self.protocol != "openai" or self.fallback_protocol not in (None, "openai")
+        ):
+            raise ValueError(
+                "Chat response format requires Chat-only OpenAI protocol routing"
             )
         uses_anthropic = (
             self.protocol == "anthropic" or self.fallback_protocol == "anthropic"
@@ -401,6 +444,10 @@ class CompatibleTeacher:
             "responses_text_format": {
                 "enabled": self._responses_text_format_json is not None,
                 "sha256": self._responses_text_format_sha256,
+            },
+            "chat_response_format": {
+                "enabled": self._chat_response_format_json is not None,
+                "sha256": self._chat_response_format_sha256,
             },
             "stream_openai": self.stream_openai,
             "stream_options_include_usage": self.stream_options_include_usage,
@@ -489,6 +536,7 @@ class CompatibleTeacher:
                 self.max_tokens,
                 validated_idempotency_key,
                 self._responses_text_format_json,
+                self._chat_response_format_json,
             )
         except _ProtocolError as error:
             # A task prompt may contain private code or user context. Never
@@ -504,7 +552,10 @@ class CompatibleTeacher:
         primary_base_url = self.base_url
         fallback_protocol = self.fallback_protocol
         fallback_base_url = self.fallback_base_url
-        if self.max_tokens is None and primary_protocol == "openai_responses":
+        if self.max_tokens is None and primary_protocol in {
+            "openai",
+            "openai_responses",
+        }:
             probe_tokens = None
         elif self.thinking_enabled and primary_protocol == "anthropic":
             probe_tokens = min(configured_max_tokens, self.thinking_budget_tokens + 1)
@@ -534,7 +585,10 @@ class CompatibleTeacher:
                 or not _is_explicit_compatibility_error(error)
             ):
                 raise TeacherError(_redact(str(error))) from None
-            if self.max_tokens is None and fallback_protocol == "openai_responses":
+            if self.max_tokens is None and fallback_protocol in {
+                "openai",
+                "openai_responses",
+            }:
                 fallback_tokens = None
             elif self.thinking_enabled and fallback_protocol == "anthropic":
                 fallback_tokens = min(
@@ -570,6 +624,7 @@ class CompatibleTeacher:
         max_tokens: int | None,
         idempotency_key: str | None = None,
         responses_text_format_json: str | None = None,
+        chat_response_format_json: str | None = None,
     ) -> str:
         last_error: Exception | None = None
         retry_reasons: list[str] = []
@@ -601,6 +656,12 @@ class CompatibleTeacher:
                     if idempotency_key is None:
                         request_args = (*request_args, None)
                     request_args = (*request_args, responses_text_format_json)
+                if chat_response_format_json is not None:
+                    if idempotency_key is None:
+                        request_args = (*request_args, None)
+                    if responses_text_format_json is None:
+                        request_args = (*request_args, None)
+                    request_args = (*request_args, chat_response_format_json)
                 result = await asyncio.to_thread(self._request_sync, *request_args)
                 completion = (
                     dict(result.completion)
@@ -679,12 +740,18 @@ class CompatibleTeacher:
         max_tokens: int | None,
         idempotency_key: str | None = None,
         responses_text_format_json: str | None = None,
+        chat_response_format_json: str | None = None,
     ) -> str:
         if responses_text_format_json is not None and (
             protocol != "openai_responses"
             or responses_text_format_json != self._responses_text_format_json
         ):
             raise TeacherError("Responses text format identity mismatch")
+        if chat_response_format_json is not None and (
+            protocol != "openai"
+            or chat_response_format_json != self._chat_response_format_json
+        ):
+            raise TeacherError("Chat response format identity mismatch")
         if self.credential_provider is not None:
             try:
                 api_key = self.credential_provider()
@@ -731,7 +798,6 @@ class CompatibleTeacher:
                 "User-Agent": self.user_agent,
             }
         elif protocol == "openai":
-            assert max_tokens is not None
             endpoint = _openai_endpoint(base_url)
             payload = {
                 "model": self.model,
@@ -739,12 +805,17 @@ class CompatibleTeacher:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                "max_tokens": max_tokens,
             }
+            if max_tokens is not None:
+                payload["max_tokens"] = max_tokens
             if self.thinking_enabled:
                 payload["reasoning_effort"] = self.thinking_effort
             else:
                 payload["temperature"] = self.temperature
+                if self.responses_thinking_policy == "explicit_disabled":
+                    payload["thinking"] = {"type": "disabled"}
+            if chat_response_format_json is not None:
+                payload["response_format"] = json.loads(chat_response_format_json)
             if self.stream_openai:
                 payload["stream"] = True
                 if self.stream_options_include_usage:

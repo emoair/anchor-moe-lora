@@ -695,6 +695,93 @@ def test_openai_thinking_off_sends_temperature(monkeypatch) -> None:
     assert "reasoning_effort" not in captured["body"]
 
 
+def test_openai_chat_json_mode_freezes_wire_and_probe_omits_request_options(
+    monkeypatch,
+) -> None:
+    captured: list[tuple[str, dict]] = []
+    response_format = {"type": "json_object"}
+
+    def fake_urlopen(request, timeout):
+        del timeout
+        body = json.loads(request.data.decode("utf-8"))
+        captured.append((request.full_url, body))
+        content = (
+            '{"final_answer":"ok"}' if "response_format" in body else '{"ok":true}'
+        )
+        return _Response(
+            {
+                "choices": [{"message": {"content": content}}],
+                "usage": {"completion_tokens": 1},
+            }
+        )
+
+    monkeypatch.setenv("ARK_TEST_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        base_url="https://ark.cn-beijing.volces.com/api/coding/v3",
+        model="ark-model-id",
+        protocol="openai",
+        fallback_protocol=None,
+        api_key_env="ARK_TEST_KEY",
+        thinking_enabled=False,
+        stream_openai=False,
+        max_retries=0,
+        max_tokens=None,
+        max_requests=2,
+        max_output_tokens_total=None,
+        responses_thinking_policy="explicit_disabled",
+        chat_response_format=response_format,
+    )
+    response_format["type"] = "json_schema"
+    response_format["strict"] = True
+
+    assert (
+        asyncio.run(
+            teacher.complete(
+                system="system",
+                user="user",
+                idempotency_key="a" * 64,
+            )
+        )
+        == '{"final_answer":"ok"}'
+    )
+    assert asyncio.run(teacher.probe()) == '{"ok":true}'
+    assert [url for url, _ in captured] == [
+        "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+        "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+    ]
+    completion_body = captured[0][1]
+    probe_body = captured[1][1]
+    assert completion_body["response_format"] == {"type": "json_object"}
+    assert "response_format" not in probe_body
+    for body in (completion_body, probe_body):
+        assert "max_tokens" not in body
+        assert body["thinking"] == {"type": "disabled"}
+        assert "reasoning_effort" not in body
+    assert teacher.generation_params["chat_response_format"] == {
+        "enabled": True,
+        "sha256": hashlib.sha256(b'{"type":"json_object"}').hexdigest(),
+    }
+
+
+@pytest.mark.parametrize(
+    ("protocol", "response_format"),
+    [
+        ("openai", {"type": "json_schema"}),
+        ("openai_responses", {"type": "json_object"}),
+    ],
+)
+def test_openai_chat_response_format_is_closed_and_chat_only(
+    protocol: str, response_format: dict
+) -> None:
+    with pytest.raises(ValueError, match="Chat response format"):
+        CompatibleTeacher(
+            protocol=protocol,
+            fallback_protocol=None,
+            chat_response_format=response_format,
+        )
+
+
 def test_openai_responses_thinking_off_is_explicit(monkeypatch) -> None:
     captured = {}
 
