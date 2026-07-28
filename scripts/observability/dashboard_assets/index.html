@@ -982,6 +982,9 @@
         "metric.jobs_uncertain": "uncertain",
         "metric.provider_requests": "provider requests",
         "metric.provider_input_tokens": "provider input tokens",
+        "metric.provider_input_per_s": "provider input tok / s",
+        "metric.token_window": "token throughput window",
+        "metric.token_window_detail": "last complete group · {jobs} jobs / {window} · ended {time} · body-free provider usage",
         "metric.live_speed": "live speed",
         "metric.live_eta": "live ETA",
         "metric.concurrency": "active dispatches",
@@ -1244,6 +1247,9 @@
         "metric.jobs_uncertain": "不确定",
         "metric.provider_requests": "服务商请求数",
         "metric.provider_input_tokens": "服务商输入 Token",
+        "metric.provider_input_per_s": "服务商输入 Token/秒",
+        "metric.token_window": "Token 吞吐统计窗口",
+        "metric.token_window_detail": "最近完整提交批次 · {jobs} 个任务 / {window} · 结束于 {time} · 仅无正文服务商用量",
         "metric.live_speed": "实时速度",
         "metric.live_eta": "实时预计剩余",
         "metric.concurrency": "当前活跃调度",
@@ -1718,6 +1724,29 @@
       return { value: null, exact: false, unknown_rows: 0, source };
     }
 
+    function unbalancedTokenRateText(metric) {
+      const safeMetric = bodyFreeMetric(metric);
+      return safeMetric && safeMetric.exact
+        ? `${decimal(safeMetric.value, 3)} tok/s`
+        : t("common.unknown");
+    }
+
+    function unbalancedTokenRateNote(rate) {
+      const jobs = bodyFreeMetric((rate || {}).token_throughput_terminal_jobs);
+      const windowMetric = bodyFreeMetric((rate || {}).token_throughput_window_seconds);
+      const observedAt = typeof (rate || {}).token_throughput_observed_at === "string"
+        ? rate.token_throughput_observed_at
+        : null;
+      if (!jobs || !jobs.exact || !windowMetric || !windowMetric.exact || !observedAt) {
+        return t("metric.unknown_not_inferred");
+      }
+      return t("metric.token_window_detail", {
+        jobs: whole(jobs.value),
+        window: duration(windowMetric.value),
+        time: clock(observedAt)
+      });
+    }
+
     function safeBodyFreeCode(value) {
       const text = typeof value === "string" ? value : "";
       return /^[A-Za-z0-9_.:-]{1,64}$/.test(text) ? text : null;
@@ -1765,6 +1794,18 @@
       ]) {
         const safeMetric = metric || unknownMetric();
         addMetric(t(label), metricText(safeMetric), exactNote(safeMetric), !safeMetric.exact);
+      }
+      const tokenRateNote = unbalancedTokenRateNote(rate);
+      for (const [metric, label] of [
+        [bodyFreeMetric(rate.provider_input_tokens_per_second), "metric.provider_input_per_s"],
+        [bodyFreeMetric(rate.provider_output_tokens_per_second), "metric.provider_output_per_s"]
+      ]) {
+        addMetric(
+          t(label),
+          unbalancedTokenRateText(metric),
+          tokenRateNote,
+          !metric || !metric.exact
+        );
       }
       addMetric(
         t("metric.live_speed"),
@@ -1998,6 +2039,23 @@
         const safeMetric = metric || unknownMetric();
         tableBody.append(tableRow(t(labelKey), metricText(safeMetric), !safeMetric.exact));
       }
+      const tokenRate = shard.rate || {};
+      for (const [metric, labelKey] of [
+        [bodyFreeMetric(tokenRate.provider_input_tokens_per_second), "metric.provider_input_per_s"],
+        [bodyFreeMetric(tokenRate.provider_output_tokens_per_second), "metric.provider_output_per_s"]
+      ]) {
+        tableBody.append(tableRow(
+          t(labelKey),
+          unbalancedTokenRateText(metric),
+          !metric || !metric.exact
+        ));
+      }
+      const tokenRateWindow = unbalancedTokenRateNote(tokenRate);
+      tableBody.append(tableRow(
+        t("metric.token_window"),
+        tokenRateWindow,
+        tokenRateWindow === t("metric.unknown_not_inferred")
+      ));
       const concurrency = bodyFreeNumber(shard.concurrency, true);
       tableBody.append(tableRow(
         t("metric.concurrency"),

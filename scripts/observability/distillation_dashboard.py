@@ -257,6 +257,8 @@ UNBALANCED_STATUS_PATHS: frozenset[PathKey] = frozenset(
     }
 )
 UNBALANCED_EVENT_FILE = Path("automation") / "events.jsonl"
+UNBALANCED_RECEIPT_FILE = Path("alignment") / "receipts.jsonl"
+UNBALANCED_REJECTION_FILE = Path("alignment") / "rejections.jsonl"
 UNBALANCED_EVENT_STATES = frozenset(
     {"reserved", "dispatching", "retryable", "uncertain", "committed", "rejected"}
 )
@@ -264,16 +266,40 @@ UNBALANCED_EVENT_ROLES = frozenset(
     {"humor", "serious", "angry", "tool", "review", "router", "identity"}
 )
 UNBALANCED_EVENT_LANGUAGES = frozenset({"en", "zh-CN"})
+UNBALANCED_EVENT_PHASE_PROFILES = {
+    ("smoke_exact1", "smoke_exact1"): 1,
+    ("bounded_small", "bounded_small_c1"): 1,
+    ("bulk", "bulk_c30"): 30,
+    ("bulk", "bulk_c16"): 16,
+}
 UNBALANCED_EVENT_PATHS: frozenset[PathKey] = frozenset(
     {
         ("event_id",),
         ("idempotency_key",),
+        ("phase",),
         ("state",),
         ("reason_code",),
         ("role",),
         ("language",),
         ("observed_at",),
         ("content_retained",),
+        ("binding", "profile_id"),
+    }
+)
+UNBALANCED_RECEIPT_PATHS: frozenset[PathKey] = frozenset(
+    {
+        ("id",),
+        ("idempotency_key",),
+        ("role",),
+        ("language",),
+        ("outcome",),
+        ("reason_code",),
+        ("usage", "input_tokens"),
+        ("usage", "output_tokens"),
+        ("usage", "total_tokens"),
+        ("committed_at",),
+        ("content_retained",),
+        ("planner_body_retained",),
     }
 )
 
@@ -854,13 +880,20 @@ class UnbalancedEventAggregate:
 
     rows: int = 0
     by_state: Counter[str] = field(default_factory=Counter)
+    event_ids: set[str] = field(default_factory=set)
     latest_state_by_key: dict[str, str] = field(default_factory=dict)
     rejection_counts: Counter[tuple[str, str, str]] = field(default_factory=Counter)
     latest_observed_at: str | None = None
+    terminal_runs: deque[list[tuple[str, str, str, str, str, str, str]]] = field(
+        default_factory=lambda: deque(maxlen=3)
+    )
+    last_global_state: str | None = None
 
     def add(self, metadata: Mapping[PathKey, object]) -> None:
         event_id = _safe_sha256(metadata.get(("event_id",)))
         key = _safe_sha256(metadata.get(("idempotency_key",)))
+        phase = metadata.get(("phase",))
+        profile = metadata.get(("binding", "profile_id"))
         state = metadata.get(("state",))
         reason = metadata.get(("reason_code",))
         role = metadata.get(("role",))
@@ -868,7 +901,9 @@ class UnbalancedEventAggregate:
         observed_at = _safe_observed_at(metadata.get(("observed_at",)))
         if (
             event_id is None
+            or event_id in self.event_ids
             or key is None
+            or (phase, profile) not in UNBALANCED_EVENT_PHASE_PROFILES
             or state not in UNBALANCED_EVENT_STATES
             or not isinstance(reason, str)
             or SAFE_ENUM_RE.fullmatch(reason) is None
@@ -891,10 +926,26 @@ class UnbalancedEventAggregate:
         if state not in allowed_next[previous]:
             raise ValueError("unbalanced event transition is invalid")
         self.rows += 1
+        self.event_ids.add(event_id)
         self.by_state[str(state)] += 1
         self.latest_state_by_key[key] = str(state)
+        if state in {"committed", "rejected"}:
+            if self.last_global_state not in {"committed", "rejected"}:
+                self.terminal_runs.append([])
+            self.terminal_runs[-1].append(
+                (
+                    key,
+                    str(state),
+                    observed_at,
+                    str(phase),
+                    str(profile),
+                    str(role),
+                    str(language),
+                )
+            )
         if state == "rejected":
             self.rejection_counts[(reason, str(role), str(language))] += 1
+        self.last_global_state = str(state)
         if self.latest_observed_at is None or observed_at > self.latest_observed_at:
             self.latest_observed_at = observed_at
 
@@ -903,6 +954,57 @@ class UnbalancedEventAggregate:
         return sum(
             state == "dispatching" for state in self.latest_state_by_key.values()
         )
+
+
+@dataclass
+class UnbalancedReceiptAggregate:
+    """Provider usage from content-free terminal receipts only."""
+
+    rows: int = 0
+    receipt_ids: set[str] = field(default_factory=set)
+    by_key: dict[str, dict[str, object]] = field(default_factory=dict)
+
+    def add(self, metadata: Mapping[PathKey, object]) -> None:
+        receipt_id = _safe_sha256(metadata.get(("id",)))
+        key = _safe_sha256(metadata.get(("idempotency_key",)))
+        role = metadata.get(("role",))
+        language = metadata.get(("language",))
+        outcome = metadata.get(("outcome",))
+        reason = metadata.get(("reason_code",))
+        committed_at = _safe_observed_at(metadata.get(("committed_at",)))
+        input_tokens = _safe_nonnegative_int(metadata.get(("usage", "input_tokens")))
+        output_tokens = _safe_nonnegative_int(metadata.get(("usage", "output_tokens")))
+        total_tokens = _safe_nonnegative_int(metadata.get(("usage", "total_tokens")))
+        if (
+            receipt_id is None
+            or receipt_id in self.receipt_ids
+            or key is None
+            or key in self.by_key
+            or role not in UNBALANCED_EVENT_ROLES
+            or language not in UNBALANCED_EVENT_LANGUAGES
+            or outcome not in {"succeeded", "rejected"}
+            or not isinstance(reason, str)
+            or SAFE_ENUM_RE.fullmatch(reason) is None
+            or committed_at is None
+            or input_tokens is None
+            or output_tokens is None
+            or total_tokens is None
+            or total_tokens != input_tokens + output_tokens
+            or metadata.get(("content_retained",)) is not False
+            or metadata.get(("planner_body_retained",)) is not False
+        ):
+            raise ValueError("unbalanced receipt metadata is invalid")
+        self.rows += 1
+        self.receipt_ids.add(receipt_id)
+        self.by_key[key] = {
+            "receipt_id": receipt_id,
+            "role": str(role),
+            "language": str(language),
+            "outcome": str(outcome),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "committed_at": committed_at,
+        }
 
 
 @dataclass(frozen=True)
@@ -935,6 +1037,7 @@ class IncrementalJsonl:
             | AttemptAggregate
             | SeedRejectionAggregate
             | UnbalancedEventAggregate
+            | UnbalancedReceiptAggregate
         )
         self._reset_aggregate()
 
@@ -949,6 +1052,8 @@ class IncrementalJsonl:
             self.aggregate = SeedRejectionAggregate()
         elif self.kind == "unbalanced_event":
             self.aggregate = UnbalancedEventAggregate()
+        elif self.kind == "unbalanced_receipt":
+            self.aggregate = UnbalancedReceiptAggregate()
         else:
             raise ValueError(f"unknown JSONL kind: {self.kind}")
         self.parse_errors.clear()
@@ -1002,6 +1107,8 @@ class IncrementalJsonl:
                     selected = SEED_REJECTION_PATHS
                 elif self.kind == "unbalanced_event":
                     selected = UNBALANCED_EVENT_PATHS
+                elif self.kind == "unbalanced_receipt":
+                    selected = UNBALANCED_RECEIPT_PATHS
                 metadata = scan_metadata(raw, selected)
                 self.aggregate.add(metadata)
             except (MetadataJsonError, ValueError, TypeError):
@@ -1135,11 +1242,235 @@ class UnbalancedShardMonitor:
             "unbalanced_events",
             "unbalanced_event",
         )
+        self.receipt_reader = IncrementalJsonl(
+            path / UNBALANCED_RECEIPT_FILE,
+            "unbalanced_receipts",
+            "unbalanced_receipt",
+        )
+        self.rejection_receipt_reader = IncrementalJsonl(
+            path / UNBALANCED_REJECTION_FILE,
+            "unbalanced_rejections",
+            "unbalanced_receipt",
+        )
 
     def refresh(self, _now_monotonic: float) -> bool:
         status_changed = self.status_reader.refresh()
         events_changed = self.event_reader.refresh()
-        return status_changed or events_changed
+        receipts_changed = self.receipt_reader.refresh()
+        rejections_changed = self.rejection_receipt_reader.refresh()
+        return (
+            status_changed or events_changed or receipts_changed or rejections_changed
+        )
+
+    @staticmethod
+    def _unknown_token_throughput(reason: str) -> dict[str, object]:
+        return {
+            "provider_input_tokens_per_second": _metric(
+                None,
+                exact=False,
+                source=reason,
+            ),
+            "provider_output_tokens_per_second": _metric(
+                None,
+                exact=False,
+                source=reason,
+            ),
+            "token_throughput_window_seconds": _metric(
+                None,
+                exact=False,
+                source=reason,
+            ),
+            "token_throughput_terminal_jobs": _metric(
+                None,
+                exact=False,
+                source=reason,
+            ),
+            "token_throughput_observed_at": None,
+            "token_throughput_semantics": (
+                "last_complete_group_wall_clock_provider_usage"
+            ),
+            "token_throughput_error": reason,
+        }
+
+    def _receipt_usage(
+        self,
+    ) -> tuple[dict[str, dict[str, object]], list[dict[str, object]], str | None]:
+        usage_by_key: dict[str, dict[str, object]] = {}
+        receipt_ids: set[str] = set()
+        errors = [
+            item.public()
+            for reader in (self.receipt_reader, self.rejection_receipt_reader)
+            for item in reader.parse_errors
+        ]
+        for reader in (self.receipt_reader, self.rejection_receipt_reader):
+            aggregate = reader.aggregate
+            if not isinstance(aggregate, UnbalancedReceiptAggregate):
+                raise RuntimeError("unbalanced receipt aggregate kind drift")
+            for key, value in aggregate.by_key.items():
+                receipt_id = value.get("receipt_id")
+                if (
+                    key in usage_by_key
+                    or not isinstance(receipt_id, str)
+                    or receipt_id in receipt_ids
+                ):
+                    return usage_by_key, errors, "terminal_receipt_duplicate"
+                usage_by_key[key] = value
+                receipt_ids.add(receipt_id)
+        if errors:
+            return usage_by_key, errors, "terminal_receipt_parse_error"
+        return usage_by_key, errors, None
+
+    def _token_throughput(
+        self,
+        *,
+        event_aggregate: UnbalancedEventAggregate,
+        status_succeeded: int | None,
+        status_rejected: int | None,
+        status_total: int | None,
+        usage_by_key: Mapping[str, Mapping[str, object]],
+        receipt_integrity_error: str | None,
+        events_exact: bool,
+    ) -> dict[str, object]:
+        if not events_exact:
+            return self._unknown_token_throughput("terminal_event_parse_error")
+        if receipt_integrity_error is not None:
+            return self._unknown_token_throughput(receipt_integrity_error)
+        if status_succeeded is None or status_rejected is None:
+            return self._unknown_token_throughput("terminal_status_count_unavailable")
+        runs = list(event_aggregate.terminal_runs)
+        event_succeeded = event_aggregate.by_state["committed"]
+        event_rejected = event_aggregate.by_state["rejected"]
+        status_terminal_count = status_succeeded + status_rejected
+        if event_succeeded == status_succeeded and event_rejected == status_rejected:
+            target_index = len(runs) - 1
+        elif (
+            event_succeeded >= status_succeeded
+            and event_rejected >= status_rejected
+            and runs
+            and sum(item[1] == "committed" for item in runs[-1])
+            == event_succeeded - status_succeeded
+            and sum(item[1] == "rejected" for item in runs[-1])
+            == event_rejected - status_rejected
+        ):
+            # Group terminal events are published before the matching status
+            # checkpoint. Keep showing the preceding complete window while
+            # that create-once group publication is in progress.
+            target_index = len(runs) - 2
+        else:
+            return self._unknown_token_throughput("terminal_count_not_aligned")
+        previous_index = target_index - 1
+        if previous_index < 0:
+            return self._unknown_token_throughput(
+                "complete_terminal_window_unavailable"
+            )
+        previous_run = runs[previous_index]
+        target_run = runs[target_index]
+        if not previous_run or not target_run:
+            return self._unknown_token_throughput(
+                "complete_terminal_window_unavailable"
+            )
+
+        def complete_group(
+            run: Sequence[tuple[str, str, str, str, str, str, str]],
+            *,
+            allow_final_remainder: bool,
+        ) -> bool:
+            phase_profiles = {(item[3], item[4]) for item in run}
+            if len(phase_profiles) != 1:
+                return False
+            expected_size = UNBALANCED_EVENT_PHASE_PROFILES.get(
+                next(iter(phase_profiles))
+            )
+            if expected_size is None:
+                return False
+            if len(run) == expected_size:
+                return True
+            return (
+                allow_final_remainder
+                and 0 < len(run) < expected_size
+                and status_total is not None
+                and status_terminal_count == status_total
+            )
+
+        if not complete_group(previous_run, allow_final_remainder=False) or not (
+            complete_group(target_run, allow_final_remainder=True)
+        ):
+            return self._unknown_token_throughput("terminal_group_boundary_unverified")
+
+        def parse_timestamp(value: str) -> datetime | None:
+            normalized = _safe_observed_at(value)
+            if normalized is None:
+                return None
+            return datetime.fromisoformat(normalized)
+
+        previous_times = [parse_timestamp(item[2]) for item in previous_run]
+        target_times = [parse_timestamp(item[2]) for item in target_run]
+        if any(value is None for value in (*previous_times, *target_times)):
+            return self._unknown_token_throughput("terminal_window_timestamp_invalid")
+        previous_end = max(value for value in previous_times if value is not None)
+        target_end = max(value for value in target_times if value is not None)
+        window_seconds = (target_end - previous_end).total_seconds()
+        if window_seconds <= 0:
+            return self._unknown_token_throughput("terminal_window_nonpositive")
+
+        input_tokens = 0
+        output_tokens = 0
+        expected_outcomes = {"committed": "succeeded", "rejected": "rejected"}
+        for key, state, observed_at, _phase, _profile, role, language in target_run:
+            receipt = usage_by_key.get(key)
+            event_time = parse_timestamp(observed_at)
+            receipt_time = (
+                parse_timestamp(str(receipt.get("committed_at")))
+                if receipt is not None
+                else None
+            )
+            if (
+                receipt is None
+                or receipt.get("outcome") != expected_outcomes[state]
+                or receipt.get("role") != role
+                or receipt.get("language") != language
+                or event_time is None
+                or receipt_time is None
+                or receipt_time > event_time
+            ):
+                return self._unknown_token_throughput(
+                    "terminal_receipt_missing_or_mismatched"
+                )
+            receipt_input = _safe_nonnegative_int(receipt.get("input_tokens"))
+            receipt_output = _safe_nonnegative_int(receipt.get("output_tokens"))
+            if receipt_input is None or receipt_output is None:
+                return self._unknown_token_throughput(
+                    "terminal_receipt_missing_or_mismatched"
+                )
+            input_tokens += receipt_input
+            output_tokens += receipt_output
+
+        source = "last_complete_group_wall_clock_provider_usage"
+        return {
+            "provider_input_tokens_per_second": _metric(
+                round(input_tokens / window_seconds, 6),
+                exact=True,
+                source=source,
+            ),
+            "provider_output_tokens_per_second": _metric(
+                round(output_tokens / window_seconds, 6),
+                exact=True,
+                source=source,
+            ),
+            "token_throughput_window_seconds": _metric(
+                round(window_seconds, 6),
+                exact=True,
+                source=source,
+            ),
+            "token_throughput_terminal_jobs": _metric(
+                len(target_run),
+                exact=True,
+                source=source,
+            ),
+            "token_throughput_observed_at": target_end.isoformat(),
+            "token_throughput_semantics": source,
+            "token_throughput_error": None,
+        }
 
     def public(self, _catalog: CatalogService | None = None) -> dict[str, object]:
         metadata = self.status_reader.metadata
@@ -1150,6 +1481,7 @@ class UnbalancedShardMonitor:
         event_errors = [item.public() for item in self.event_reader.parse_errors]
         events_available = self.event_reader.identity is not None
         events_exact = events_available and not event_errors
+        usage_by_key, receipt_errors, receipt_integrity_error = self._receipt_usage()
         state = (
             _safe_enum(metadata.get(("state",)), fallback_prefix="unknown-state")
             if metadata.get(("state",)) is not None
@@ -1219,10 +1551,24 @@ class UnbalancedShardMonitor:
             metadata.get(("rate", "jobs_per_second"))
         )
         eta_seconds = _safe_nonnegative_number(metadata.get(("rate", "eta_seconds")))
+        token_throughput = self._token_throughput(
+            event_aggregate=event_aggregate,
+            status_succeeded=counters["succeeded"],
+            status_rejected=counters["rejected"],
+            status_total=total,
+            usage_by_key=usage_by_key,
+            receipt_integrity_error=receipt_integrity_error,
+            events_exact=events_exact,
+        )
         cooldown_until = _safe_observed_at(metadata.get(("cooldown_until",)))
         updated_at = _safe_observed_at(metadata.get(("updated_at",)))
         reasons: list[str] = []
-        if invalid is not None or event_errors:
+        if (
+            invalid is not None
+            or event_errors
+            or receipt_errors
+            or receipt_integrity_error is not None
+        ):
             reasons.append("file_parse_error")
         if state == "cooldown":
             reasons.append("provider_cooldown")
@@ -1302,6 +1648,7 @@ class UnbalancedShardMonitor:
             "rate": {
                 "jobs_per_second": jobs_per_second,
                 "eta_seconds": eta_seconds,
+                **token_throughput,
             },
             "concurrency": (
                 event_aggregate.active_dispatches if events_exact else None
@@ -1356,6 +1703,8 @@ class UnbalancedShardMonitor:
                     else None
                 ),
                 "event_errors": event_errors,
+                "receipt_errors": receipt_errors,
+                "token_throughput_error": token_throughput["token_throughput_error"],
             },
             "diagnostics": {
                 "summary": diagnostics_summary,

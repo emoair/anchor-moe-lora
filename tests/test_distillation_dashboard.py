@@ -155,19 +155,19 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
                 "state": "running",
                 "profile": "bulk_c30",
                 "phase": "bulk",
-                "updated_at": "2026-07-28T01:02:03+00:00",
-                "total": 4,
-                "queued": 1,
-                "inflight": 0,
-                "succeeded": 1,
+                "updated_at": "2026-07-28T01:03:31+00:00",
+                "total": 61,
+                "queued": 0,
+                "inflight": 1,
+                "succeeded": 58,
                 "rejected": 2,
                 "retried": 0,
-                "role_counts": {"angry": 1},
-                "language_counts": {"en": 1},
+                "role_counts": {"angry": 61},
+                "language_counts": {"en": 61},
                 "provider_usage": {
-                    "requests": 3,
-                    "input_tokens": 120,
-                    "output_tokens": 30,
+                    "requests": 60,
+                    "input_tokens": 600,
+                    "output_tokens": 120,
                     "usage_only": True,
                 },
                 "rate": {"jobs_per_second": 0.25, "eta_seconds": 4.0},
@@ -180,15 +180,15 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
                     "contracts": "8" * 64,
                 },
                 "resume": {
-                    "completed": 3,
+                    "completed": 60,
                     "uncertain": 0,
                     "group_commits_replayed": True,
                     "duplicate_paid_call_prevention": ("uncertain_never_redispatched"),
                 },
                 "cost_guard": {
                     "basis": "provider_requests",
-                    "used_units": 3,
-                    "maximum_units": 4,
+                    "used_units": 60,
+                    "maximum_units": 61,
                     "marginal_currency_cost_known": False,
                 },
                 "kill_switch": {
@@ -211,6 +211,7 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
         reason: str,
         role: str,
         language: str,
+        observed_at: str,
     ) -> None:
         nonlocal event_number
         event_number += 1
@@ -218,38 +219,79 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
             {
                 "event_id": f"{event_number:064x}",
                 "idempotency_key": key,
+                "phase": "bulk",
                 "state": state,
                 "reason_code": reason,
                 "role": role,
                 "language": language,
-                "observed_at": f"2026-07-28T01:02:{event_number:02d}+00:00",
+                "observed_at": observed_at,
                 "content_retained": False,
+                "binding": {"profile_id": "bulk_c30"},
                 "provider_body": "DO-NOT-RETURN-EVENT-BODY",
             }
         )
 
-    for suffix, terminal in (
-        ("a", "committed"),
-        ("b", "rejected"),
-        ("c", None),
-        ("d", "rejected"),
-    ):
-        key = suffix * 64
-        append_event(
-            key,
-            "reserved",
-            reason="budget_reserved",
-            role="angry",
-            language="en",
-        )
-        append_event(
-            key,
-            "dispatching",
-            reason="provider_dispatch",
-            role="angry",
-            language="en",
-        )
-        if terminal is not None:
+    successful_receipts: list[dict] = []
+    rejected_receipts: list[dict] = []
+
+    def job_key(group: int, index: int) -> str:
+        return hashlib.sha256(f"group-{group}-job-{index}".encode()).hexdigest()
+
+    def receipt(
+        key: str,
+        *,
+        outcome: str,
+        committed_at: str,
+    ) -> dict:
+        return {
+            "id": hashlib.sha256(f"receipt:{key}:{outcome}".encode()).hexdigest(),
+            "idempotency_key": key,
+            "role": "angry",
+            "language": "en",
+            "outcome": outcome,
+            "reason_code": (
+                "validated"
+                if outcome == "succeeded"
+                else "natural_transport_invalid_json"
+            ),
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 2,
+                "total_tokens": 12,
+            },
+            "committed_at": committed_at,
+            "content_retained": False,
+            "planner_body_retained": False,
+            "teacher_target": "DO-NOT-RETURN-RECEIPT-BODY",
+        }
+
+    def add_group(group: int, *, reservation_minute: int, terminal_minute: int) -> None:
+        keys = [job_key(group, index) for index in range(30)]
+        for index, key in enumerate(keys):
+            append_event(
+                key,
+                "reserved",
+                reason="budget_reserved",
+                role="angry",
+                language="en",
+                observed_at=(
+                    f"2026-07-28T01:{reservation_minute:02d}:{index:02d}+00:00"
+                ),
+            )
+        for index, key in enumerate(keys):
+            append_event(
+                key,
+                "dispatching",
+                reason="provider_dispatch",
+                role="angry",
+                language="en",
+                observed_at=(
+                    f"2026-07-28T01:{reservation_minute:02d}:{index + 30:02d}+00:00"
+                ),
+            )
+        for index, key in enumerate(keys):
+            terminal = "rejected" if index == 29 else "committed"
+            observed_at = f"2026-07-28T01:{terminal_minute:02d}:{index:02d}+00:00"
             append_event(
                 key,
                 terminal,
@@ -260,8 +302,47 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
                 ),
                 role="angry",
                 language="en",
+                observed_at=observed_at,
             )
+            item = receipt(
+                key,
+                outcome=("succeeded" if terminal == "committed" else "rejected"),
+                committed_at=observed_at,
+            )
+            if terminal == "committed":
+                successful_receipts.append(item)
+            else:
+                rejected_receipts.append(item)
+
+    add_group(1, reservation_minute=0, terminal_minute=1)
+    add_group(2, reservation_minute=2, terminal_minute=3)
+    active_key = hashlib.sha256(b"active-job").hexdigest()
+    append_event(
+        active_key,
+        "reserved",
+        reason="budget_reserved",
+        role="angry",
+        language="en",
+        observed_at="2026-07-28T01:03:30+00:00",
+    )
+    append_event(
+        active_key,
+        "dispatching",
+        reason="provider_dispatch",
+        role="angry",
+        language="en",
+        observed_at="2026-07-28T01:03:31+00:00",
+    )
     _append_jsonl(automation / "events.jsonl", events)
+
+    _append_jsonl(
+        shard / "alignment" / "receipts.jsonl",
+        successful_receipts,
+    )
+    _append_jsonl(
+        shard / "alignment" / "rejections.jsonl",
+        rejected_receipts,
+    )
     return shard
 
 
@@ -686,6 +767,10 @@ def test_bundled_monitor_view_hides_controls_and_maps_unbalanced_status() -> Non
         "resume || {}).uncertain",
         "rate.jobs_per_second",
         "rate.eta_seconds",
+        "rate.provider_input_tokens_per_second",
+        "rate.provider_output_tokens_per_second",
+        "(rate || {}).token_throughput_window_seconds",
+        "(rate || {}).token_throughput_terminal_jobs",
         "shard.requests",
         "shard.tokens || {}).input",
         "shard.tokens || {}).output",
@@ -722,7 +807,7 @@ def test_unbalanced_monitor_aligns_body_free_events_and_rejections(
     assert {
         state: public["events"][state]["value"]
         for state in ("reserved", "dispatching", "committed", "rejected")
-    } == {"reserved": 4, "dispatching": 4, "committed": 1, "rejected": 2}
+    } == {"reserved": 61, "dispatching": 61, "committed": 58, "rejected": 2}
     assert all(
         public["events"][state]["exact"] is True
         for state in ("reserved", "dispatching", "committed", "rejected")
@@ -736,12 +821,32 @@ def test_unbalanced_monitor_aligns_body_free_events_and_rejections(
             "count": 2,
         }
     ]
+    assert public["rate"]["provider_input_tokens_per_second"] == {
+        "value": 2.5,
+        "exact": True,
+        "unknown_rows": 0,
+        "source": "last_complete_group_wall_clock_provider_usage",
+    }
+    assert public["rate"]["provider_output_tokens_per_second"] == {
+        "value": 0.5,
+        "exact": True,
+        "unknown_rows": 0,
+        "source": "last_complete_group_wall_clock_provider_usage",
+    }
+    assert public["rate"]["token_throughput_window_seconds"]["value"] == 120.0
+    assert public["rate"]["token_throughput_terminal_jobs"]["value"] == 30
+    assert (
+        public["rate"]["token_throughput_semantics"]
+        == "last_complete_group_wall_clock_provider_usage"
+    )
+    assert public["rate"]["token_throughput_error"] is None
     assert totals["concurrency"] == 1
-    assert totals["events"]["reserved"]["value"] == 4
+    assert totals["events"]["reserved"]["value"] == 61
     assert totals["rejection_counts"] == public["rejection_counts"]
     serialized = json.dumps(snapshot, ensure_ascii=False)
     assert "DO-NOT-RETURN-EVENT-BODY" not in serialized
-    assert "a" * 64 not in serialized
+    assert "DO-NOT-RETURN-RECEIPT-BODY" not in serialized
+    assert hashlib.sha256(b"group-1-job-0").hexdigest() not in serialized
 
 
 def test_unbalanced_event_policy_violation_makes_derived_fields_unknown(
@@ -754,12 +859,14 @@ def test_unbalanced_event_policy_violation_makes_derived_fields_unknown(
             {
                 "event_id": "e" * 64,
                 "idempotency_key": "f" * 64,
+                "phase": "bulk",
                 "state": "reserved",
                 "reason_code": "budget_reserved",
                 "role": "angry",
                 "language": "en",
                 "observed_at": "2026-07-28T01:03:00+00:00",
                 "content_retained": True,
+                "binding": {"profile_id": "bulk_c30"},
                 "provider_body": "DO-NOT-RETURN-POLICY-VIOLATION",
             }
         ],
@@ -772,9 +879,240 @@ def test_unbalanced_event_policy_violation_makes_derived_fields_unknown(
     assert public["events"]["reserved"]["exact"] is False
     assert public["rejection_counts_exact"] is False
     assert public["rejection_counts"] == []
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["provider_output_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == "terminal_event_parse_error"
     assert public["diagnostics"]["reason_codes"] == ["file_parse_error"]
     serialized = json.dumps(public, ensure_ascii=False)
     assert "DO-NOT-RETURN-POLICY-VIOLATION" not in serialized
+
+
+def test_unbalanced_token_throughput_stays_on_last_complete_group_during_commit(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    engine = dashboard.DashboardEngine([("live", shard)])
+    before = engine.snapshot()["unbalanced_shards"][0]["rate"]
+
+    _append_jsonl(
+        shard / "automation" / "events.jsonl",
+        [
+            {
+                "event_id": "f" * 64,
+                "idempotency_key": hashlib.sha256(b"active-job").hexdigest(),
+                "phase": "bulk",
+                "state": "committed",
+                "reason_code": "validated",
+                "role": "angry",
+                "language": "en",
+                "observed_at": "2026-07-28T01:04:00+00:00",
+                "content_retained": False,
+                "binding": {"profile_id": "bulk_c30"},
+                "provider_body": "DO-NOT-RETURN-IN-PROGRESS-BODY",
+            }
+        ],
+    )
+    during = engine.snapshot()["unbalanced_shards"][0]["rate"]
+
+    assert (
+        during["provider_input_tokens_per_second"]
+        == before["provider_input_tokens_per_second"]
+    )
+    assert (
+        during["provider_output_tokens_per_second"]
+        == before["provider_output_tokens_per_second"]
+    )
+    assert (
+        during["token_throughput_window_seconds"]
+        == before["token_throughput_window_seconds"]
+    )
+    assert (
+        during["token_throughput_terminal_jobs"]
+        == before["token_throughput_terminal_jobs"]
+    )
+    assert during["token_throughput_error"] is None
+    assert "DO-NOT-RETURN-IN-PROGRESS-BODY" not in json.dumps(during)
+
+
+def test_unbalanced_token_throughput_fails_closed_when_receipt_is_missing(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    (shard / "alignment" / "rejections.jsonl").write_text(
+        "",
+        encoding="utf-8",
+        newline="\n",
+    )
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["provider_output_tokens_per_second"]["value"] is None
+    assert (
+        public["rate"]["token_throughput_error"]
+        == "terminal_receipt_missing_or_mismatched"
+    )
+
+
+def test_unbalanced_token_throughput_rejects_inexact_usage_totals(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    receipts_path = shard / "alignment" / "receipts.jsonl"
+    first = json.loads(receipts_path.read_text(encoding="utf-8").splitlines()[0])
+    bad = {
+        **first,
+        "id": hashlib.sha256(b"bad-total-receipt").hexdigest(),
+        "idempotency_key": hashlib.sha256(b"bad-total-key").hexdigest(),
+        "usage": {**first["usage"], "total_tokens": first["usage"]["total_tokens"] + 1},
+        "teacher_target": "DO-NOT-RETURN-BAD-TOTAL-BODY",
+    }
+    _append_jsonl(receipts_path, [bad])
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == ("terminal_receipt_parse_error")
+    assert public["errors"]["receipt_errors"]
+    assert "DO-NOT-RETURN-BAD-TOTAL-BODY" not in json.dumps(public)
+
+
+def test_unbalanced_token_throughput_rejects_duplicate_receipt_ids(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    receipts_path = shard / "alignment" / "receipts.jsonl"
+    first = json.loads(receipts_path.read_text(encoding="utf-8").splitlines()[0])
+    duplicate_id = {
+        **first,
+        "idempotency_key": hashlib.sha256(b"duplicate-receipt-key").hexdigest(),
+        "outcome": "rejected",
+        "reason_code": "natural_transport_invalid_json",
+    }
+    _append_jsonl(shard / "alignment" / "rejections.jsonl", [duplicate_id])
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == "terminal_receipt_duplicate"
+    assert public["diagnostics"]["reason_codes"] == ["file_parse_error"]
+
+
+def test_unbalanced_token_throughput_rejects_duplicate_event_ids(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    _append_jsonl(
+        shard / "automation" / "events.jsonl",
+        [
+            {
+                "event_id": f"{1:064x}",
+                "idempotency_key": hashlib.sha256(b"duplicate-event-key").hexdigest(),
+                "phase": "bulk",
+                "state": "reserved",
+                "reason_code": "budget_reserved",
+                "role": "angry",
+                "language": "en",
+                "observed_at": "2026-07-28T01:04:00+00:00",
+                "content_retained": False,
+                "binding": {"profile_id": "bulk_c30"},
+            }
+        ],
+    )
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == "terminal_event_parse_error"
+    assert public["errors"]["event_errors"]
+
+
+def test_unbalanced_token_throughput_cross_binds_status_outcomes(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    status_path = shard / "automation" / "status.json"
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    status["succeeded"] = 59
+    status["rejected"] = 1
+    status_path.write_text(
+        json.dumps(status, sort_keys=True),
+        encoding="utf-8",
+        newline="\n",
+    )
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == "terminal_count_not_aligned"
+
+
+def test_unbalanced_token_throughput_rejects_split_terminal_group(
+    tmp_path: Path,
+) -> None:
+    shard = _unbalanced_fixture(tmp_path)
+    events_path = shard / "automation" / "events.jsonl"
+    events = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    second_group_first_terminal = next(
+        index
+        for index, event in enumerate(events)
+        if event["idempotency_key"] == hashlib.sha256(b"group-2-job-0").hexdigest()
+        and event["state"] == "committed"
+    )
+    split_key = hashlib.sha256(b"split-terminal-group").hexdigest()
+    split_events = [
+        {
+            "event_id": hashlib.sha256(b"split-event-reserved").hexdigest(),
+            "idempotency_key": split_key,
+            "phase": "bulk",
+            "state": "reserved",
+            "reason_code": "budget_reserved",
+            "role": "angry",
+            "language": "en",
+            "observed_at": "2026-07-28T01:03:00+00:00",
+            "content_retained": False,
+            "binding": {"profile_id": "bulk_c30"},
+        },
+        {
+            "event_id": hashlib.sha256(b"split-event-dispatching").hexdigest(),
+            "idempotency_key": split_key,
+            "phase": "bulk",
+            "state": "dispatching",
+            "reason_code": "provider_dispatch",
+            "role": "angry",
+            "language": "en",
+            "observed_at": "2026-07-28T01:03:01+00:00",
+            "content_retained": False,
+            "binding": {"profile_id": "bulk_c30"},
+        },
+    ]
+    insertion = second_group_first_terminal + 1
+    events[insertion:insertion] = split_events
+    events_path.write_text(
+        "".join(
+            json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n"
+            for event in events
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    public = dashboard.DashboardEngine([("live", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]
+
+    assert public["events"]["committed"]["exact"] is True
+    assert public["rate"]["provider_input_tokens_per_second"]["value"] is None
+    assert public["rate"]["token_throughput_error"] == (
+        "terminal_group_boundary_unverified"
+    )
 
 
 def test_bundled_page_freezes_last_snapshot_and_classifies_disconnects() -> None:
