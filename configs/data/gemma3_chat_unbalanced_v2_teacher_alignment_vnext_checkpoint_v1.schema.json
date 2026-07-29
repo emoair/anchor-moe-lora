@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.delta-checkpoint.v1",
+  "title": "Authenticated body-free vNext group delta checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_sequence",
+    "controller_run_id",
+    "group_id",
+    "phase",
+    "profile_id",
+    "profile_sha256",
+    "selector_identity_sha256",
+    "selected_set_root_sha256",
+    "selected_set_count",
+    "prior_checkpoint_sha256",
+    "prior_chain_tip_sha256",
+    "new_chain_tip_sha256",
+    "wal_sequence_start",
+    "wal_sequence_end",
+    "delta_inventory",
+    "delta_inventory_root_sha256",
+    "counts",
+    "acceptance_scope",
+    "usage",
+    "coverage",
+    "stop_after_group_requested",
+    "content_retained",
+    "raw_token_ids_retained",
+    "credential_retained",
+    "hmac_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.delta-checkpoint.v1"
+    },
+    "checkpoint_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controller_run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32,64}$"
+    },
+    "group_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "phase": {
+      "enum": ["smoke_exact1", "bounded_small", "bulk"]
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+    },
+    "profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "selector_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "selected_set_root_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "selected_set_count": {
+      "const": 320
+    },
+    "prior_checkpoint_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "prior_chain_tip_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "new_chain_tip_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "wal_sequence_start": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "wal_sequence_end": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "delta_inventory": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/deltaRow"
+      }
+    },
+    "delta_inventory_root_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "counts": {
+      "$ref": "#/$defs/counts"
+    },
+    "acceptance_scope": {
+      "const": "online_structural_candidate_only"
+    },
+    "usage": {
+      "$ref": "#/$defs/usage"
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coverage"
+      }
+    },
+    "stop_after_group_requested": {
+      "type": "boolean"
+    },
+    "content_retained": {
+      "const": false
+    },
+    "raw_token_ids_retained": {
+      "const": false
+    },
+    "credential_retained": {
+      "const": false
+    },
+    "hmac_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "stratum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "validation_contract_role",
+        "language",
+        "tool_family",
+        "identity_class",
+        "identity_parent_class",
+        "selection_kind",
+        "review_verdict",
+        "review_fault_type",
+        "router_label",
+        "source_record_id_sha256"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router"
+          ]
+        },
+        "validation_contract_role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router",
+            "identity"
+          ]
+        },
+        "language": {
+          "enum": ["en", "zh"]
+        },
+        "tool_family": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/safeId"}
+          ]
+        },
+        "identity_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "identity_parent_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "selection_kind": {
+          "enum": [
+            "full_core",
+            "tool_review_depth",
+            "identity",
+            "router"
+          ]
+        },
+        "review_verdict": {"enum": [null, "pass", "fail"]},
+        "review_fault_type": {
+          "enum": [
+            null,
+            "evidence_mismatch",
+            "format_schema",
+            "grounding_mismatch",
+            "routing_scope",
+            "tool_argument"
+          ]
+        },
+        "router_label": {
+          "enum": [null, "humor", "serious", "angry"]
+        },
+        "source_record_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"selection_kind": {"const": "identity"}},
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "identity_parent_class": {
+                "enum": [
+                  "air_attribution",
+                  "false_google_attribution",
+                  "false_openai_attribution"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {"identity_parent_class": {"type": "null"}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"selection_kind": {"const": "router"}},
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "router_label": {
+                "enum": ["humor", "serious", "angry"]
+              }
+            }
+          },
+          "else": {
+            "properties": {"router_label": {"type": "null"}}
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection_kind": {"const": "tool_review_depth"}
+            },
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_verdict": {"enum": ["pass", "fail"]}
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "review_verdict": {"const": "pass"}
+                  },
+                  "required": ["review_verdict"]
+                },
+                "then": {
+                  "properties": {
+                    "review_fault_type": {"type": "null"}
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "review_fault_type": {
+                      "enum": [
+                        "evidence_mismatch",
+                        "format_schema",
+                        "grounding_mismatch",
+                        "routing_scope",
+                        "tool_argument"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "else": {
+            "properties": {
+              "review_verdict": {"type": "null"},
+              "review_fault_type": {"type": "null"}
+            }
+          }
+        }
+      ]
+    },
+    "deltaRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotency_key",
+        "outcome",
+        "reason_code",
+        "receipt_sha256",
+        "output_record_sha256",
+        "stratum",
+        "content_retained"
+      ],
+      "properties": {
+        "idempotency_key": {
+          "$ref": "#/$defs/sha256"
+        },
+        "outcome": {
+          "enum": ["accepted", "rejected"]
+        },
+        "reason_code": {
+          "$ref": "#/$defs/safeId"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_record_sha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/sha256"}
+          ]
+        },
+        "stratum": {
+          "$ref": "#/$defs/stratum"
+        },
+        "content_retained": {
+          "const": false
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "completed",
+        "accepted",
+        "rejected",
+        "quarantine"
+      ],
+      "properties": {
+        "requested": {"type": "integer", "minimum": 1},
+        "completed": {"type": "integer", "minimum": 1},
+        "accepted": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0},
+        "quarantine": {"const": 0}
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requests",
+        "input_tokens",
+        "output_tokens",
+        "retried"
+      ],
+      "properties": {
+        "requests": {"type": "integer", "minimum": 1},
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "retried": {"type": "integer", "minimum": 0}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "validation_contract_role",
+        "language",
+        "tool_family",
+        "identity_class",
+        "identity_parent_class",
+        "selection_kind",
+        "review_verdict",
+        "review_fault_type",
+        "router_label",
+        "accepted",
+        "rejected",
+        "quarantine"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router"
+          ]
+        },
+        "validation_contract_role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router",
+            "identity"
+          ]
+        },
+        "language": {
+          "enum": ["en", "zh"]
+        },
+        "tool_family": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/safeId"}
+          ]
+        },
+        "identity_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "identity_parent_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "selection_kind": {
+          "enum": [
+            "full_core",
+            "tool_review_depth",
+            "identity",
+            "router"
+          ]
+        },
+        "review_verdict": {"enum": [null, "pass", "fail"]},
+        "review_fault_type": {
+          "enum": [
+            null,
+            "evidence_mismatch",
+            "format_schema",
+            "grounding_mismatch",
+            "routing_scope",
+            "tool_argument"
+          ]
+        },
+        "router_label": {
+          "enum": [null, "humor", "serious", "angry"]
+        },
+        "accepted": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0},
+        "quarantine": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
