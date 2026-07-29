@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-release-pin.v1",
+  "title": "Consumer-C pin for one exact Producer B to L21 to P32 to R4 chain",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "producer_stages",
+    "producer_binding_schema_version",
+    "producer_binding_schema_sha256",
+    "producer_binding_canonical_json",
+    "producer_binding_sha256",
+    "producer_binding_id",
+    "consumer_runtime_commit",
+    "consumer_runtime_tree",
+    "consumer_implementation_sha256",
+    "consumer_schema_inventory_sha256",
+    "reviewed_by_different_agent",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-release-pin.v1"
+    },
+    "state": {
+      "const": "producer_final_R_frozen"
+    },
+    "producer_stages": {
+      "$ref": "#/$defs/producerStages"
+    },
+    "producer_binding_schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-final-binding.v1"
+    },
+    "producer_binding_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_binding_canonical_json": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4000000,
+      "pattern": "^\\{.*\\}$"
+    },
+    "producer_binding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_binding_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_runtime_commit": {
+      "$ref": "#/$defs/gitObject"
+    },
+    "consumer_runtime_tree": {
+      "$ref": "#/$defs/gitObject"
+    },
+    "consumer_implementation_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_schema_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewed_by_different_agent": {
+      "const": true
+    },
+    "claims": {
+      "const": {
+        "consumer_code_P_only": true,
+        "consumer_pin_C_required": true,
+        "producer_final_R_authenticated": true,
+        "release_authorized": true,
+        "formal_training_authorized": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitObject": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "direct_parent",
+        "path_count",
+        "path_set_root_sha256"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/gitObject"
+        },
+        "tree": {
+          "$ref": "#/$defs/gitObject"
+        },
+        "direct_parent": {
+          "$ref": "#/$defs/gitObject"
+        },
+        "path_count": {
+          "type": "integer"
+        },
+        "path_set_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "producerStages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audited_base",
+        "producer_launch_L",
+        "producer_payload_P",
+        "producer_final_R",
+        "global_clean_tree",
+        "unique_direct_children",
+        "exact_raw_diff_allowlist",
+        "release_self_pin_present"
+      ],
+      "properties": {
+        "audited_base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commit",
+            "tree"
+          ],
+          "properties": {
+            "commit": {
+              "$ref": "#/$defs/gitObject"
+            },
+            "tree": {
+              "$ref": "#/$defs/gitObject"
+            }
+          }
+        },
+        "producer_launch_L": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 21
+                }
+              }
+            }
+          ]
+        },
+        "producer_payload_P": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 32
+                }
+              }
+            }
+          ]
+        },
+        "producer_final_R": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 4
+                }
+              }
+            }
+          ]
+        },
+        "global_clean_tree": {
+          "const": true
+        },
+        "unique_direct_children": {
+          "const": true
+        },
+        "exact_raw_diff_allowlist": {
+          "const": true
+        },
+        "release_self_pin_present": {
+          "const": false
+        }
+      }
+    }
+  }
+}

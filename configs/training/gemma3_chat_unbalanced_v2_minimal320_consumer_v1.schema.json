@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.minimal320-consumer-config.v1",
+  "title": "Gemma 3 chat unbalanced-v2 minimal-320 additive consumer config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "claim_scope",
+    "producer_release_stage",
+    "schemas",
+    "exact320",
+    "arms",
+    "legacy_matrix",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-consumer-config.v1"
+    },
+    "state": {
+      "enum": [
+        "awaiting_producer_final_binding",
+        "producer_final_release_frozen"
+      ]
+    },
+    "claim_scope": {
+      "const": "model_free_additive_consumer_preflight_only"
+    },
+    "producer_release_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "trusted_release",
+        "placeholder_values_accepted",
+        "candidate_binding_accepted"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "awaiting_producer_final_release",
+            "producer_final_release_frozen"
+          ]
+        },
+        "trusted_release": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/trusted_release"
+            }
+          ]
+        },
+        "placeholder_values_accepted": {
+          "const": false
+        },
+        "candidate_binding_accepted": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "awaiting_producer_final_release"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trusted_release": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "producer_final_release_frozen"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trusted_release": {
+                "$ref": "#/$defs/trusted_release"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_final_binding",
+        "producer_release_pin",
+        "preflight_receipt"
+      ],
+      "properties": {
+        "producer_final_binding": {
+          "$ref": "#/$defs/file_pin"
+        },
+        "producer_release_pin": {
+          "$ref": "#/$defs/file_pin"
+        },
+        "preflight_receipt": {
+          "$ref": "#/$defs/file_pin"
+        }
+      }
+    },
+    "exact320": {
+      "const": {
+        "records": 320,
+        "accepted": 320,
+        "rejected": 0,
+        "quarantine": 0,
+        "language_counts": {
+          "en": 160,
+          "zh": 160
+        },
+        "asset_record_counts": {
+          "angry_style": 40,
+          "humor": 40,
+          "planner_router": 80,
+          "review_audit": 60,
+          "serious": 40,
+          "tool_call": 60
+        },
+        "identity_training": {
+          "records": 100,
+          "bundles": 20,
+          "validation_contract_role": "identity",
+          "expert_record_counts": {
+            "angry_style": 20,
+            "humor": 20,
+            "review_audit": 20,
+            "serious": 20,
+            "tool_call": 20
+          },
+          "included_in_asset_record_counts": true,
+          "separate_training_arm": false
+        }
+      }
+    },
+    "arms": {
+      "const": {
+        "ordered": [
+          "humor_q_only",
+          "serious_q_only",
+          "angry_style_q_only",
+          "review_audit_q_only",
+          "tool_q_only",
+          "tool_q_plus_micro_o",
+          "planner_q_only",
+          "planner_o_only",
+          "planner_q_plus_micro_o"
+        ],
+        "definitions": {
+          "angry_style_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 40,
+            "source_asset": "angry_style"
+          },
+          "humor_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 40,
+            "source_asset": "humor"
+          },
+          "planner_o_only": {
+            "adapter_profile": "o_only",
+            "full_steps": 80,
+            "source_asset": "planner_router"
+          },
+          "planner_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 80,
+            "source_asset": "planner_router"
+          },
+          "planner_q_plus_micro_o": {
+            "adapter_profile": "q_plus_micro_o",
+            "full_steps": 80,
+            "source_asset": "planner_router"
+          },
+          "review_audit_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 60,
+            "source_asset": "review_audit"
+          },
+          "serious_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 40,
+            "source_asset": "serious"
+          },
+          "tool_q_only": {
+            "adapter_profile": "q_only",
+            "full_steps": 60,
+            "source_asset": "tool_call"
+          },
+          "tool_q_plus_micro_o": {
+            "adapter_profile": "q_plus_micro_o",
+            "full_steps": 60,
+            "source_asset": "tool_call"
+          }
+        },
+        "eval_only": [
+          "tool_base",
+          "planner_base"
+        ]
+      }
+    },
+    "legacy_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_commit",
+        "semantic_files_modified",
+        "pinned_files"
+      ],
+      "properties": {
+        "baseline_commit": {
+          "const": "c8f66a3c5a4ba0fa1e7063d2cb82135fde9f4a03"
+        },
+        "semantic_files_modified": {
+          "const": false
+        },
+        "pinned_files": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/sized_file_pin"
+          }
+        }
+      }
+    },
+    "claims": {
+      "const": {
+        "live_ready": false,
+        "gpu_authorized": false,
+        "api_authorized": false,
+        "training_started": false,
+        "formal_training_authorized": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "repo_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
+    },
+    "file_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repo_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "sized_file_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repo_path"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "git_object": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "producer_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "direct_parent",
+        "path_count",
+        "path_set_root_sha256"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/git_object"
+        },
+        "tree": {
+          "$ref": "#/$defs/git_object"
+        },
+        "direct_parent": {
+          "$ref": "#/$defs/git_object"
+        },
+        "path_count": {
+          "type": "integer"
+        },
+        "path_set_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "producer_stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audited_base",
+        "producer_launch_L",
+        "producer_payload_P",
+        "producer_final_R",
+        "global_clean_tree",
+        "unique_direct_children",
+        "exact_raw_diff_allowlist",
+        "release_self_pin_present"
+      ],
+      "properties": {
+        "audited_base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commit",
+            "tree"
+          ],
+          "properties": {
+            "commit": {
+              "$ref": "#/$defs/git_object"
+            },
+            "tree": {
+              "$ref": "#/$defs/git_object"
+            }
+          }
+        },
+        "producer_launch_L": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producer_stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 21
+                }
+              }
+            }
+          ]
+        },
+        "producer_payload_P": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producer_stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 32
+                }
+              }
+            }
+          ]
+        },
+        "producer_final_R": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producer_stage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 4
+                }
+              }
+            }
+          ]
+        },
+        "global_clean_tree": {
+          "const": true
+        },
+        "unique_direct_children": {
+          "const": true
+        },
+        "exact_raw_diff_allowlist": {
+          "const": true
+        },
+        "release_self_pin_present": {
+          "const": false
+        }
+      }
+    },
+    "trusted_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "producer_stages",
+        "producer_binding_schema_version",
+        "producer_binding_schema_sha256",
+        "producer_binding_canonical_json",
+        "producer_binding_sha256",
+        "producer_binding_id",
+        "consumer_runtime_commit",
+        "consumer_runtime_tree",
+        "consumer_implementation_sha256",
+        "consumer_schema_inventory_sha256",
+        "reviewed_by_different_agent",
+        "claims"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-release-pin.v1"
+        },
+        "state": {
+          "const": "producer_final_R_frozen"
+        },
+        "producer_stages": {
+          "$ref": "#/$defs/producer_stages"
+        },
+        "producer_binding_schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-final-binding.v1"
+        },
+        "producer_binding_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_binding_canonical_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 4000000,
+          "pattern": "^\\{.*\\}$"
+        },
+        "producer_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_binding_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "consumer_runtime_commit": {
+          "$ref": "#/$defs/git_object"
+        },
+        "consumer_runtime_tree": {
+          "$ref": "#/$defs/git_object"
+        },
+        "consumer_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "consumer_schema_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewed_by_different_agent": {
+          "const": true
+        },
+        "claims": {
+          "const": {
+            "consumer_code_P_only": true,
+            "consumer_pin_C_required": true,
+            "producer_final_R_authenticated": true,
+            "release_authorized": true,
+            "formal_training_authorized": false
+          }
+        }
+      }
+    }
+  }
+}

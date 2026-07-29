@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.minimal320-consumer-preflight-receipt.v1",
+  "title": "Model-free minimal-320 nine-arm consumer preflight receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "receipt_id",
+    "consumer_config_sha256",
+    "consumer_git_head",
+    "consumer_git_tree",
+    "consumer_runtime_commit",
+    "consumer_runtime_tree",
+    "consumer_implementation_sha256",
+    "consumer_schema_inventory_sha256",
+    "consumer_config_schema_sha256",
+    "producer_binding_schema_sha256",
+    "producer_release_pin_schema_sha256",
+    "preflight_receipt_schema_sha256",
+    "release_pin_sha256",
+    "producer_binding_sha256",
+    "producer_binding_id",
+    "producer_commit",
+    "producer_tree",
+    "producer_release_commit",
+    "producer_release_tree",
+    "producer_evidence",
+    "records",
+    "asset_record_counts",
+    "identity_training",
+    "arms",
+    "legacy_v2_semantics_modified",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-consumer-preflight-receipt.v1"
+    },
+    "state": {
+      "const": "model_free_preflight_passed"
+    },
+    "receipt_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_config_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_git_head": {
+      "$ref": "#/$defs/git_object"
+    },
+    "consumer_git_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "consumer_runtime_commit": {
+      "$ref": "#/$defs/git_object"
+    },
+    "consumer_runtime_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "consumer_implementation_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_schema_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "consumer_config_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_binding_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_release_pin_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "preflight_receipt_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "release_pin_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_binding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_binding_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_commit": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_release_commit": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_release_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_inventory_sha256",
+        "component_pins_sha256",
+        "selection_manifest_sha256",
+        "freeze_attestation_sha256",
+        "external_attestation_sha256",
+        "source_truth_contract_sha256",
+        "selected_candidates_sha256",
+        "accepted_sha256",
+        "training_records_sha256"
+      ],
+      "properties": {
+        "artifact_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "component_pins_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selection_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "freeze_attestation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_attestation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_truth_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selected_candidates_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "accepted_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "training_records_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "records": {
+      "const": 320
+    },
+    "asset_record_counts": {
+      "const": {
+        "angry_style": 40,
+        "humor": 40,
+        "planner_router": 80,
+        "review_audit": 60,
+        "serious": 40,
+        "tool_call": 60
+      }
+    },
+    "identity_training": {
+      "const": {
+        "records": 100,
+        "bundles": 20,
+        "expert_record_counts": {
+          "angry_style": 20,
+          "humor": 20,
+          "review_audit": 20,
+          "serious": 20,
+          "tool_call": 20
+        },
+        "included_in_asset_record_counts": true,
+        "separate_training_arm": false
+      }
+    },
+    "arms": {
+      "const": {
+        "ordered": [
+          "humor_q_only",
+          "serious_q_only",
+          "angry_style_q_only",
+          "review_audit_q_only",
+          "tool_q_only",
+          "tool_q_plus_micro_o",
+          "planner_q_only",
+          "planner_o_only",
+          "planner_q_plus_micro_o"
+        ],
+        "full_steps": {
+          "angry_style_q_only": 40,
+          "humor_q_only": 40,
+          "planner_o_only": 80,
+          "planner_q_only": 80,
+          "planner_q_plus_micro_o": 80,
+          "review_audit_q_only": 60,
+          "serious_q_only": 40,
+          "tool_q_only": 60,
+          "tool_q_plus_micro_o": 60
+        },
+        "profiles": {
+          "angry_style_q_only": "q_only",
+          "humor_q_only": "q_only",
+          "planner_o_only": "o_only",
+          "planner_q_only": "q_only",
+          "planner_q_plus_micro_o": "q_plus_micro_o",
+          "review_audit_q_only": "q_only",
+          "serious_q_only": "q_only",
+          "tool_q_only": "q_only",
+          "tool_q_plus_micro_o": "q_plus_micro_o"
+        },
+        "source_assets": {
+          "angry_style_q_only": "angry_style",
+          "humor_q_only": "humor",
+          "planner_o_only": "planner_router",
+          "planner_q_only": "planner_router",
+          "planner_q_plus_micro_o": "planner_router",
+          "review_audit_q_only": "review_audit",
+          "serious_q_only": "serious",
+          "tool_q_only": "tool_call",
+          "tool_q_plus_micro_o": "tool_call"
+        },
+        "eval_only": [
+          "tool_base",
+          "planner_base"
+        ]
+      }
+    },
+    "legacy_v2_semantics_modified": {
+      "const": false
+    },
+    "claims": {
+      "const": {
+        "producer_binding_authenticated": true,
+        "exact320_authenticated": true,
+        "nine_arm_plan_ready": true,
+        "gpu_started": false,
+        "api_called": false,
+        "training_started": false,
+        "formal_training_authorized": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_object": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

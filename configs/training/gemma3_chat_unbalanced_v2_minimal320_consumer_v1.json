@@ -1,0 +1,154 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2.minimal320-consumer-config.v1",
+  "state": "awaiting_producer_final_binding",
+  "claim_scope": "model_free_additive_consumer_preflight_only",
+  "producer_release_stage": {
+    "state": "awaiting_producer_final_release",
+    "trusted_release": null,
+    "placeholder_values_accepted": false,
+    "candidate_binding_accepted": false
+  },
+  "schemas": {
+    "producer_final_binding": {
+      "path": "configs/training/gemma3_chat_unbalanced_v2_minimal320_producer_final_binding_v1.schema.json",
+      "sha256": "b5879692d578e4931685e59146b601cc3c127b02e4ecc7cf9034c8ebdeb46fb5"
+    },
+    "producer_release_pin": {
+      "path": "configs/training/gemma3_chat_unbalanced_v2_minimal320_producer_release_pin_v1.schema.json",
+      "sha256": "2714495b141459880e97d82a6169c5107c70ad029a7c17d2e69a40479c568f04"
+    },
+    "preflight_receipt": {
+      "path": "configs/training/gemma3_chat_unbalanced_v2_minimal320_preflight_receipt_v1.schema.json",
+      "sha256": "711b48e956ed62706e7ebc7c22cf8159104a73bc39aa1120cde1738d2c6d791a"
+    }
+  },
+  "exact320": {
+    "records": 320,
+    "accepted": 320,
+    "rejected": 0,
+    "quarantine": 0,
+    "language_counts": {
+      "en": 160,
+      "zh": 160
+    },
+    "asset_record_counts": {
+      "angry_style": 40,
+      "humor": 40,
+      "planner_router": 80,
+      "review_audit": 60,
+      "serious": 40,
+      "tool_call": 60
+    },
+    "identity_training": {
+      "records": 100,
+      "bundles": 20,
+      "validation_contract_role": "identity",
+      "expert_record_counts": {
+        "angry_style": 20,
+        "humor": 20,
+        "review_audit": 20,
+        "serious": 20,
+        "tool_call": 20
+      },
+      "included_in_asset_record_counts": true,
+      "separate_training_arm": false
+    }
+  },
+  "arms": {
+    "ordered": [
+      "humor_q_only",
+      "serious_q_only",
+      "angry_style_q_only",
+      "review_audit_q_only",
+      "tool_q_only",
+      "tool_q_plus_micro_o",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "definitions": {
+      "angry_style_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 40,
+        "source_asset": "angry_style"
+      },
+      "humor_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 40,
+        "source_asset": "humor"
+      },
+      "planner_o_only": {
+        "adapter_profile": "o_only",
+        "full_steps": 80,
+        "source_asset": "planner_router"
+      },
+      "planner_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 80,
+        "source_asset": "planner_router"
+      },
+      "planner_q_plus_micro_o": {
+        "adapter_profile": "q_plus_micro_o",
+        "full_steps": 80,
+        "source_asset": "planner_router"
+      },
+      "review_audit_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 60,
+        "source_asset": "review_audit"
+      },
+      "serious_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 40,
+        "source_asset": "serious"
+      },
+      "tool_q_only": {
+        "adapter_profile": "q_only",
+        "full_steps": 60,
+        "source_asset": "tool_call"
+      },
+      "tool_q_plus_micro_o": {
+        "adapter_profile": "q_plus_micro_o",
+        "full_steps": 60,
+        "source_asset": "tool_call"
+      }
+    },
+    "eval_only": [
+      "tool_base",
+      "planner_base"
+    ]
+  },
+  "legacy_matrix": {
+    "baseline_commit": "c8f66a3c5a4ba0fa1e7063d2cb82135fde9f4a03",
+    "semantic_files_modified": false,
+    "pinned_files": [
+      {
+        "path": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_v1.yaml",
+        "bytes": 12404,
+        "sha256": "a34ddd964b4c4c42eb865d6f84658375768acce380416be397afb03d269fd4b8"
+      },
+      {
+        "path": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.yaml",
+        "bytes": 13554,
+        "sha256": "7ab575e1b897fcf46812208730482a4733d4f86c2548afae3cc2f9a9a5417947"
+      },
+      {
+        "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_multiarm_q8_qlora_v1.py",
+        "bytes": 129335,
+        "sha256": "8cdf360a102eca9e8ff45780486337581263e2e24c88a6e29dc92f6ec2a049ae"
+      },
+      {
+        "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py",
+        "bytes": 166620,
+        "sha256": "452798bf4f63f72f600093df1a9abe4c5a1bf5f24c430e23044546ccb3214154"
+      }
+    ]
+  },
+  "claims": {
+    "live_ready": false,
+    "gpu_authorized": false,
+    "api_authorized": false,
+    "training_started": false,
+    "formal_training_authorized": false
+  }
+}

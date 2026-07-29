@@ -1,0 +1,779 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-final-binding.v1",
+  "title": "Final producer binding consumed by the minimal-320 additive preflight",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "binding_id",
+    "producer_commit",
+    "producer_tree",
+    "producer_stages",
+    "component_pins",
+    "component_pins_sha256",
+    "artifact_bindings",
+    "artifact_inventory",
+    "artifact_inventory_sha256",
+    "selection_manifest",
+    "selection_manifest_sha256",
+    "freeze_attestation",
+    "freeze_attestation_sha256",
+    "external_attestation",
+    "external_attestation_sha256",
+    "claims",
+    "content_safety"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.minimal320-producer-final-binding.v1"
+    },
+    "state": {
+      "const": "released_for_strict_consumer_preflight"
+    },
+    "binding_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_commit": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "producer_stages": {
+      "$ref": "#/$defs/producerStages"
+    },
+    "component_pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generation_implementation_sha256",
+        "selector_implementation_sha256",
+        "selector_contract_sha256",
+        "selector_schema_sha256",
+        "teacher_record_schema_sha256",
+        "source_truth_contract_sha256"
+      ],
+      "properties": {
+        "generation_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selector_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selector_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selector_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "teacher_record_schema_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_truth_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "component_pins_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "artifact_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "components",
+        "metadata",
+        "teacher_shards"
+      ],
+      "properties": {
+        "components": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "generation_implementation",
+            "selector_implementation",
+            "selector_contract",
+            "selector_schema",
+            "teacher_record_schema",
+            "source_truth_contract"
+          ],
+          "properties": {
+            "generation_implementation": {
+              "$ref": "#/$defs/repo_path"
+            },
+            "selector_implementation": {
+              "$ref": "#/$defs/repo_path"
+            },
+            "selector_contract": {
+              "$ref": "#/$defs/repo_path"
+            },
+            "selector_schema": {
+              "$ref": "#/$defs/repo_path"
+            },
+            "teacher_record_schema": {
+              "$ref": "#/$defs/repo_path"
+            },
+            "source_truth_contract": {
+              "$ref": "#/$defs/repo_path"
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selection_manifest",
+            "selected_candidate_inventory",
+            "accepted_inventory",
+            "rejected_inventory",
+            "quarantine_inventory",
+            "training_record_inventory",
+            "checkpoint_manifest",
+            "committed_shards_manifest",
+            "freeze_attestation",
+            "external_attestation"
+          ],
+          "properties": {
+            "selection_manifest": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/selection_manifest.json"
+            },
+            "selected_candidate_inventory": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/selected_inventory.jsonl"
+            },
+            "accepted_inventory": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/accepted_inventory.jsonl"
+            },
+            "rejected_inventory": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/rejected_inventory.jsonl"
+            },
+            "quarantine_inventory": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/quarantine_inventory.jsonl"
+            },
+            "training_record_inventory": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/training_record_inventory.jsonl"
+            },
+            "checkpoint_manifest": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/checkpoint_manifest.json"
+            },
+            "committed_shards_manifest": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/committed_shards_manifest.json"
+            },
+            "freeze_attestation": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/freeze_attestation.json"
+            },
+            "external_attestation": {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/external_attestation.json"
+            }
+          }
+        },
+        "teacher_shards": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "prefixItems": [
+            {
+              "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/teacher_training_shard-00000.jsonl"
+            }
+          ],
+          "items": false
+        }
+      }
+    },
+    "artifact_inventory": {
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "kind",
+          "git_stage",
+          "git_blob_oid",
+          "bytes",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/repo_path"
+          },
+          "kind": {
+            "enum": [
+              "generation_implementation",
+              "selector_implementation",
+              "selector_contract",
+              "selector_schema",
+              "teacher_record_schema",
+              "source_truth_contract",
+              "selection_manifest",
+              "selected_candidate_inventory",
+              "accepted_inventory",
+              "rejected_inventory",
+              "quarantine_inventory",
+              "training_record_inventory",
+              "checkpoint_manifest",
+              "committed_shards_manifest",
+              "freeze_attestation",
+              "external_attestation",
+              "teacher_shard"
+            ]
+          },
+          "git_stage": {
+            "enum": [
+              "producer_launch_L",
+              "producer_payload_P",
+              "producer_final_R"
+            ]
+          },
+          "git_blob_oid": {
+            "$ref": "#/$defs/git_object"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 52428799
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "records": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 320
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "not": {
+                    "enum": [
+                      "rejected_inventory",
+                      "quarantine_inventory"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "properties": {
+                "bytes": {
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "freeze_attestation",
+                    "external_attestation"
+                  ]
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "properties": {
+                "git_stage": {
+                  "const": "producer_final_R"
+                }
+              }
+            },
+            "else": {
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "generation_implementation",
+                          "selector_implementation",
+                          "selector_contract",
+                          "selector_schema",
+                          "teacher_record_schema",
+                          "source_truth_contract"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "git_stage": {
+                        "const": "producer_launch_L"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "git_stage": {
+                        "const": "producer_payload_P"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "teacher_shard"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "records"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "records"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "artifact_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "selection_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_identity_sha256",
+        "selected_set_root_sha256",
+        "counts",
+        "identity_training",
+        "inventory_roots",
+        "strata",
+        "source_truth_contract_sha256",
+        "review_fault_cells"
+      ],
+      "properties": {
+        "selector_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selected_set_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "counts": {
+          "const": {
+            "selected": 320,
+            "by_role": {
+              "angry": 40,
+              "humor": 40,
+              "review": 60,
+              "router": 80,
+              "serious": 40,
+              "tool": 60
+            },
+            "by_language": {
+              "en": 160,
+              "zh": 160
+            }
+          }
+        },
+        "identity_training": {
+          "const": {
+            "records": 100,
+            "bundles": 20,
+            "validation_contract_role": "identity",
+            "expert_role_counts": {
+              "angry": 20,
+              "humor": 20,
+              "review": 20,
+              "serious": 20,
+              "tool": 20
+            },
+            "included_in_role_counts": true,
+            "separate_output_expert": false,
+            "separate_training_arm": false
+          }
+        },
+        "inventory_roots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selected_candidates_sha256",
+            "accepted_sha256",
+            "training_records_sha256"
+          ],
+          "properties": {
+            "selected_candidates_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "accepted_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "training_records_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "source_truth_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "review_fault_cells": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tool_family",
+              "language",
+              "fault"
+            ],
+            "properties": {
+              "tool_family": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]{1,64}$"
+              },
+              "language": {
+                "enum": [
+                  "en",
+                  "zh"
+                ]
+              },
+              "fault": {
+                "enum": [
+                  "format_schema",
+                  "tool_argument",
+                  "evidence_mismatch",
+                  "grounding_mismatch",
+                  "routing_scope"
+                ]
+              }
+            }
+          }
+        },
+        "strata": {
+          "const": {
+            "partition_records": {
+              "full_core": 100,
+              "tool_review_depth": 40,
+              "identity": 100,
+              "router": 80
+            },
+            "partition_bundles": {
+              "full_core": 20,
+              "tool_review_depth": 20,
+              "identity": 20
+            },
+            "tool_family_count": 10,
+            "identity_bundle_cells": {
+              "air_attribution": {
+                "en": 4,
+                "zh": 4
+              },
+              "false_google_attribution": {
+                "en": 3,
+                "zh": 3
+              },
+              "false_openai_attribution": {
+                "en": 3,
+                "zh": 3
+              }
+            },
+            "router_record_cells": {
+              "humor": {
+                "en": 14,
+                "zh": 13
+              },
+              "serious": {
+                "en": 13,
+                "zh": 13
+              },
+              "angry": {
+                "en": 13,
+                "zh": 14
+              }
+            },
+            "review_depth": {
+              "pass": 10,
+              "fail": 10,
+              "fault_types": {
+                "format_schema": 2,
+                "tool_argument": 2,
+                "evidence_mismatch": 2,
+                "grounding_mismatch": 2,
+                "routing_scope": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "selection_manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "freeze_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "selection_manifest_sha256",
+        "selector_identity_sha256",
+        "selected_set_root_sha256",
+        "payload_inventory_sha256",
+        "checkpoint_manifest_sha256",
+        "counts",
+        "uncertain"
+      ],
+      "properties": {
+        "state": {
+          "const": "frozen_pending_external_review"
+        },
+        "selection_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selector_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selected_set_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "checkpoint_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "counts": {
+          "const": {
+            "requested": 320,
+            "completed": 320,
+            "accepted": 320,
+            "rejected": 0,
+            "quarantine": 0
+          }
+        },
+        "uncertain": {
+          "const": 0
+        }
+      }
+    },
+    "freeze_attestation_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "external_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "producer_commit",
+        "producer_tree",
+        "freeze_attestation_sha256",
+        "selection_manifest_sha256",
+        "payload_inventory_sha256",
+        "component_pins_sha256",
+        "independent_review"
+      ],
+      "properties": {
+        "state": {
+          "const": "independent_release_review_passed"
+        },
+        "producer_commit": {
+          "$ref": "#/$defs/git_object"
+        },
+        "producer_tree": {
+          "$ref": "#/$defs/git_object"
+        },
+        "freeze_attestation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selection_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "component_pins_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "independent_review": {
+          "const": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "generator_is_reviewer": false
+          }
+        }
+      }
+    },
+    "external_attestation_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "claims": {
+      "const": {
+        "producer_payload_P_is_final": false,
+        "producer_final_R_authenticated": true,
+        "diagnostic_training_authorized": true,
+        "formal_training_authorized": false,
+        "live_model_release_authorized": false
+      }
+    },
+    "content_safety": {
+      "const": {
+        "content_retained_in_binding": false,
+        "protected_body_read_required": false,
+        "raw_token_ids_retained": false,
+        "credential_retained": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_object": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "repo_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9._/-]+$"
+    },
+    "producerStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "direct_parent",
+        "path_count",
+        "path_set_root_sha256"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/git_object"
+        },
+        "tree": {
+          "$ref": "#/$defs/git_object"
+        },
+        "direct_parent": {
+          "$ref": "#/$defs/git_object"
+        },
+        "path_count": {
+          "type": "integer"
+        },
+        "path_set_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "producerStages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audited_base",
+        "producer_launch_L",
+        "producer_payload_P",
+        "producer_final_R",
+        "global_clean_tree",
+        "unique_direct_children",
+        "exact_raw_diff_allowlist",
+        "release_self_pin_present"
+      ],
+      "properties": {
+        "audited_base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commit",
+            "tree"
+          ],
+          "properties": {
+            "commit": {
+              "$ref": "#/$defs/git_object"
+            },
+            "tree": {
+              "$ref": "#/$defs/git_object"
+            }
+          }
+        },
+        "producer_launch_L": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producerStage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 21
+                }
+              }
+            }
+          ]
+        },
+        "producer_payload_P": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producerStage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 32
+                }
+              }
+            }
+          ]
+        },
+        "producer_final_R": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/producerStage"
+            },
+            {
+              "properties": {
+                "path_count": {
+                  "const": 4
+                }
+              }
+            }
+          ]
+        },
+        "global_clean_tree": {
+          "const": true
+        },
+        "unique_direct_children": {
+          "const": true
+        },
+        "exact_raw_diff_allowlist": {
+          "const": true
+        },
+        "release_self_pin_present": {
+          "const": false
+        }
+      }
+    }
+  }
+}
