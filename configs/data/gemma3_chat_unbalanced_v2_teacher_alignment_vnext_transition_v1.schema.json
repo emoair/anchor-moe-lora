@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.transition-evidence.v1",
+  "title": "No-replace single-controller transition evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "controller_count",
+    "controller_inventory_scope",
+    "controller_inventory_sha256",
+    "old_controller_pid",
+    "old_controller_pid_alive",
+    "old_canonical_archive_state",
+    "old_archive_identity_sha256",
+    "old_canonical_root",
+    "old_archive_root",
+    "canonical_root_absent",
+    "vnext_root",
+    "vnext_root_absent",
+    "legacy_disposition",
+    "legacy_partial_uncertain_consumable",
+    "credential_channel",
+    "runtime_hmac_scope",
+    "checked_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.transition-evidence.v1"
+    },
+    "controller_count": {"const": 0},
+    "controller_inventory_scope": {
+      "const": "matching_controller_entrypoints_excluding_authenticated_candidate_process_tree"
+    },
+    "controller_inventory_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "old_controller_pid": {"type": "integer", "minimum": 1},
+    "old_controller_pid_alive": {"const": false},
+    "old_canonical_archive_state": {
+      "const": "archived_entire_root_no_replace"
+    },
+    "old_archive_identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "old_canonical_root": {"type": "string", "minLength": 1},
+    "old_archive_root": {"type": "string", "minLength": 1},
+    "canonical_root_absent": {"const": true},
+    "vnext_root": {"type": "string", "minLength": 1},
+    "vnext_root_absent": {"const": true},
+    "legacy_disposition": {"const": "historical_quarantine_only"},
+    "legacy_partial_uncertain_consumable": {"const": false},
+    "credential_channel": {"const": "anonymous_stdin_same_process"},
+    "runtime_hmac_scope": {"const": "same_process_memory_only"},
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

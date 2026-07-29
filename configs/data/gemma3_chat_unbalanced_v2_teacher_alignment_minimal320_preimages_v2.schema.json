@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.preimages.v2",
+  "title": "Closed body-free selector-v2 preimage artifacts",
+  "oneOf": [
+    {"$ref": "#/$defs/candidateManifest"},
+    {"$ref": "#/$defs/selectionPreimage"},
+    {"$ref": "#/$defs/preimageManifest"}
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidateManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "contract_sha256",
+        "source_identity_sha256",
+        "overlay_manifest_sha256",
+        "overlay_binding_sha256",
+        "identity_derivative_plan_sha256",
+        "candidate_schema_sha256",
+        "selector_implementation_sha256",
+        "candidate_count",
+        "candidate_rows_file",
+        "candidate_rows_sha256",
+        "candidate_set_root_sha256",
+        "content_retained",
+        "raw_token_ids_retained"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.candidate-universe-manifest.v2"
+        },
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "selector_implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_count": {"const": 3960},
+        "candidate_rows_file": {"const": "candidate_universe.jsonl"},
+        "candidate_rows_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retained": {"const": false},
+        "raw_token_ids_retained": {"const": false}
+      }
+    },
+    "selectionPreimage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "contract_sha256",
+        "source_identity_sha256",
+        "candidate_manifest_sha256",
+        "selection_manifest_sha256",
+        "selector_identity_sha256",
+        "selected_count",
+        "selected_rows_file",
+        "selected_rows_sha256",
+        "selected_set_root_sha256",
+        "identity_derivative_plan_sha256",
+        "content_retained",
+        "raw_token_ids_retained"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.selection-preimage.v2"
+        },
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "selection_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "selector_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_count": {"const": 320},
+        "selected_rows_file": {"const": "selected_candidates_320.jsonl"},
+        "selected_rows_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retained": {"const": false},
+        "raw_token_ids_retained": {"const": false}
+      }
+    },
+    "preimageManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "contract_sha256",
+        "source_identity_sha256",
+        "preimage_schema_sha256",
+        "candidate_schema_sha256",
+        "overlay_manifest_file",
+        "overlay_manifest_sha256",
+        "candidate_manifest_file",
+        "candidate_manifest_sha256",
+        "selection_manifest_file",
+        "selection_manifest_sha256",
+        "selection_preimage_file",
+        "selection_preimage_sha256",
+        "candidate_count",
+        "selected_count",
+        "candidate_set_root_sha256",
+        "selected_set_root_sha256",
+        "selector_identity_sha256",
+        "identity_derivative_plan_sha256",
+        "content_retained",
+        "raw_token_ids_retained"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.selector-preimage-manifest.v2"
+        },
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "preimage_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_manifest_file": {
+          "const": "authenticated_metadata_overlay_manifest.json"
+        },
+        "overlay_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_manifest_file": {
+          "const": "candidate_universe_manifest.json"
+        },
+        "candidate_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "selection_manifest_file": {"const": "selection_manifest.json"},
+        "selection_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "selection_preimage_file": {"const": "selection_preimage.json"},
+        "selection_preimage_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_count": {"const": 3960},
+        "selected_count": {"const": 320},
+        "candidate_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "selector_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retained": {"const": false},
+        "raw_token_ids_retained": {"const": false}
+      }
+    }
+  }
+}

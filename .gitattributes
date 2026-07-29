@@ -241,3 +241,13 @@ configs/data/gemma3_chat_unbalanced_v2_teacher_final_release_manifest_consumer_r
 src/anchor_mvp/data/gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py text eol=lf
 src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_final_release_consumer_rollover_v3.py text eol=lf
 tests/test_gemma3_chat_unbalanced_v2_consumer_identity_rollover_v3.py text eol=lf
+
+# Additive teacher-alignment vNext producer Python. These exact paths must
+# materialize as LF even when a Windows checkout enables core.autocrlf.
+scripts/data/run_gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py text eol=lf
+scripts/research/benchmark_gemma3_teacher_alignment_vnext_wal_v1.py text eol=lf
+src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_v2.py text eol=lf
+src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py text eol=lf
+tests/test_gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_v2.py text eol=lf
+tests/test_gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py text eol=lf
+data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/** text eol=lf
