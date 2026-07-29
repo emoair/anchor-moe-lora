@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.external-attestation.v1",
+  "title": "Independent review of producer B/L/P and its freeze preimage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision",
+    "audited_base",
+    "producer_launch_L",
+    "producer_payload_P",
+    "freeze_preimage",
+    "reviewer_receipt",
+    "training_authorized",
+    "formal_training_authorized",
+    "content_retained",
+    "raw_token_ids_retained",
+    "credential_retained"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.external-attestation.v1"
+    },
+    "decision": {"const": "PASS"},
+    "audited_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "producer_L_raw_diff_sha256",
+        "producer_L_path_status_root_sha256",
+        "producer_L_exact_global_diff_allowlist"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "producer_L_raw_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_L_path_status_root_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_L_exact_global_diff_allowlist": {"const": true}
+      }
+    },
+    "producer_launch_L": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "direct_parent_sha1",
+        "reviewed_file_inventory_root_sha256",
+        "reviewed_file_count",
+        "global_clean_tree"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "direct_parent_sha1": {"$ref": "#/$defs/sha1"},
+        "reviewed_file_inventory_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewed_file_count": {"const": 20},
+        "global_clean_tree": {"const": true}
+      }
+    },
+    "producer_payload_P": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "direct_parent_sha1",
+        "raw_diff_sha256",
+        "file_inventory_root_sha256",
+        "file_count",
+        "exact_global_diff_allowlist"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "direct_parent_sha1": {"$ref": "#/$defs/sha1"},
+        "raw_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"},
+        "file_count": {"const": 32},
+        "exact_global_diff_allowlist": {"const": true}
+      }
+    },
+    "freeze_preimage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freeze_attestation_sha256",
+        "checkpoint_manifest_root_sha256",
+        "selector_identity_sha256",
+        "selected_set_root_sha256",
+        "accepted_strata_root_sha256",
+        "counts",
+        "coverage_gaps",
+        "coverage_complete"
+      ],
+      "properties": {
+        "freeze_attestation_sha256": {"$ref": "#/$defs/sha256"},
+        "checkpoint_manifest_root_sha256": {"$ref": "#/$defs/sha256"},
+        "selector_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "accepted_strata_root_sha256": {"$ref": "#/$defs/sha256"},
+        "counts": {"$ref": "#/$defs/counts"},
+        "coverage_gaps": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "coverage_complete": {"const": true}
+      }
+    },
+    "reviewer_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_identity_sha256",
+        "implementer_identity_sha256",
+        "reviewer_is_not_implementer",
+        "procedurally_independent_review",
+        "review_procedure_sha256",
+        "reviewed_at"
+      ],
+      "properties": {
+        "reviewer_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "implementer_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewer_is_not_implementer": {"const": true},
+        "procedurally_independent_review": {"const": true},
+        "review_procedure_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "training_authorized": {"const": false},
+    "formal_training_authorized": {"const": false},
+    "content_retained": {"const": false},
+    "raw_token_ids_retained": {"const": false},
+    "credential_retained": {"const": false}
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "completed",
+        "accepted",
+        "rejected",
+        "quarantine"
+      ],
+      "properties": {
+        "requested": {"const": 320},
+        "completed": {"const": 320},
+        "accepted": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 320
+        },
+        "rejected": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 319
+        },
+        "quarantine": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 319
+        }
+      }
+    }
+  }
+}

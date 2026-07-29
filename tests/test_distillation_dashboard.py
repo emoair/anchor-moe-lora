@@ -346,6 +346,104 @@ def _unbalanced_fixture(tmp_path: Path) -> Path:
     return shard
 
 
+def _vnext_dashboard_fixture(
+    tmp_path: Path,
+    *,
+    exact: bool,
+) -> tuple[Path, Path]:
+    shard = _unbalanced_fixture(tmp_path)
+    status_path = shard / "automation" / "status.json"
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    status["schema_version"] = dashboard.UNBALANCED_STATUS_SCHEMA_VERSION
+    status["hashes"]["vnext_config"] = "9" * 64
+    status["resume"]["cross_process_resume"] = False
+    status["kill_switch"]["stop_after_group"] = True
+    status["provider_throughput"] = {
+        "schema_version": dashboard.VNEXT_THROUGHPUT_SCHEMA_VERSION
+    }
+    status_path.write_text(json.dumps(status, sort_keys=True), encoding="utf-8")
+    telemetry_path = shard / dashboard.VNEXT_THROUGHPUT_FILE
+    telemetry = {
+        "schema_version": dashboard.VNEXT_THROUGHPUT_SCHEMA_VERSION,
+        "provider_input_tokens_per_second": 31.25 if exact else "UNKNOWN",
+        "provider_output_tokens_per_second": 1.75 if exact else "UNKNOWN",
+        "window_seconds": 42.0,
+        "window_limit_seconds": 60.0,
+        "terminal_jobs": 1,
+        "observed_at": "2026-07-29T00:00:42Z",
+        "exact": exact,
+        "exact_rows": 1 if exact else 0,
+        "unknown_rows": 0 if exact else 1,
+        "error": None if exact else "provider_usage_missing_or_invalid",
+        "semantics": dashboard.VNEXT_THROUGHPUT_SEMANTICS,
+        "controller_run_id": "a" * 32,
+        "content_retained": False,
+        "raw_token_ids_retained": False,
+        "credential_retained": False,
+        "provider_body": "DO-NOT-RETURN-VNEXT-TELEMETRY-BODY",
+    }
+    telemetry_path.write_text(
+        json.dumps(telemetry, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return shard, telemetry_path
+
+
+def test_vnext_dashboard_maps_exact_body_free_terminal_telemetry(
+    tmp_path: Path,
+) -> None:
+    shard, _ = _vnext_dashboard_fixture(tmp_path, exact=True)
+    engine = dashboard.DashboardEngine([("vnext", shard)])
+    snapshot = engine.snapshot()
+    public = snapshot["unbalanced_shards"][0]
+    rate = public["rate"]
+    assert rate["provider_input_tokens_per_second"]["value"] == 31.25
+    assert rate["provider_output_tokens_per_second"]["value"] == 1.75
+    assert rate["provider_input_tokens_per_second"]["exact"] is True
+    assert rate["token_throughput_window_seconds"]["value"] == 42.0
+    assert rate["token_throughput_terminal_jobs"]["value"] == 1
+    assert rate["token_throughput_observed_at"] == ("2026-07-29T00:00:42+00:00")
+    assert rate["token_throughput_semantics"] == (dashboard.VNEXT_THROUGHPUT_SEMANTICS)
+    assert rate["token_throughput_error"] is None
+    monitor = engine.unbalanced_monitors[0]
+    assert monitor.event_reader.bytes_read_total == 0
+    assert monitor.receipt_reader.bytes_read_total == 0
+    assert monitor.rejection_receipt_reader.bytes_read_total == 0
+    assert "DO-NOT-RETURN-VNEXT-TELEMETRY-BODY" not in json.dumps(snapshot)
+
+
+def test_vnext_dashboard_preserves_provider_unknown_rates(
+    tmp_path: Path,
+) -> None:
+    shard, _ = _vnext_dashboard_fixture(tmp_path, exact=False)
+    rate = dashboard.DashboardEngine([("vnext", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]["rate"]
+    assert rate["provider_input_tokens_per_second"]["value"] == "UNKNOWN"
+    assert rate["provider_output_tokens_per_second"]["value"] == "UNKNOWN"
+    assert rate["provider_input_tokens_per_second"]["exact"] is False
+    assert rate["provider_input_tokens_per_second"]["unknown_rows"] == 1
+    assert rate["token_throughput_error"] == ("provider_usage_missing_or_invalid")
+
+
+def test_vnext_dashboard_snapshot_never_writes_telemetry_or_status(
+    tmp_path: Path,
+) -> None:
+    shard, telemetry_path = _vnext_dashboard_fixture(tmp_path, exact=True)
+    status_path = shard / "automation" / "status.json"
+    before = {
+        path: (path.read_bytes(), path.stat().st_mtime_ns)
+        for path in (status_path, telemetry_path)
+    }
+    engine = dashboard.DashboardEngine([("vnext", shard)])
+    engine.snapshot()
+    engine.snapshot()
+    for path, (raw, modified) in before.items():
+        assert path.read_bytes() == raw
+        assert path.stat().st_mtime_ns == modified
+
+
 def test_selective_scanner_materializes_only_whitelisted_metadata() -> None:
     raw = json.dumps(_record("seed-a"), ensure_ascii=False).encode()
     metadata = dashboard.scan_metadata(raw, dashboard.RECORD_PATHS)

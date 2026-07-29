@@ -1,0 +1,124 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.config.v1",
+  "controller_id": "gemma3-chat-unbalanced-v2-teacher-alignment-vnext-v1",
+  "schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.schema.json",
+  "schema_sha256": "aad9783bcdc31315c9229db38dd953d9c23ab9915ea262784c090fa6a6b9de56",
+  "contract_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_contract_v1.json",
+  "contract_sha256": "1b108c683185ec92f60a23a0c4e20e01b104bca71f4ac61c1ff79c78e7661243",
+  "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py",
+  "implementation_sha256": "ae3b208d2286116b4c1f65bea2a2980bc9dbf635c0ef9f5d5f993acdabe420f8",
+  "checkpoint_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_checkpoint_v1.schema.json",
+  "checkpoint_schema_sha256": "7c0661a5ceb8ed45eedc380efbd90627fd4f71ac763c4871d91b5ef7912351d8",
+  "receipt_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_receipt_v1.schema.json",
+  "receipt_schema_sha256": "bd52818b0f0999fdef5d7c44eeb7e3e34d5c67bfb4a1022676665f3156758f36",
+  "selector_contract_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_contract_v2.json",
+  "selector_contract_sha256": "c08dc7d7fba81c053ff3e69201b79dac11c807152a8f68e7f8b6d9d9e0bc76b4",
+  "selector_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_selector_v2.schema.json",
+  "selector_schema_sha256": "a86b5b58c9d6ea0992f2436675cdf926f2d42ab612d54871a8ace750f8c43586",
+  "selector_implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_v2.py",
+  "selector_implementation_sha256": "b8e181f81885abb0934bb917ac4c797c21b377db5de60bd19e6ffb43801c124b",
+  "teacher_record_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json",
+  "teacher_record_schema_sha256": "5a02990152721f0dba39fff85ab07417d76b4d0a5fa08c95eb4c4e327eb52bef",
+  "transition_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_transition_v1.schema.json",
+  "transition_schema_sha256": "9d22dd7e7a8fbc5bead1541416a0a660591e72b60558fc9fcbcff31dc22f7777",
+  "launch": {
+    "base_profile_path": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml",
+    "base_profile_sha256": "292114c5e29c670ddc4a52f31cfc28152ea7b437c593d8c7b26c86e2358dbc4d",
+    "output_root_parent": null,
+    "runtime_root_scope": "external_absolute_parent_from_cli",
+    "old_canonical_root": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001",
+    "old_archive_parent": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/archive",
+    "controller_lease_name": ".teacher-alignment-vnext-controller-v1.lock",
+    "selected_set_count": 320,
+    "credential_channel": "anonymous_stdin_same_process",
+    "runtime_hmac_scope": "same_process_memory_only",
+    "cross_process_resume": false
+  },
+  "closed_ancestors": [
+    {
+      "kind": "batch_implementation",
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py",
+      "sha256": "663a833a85ae563b5bd7a51b7ec37f513f2e631fb23bff9ae24f8b500730b5f2",
+      "closed": true
+    },
+    {
+      "kind": "teacher_transport",
+      "path": "src/anchor_mvp/data/teacher.py",
+      "sha256": "ef7accb4553251f2d5c2427409a2703eac55e9fc3f8b94e4c7e66720da89651d",
+      "closed": true
+    },
+    {
+      "kind": "live_controller_v1",
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_live_controller.py",
+      "sha256": "7bb024e2eac4d8fbd1af9c64cf6ffa2b4203a6d3044df07892ab91a2b2064595",
+      "closed": true
+    },
+    {
+      "kind": "integrated_controller_v2",
+      "path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_integrated_controller_v2.py",
+      "sha256": "1a6d20274ecb9867309ec1f07140a38e11da1a0945a6daf13134ee6fb9b6aa14",
+      "closed": true
+    },
+    {
+      "kind": "integrated_config_v2",
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_v2.json",
+      "sha256": "a72235801b2252b9cc1e6e224ebd871aad6241de149c5e9afc1c250e6c733604",
+      "closed": true
+    },
+    {
+      "kind": "integrated_schema_v2",
+      "path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_integrated_controller_v2.schema.json",
+      "sha256": "bd1df909266b9b559ac92151b5f225b031ac9087276de277de8f18cdd3c5c7b8",
+      "closed": true
+    }
+  ],
+  "online_authentication": {
+    "startup_full_replays": 1,
+    "per_append_history_replays": 0,
+    "per_append_tip_files": 1,
+    "append_mode": "exclusive_create_fsync",
+    "group_validation": "delta_only",
+    "final_freeze_full_replays": 1
+  },
+  "stop_after_group": {
+    "enabled": true,
+    "lock_scope": "group_terminal_through_checkpoint_sidecar",
+    "mid_group_kill_switch_action": "latch_without_abort",
+    "effective_after_checkpoint_sidecar": true,
+    "kill_switch_uncertain_reason_forbidden": true
+  },
+  "rejection_fuse": {
+    "window": 120,
+    "min_samples": 30,
+    "max_rate": 0.35
+  },
+  "consumer_code_P": {
+    "stage": "consumer_code_P",
+    "status": "audited_compatible",
+    "blocker_reason_code": null,
+    "commit_sha1": "dc3d0da0adca42e52e2e122996e3480f2a285065",
+    "tree_sha1": "cad8e848b7bb544e3cb97382df835ca435c73307",
+    "file_inventory_root_sha256": "7143287c813cc0843e7d079187b242eee8ff2ffcdb8a9a6dfc3efb579d9a5666",
+    "implementation_sha256": "84eebbd37c53d032ac3a24210117e295dca8a4e32ef2628381cc027a0cc3af23",
+    "schema_set_root_sha256": "3f0f18ff5a9325532980fc68bf0a517bddace5d34d8c7810c77289a024fe4c16",
+    "contract_sha256": "dc1f7783449c6c35b70664426931281a67ca4143e16cf3cb2fbec6b756dae800",
+    "router_record_cells": {
+      "humor": {"en": 14, "zh": 13},
+      "serious": {"en": 13, "zh": 13},
+      "angry": {"en": 13, "zh": 14}
+    },
+    "independently_audited": true,
+    "content_retained": false
+  },
+  "claims": {
+    "candidate": true,
+    "live_authorized": true,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "external_attestation_required": true,
+    "consumer_relaxed": false,
+    "fallback_enabled": false,
+    "provider_requests_added_by_preflight": 0,
+    "gpu_requests_added_by_preflight": 0
+  }
+}

@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.job-receipt.v1",
+  "title": "Authenticated body-free vNext per-job receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "schema_version",
+    "receipt_kind",
+    "idempotency_key",
+    "role",
+    "validation_contract_role",
+    "language",
+    "stratum",
+    "outcome",
+    "reason_code",
+    "output_record_sha256",
+    "planner_lineage",
+    "prompt_binding",
+    "usage",
+    "attempts",
+    "provenance",
+    "committed_at",
+    "content_retained",
+    "planner_body_retained",
+    "raw_token_ids_retained",
+    "hmac_sha256"
+  ],
+  "properties": {
+    "id": {"$ref": "#/$defs/sha256"},
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.job-receipt.v1"
+    },
+    "receipt_kind": {"const": "job"},
+    "idempotency_key": {"$ref": "#/$defs/sha256"},
+    "role": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry",
+        "tool",
+        "review",
+        "router"
+      ]
+    },
+    "validation_contract_role": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry",
+        "tool",
+        "review",
+        "router",
+        "identity"
+      ]
+    },
+    "language": {"enum": ["en", "zh"]},
+    "stratum": {"$ref": "#/$defs/stratum"},
+    "outcome": {"enum": ["succeeded", "rejected"]},
+    "reason_code": {"$ref": "#/$defs/safeId"},
+    "output_record_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "planner_lineage": {"$ref": "#/$defs/plannerLineage"},
+    "prompt_binding": {"$ref": "#/$defs/promptBinding"},
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_tokens", "output_tokens", "total_tokens"],
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "total_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "attempts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wire_attempts",
+        "retry_count",
+        "retry_reasons",
+        "response_id"
+      ],
+      "properties": {
+        "wire_attempts": {"type": "integer", "minimum": 1, "maximum": 3},
+        "retry_count": {"type": "integer", "minimum": 0, "maximum": 2},
+        "retry_reasons": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/safeId"}
+        },
+        "response_id": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 192,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "wire_attempts": {"const": 1},
+            "retry_count": {"const": 0},
+            "retry_reasons": {"maxItems": 0}
+          }
+        },
+        {
+          "properties": {
+            "wire_attempts": {"const": 2},
+            "retry_count": {"const": 1},
+            "retry_reasons": {"minItems": 1, "maxItems": 1}
+          }
+        },
+        {
+          "properties": {
+            "wire_attempts": {"const": 3},
+            "retry_count": {"const": 2},
+            "retry_reasons": {"minItems": 2, "maxItems": 2}
+          }
+        }
+      ]
+    },
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "committed_at": {"type": "string", "format": "date-time"},
+    "content_retained": {"const": false},
+    "planner_body_retained": {"const": false},
+    "raw_token_ids_retained": {"const": false},
+    "hmac_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "plannerLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "cache_lineage",
+        "execution",
+        "handoff_claim",
+        "ordered_prefix_commit_sha256",
+        "overlay_identity_sha256",
+        "new_adapter_prefix_recomputation_equivalent",
+        "zero_copy",
+        "shared_storage",
+        "full_generation_sharing",
+        "body_retained",
+        "hidden_chain_of_thought"
+      ],
+      "properties": {
+        "state": {"const": "not_executed_identity_placeholder"},
+        "cache_lineage": {
+          "const": ["P0", "P1", "selected_P2", "governed_P3"]
+        },
+        "execution": {"const": "boundary_switched_execution"},
+        "handoff_claim": {
+          "const": "exact ordered prefix-value / prefill-compute handoff"
+        },
+        "ordered_prefix_commit_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_identity_sha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/sha256"}
+          ]
+        },
+        "new_adapter_prefix_recomputation_equivalent": {"const": false},
+        "zero_copy": {"const": false},
+        "shared_storage": {"const": false},
+        "full_generation_sharing": {"const": false},
+        "body_retained": {"const": false},
+        "hidden_chain_of_thought": {"const": false}
+      }
+    },
+    "consumerCodeP": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "blocker_reason_code",
+        "commit_sha1",
+        "tree_sha1",
+        "file_inventory_root_sha256",
+        "implementation_sha256",
+        "schema_set_root_sha256",
+        "contract_sha256",
+        "router_record_cells",
+        "independently_audited",
+        "content_retained"
+      ],
+      "properties": {
+        "stage": {"const": "consumer_code_P"},
+        "status": {"const": "audited_compatible"},
+        "blocker_reason_code": {"type": "null"},
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_set_root_sha256": {"$ref": "#/$defs/sha256"},
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "router_record_cells": {
+          "const": {
+            "humor": {"en": 14, "zh": 13},
+            "serious": {"en": 13, "zh": 13},
+            "angry": {"en": 13, "zh": 14}
+          }
+        },
+        "independently_audited": {"const": true},
+        "content_retained": {"const": false}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "runtime",
+        "source",
+        "selector",
+        "producer_launch_L",
+        "consumer_code_P",
+        "content_retained",
+        "raw_token_ids_retained",
+        "credential_retained",
+        "provenance_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.job-provenance.v1"
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vnext_config_sha256",
+            "vnext_config_schema_sha256",
+            "vnext_contract_sha256",
+            "vnext_implementation_sha256",
+            "receipt_schema_sha256",
+            "checkpoint_schema_sha256",
+            "base_profile_sha256",
+            "campaign_sha256",
+            "model_binding_sha256",
+            "teacher_implementation_sha256"
+          ],
+          "properties": {
+            "vnext_config_sha256": {"$ref": "#/$defs/sha256"},
+            "vnext_config_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "vnext_contract_sha256": {"$ref": "#/$defs/sha256"},
+            "vnext_implementation_sha256": {"$ref": "#/$defs/sha256"},
+            "receipt_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "checkpoint_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "base_profile_sha256": {"$ref": "#/$defs/sha256"},
+            "campaign_sha256": {"$ref": "#/$defs/sha256"},
+            "model_binding_sha256": {"$ref": "#/$defs/sha256"},
+            "teacher_implementation_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_identity_sha256",
+            "manifest_sha256",
+            "protected_test_identity_sha256"
+          ],
+          "properties": {
+            "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+            "manifest_sha256": {"$ref": "#/$defs/sha256"},
+            "protected_test_identity_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "selector": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selector_contract_sha256",
+            "selector_schema_sha256",
+            "selector_implementation_sha256",
+            "overlay_manifest_sha256",
+            "overlay_rows_root_sha256",
+            "overlay_row_count",
+            "preimage_manifest_sha256",
+            "preimage_schema_sha256",
+            "candidate_schema_sha256",
+            "candidate_set_root_sha256",
+            "candidate_count",
+            "selected_set_root_sha256",
+            "selected_count",
+            "selector_identity_sha256",
+            "identity_derivative_plan_sha256"
+          ],
+          "properties": {
+            "selector_contract_sha256": {"$ref": "#/$defs/sha256"},
+            "selector_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "selector_implementation_sha256": {"$ref": "#/$defs/sha256"},
+            "overlay_manifest_sha256": {"$ref": "#/$defs/sha256"},
+            "overlay_rows_root_sha256": {"$ref": "#/$defs/sha256"},
+            "overlay_row_count": {"type": "integer", "minimum": 1},
+            "preimage_manifest_sha256": {"$ref": "#/$defs/sha256"},
+            "preimage_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "candidate_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "candidate_set_root_sha256": {"$ref": "#/$defs/sha256"},
+            "candidate_count": {"const": 3960},
+            "selected_set_root_sha256": {"$ref": "#/$defs/sha256"},
+            "selected_count": {"const": 320},
+            "selector_identity_sha256": {"$ref": "#/$defs/sha256"},
+            "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "producer_launch_L": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "audited_base_commit_sha1",
+            "audited_base_tree_sha1",
+            "audited_base_path_status_root_sha256",
+            "commit_sha1",
+            "tree_sha1",
+            "reviewed_file_inventory_root_sha256",
+            "reviewed_file_count",
+            "global_clean_tree",
+            "procedurally_independent_review_present"
+          ],
+          "properties": {
+            "stage": {"const": "producer_launch_L"},
+            "audited_base_commit_sha1": {"$ref": "#/$defs/sha1"},
+            "audited_base_tree_sha1": {"$ref": "#/$defs/sha1"},
+            "audited_base_path_status_root_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "commit_sha1": {"$ref": "#/$defs/sha1"},
+            "tree_sha1": {"$ref": "#/$defs/sha1"},
+            "reviewed_file_inventory_root_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "reviewed_file_count": {"type": "integer", "minimum": 1},
+            "global_clean_tree": {"const": true},
+            "procedurally_independent_review_present": {"const": false}
+          }
+        },
+        "consumer_code_P": {"$ref": "#/$defs/consumerCodeP"},
+        "content_retained": {"const": false},
+        "raw_token_ids_retained": {"const": false},
+        "credential_retained": {"const": false},
+        "provenance_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "promptBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system_prompt_sha256",
+        "user_prompt_sha256",
+        "teacher_input_sha256",
+        "prompt_version",
+        "prompt_contract_sha256",
+        "physical_output_schema_sha256",
+        "output_contract_sha256",
+        "identity_derivative_spec_sha256",
+        "response_contract",
+        "tool_invocation_allowed",
+        "content_retained"
+      ],
+      "properties": {
+        "system_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "user_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "teacher_input_sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_version": {
+          "enum": [
+            "unbalanced-v2-ark-final-only-v5",
+            "unbalanced-v2-ark-final-only-v7"
+          ]
+        },
+        "prompt_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "physical_output_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "output_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_derivative_spec_sha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/sha256"}
+          ]
+        },
+        "response_contract": {
+          "enum": [
+            "source_native",
+            "role_native_identity_invariant",
+            "raw_exact_identity_template_no_tool"
+          ]
+        },
+        "tool_invocation_allowed": {"type": "boolean"},
+        "content_retained": {"const": false}
+      }
+    },
+    "stratum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "validation_contract_role",
+        "language",
+        "tool_family",
+        "identity_class",
+        "identity_parent_class",
+        "selection_kind",
+        "review_verdict",
+        "review_fault_type",
+        "router_label",
+        "source_record_id_sha256"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router"
+          ]
+        },
+        "validation_contract_role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router",
+            "identity"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]},
+        "tool_family": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/safeId"}
+          ]
+        },
+        "identity_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "identity_parent_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "selection_kind": {
+          "enum": [
+            "full_core",
+            "tool_review_depth",
+            "identity",
+            "router"
+          ]
+        },
+        "review_verdict": {"enum": [null, "pass", "fail"]},
+        "review_fault_type": {
+          "enum": [
+            null,
+            "evidence_mismatch",
+            "format_schema",
+            "grounding_mismatch",
+            "routing_scope",
+            "tool_argument"
+          ]
+        },
+        "router_label": {
+          "enum": [null, "humor", "serious", "angry"]
+        },
+        "source_record_id_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"selection_kind": {"const": "identity"}},
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "identity_parent_class": {
+                "enum": [
+                  "air_attribution",
+                  "false_google_attribution",
+                  "false_openai_attribution"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {"identity_parent_class": {"type": "null"}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"selection_kind": {"const": "router"}},
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "router_label": {
+                "enum": ["humor", "serious", "angry"]
+              }
+            }
+          },
+          "else": {
+            "properties": {"router_label": {"type": "null"}}
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection_kind": {"const": "tool_review_depth"}
+            },
+            "required": ["selection_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_verdict": {"enum": ["pass", "fail"]}
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "review_verdict": {"const": "pass"}
+                  },
+                  "required": ["review_verdict"]
+                },
+                "then": {
+                  "properties": {
+                    "review_fault_type": {"type": "null"}
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "review_fault_type": {
+                      "enum": [
+                        "evidence_mismatch",
+                        "format_schema",
+                        "grounding_mismatch",
+                        "routing_scope",
+                        "tool_argument"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "else": {
+            "properties": {
+              "review_verdict": {"type": "null"},
+              "review_fault_type": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

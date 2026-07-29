@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.selector-candidate.v2",
+  "title": "Body-free minimal-320 v2 selector candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id_sha256",
+    "idempotency_key",
+    "teacher_request_idempotency_key",
+    "source_record_id_sha256",
+    "source_content_sha256",
+    "source_serialization_identity_sha256",
+    "teacher_request_record_id_sha256",
+    "parent_source_record_id_sha256",
+    "task_bundle_sha256",
+    "parent_task_bundle_sha256",
+    "source_semantic_sha256",
+    "overlay_row_sha256",
+    "identity_derivative_spec_sha256",
+    "selection_kind",
+    "output_expert_role",
+    "training_asset",
+    "validation_contract_role",
+    "language",
+    "tool_family",
+    "identity_class",
+    "identity_parent_class",
+    "identity_provenance_intent",
+    "review_verdict",
+    "review_fault_type",
+    "router_label",
+    "content_retained"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.selector-candidate.v2"
+    },
+    "candidate_id_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/sha256"},
+    "teacher_request_idempotency_key": {"$ref": "#/$defs/sha256"},
+    "source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+    "source_content_sha256": {"$ref": "#/$defs/sha256"},
+    "source_serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "teacher_request_record_id_sha256": {"$ref": "#/$defs/sha256"},
+    "parent_source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+    "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "parent_task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "source_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "overlay_row_sha256": {"$ref": "#/$defs/sha256"},
+    "identity_derivative_spec_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "selection_kind": {
+      "enum": ["full_core", "tool_review_depth", "identity", "router"]
+    },
+    "output_expert_role": {
+      "enum": ["humor", "serious", "angry", "tool", "review", "router"]
+    },
+    "training_asset": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit",
+        "planner_router"
+      ]
+    },
+    "validation_contract_role": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry",
+        "tool",
+        "review",
+        "router",
+        "identity"
+      ]
+    },
+    "language": {"enum": ["en", "zh"]},
+    "tool_family": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/safeId"}
+      ]
+    },
+    "identity_class": {
+      "enum": [
+        null,
+        "air_attribution",
+        "false_google_attribution",
+        "false_openai_attribution"
+      ]
+    },
+    "identity_parent_class": {
+      "enum": [
+        null,
+        "air_attribution",
+        "false_google_attribution",
+        "false_openai_attribution"
+      ]
+    },
+    "identity_provenance_intent": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/safeId"}
+      ]
+    },
+    "review_verdict": {"enum": [null, "pass", "fail"]},
+    "review_fault_type": {
+      "enum": [
+        null,
+        "evidence_mismatch",
+        "format_schema",
+        "grounding_mismatch",
+        "routing_scope",
+        "tool_argument"
+      ]
+    },
+    "router_label": {
+      "enum": [null, "humor", "serious", "angry"]
+    },
+    "content_retained": {"const": false}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    }
+  }
+}
