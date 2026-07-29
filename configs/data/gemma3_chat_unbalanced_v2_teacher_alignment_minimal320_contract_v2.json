@@ -1,0 +1,286 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.contract.v2",
+  "contract_id": "gemma3-chat-unbalanced-v2-teacher-alignment-minimal320-v2",
+  "requested_records": 320,
+  "source_compatibility": {
+    "v1_status": "closed_unavailable",
+    "v1_block_reason": "source_fault_vocabulary_mismatch",
+    "v1_fault_labels_translated": false,
+    "v2_candidate_source_availability_root_sha256": "6e1e6f63ffb4175cad8249e72d363df9533d16ba996e9795e3f4878f437d926b",
+    "v2_physical_overlay_source_availability_root_sha256": "19d62a7bcb9d0d58f2a0d9bcc5500ae1188e83220c347ee52fcb821ba4d00134",
+    "balanced_identity_source_supplement_required": false,
+    "selector_normalizes_missing_identity_cells": false,
+    "identity_balance_mechanism": "authenticated_new_request_job_derivatives",
+    "identity_label_only_relabel_forbidden": true
+  },
+  "output_expert_roles": [
+    "humor",
+    "serious",
+    "angry",
+    "tool",
+    "review"
+  ],
+  "role_quotas": {
+    "humor": 40,
+    "serious": 40,
+    "angry": 40,
+    "tool": 60,
+    "review": 60,
+    "router": 80
+  },
+  "language_quotas": {
+    "en": 160,
+    "zh": 160
+  },
+  "partitions": {
+    "full_core": {
+      "records": 100,
+      "tool_family_count": 10,
+      "languages_per_family": 2,
+      "complete_output_views_per_cell": 5,
+      "bundle_count": 20
+    },
+    "tool_review_depth": {
+      "records": 40,
+      "tool_family_count": 10,
+      "languages_per_family": 2,
+      "output_views_per_cell": [
+        "tool",
+        "review"
+      ],
+      "bundle_count": 20,
+      "review_balance": {
+        "pass": 10,
+        "fail": 10,
+        "fault_types": {
+          "evidence_mismatch": 2,
+          "format_schema": 2,
+          "grounding_mismatch": 2,
+          "routing_scope": 2,
+          "tool_argument": 2
+        },
+        "fault_label_translation": false,
+        "availability_root_sha256": "d0556b68375d4e51645c5920b1143f8f99696b5a776b02b714d261928bf38248",
+        "assignment_algorithm_id": "lexicographically-smallest-feasible-20-cell-review-assignment-v1",
+        "assignment_sha256": "c0d15e7f81c281dd2182d4a27f4cb84038becce52f70ad5c2b8fa9b14e90d932",
+        "assignment": [
+          {
+            "tool_family": "calculator",
+            "language": "en",
+            "review_verdict": "fail",
+            "review_fault_type": "format_schema"
+          },
+          {
+            "tool_family": "calculator",
+            "language": "zh",
+            "review_verdict": "fail",
+            "review_fault_type": "evidence_mismatch"
+          },
+          {
+            "tool_family": "fixed_datetime_arithmetic",
+            "language": "en",
+            "review_verdict": "fail",
+            "review_fault_type": "evidence_mismatch"
+          },
+          {
+            "tool_family": "fixed_datetime_arithmetic",
+            "language": "zh",
+            "review_verdict": "fail",
+            "review_fault_type": "format_schema"
+          },
+          {
+            "tool_family": "local_catalog_search",
+            "language": "en",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "local_catalog_search",
+            "language": "zh",
+            "review_verdict": "fail",
+            "review_fault_type": "grounding_mismatch"
+          },
+          {
+            "tool_family": "micro_code_sandbox",
+            "language": "en",
+            "review_verdict": "fail",
+            "review_fault_type": "grounding_mismatch"
+          },
+          {
+            "tool_family": "micro_code_sandbox",
+            "language": "zh",
+            "review_verdict": "fail",
+            "review_fault_type": "routing_scope"
+          },
+          {
+            "tool_family": "sandbox_file_metadata",
+            "language": "en",
+            "review_verdict": "fail",
+            "review_fault_type": "routing_scope"
+          },
+          {
+            "tool_family": "sandbox_file_metadata",
+            "language": "zh",
+            "review_verdict": "fail",
+            "review_fault_type": "tool_argument"
+          },
+          {
+            "tool_family": "structured_fact_lookup",
+            "language": "en",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "structured_fact_lookup",
+            "language": "zh",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "synthetic_json_schema_transform_validator",
+            "language": "en",
+            "review_verdict": "fail",
+            "review_fault_type": "tool_argument"
+          },
+          {
+            "tool_family": "synthetic_json_schema_transform_validator",
+            "language": "zh",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "table_filter_sort",
+            "language": "en",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "table_filter_sort",
+            "language": "zh",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "text_statistics",
+            "language": "en",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "text_statistics",
+            "language": "zh",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "unit_conversion",
+            "language": "en",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          },
+          {
+            "tool_family": "unit_conversion",
+            "language": "zh",
+            "review_verdict": "pass",
+            "review_fault_type": null
+          }
+        ]
+      }
+    },
+    "identity": {
+      "records": 100,
+      "bundle_count": 20,
+      "complete_physical_source_rows_per_bundle": 5,
+      "physical_parent_bundle_count": 20,
+      "derived_bundle_count": 20,
+      "derived_teacher_request_count": 100,
+      "derived_optimizer_record_count": 100,
+      "physical_parent_rows_selected_as_optimizer_records": false,
+      "parent_body_access_required": false,
+      "eval_parent_rows_read": 0,
+      "derivative_plan": {
+        "algorithm_id": "language-preserving-lexicographic-parent-to-balanced-cell-v1",
+        "parent_assignment_sha256": "5a71566eb50e2c17104f2357491bc2c21862e52b770d36971368b1d8625019e1",
+        "physical_parent_availability_root_sha256": "d4ceaaabef6e2a10e2eb5d466a1aa61e71ada2865588808d621d5ae604e385e6",
+        "new_semantic_identity": true,
+        "new_bundle_identity": true,
+        "new_record_identity": true,
+        "new_content_identity": true,
+        "new_serialization_identity": true,
+        "new_idempotency_identity": true,
+        "label_only_relabel": false,
+        "v5_anchor_git_commit": "c401257823f80ef0eebd91a4c78b0580da3144a0",
+        "v5_anchor_git_blob_sha1": "88fbddc0bc4c9735a3cf6c272e19c7b3f7e4f909",
+        "v5_anchor_physical_sha256": "77ffd335c992a158f754a7e6807556a16e110b381f2be0cfaa83b5ab7f22bf11",
+        "v5_prompt_version": "unbalanced-v2-ark-final-only-v5"
+      },
+      "source_to_output_validation_roles": {
+        "humor": ["humor", "humor"],
+        "serious": ["serious", "serious"],
+        "angry": ["angry", "angry"],
+        "identity": ["tool", "identity"],
+        "review": ["review", "review"]
+      },
+      "tool_expert_identity_contract": {
+        "expert_asset_role": "tool",
+        "validation_contract_role": "identity",
+        "response_contract": "raw_exact_identity_template_no_tool",
+        "json_envelope_allowed": false,
+        "tool_invocation_allowed": false,
+        "tool_call_allowed": false
+      },
+      "physical_parent_bundle_cells": {
+        "air_attribution": {"en": 6, "zh": 6},
+        "false_google_attribution": {"en": 2, "zh": 0},
+        "false_openai_attribution": {"en": 2, "zh": 4}
+      },
+      "bundle_cell_quotas": {
+        "air_attribution": {"en": 4, "zh": 4},
+        "false_google_attribution": {"en": 3, "zh": 3},
+        "false_openai_attribution": {"en": 3, "zh": 3}
+      },
+      "record_cell_quotas": {
+        "air_attribution": {"en": 20, "zh": 20},
+        "false_google_attribution": {"en": 15, "zh": 15},
+        "false_openai_attribution": {"en": 15, "zh": 15}
+      }
+    },
+    "router": {
+      "records": 80,
+      "cell_quotas": {
+        "humor": {"en": 14, "zh": 13},
+        "serious": {"en": 13, "zh": 13},
+        "angry": {"en": 13, "zh": 14}
+      }
+    }
+  },
+  "selection": {
+    "candidate_order": "candidate_id_sha256_ascending",
+    "bundle_order": "task_bundle_sha256_ascending",
+    "training_projection_identity": [
+      "source_record_id_sha256",
+      "source_content_sha256",
+      "source_serialization_identity_sha256",
+      "task_bundle_sha256",
+      "training_asset"
+    ],
+    "training_asset_derived_only_from_output_expert_role": true,
+    "identity_tool_expert_training_asset": "tool_call",
+    "runtime_quota_guessing": false,
+    "body_access_required": false,
+    "raw_token_id_access_required": false
+  },
+  "reuse_gate": {
+    "legacy_partial_records_may_be_reused": false,
+    "legacy_1682_disposition": "historical_quarantine_only",
+    "legacy_partial_or_uncertain_consumable": false,
+    "only_decision": "fresh_vnext_320_required"
+  },
+  "handoff": {
+    "selector_identity_required_in_every_checkpoint": true,
+    "selected_set_root_required_in_every_checkpoint": true,
+    "consumer_must_reject_identity_as_sixth_output_expert": true,
+    "consumer_must_reject_count_other_than_320": true,
+    "external_attestation_required": true
+  }
+}

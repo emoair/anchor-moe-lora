@@ -1,0 +1,806 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.authenticated-metadata-overlay.v2",
+  "title": "Closed body-free minimal-320 v2 metadata overlay",
+  "oneOf": [
+    {"$ref": "#/$defs/row"},
+    {"$ref": "#/$defs/manifest"}
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "fault": {
+      "enum": [
+        "evidence_mismatch",
+        "format_schema",
+        "grounding_mismatch",
+        "routing_scope",
+        "tool_argument"
+      ]
+    },
+    "sourceFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "bytes", "sha256"],
+      "properties": {
+        "relative_path": {"$ref": "#/$defs/safeId"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "source_manifest_sha256",
+        "source_approval_sha256",
+        "source_partition_set_sha256",
+        "source_identity_sha256",
+        "adapter_config_sha256",
+        "source_contract_hashes_root_sha256",
+        "overlay_schema_sha256",
+        "selector_implementation_sha256",
+        "producer_source_files",
+        "protected_body_fields_materialized",
+        "heldout_body_files_read",
+        "content_retained"
+      ],
+      "properties": {
+        "domain": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.overlay-binding.v2"
+        },
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "source_approval_sha256": {"$ref": "#/$defs/sha256"},
+        "source_partition_set_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "adapter_config_sha256": {"$ref": "#/$defs/sha256"},
+        "source_contract_hashes_root_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "selector_implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_source_files": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sourceFile"}
+        },
+        "protected_body_fields_materialized": {"const": false},
+        "heldout_body_files_read": {"const": 0},
+        "content_retained": {"const": false}
+      }
+    },
+    "reviewAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_family",
+        "language",
+        "pass_available",
+        "fail_fault_types"
+      ],
+      "properties": {
+        "tool_family": {"$ref": "#/$defs/safeId"},
+        "language": {"enum": ["en", "zh"]},
+        "pass_available": {"type": "boolean"},
+        "fail_fault_types": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/fault"}
+        }
+      }
+    },
+    "identityCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_class", "language", "count"],
+      "properties": {
+        "identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]},
+        "count": {"type": "integer", "minimum": 0, "maximum": 20}
+      }
+    },
+    "routerCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["router_label", "language", "count"],
+      "properties": {
+        "router_label": {"enum": ["humor", "serious", "angry"]},
+        "language": {"enum": ["en", "zh"]},
+        "count": {"type": "integer", "minimum": 0, "maximum": 80}
+      }
+    },
+    "sourceAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_cells",
+        "identity_parent_bundle_cells",
+        "router_cells"
+      ],
+      "properties": {
+        "review_cells": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/reviewAvailability"}
+        },
+        "identity_parent_bundle_cells": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/identityCell"}
+        },
+        "router_cells": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/routerCell"}
+        }
+      }
+    },
+    "v5Anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git_commit",
+        "relative_path",
+        "git_blob_sha1",
+        "bytes",
+        "physical_sha256",
+        "prompt_version",
+        "identity_system_prompt_sha256",
+        "role_system_prompt_sha256",
+        "identity_templates",
+        "identity_template_sha256"
+      ],
+      "properties": {
+        "git_commit": {
+          "const": "c401257823f80ef0eebd91a4c78b0580da3144a0"
+        },
+        "relative_path": {
+          "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_batch.py"
+        },
+        "git_blob_sha1": {
+          "const": "88fbddc0bc4c9735a3cf6c272e19c7b3f7e4f909"
+        },
+        "bytes": {"const": 237228},
+        "physical_sha256": {
+          "const": "77ffd335c992a158f754a7e6807556a16e110b381f2be0cfaa83b5ab7f22bf11"
+        },
+        "prompt_version": {
+          "const": "unbalanced-v2-ark-final-only-v5"
+        },
+        "identity_system_prompt_sha256": {
+          "const": "fff20280ef67c056cefb042fdff9d30f3498916aaec1ab9c29de75abff89e3cc"
+        },
+        "role_system_prompt_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "identity"
+          ],
+          "properties": {
+            "humor": {"$ref": "#/$defs/sha256"},
+            "serious": {"$ref": "#/$defs/sha256"},
+            "angry": {"$ref": "#/$defs/sha256"},
+            "tool": {"$ref": "#/$defs/sha256"},
+            "review": {"$ref": "#/$defs/sha256"},
+            "identity": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "identity_templates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ],
+          "properties": {
+            "air_attribution": {"type": "string", "minLength": 1},
+            "false_google_attribution": {
+              "type": "string",
+              "minLength": 1
+            },
+            "false_openai_attribution": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "identity_template_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ],
+          "properties": {
+            "air_attribution": {"$ref": "#/$defs/sha256"},
+            "false_google_attribution": {"$ref": "#/$defs/sha256"},
+            "false_openai_attribution": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      }
+    },
+    "identityParentAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_task_bundle_sha256",
+        "source_identity_class",
+        "language"
+      ],
+      "properties": {
+        "parent_task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]}
+      }
+    },
+    "identityTargetCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_class",
+        "language",
+        "bundle_count",
+        "teacher_request_count"
+      ],
+      "properties": {
+        "identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]},
+        "bundle_count": {"type": "integer", "minimum": 0, "maximum": 20},
+        "teacher_request_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "identityAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assignment_ordinal",
+        "language_slot_index",
+        "parent_task_bundle_sha256",
+        "source_identity_class",
+        "target_identity_class",
+        "language"
+      ],
+      "properties": {
+        "assignment_ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19
+        },
+        "language_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        },
+        "parent_task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "source_identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "target_identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]}
+      }
+    },
+    "identityDerivativeSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "assignment_ordinal",
+        "parent_assignment_sha256",
+        "parent_task_bundle_sha256",
+        "parent_source_record_id_sha256",
+        "parent_source_semantic_sha256",
+        "parent_source_line_sha256",
+        "parent_content_identity_sha256",
+        "parent_lineage_sha256",
+        "parent_overlay_row_sha256",
+        "parent_base_prompt_template_sha256",
+        "parent_base_idempotency_key",
+        "source_identity_class",
+        "target_identity_class",
+        "language",
+        "parent_source_role",
+        "output_expert_role",
+        "expert_asset_role",
+        "validation_contract_role",
+        "response_contract",
+        "tool_invocation_allowed",
+        "review_audit_case",
+        "review_expected_verdict",
+        "review_expected_faults",
+        "review_expected_correction_sha256",
+        "v5_anchor_git_commit",
+        "v5_anchor_git_blob_sha1",
+        "v5_anchor_physical_sha256",
+        "v5_prompt_version",
+        "target_template",
+        "target_template_sha256",
+        "system_prompt_sha256",
+        "user_prompt_sha256",
+        "teacher_input_sha256",
+        "derived_source_messages",
+        "derived_source_serialization",
+        "derived_source_content_sha256",
+        "derived_source_serialization_identity_sha256",
+        "derived_prompt_contract_sha256",
+        "derived_task_bundle",
+        "derived_task_bundle_sha256",
+        "derived_semantic",
+        "derived_semantic_sha256",
+        "derived_record_id",
+        "derived_record_id_sha256",
+        "derived_content_identity_sha256",
+        "derived_source_line_sha256",
+        "derived_serialization_identity_sha256",
+        "derived_teacher_job_idempotency_key",
+        "derived_line_number",
+        "derived_prompt_template_id",
+        "derived_output_schema_id",
+        "derived_output_schema_sha256",
+        "derived_output_contract_sha256",
+        "protected_parent_body_read",
+        "eval_parent_rows_read",
+        "content_retained",
+        "identity_derivative_spec_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.identity-derivative-spec.v2"
+        },
+        "assignment_ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 19
+        },
+        "parent_assignment_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_source_semantic_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_content_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_overlay_row_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_base_prompt_template_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_base_idempotency_key": {"$ref": "#/$defs/sha256"},
+        "source_identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "target_identity_class": {
+          "enum": [
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]},
+        "parent_source_role": {
+          "enum": ["humor", "serious", "angry", "identity", "review"]
+        },
+        "output_expert_role": {
+          "enum": ["humor", "serious", "angry", "tool", "review"]
+        },
+        "expert_asset_role": {
+          "enum": ["humor", "serious", "angry", "tool", "review"]
+        },
+        "validation_contract_role": {
+          "enum": ["humor", "serious", "angry", "identity", "review"]
+        },
+        "response_contract": {
+          "enum": [
+            "role_native_identity_invariant",
+            "raw_exact_identity_template_no_tool"
+          ]
+        },
+        "tool_invocation_allowed": {"const": false},
+        "review_audit_case": {
+          "enum": [null, "missing_identity_answer"]
+        },
+        "review_expected_verdict": {"enum": [null, "fail"]},
+        "review_expected_faults": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {"const": "missing_identity_answer"}
+        },
+        "review_expected_correction_sha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/sha256"}
+          ]
+        },
+        "v5_anchor_git_commit": {
+          "const": "c401257823f80ef0eebd91a4c78b0580da3144a0"
+        },
+        "v5_anchor_git_blob_sha1": {
+          "const": "88fbddc0bc4c9735a3cf6c272e19c7b3f7e4f909"
+        },
+        "v5_anchor_physical_sha256": {
+          "const": "77ffd335c992a158f754a7e6807556a16e110b381f2be0cfaa83b5ab7f22bf11"
+        },
+        "v5_prompt_version": {
+          "const": "unbalanced-v2-ark-final-only-v5"
+        },
+        "target_template": {"type": "string", "minLength": 1},
+        "target_template_sha256": {"$ref": "#/$defs/sha256"},
+        "system_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "user_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "teacher_input_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_source_messages": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["role", "content"],
+              "properties": {
+                "role": {"const": "system"},
+                "content": {"type": "string", "minLength": 1}
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["role", "content"],
+              "properties": {
+                "role": {"const": "user"},
+                "content": {"type": "string", "minLength": 1}
+              }
+            }
+          ],
+          "items": false
+        },
+        "derived_source_serialization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "prompt_version",
+            "v5_anchor_physical_sha256",
+            "system_prompt_sha256",
+            "user_prompt_sha256",
+            "teacher_input_sha256",
+            "output_expert_role",
+            "validation_contract_role",
+            "prompt_template_id",
+            "output_schema_id",
+            "raw_token_ids_persisted"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.identity-derivative-source-serialization.v1"
+            },
+            "prompt_version": {
+              "const": "unbalanced-v2-ark-final-only-v5"
+            },
+            "v5_anchor_physical_sha256": {"$ref": "#/$defs/sha256"},
+            "system_prompt_sha256": {"$ref": "#/$defs/sha256"},
+            "user_prompt_sha256": {"$ref": "#/$defs/sha256"},
+            "teacher_input_sha256": {"$ref": "#/$defs/sha256"},
+            "output_expert_role": {
+              "enum": ["humor", "serious", "angry", "tool", "review"]
+            },
+            "validation_contract_role": {
+              "enum": ["humor", "serious", "angry", "identity", "review"]
+            },
+            "prompt_template_id": {"$ref": "#/$defs/safeId"},
+            "output_schema_id": {"$ref": "#/$defs/safeId"},
+            "raw_token_ids_persisted": {"const": false}
+          }
+        },
+        "derived_source_content_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_source_serialization_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "derived_prompt_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_task_bundle": {
+          "type": "string",
+          "pattern": "^minimal320-v2-identity-derivative-bundle:[0-9a-f]{64}$"
+        },
+        "derived_task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_semantic": {
+          "type": "string",
+          "pattern": "^minimal320-v2-identity-derivative-semantic:[0-9a-f]{64}$"
+        },
+        "derived_semantic_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_record_id": {
+          "type": "string",
+          "pattern": "^minimal320-v2-identity-derivative:[0-9a-f]{64}$"
+        },
+        "derived_record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_content_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_serialization_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "derived_teacher_job_idempotency_key": {
+          "$ref": "#/$defs/sha256"
+        },
+        "derived_line_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "derived_prompt_template_id": {"$ref": "#/$defs/safeId"},
+        "derived_output_schema_id": {"$ref": "#/$defs/safeId"},
+        "derived_output_schema_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_output_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "protected_parent_body_read": {"const": false},
+        "eval_parent_rows_read": {"const": 0},
+        "content_retained": {"const": false},
+        "identity_derivative_spec_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "identityDerivativePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "algorithm_id",
+        "v5_anchor",
+        "physical_parent_availability",
+        "physical_parent_availability_root_sha256",
+        "target_cells",
+        "parent_assignment",
+        "parent_assignment_sha256",
+        "derivative_specs",
+        "derivative_specs_root_sha256",
+        "parent_bundle_count",
+        "derived_bundle_count",
+        "teacher_request_count",
+        "optimizer_record_count",
+        "parent_reuse",
+        "eval_parent_rows_read",
+        "protected_parent_body_read",
+        "content_retained",
+        "identity_derivative_plan_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.identity-derivative-plan.v2"
+        },
+        "algorithm_id": {
+          "const": "language-preserving-lexicographic-parent-to-balanced-cell-v1"
+        },
+        "v5_anchor": {"$ref": "#/$defs/v5Anchor"},
+        "physical_parent_availability": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/identityParentAvailability"}
+        },
+        "physical_parent_availability_root_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "target_cells": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/identityTargetCell"}
+        },
+        "parent_assignment": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/identityAssignment"}
+        },
+        "parent_assignment_sha256": {"$ref": "#/$defs/sha256"},
+        "derivative_specs": {
+          "type": "array",
+          "minItems": 100,
+          "maxItems": 100,
+          "items": {"$ref": "#/$defs/identityDerivativeSpec"}
+        },
+        "derivative_specs_root_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_bundle_count": {"const": 20},
+        "derived_bundle_count": {"const": 20},
+        "teacher_request_count": {"const": 100},
+        "optimizer_record_count": {"const": 100},
+        "parent_reuse": {"const": false},
+        "eval_parent_rows_read": {"const": 0},
+        "protected_parent_body_read": {"const": false},
+        "content_retained": {"const": false},
+        "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "overlay_binding_sha256",
+        "overlay_row_sha256",
+        "source_record_id_sha256",
+        "parent_source_record_id_sha256",
+        "source_line_sha256",
+        "content_identity_sha256",
+        "source_content_sha256",
+        "source_serialization_identity_sha256",
+        "source_prompt_sha256",
+        "task_bundle_sha256",
+        "source_semantic_sha256",
+        "source_role",
+        "language",
+        "tool_family",
+        "identity_class",
+        "identity_provenance_intent",
+        "identity_case_context_sha256",
+        "identity_stable_fact_sha256",
+        "identity_claimed_attribution",
+        "review_verdict",
+        "review_fault_type",
+        "router_label",
+        "producer_role",
+        "producer_partition_sha256",
+        "producer_metadata_sha256",
+        "content_retained"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.authenticated-metadata-overlay-row.v2"
+        },
+        "overlay_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_row_sha256": {"$ref": "#/$defs/sha256"},
+        "source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "parent_source_record_id_sha256": {"$ref": "#/$defs/sha256"},
+        "source_line_sha256": {"$ref": "#/$defs/sha256"},
+        "content_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "source_content_sha256": {"$ref": "#/$defs/sha256"},
+        "source_serialization_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "source_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "task_bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "source_semantic_sha256": {"$ref": "#/$defs/sha256"},
+        "source_role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry",
+            "tool",
+            "review",
+            "router",
+            "identity"
+          ]
+        },
+        "language": {"enum": ["en", "zh"]},
+        "tool_family": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/safeId"}]
+        },
+        "identity_class": {
+          "enum": [
+            null,
+            "air_attribution",
+            "false_google_attribution",
+            "false_openai_attribution"
+          ]
+        },
+        "identity_provenance_intent": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/safeId"}]
+        },
+        "identity_case_context_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "identity_stable_fact_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "identity_claimed_attribution": {
+          "enum": [null, "Google", "OpenAI"]
+        },
+        "review_verdict": {"enum": [null, "pass", "fail"]},
+        "review_fault_type": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/fault"}]
+        },
+        "router_label": {"enum": [null, "humor", "serious", "angry"]},
+        "producer_role": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit",
+            "emotion_router"
+          ]
+        },
+        "producer_partition_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_metadata_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retained": {"const": false}
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "overlay_binding",
+        "overlay_binding_sha256",
+        "row_count",
+        "overlay_rows_root_sha256",
+        "overlay_rows_sha256",
+        "overlay_rows_file",
+        "source_availability",
+        "source_availability_root_sha256",
+        "identity_derivative_plan",
+        "identity_derivative_plan_sha256",
+        "content_retained",
+        "protected_body_fields_materialized",
+        "heldout_body_files_read"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-minimal320.authenticated-metadata-overlay-manifest.v2"
+        },
+        "overlay_binding": {"$ref": "#/$defs/binding"},
+        "overlay_binding_sha256": {"$ref": "#/$defs/sha256"},
+        "row_count": {"const": 3520},
+        "overlay_rows_root_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_rows_sha256": {"$ref": "#/$defs/sha256"},
+        "overlay_rows_file": {
+          "const": "authenticated_metadata_overlay.jsonl"
+        },
+        "source_availability": {"$ref": "#/$defs/sourceAvailability"},
+        "source_availability_root_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_derivative_plan": {
+          "$ref": "#/$defs/identityDerivativePlan"
+        },
+        "identity_derivative_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retained": {"const": false},
+        "protected_body_fields_materialized": {"const": false},
+        "heldout_body_files_read": {"const": 0}
+      }
+    }
+  }
+}
