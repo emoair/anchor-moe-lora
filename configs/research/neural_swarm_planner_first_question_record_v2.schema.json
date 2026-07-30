@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "neural_swarm_planner_first_question_record_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id_sha256",
+    "semantic_question_id_sha256",
+    "legacy_question_id_sha256",
+    "ordinal",
+    "split",
+    "language",
+    "task_bundle_sha256",
+    "source_record_id_sha256",
+    "source_group_sha256",
+    "leakage_family_sha256",
+    "prompt_digest_sha256",
+    "planner_lineage",
+    "training_expert_asset",
+    "projection_kind",
+    "route_plan",
+    "variant",
+    "identity_provenance_class",
+    "identity_invariant_sha256",
+    "question_semantic_sha256",
+    "question_payload_sha256",
+    "context_segments",
+    "optimization_eligible",
+    "calibration_only",
+    "eval_proxy_only",
+    "route_commit_sha256",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.neural-swarm-planner-first-question-record.v2"
+    },
+    "record_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "semantic_question_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "legacy_question_id_sha256": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha256"
+        }
+      ]
+    },
+    "ordinal": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "split": {
+      "enum": [
+        "train",
+        "calibration",
+        "eval_proxy"
+      ]
+    },
+    "language": {
+      "enum": [
+        "en",
+        "zh-CN"
+      ]
+    },
+    "task_bundle_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_record_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_group_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "leakage_family_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "prompt_digest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_freeze_receipt_sha256",
+        "planner_adapter_sha256",
+        "planner_question_generation_receipt_sha256"
+      ],
+      "properties": {
+        "planner_freeze_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_question_generation_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "training_expert_asset": {
+      "$ref": "#/$defs/expertAsset"
+    },
+    "projection_kind": {
+      "enum": [
+        "primary_style",
+        "tool_sidecar",
+        "review_sidecar"
+      ]
+    },
+    "route_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_expert_assets",
+        "selected_expert_assets",
+        "style_expert",
+        "tool_required",
+        "review_required",
+        "identity_required",
+        "identity_provenance_class",
+        "identity_invariant_sha256",
+        "planner_exit_after_commit"
+      ],
+      "properties": {
+        "candidate_expert_assets": {
+          "const": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "selected_expert_assets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/expertAsset"
+          }
+        },
+        "style_expert": {
+          "$ref": "#/$defs/styleExpert"
+        },
+        "tool_required": {
+          "type": "boolean"
+        },
+        "review_required": {
+          "type": "boolean"
+        },
+        "identity_required": {
+          "type": "boolean"
+        },
+        "identity_provenance_class": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "air",
+                "false_google",
+                "false_openai"
+              ]
+            }
+          ]
+        },
+        "identity_invariant_sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "planner_exit_after_commit": {
+          "const": true
+        }
+      }
+    },
+    "variant": {
+      "enum": [
+        "base",
+        "with_review",
+        "with_tool",
+        "with_tool_review"
+      ]
+    },
+    "identity_provenance_class": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "air",
+            "false_google",
+            "false_openai"
+          ]
+        }
+      ]
+    },
+    "identity_invariant_sha256": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha256"
+        }
+      ]
+    },
+    "question_semantic_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "question_payload_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "context_segments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_prefix_segment_ids",
+        "salient_segment_ids",
+        "distractor_segment_ids",
+        "allowed_context_intersection",
+        "route_relevant_evidence_refs",
+        "future_segment_count",
+        "target_segment_count"
+      ],
+      "properties": {
+        "shared_prefix_segment_ids": {
+          "$ref": "#/$defs/shaArray"
+        },
+        "salient_segment_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/shaArray"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "distractor_segment_ids": {
+          "$ref": "#/$defs/shaArray"
+        },
+        "allowed_context_intersection": {
+          "$ref": "#/$defs/shaArray"
+        },
+        "route_relevant_evidence_refs": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/shaArray"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "future_segment_count": {
+          "const": 0
+        },
+        "target_segment_count": {
+          "const": 0
+        }
+      }
+    },
+    "optimization_eligible": {
+      "type": "boolean"
+    },
+    "calibration_only": {
+      "type": "boolean"
+    },
+    "eval_proxy_only": {
+      "type": "boolean"
+    },
+    "route_commit_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "body_free_manifest_row",
+        "question_payload_embedded",
+        "target_visible",
+        "future_visible",
+        "raw_token_ids_stored"
+      ],
+      "properties": {
+        "body_free_manifest_row": {
+          "const": true
+        },
+        "question_payload_embedded": {
+          "const": false
+        },
+        "target_visible": {
+          "const": false
+        },
+        "future_visible": {
+          "const": false
+        },
+        "raw_token_ids_stored": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "shaArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "expertAsset": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style",
+        "tool_call",
+        "review_audit"
+      ]
+    },
+    "styleExpert": {
+      "enum": [
+        "humor",
+        "serious",
+        "angry_style"
+      ]
+    }
+  }
+}

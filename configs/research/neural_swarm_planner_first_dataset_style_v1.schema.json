@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.neural-swarm-planner-first-dataset-style.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "status",
+    "claim_scope",
+    "parent_contract",
+    "read_only_training_evidence",
+    "dataset_semantics",
+    "partition_policy",
+    "hard_negative_policy",
+    "claims"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./neural_swarm_planner_first_dataset_style_v1.schema.json"
+    },
+    "schema_version": {
+      "const": "anchor.neural-swarm-planner-first-dataset-style.v1"
+    },
+    "status": {
+      "const": "additive_model_free_dataset_style_contract_only"
+    },
+    "claim_scope": {
+      "const": "planner_first_question_and_expert_projection_metadata_only"
+    },
+    "parent_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git_commit",
+        "git_tree",
+        "contract",
+        "contract_schema",
+        "implementation"
+      ],
+      "properties": {
+        "git_commit": {
+          "$ref": "#/$defs/gitObject"
+        },
+        "git_tree": {
+          "$ref": "#/$defs/gitObject"
+        },
+        "contract": {
+          "$ref": "#/$defs/filePin"
+        },
+        "contract_schema": {
+          "$ref": "#/$defs/filePin"
+        },
+        "implementation": {
+          "$ref": "#/$defs/filePin"
+        }
+      }
+    },
+    "read_only_training_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "latest_training_receipt_sha256",
+        "latest_failed_attempt_receipt_sha256",
+        "latest_dataset_records",
+        "historical_invalidated_record_ids",
+        "historical_invalidated_normalized_prompts",
+        "dataset_gate_passed",
+        "training_stage_passed",
+        "latest_attempt_consumed",
+        "latest_attempt_failure_class",
+        "holdout_body_read",
+        "training_worktree_modified"
+      ],
+      "properties": {
+        "source": {
+          "const": "codex_training_thread_body_free_receipts_only"
+        },
+        "latest_training_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "latest_failed_attempt_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "latest_dataset_records": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "historical_invalidated_record_ids": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "historical_invalidated_normalized_prompts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dataset_gate_passed": {
+          "const": true
+        },
+        "training_stage_passed": {
+          "const": true
+        },
+        "latest_attempt_consumed": {
+          "const": false
+        },
+        "latest_attempt_failure_class": {
+          "const": "execution_provenance_not_dataset_quality"
+        },
+        "holdout_body_read": {
+          "const": false
+        },
+        "training_worktree_modified": {
+          "const": false
+        }
+      }
+    },
+    "dataset_semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expert_assets",
+        "style_experts",
+        "capability_experts",
+        "route_variants",
+        "identity_provenance_classes",
+        "candidate_inventory_is_activation_set",
+        "one_training_asset_per_record",
+        "bundle_projection_must_equal_selected_experts",
+        "route_plan_is_bundle_level",
+        "split_before_projection",
+        "planner_freeze_before_question_materialization",
+        "planner_reentry_after_projection",
+        "tool_and_review_are_capability_branches_not_style_labels",
+        "identity_is_semantic_constraint_not_sixth_output_expert"
+      ],
+      "properties": {
+        "expert_assets": {
+          "const": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "style_experts": {
+          "const": [
+            "humor",
+            "serious",
+            "angry_style"
+          ]
+        },
+        "capability_experts": {
+          "const": [
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "route_variants": {
+          "const": [
+            "base",
+            "with_review",
+            "with_tool",
+            "with_tool_review"
+          ]
+        },
+        "identity_provenance_classes": {
+          "const": [
+            "air",
+            "false_google",
+            "false_openai"
+          ]
+        },
+        "candidate_inventory_is_activation_set": {
+          "const": false
+        },
+        "one_training_asset_per_record": {
+          "const": true
+        },
+        "bundle_projection_must_equal_selected_experts": {
+          "const": true
+        },
+        "route_plan_is_bundle_level": {
+          "const": true
+        },
+        "split_before_projection": {
+          "const": true
+        },
+        "planner_freeze_before_question_materialization": {
+          "const": true
+        },
+        "planner_reentry_after_projection": {
+          "const": false
+        },
+        "tool_and_review_are_capability_branches_not_style_labels": {
+          "const": true
+        },
+        "identity_is_semantic_constraint_not_sixth_output_expert": {
+          "const": true
+        }
+      }
+    },
+    "partition_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "splits",
+        "optimization_splits",
+        "calibration_splits",
+        "evaluation_splits",
+        "split_group_keys",
+        "near_duplicate_algorithm",
+        "near_duplicate_threshold",
+        "historical_invalidated_inventory_required",
+        "heldout_rows_permitted",
+        "heldout_inventory_only",
+        "holdout_used_for_style_tuning",
+        "holdout_reused_after_evaluation"
+      ],
+      "properties": {
+        "splits": {
+          "const": [
+            "train",
+            "calibration",
+            "eval_proxy"
+          ]
+        },
+        "optimization_splits": {
+          "const": [
+            "train"
+          ]
+        },
+        "calibration_splits": {
+          "const": [
+            "calibration"
+          ]
+        },
+        "evaluation_splits": {
+          "const": [
+            "eval_proxy"
+          ]
+        },
+        "split_group_keys": {
+          "const": [
+            "task_bundle_sha256",
+            "source_group_sha256",
+            "leakage_family_sha256",
+            "prompt_digest_sha256"
+          ]
+        },
+        "near_duplicate_algorithm": {
+          "const": "nfkc_casefold_word_qgram5_dice"
+        },
+        "near_duplicate_threshold": {
+          "const": 0.9
+        },
+        "historical_invalidated_inventory_required": {
+          "const": true
+        },
+        "heldout_rows_permitted": {
+          "const": false
+        },
+        "heldout_inventory_only": {
+          "const": true
+        },
+        "holdout_used_for_style_tuning": {
+          "const": false
+        },
+        "holdout_reused_after_evaluation": {
+          "const": false
+        }
+      }
+    },
+    "hard_negative_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kinds",
+        "serious_identity_priority_variants",
+        "with_tool_identity_positive_control_required",
+        "plain_identity_fact_must_survive_style",
+        "all_required_kinds_must_be_covered"
+      ],
+      "properties": {
+        "kinds": {
+          "const": [
+            "wrong_primary_style",
+            "missing_required_tool",
+            "unnecessary_tool",
+            "missing_required_review",
+            "unnecessary_review",
+            "identity_bit_dropped",
+            "identity_false_attribution"
+          ]
+        },
+        "serious_identity_priority_variants": {
+          "const": [
+            "base",
+            "with_review",
+            "with_tool_review"
+          ]
+        },
+        "with_tool_identity_positive_control_required": {
+          "const": true
+        },
+        "plain_identity_fact_must_survive_style": {
+          "const": true
+        },
+        "all_required_kinds_must_be_covered": {
+          "const": true
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "existing_training_runtime_modified",
+        "records_materialized",
+        "planner_question_generation_executed",
+        "planner_first_leaf_launcher_integrated",
+        "expert_training_authorized",
+        "gpu_authorized",
+        "training_authorized",
+        "formal",
+        "release_authorized"
+      ],
+      "properties": {
+        "existing_training_runtime_modified": {
+          "const": false
+        },
+        "records_materialized": {
+          "const": false
+        },
+        "planner_question_generation_executed": {
+          "const": false
+        },
+        "planner_first_leaf_launcher_integrated": {
+          "const": false
+        },
+        "expert_training_authorized": {
+          "const": false
+        },
+        "gpu_authorized": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitObject": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "filePin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\\\:/]+(?:/[^\\\\:/]+)+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}
