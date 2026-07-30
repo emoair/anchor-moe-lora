@@ -1,0 +1,114 @@
+{
+  "$schema": "./neural_swarm_planner_first_curriculum_v1.schema.json",
+  "schema_version": "anchor.neural-swarm-planner-first-curriculum.v1",
+  "status": "additive_model_free_preflight_only",
+  "claim_scope": "planner_first_dependency_gate_no_training_execution_change",
+  "frozen_leaf_runtime": {
+    "unchanged": true,
+    "runtime_config": {
+      "path": "configs/training/gemma3_1b_it_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.yaml",
+      "sha256": "7ab575e1b897fcf46812208730482a4733d4f86c2548afae3cc2f9a9a5417947"
+    },
+    "runtime_implementation": {
+      "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_multiarm_q8_qlora_runtime_v2.py",
+      "sha256": "452798bf4f63f72f600093df1a9abe4c5a1bf5f24c430e23044546ccb3214154"
+    },
+    "runtime_contract_implementation": {
+      "path": "src/anchor_mvp/training/gemma3_chat_unbalanced_v2_multiarm_q8_qlora_v1.py",
+      "sha256": "8cdf360a102eca9e8ff45780486337581263e2e24c88a6e29dc92f6ec2a049ae"
+    },
+    "observed_arm_order": [
+      "humor_q_only",
+      "serious_q_only",
+      "angry_style_q_only",
+      "review_audit_q_only",
+      "tool_q_only",
+      "tool_q_plus_micro_o",
+      "planner_q_only",
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "observed_planner_first": false,
+    "legacy_direct_invocation_unchanged": true,
+    "existing_runtime_enforces_release_ticket": false,
+    "planner_first_flow_requires_release_ticket": true
+  },
+  "hierarchical_dependency": {
+    "contract": {
+      "path": "configs/research/neural_swarm_hierarchical_planner_rdma_v1.json",
+      "sha256": "5d43225e36b6f0646efaf693d9c7d61773ad6c58571da1c21d398fbe4c421e22"
+    },
+    "implementation": {
+      "path": "src/anchor_mvp/research/neural_swarm_hierarchical_planner_rdma_v1.py",
+      "sha256": "cc05c617edbe7bd6b59c9de282b3df141a713739eedfeba41247505e579c8e80"
+    },
+    "checkout_eol_compatibility": "canonical_lf_with_legacy_crlf_worktree_equivalence"
+  },
+  "stage_graph": {
+    "ordered": [
+      "planner_train",
+      "planner_freeze",
+      "planner_question_commit",
+      "expert_dataset_projection",
+      "expert_leaf_release"
+    ],
+    "planner_primary_arm": "planner_q_only",
+    "planner_diagnostic_arms": [
+      "planner_o_only",
+      "planner_q_plus_micro_o"
+    ],
+    "diagnostic_arms_can_authorize_downstream": false,
+    "expert_assets": [
+      "humor",
+      "serious",
+      "angry_style",
+      "tool_call",
+      "review_audit"
+    ],
+    "expert_leaf_arms": [
+      "humor_q_only",
+      "serious_q_only",
+      "angry_style_q_only",
+      "tool_q_only",
+      "review_audit_q_only"
+    ],
+    "strictly_serial": true,
+    "max_concurrency": 1,
+    "planner_must_be_frozen_before_questions": true,
+    "question_manifest_required_before_projection": true,
+    "all_expert_projections_required_before_release": true,
+    "planner_reentry_after_expert_start": false,
+    "expert_to_planner_feedback_loop": false
+  },
+  "planner_question_contract": {
+    "generator": "frozen_planner_adapter_only",
+    "manifest_body_free": true,
+    "question_payload_storage": "separate_immutable_payload_referenced_by_sha256",
+    "one_expert_per_question": true,
+    "minimum_questions_per_expert": 1,
+    "split_before_projection": true,
+    "question_id_domain": "anchor.neural-swarm-planner-question.v1",
+    "route_commit_domain": "anchor.neural-swarm-planner-route-commit.v1"
+  },
+  "release_gate": {
+    "required_chain": [
+      "planner_train",
+      "planner_freeze",
+      "planner_question_commit",
+      "expert_dataset_projection"
+    ],
+    "output": "expert_leaf_preflight_tickets_only",
+    "tickets_authorize_gpu": false,
+    "tickets_modify_existing_runner": false
+  },
+  "claims": {
+    "existing_training_runtime_modified": false,
+    "planner_first_leaf_launcher_integrated": false,
+    "question_generation_executed": false,
+    "expert_training_executed": false,
+    "gpu_authorized": false,
+    "training_authorized": false,
+    "formal": false,
+    "release_authorized": false
+  }
+}

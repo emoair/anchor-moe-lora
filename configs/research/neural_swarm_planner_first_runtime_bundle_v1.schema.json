@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.neural-swarm-planner-first-runtime-bundle.v1.schema.json",
+  "title": "Neural Swarm Planner-first Runtime Bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "planner_training_receipt",
+    "planner_freeze_receipt",
+    "planner_question_manifest",
+    "planner_question_generation_receipt"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.neural-swarm-planner-first-runtime-bundle.v1"
+    },
+    "planner_training_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "status",
+        "arm",
+        "source_asset",
+        "run_id_sha256",
+        "base_model_sha256",
+        "tokenizer_sha256",
+        "chat_template_sha256",
+        "training_record_inventory_sha256",
+        "adapter_sha256",
+        "completed_steps",
+        "training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.neural-swarm-planner-training-receipt.v1"
+        },
+        "stage": {
+          "const": "planner_train"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "arm": {
+          "const": "planner_q_only"
+        },
+        "source_asset": {
+          "const": "planner_router"
+        },
+        "run_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_model_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tokenizer_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "chat_template_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "training_record_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "completed_steps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        }
+      }
+    },
+    "planner_freeze_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "status",
+        "planner_training_receipt_sha256",
+        "planner_adapter_sha256",
+        "frozen_parameter_inventory_sha256",
+        "adapter_frozen",
+        "mutation_after_freeze_allowed"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.neural-swarm-planner-freeze-receipt.v1"
+        },
+        "stage": {
+          "const": "planner_freeze"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "planner_training_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "frozen_parameter_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "adapter_frozen": {
+          "const": true
+        },
+        "mutation_after_freeze_allowed": {
+          "const": false
+        }
+      }
+    },
+    "planner_question_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "status",
+        "planner_freeze_receipt_sha256",
+        "planner_adapter_sha256",
+        "question_count",
+        "ordered_question_ids_sha256",
+        "rows"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.neural-swarm-planner-question-manifest.v1"
+        },
+        "stage": {
+          "const": "planner_question_commit"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "planner_freeze_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "question_count": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "ordered_question_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question_id_sha256",
+              "ordinal",
+              "expert_asset",
+              "language",
+              "split",
+              "source_record_id_sha256",
+              "question_semantic_sha256",
+              "question_payload_sha256",
+              "route_commit_sha256"
+            ],
+            "properties": {
+              "question_id_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "expert_asset": {
+                "enum": [
+                  "humor",
+                  "serious",
+                  "angry_style",
+                  "tool_call",
+                  "review_audit"
+                ]
+              },
+              "language": {
+                "enum": [
+                  "en",
+                  "zh-CN"
+                ]
+              },
+              "split": {
+                "const": "train"
+              },
+              "source_record_id_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "question_semantic_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "question_payload_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "route_commit_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      }
+    },
+    "planner_question_generation_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "status",
+        "generation_mode",
+        "generation_run_id_sha256",
+        "generator_implementation_sha256",
+        "planner_freeze_receipt_sha256",
+        "planner_adapter_sha256",
+        "question_manifest_sha256",
+        "model_request_count",
+        "provider_request_count",
+        "raw_hidden_reasoning_persisted",
+        "training_authorized",
+        "formal"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "anchor.neural-swarm-planner-question-generation-receipt.v1"
+        },
+        "stage": {
+          "const": "planner_question_commit"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "generation_mode": {
+          "const": "frozen_planner_inference"
+        },
+        "generation_run_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generator_implementation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_freeze_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "question_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "model_request_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider_request_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "raw_hidden_reasoning_persisted": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

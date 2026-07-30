@@ -185,3 +185,15 @@ tests/test_gemma3_chat_unbalanced_v2_* text eol=lf
 docs/research/gemma3_chat_unbalanced_v2_* text eol=lf
 fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/** text eol=lf
 fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/** text eol=lf
+
+# Additive Planner-first control-plane files; the existing training runtime is unchanged.
+configs/research/neural_swarm_planner_first_curriculum_v1.json text eol=lf
+configs/research/neural_swarm_planner_first_curriculum_v1.schema.json text eol=lf
+configs/research/neural_swarm_planner_first_runtime_bundle_v1.schema.json text eol=lf
+configs/research/neural_swarm_planner_first_decision_v1.schema.json text eol=lf
+src/anchor_mvp/research/neural_swarm_planner_first_curriculum_v1.py text eol=lf
+tests/test_neural_swarm_planner_first_curriculum_v1.py text eol=lf
+docs/rfcs/neural_swarm_planner_first_curriculum_v1.md text eol=lf
+docs/rfcs/neural_swarm_planner_first_curriculum_v1.zh-CN.md text eol=lf
+configs/research/neural_swarm_hierarchical_planner_rdma_v1.json text eol=lf
+src/anchor_mvp/research/neural_swarm_hierarchical_planner_rdma_v1.py text eol=lf

@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.neural-swarm-planner-first-curriculum.v1.schema.json",
+  "title": "Neural Swarm Planner-first Curriculum Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "status",
+    "claim_scope",
+    "frozen_leaf_runtime",
+    "hierarchical_dependency",
+    "stage_graph",
+    "planner_question_contract",
+    "release_gate",
+    "claims"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./neural_swarm_planner_first_curriculum_v1.schema.json"
+    },
+    "schema_version": {
+      "const": "anchor.neural-swarm-planner-first-curriculum.v1"
+    },
+    "status": {
+      "const": "additive_model_free_preflight_only"
+    },
+    "claim_scope": {
+      "const": "planner_first_dependency_gate_no_training_execution_change"
+    },
+    "frozen_leaf_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unchanged",
+        "runtime_config",
+        "runtime_implementation",
+        "runtime_contract_implementation",
+        "observed_arm_order",
+        "observed_planner_first",
+        "legacy_direct_invocation_unchanged",
+        "existing_runtime_enforces_release_ticket",
+        "planner_first_flow_requires_release_ticket"
+      ],
+      "properties": {
+        "unchanged": {
+          "const": true
+        },
+        "runtime_config": {
+          "$ref": "#/$defs/path_pin"
+        },
+        "runtime_implementation": {
+          "$ref": "#/$defs/path_pin"
+        },
+        "runtime_contract_implementation": {
+          "$ref": "#/$defs/path_pin"
+        },
+        "observed_arm_order": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "humor_q_only"
+            },
+            {
+              "const": "serious_q_only"
+            },
+            {
+              "const": "angry_style_q_only"
+            },
+            {
+              "const": "review_audit_q_only"
+            },
+            {
+              "const": "tool_q_only"
+            },
+            {
+              "const": "tool_q_plus_micro_o"
+            },
+            {
+              "const": "planner_q_only"
+            },
+            {
+              "const": "planner_o_only"
+            },
+            {
+              "const": "planner_q_plus_micro_o"
+            }
+          ],
+          "items": false,
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "observed_planner_first": {
+          "const": false
+        },
+        "legacy_direct_invocation_unchanged": {
+          "const": true
+        },
+        "existing_runtime_enforces_release_ticket": {
+          "const": false
+        },
+        "planner_first_flow_requires_release_ticket": {
+          "const": true
+        }
+      }
+    },
+    "hierarchical_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "implementation",
+        "checkout_eol_compatibility"
+      ],
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/path_pin"
+        },
+        "implementation": {
+          "$ref": "#/$defs/path_pin"
+        },
+        "checkout_eol_compatibility": {
+          "const": "canonical_lf_with_legacy_crlf_worktree_equivalence"
+        }
+      }
+    },
+    "stage_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordered",
+        "planner_primary_arm",
+        "planner_diagnostic_arms",
+        "diagnostic_arms_can_authorize_downstream",
+        "expert_assets",
+        "expert_leaf_arms",
+        "strictly_serial",
+        "max_concurrency",
+        "planner_must_be_frozen_before_questions",
+        "question_manifest_required_before_projection",
+        "all_expert_projections_required_before_release",
+        "planner_reentry_after_expert_start",
+        "expert_to_planner_feedback_loop"
+      ],
+      "properties": {
+        "ordered": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "planner_train"
+            },
+            {
+              "const": "planner_freeze"
+            },
+            {
+              "const": "planner_question_commit"
+            },
+            {
+              "const": "expert_dataset_projection"
+            },
+            {
+              "const": "expert_leaf_release"
+            }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "planner_primary_arm": {
+          "const": "planner_q_only"
+        },
+        "planner_diagnostic_arms": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "planner_o_only"
+            },
+            {
+              "const": "planner_q_plus_micro_o"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "diagnostic_arms_can_authorize_downstream": {
+          "const": false
+        },
+        "expert_assets": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "humor"
+            },
+            {
+              "const": "serious"
+            },
+            {
+              "const": "angry_style"
+            },
+            {
+              "const": "tool_call"
+            },
+            {
+              "const": "review_audit"
+            }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "expert_leaf_arms": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "humor_q_only"
+            },
+            {
+              "const": "serious_q_only"
+            },
+            {
+              "const": "angry_style_q_only"
+            },
+            {
+              "const": "tool_q_only"
+            },
+            {
+              "const": "review_audit_q_only"
+            }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "strictly_serial": {
+          "const": true
+        },
+        "max_concurrency": {
+          "const": 1
+        },
+        "planner_must_be_frozen_before_questions": {
+          "const": true
+        },
+        "question_manifest_required_before_projection": {
+          "const": true
+        },
+        "all_expert_projections_required_before_release": {
+          "const": true
+        },
+        "planner_reentry_after_expert_start": {
+          "const": false
+        },
+        "expert_to_planner_feedback_loop": {
+          "const": false
+        }
+      }
+    },
+    "planner_question_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator",
+        "manifest_body_free",
+        "question_payload_storage",
+        "one_expert_per_question",
+        "minimum_questions_per_expert",
+        "split_before_projection",
+        "question_id_domain",
+        "route_commit_domain"
+      ],
+      "properties": {
+        "generator": {
+          "const": "frozen_planner_adapter_only"
+        },
+        "manifest_body_free": {
+          "const": true
+        },
+        "question_payload_storage": {
+          "const": "separate_immutable_payload_referenced_by_sha256"
+        },
+        "one_expert_per_question": {
+          "const": true
+        },
+        "minimum_questions_per_expert": {
+          "const": 1
+        },
+        "split_before_projection": {
+          "const": true
+        },
+        "question_id_domain": {
+          "const": "anchor.neural-swarm-planner-question.v1"
+        },
+        "route_commit_domain": {
+          "const": "anchor.neural-swarm-planner-route-commit.v1"
+        }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_chain",
+        "output",
+        "tickets_authorize_gpu",
+        "tickets_modify_existing_runner"
+      ],
+      "properties": {
+        "required_chain": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "planner_train"
+            },
+            {
+              "const": "planner_freeze"
+            },
+            {
+              "const": "planner_question_commit"
+            },
+            {
+              "const": "expert_dataset_projection"
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "output": {
+          "const": "expert_leaf_preflight_tickets_only"
+        },
+        "tickets_authorize_gpu": {
+          "const": false
+        },
+        "tickets_modify_existing_runner": {
+          "const": false
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "existing_training_runtime_modified",
+        "planner_first_leaf_launcher_integrated",
+        "question_generation_executed",
+        "expert_training_executed",
+        "gpu_authorized",
+        "training_authorized",
+        "formal",
+        "release_authorized"
+      ],
+      "properties": {
+        "existing_training_runtime_modified": {
+          "const": false
+        },
+        "planner_first_leaf_launcher_integrated": {
+          "const": false
+        },
+        "question_generation_executed": {
+          "const": false
+        },
+        "expert_training_executed": {
+          "const": false
+        },
+        "gpu_authorized": {
+          "const": false
+        },
+        "training_authorized": {
+          "const": false
+        },
+        "formal": {
+          "const": false
+        },
+        "release_authorized": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "repo_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "path_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repo_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

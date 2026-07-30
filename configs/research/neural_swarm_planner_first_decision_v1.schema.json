@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.neural-swarm-planner-first-decision.v1.schema.json",
+  "title": "Neural Swarm Planner-first Decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "stage",
+    "contract_sha256",
+    "planner_training_receipt_sha256",
+    "planner_freeze_receipt_sha256",
+    "planner_question_manifest_sha256",
+    "planner_question_generation_receipt_sha256",
+    "planner_adapter_sha256",
+    "expert_execution_policy",
+    "expert_tickets",
+    "existing_training_runtime_modified",
+    "planner_first_leaf_launcher_integrated",
+    "expert_training_execution_blocked",
+    "gpu_authorized",
+    "training_authorized",
+    "formal"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.neural-swarm-planner-first-decision.v1"
+    },
+    "status": {
+      "const": "expert_leaf_preflight_ready"
+    },
+    "stage": {
+      "const": "expert_leaf_release"
+    },
+    "contract_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_training_receipt_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_freeze_receipt_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_question_manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_question_generation_receipt_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "planner_adapter_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "expert_execution_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strictly_serial",
+        "max_concurrency",
+        "planner_reentry_after_expert_start"
+      ],
+      "properties": {
+        "strictly_serial": {
+          "const": true
+        },
+        "max_concurrency": {
+          "const": 1
+        },
+        "planner_reentry_after_expert_start": {
+          "const": false
+        }
+      }
+    },
+    "expert_tickets": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/ticket"
+      }
+    },
+    "existing_training_runtime_modified": {
+      "const": false
+    },
+    "planner_first_leaf_launcher_integrated": {
+      "const": false
+    },
+    "expert_training_execution_blocked": {
+      "const": true
+    },
+    "gpu_authorized": {
+      "const": false
+    },
+    "training_authorized": {
+      "const": false
+    },
+    "formal": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ticket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "execution_order",
+        "expert_asset",
+        "leaf_runner_arm",
+        "planner_training_receipt_sha256",
+        "planner_freeze_receipt_sha256",
+        "planner_question_manifest_sha256",
+        "planner_question_generation_receipt_sha256",
+        "planner_adapter_sha256",
+        "dataset_inventory_sha256",
+        "ordered_question_ids_sha256",
+        "question_count",
+        "ticket_id_sha256",
+        "leaf_preflight_eligible",
+        "gpu_authorized"
+      ],
+      "properties": {
+        "domain": {
+          "const": "anchor.neural-swarm-expert-leaf-ticket.v1"
+        },
+        "execution_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "expert_asset": {
+          "enum": [
+            "humor",
+            "serious",
+            "angry_style",
+            "tool_call",
+            "review_audit"
+          ]
+        },
+        "leaf_runner_arm": {
+          "enum": [
+            "humor_q_only",
+            "serious_q_only",
+            "angry_style_q_only",
+            "tool_q_only",
+            "review_audit_q_only"
+          ]
+        },
+        "planner_training_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_freeze_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_question_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_question_generation_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "planner_adapter_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dataset_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ordered_question_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "question_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ticket_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "leaf_preflight_eligible": {
+          "const": true
+        },
+        "gpu_authorized": {
+          "const": false
+        }
+      }
+    }
+  }
+}
