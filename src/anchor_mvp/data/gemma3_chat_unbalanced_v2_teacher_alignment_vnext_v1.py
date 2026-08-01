@@ -498,7 +498,10 @@ class ProviderThroughputAccumulator:
         ):
             return None
         input_tokens, output_tokens, total_tokens = values
-        if total_tokens != input_tokens + output_tokens:
+        # Provider totals may include billed categories that are not exposed
+        # as input/output.  We use only the explicitly named counts for the
+        # throughput numerator, while rejecting an impossible under-total.
+        if total_tokens < input_tokens + output_tokens:
             return None
         return input_tokens, output_tokens
 

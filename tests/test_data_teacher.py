@@ -188,6 +188,46 @@ def test_openai_nonstream_standard_usage_enters_body_free_provenance(
     assert public_content not in json.dumps(provenance, sort_keys=True)
 
 
+def test_openai_nonstream_usage_can_include_provider_overhead(
+    monkeypatch,
+) -> None:
+    """Preserve a valid provider total without inventing a token category."""
+
+    def fake_urlopen(request, timeout):
+        del request, timeout
+        return _Response(
+            {
+                "id": "chatcmpl_safe_overhead",
+                "choices": [{"message": {"content": '{"final_answer":"ok"}'}}],
+                "usage": {
+                    "prompt_tokens": 7,
+                    "completion_tokens": 3,
+                    "total_tokens": 13,
+                },
+            }
+        )
+
+    monkeypatch.setenv("KIMI_API_KEY", "secret-for-test")
+    monkeypatch.setattr(teacher_module, "urlopen", fake_urlopen)
+    teacher = CompatibleTeacher(
+        protocol="openai",
+        fallback_protocol=None,
+        stream_openai=False,
+        max_retries=0,
+    )
+
+    async def run() -> dict[str, object]:
+        await teacher.complete(system="system", user="user")
+        return teacher.provider_provenance
+
+    provenance = asyncio.run(run())
+    assert provenance["completion"]["usage"] == {
+        "input_tokens": 7,
+        "output_tokens": 3,
+        "total_tokens": 13,
+    }
+
+
 @pytest.mark.parametrize(
     "usage",
     [
@@ -196,7 +236,7 @@ def test_openai_nonstream_standard_usage_enters_body_free_provenance(
         {"prompt_tokens": True, "completion_tokens": 1, "total_tokens": 2},
         {"prompt_tokens": "1", "completion_tokens": 1, "total_tokens": 2},
         {"prompt_tokens": 1, "completion_tokens": -1, "total_tokens": 0},
-        {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 3},
+        {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 1},
     ],
 )
 def test_openai_nonstream_invalid_standard_usage_fails_closed(

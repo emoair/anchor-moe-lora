@@ -6,7 +6,7 @@
   "contract_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_contract_v1.json",
   "contract_sha256": "1b108c683185ec92f60a23a0c4e20e01b104bca71f4ac61c1ff79c78e7661243",
   "implementation_path": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py",
-  "implementation_sha256": "a090e079f4b16bf2b68bb09f623e73c4c7ac03e981574d61e1efd7ab2a193b0e",
+  "implementation_sha256": "017cab87ebca47cfa0163d5db13d37590d18686b25e0864319f22cfb97ad1205",
   "checkpoint_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_checkpoint_v1.schema.json",
   "checkpoint_schema_sha256": "7c0661a5ceb8ed45eedc380efbd90627fd4f71ac763c4871d91b5ef7912351d8",
   "receipt_schema_path": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_receipt_v1.schema.json",
@@ -44,7 +44,7 @@
     {
       "kind": "teacher_transport",
       "path": "src/anchor_mvp/data/teacher.py",
-      "sha256": "ef7accb4553251f2d5c2427409a2703eac55e9fc3f8b94e4c7e66720da89651d",
+      "sha256": "8f4327117b273e95e1b1d36033bfd6f6a1880e9f33343738efff19215a40043f",
       "closed": true
     },
     {

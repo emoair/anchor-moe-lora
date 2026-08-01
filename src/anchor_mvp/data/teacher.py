@@ -1165,7 +1165,12 @@ def _openai_chat_completion(
         if type(item) is not int or not 0 <= item <= 1_000_000_000_000:
             raise TeacherError("teacher Chat response usage was invalid")
         usage[public_name] = item
-    if usage["total_tokens"] != usage["input_tokens"] + usage["output_tokens"]:
+    # Some compatible Chat providers report billable/provider-side token
+    # categories in ``total_tokens`` that are not broken out as prompt or
+    # completion tokens.  The named input/output counts remain the only
+    # values consumed by the data pipeline, but the total must never
+    # under-report their sum.
+    if usage["total_tokens"] < usage["input_tokens"] + usage["output_tokens"]:
         raise TeacherError("teacher Chat response usage total was inconsistent")
     return (
         usage["output_tokens"],

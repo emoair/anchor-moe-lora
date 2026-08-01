@@ -831,6 +831,38 @@ def test_provider_throughput_missing_usage_is_unknown_fail_closed() -> None:
     assert telemetry["error"] == "provider_usage_missing_or_invalid"
 
 
+def test_provider_throughput_accepts_provider_total_overhead() -> None:
+    now = [0.0]
+    accumulator = vnext.ProviderThroughputAccumulator(
+        monotonic_clock=lambda: now[0],
+        observed_at_clock=lambda: "2026-07-29T00:00:00Z",
+    )
+    now[0] = 2.0
+    telemetry = accumulator.observe_terminal(
+        {"input_tokens": 10, "output_tokens": 4, "total_tokens": 17}
+    )
+    assert telemetry["provider_input_tokens_per_second"] == 5.0
+    assert telemetry["provider_output_tokens_per_second"] == 2.0
+    assert telemetry["exact"] is True
+    assert telemetry["unknown_rows"] == 0
+
+
+def test_provider_throughput_rejects_provider_usage_under_total() -> None:
+    now = [0.0]
+    accumulator = vnext.ProviderThroughputAccumulator(
+        monotonic_clock=lambda: now[0],
+        observed_at_clock=lambda: "2026-07-29T00:00:00Z",
+    )
+    now[0] = 1.0
+    telemetry = accumulator.observe_terminal(
+        {"input_tokens": 10, "output_tokens": 4, "total_tokens": 13}
+    )
+    assert telemetry["provider_input_tokens_per_second"] == "UNKNOWN"
+    assert telemetry["provider_output_tokens_per_second"] == "UNKNOWN"
+    assert telemetry["exact"] is False
+    assert telemetry["unknown_rows"] == 1
+
+
 def test_provider_terminal_physically_updates_before_commit_without_double_count(
     tmp_path: Path,
 ) -> None:
