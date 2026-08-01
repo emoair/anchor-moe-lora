@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://air.local/schemas/gemma3-existing-distillation-v14-validation-asset-v1.schema.json",
+  "title": "Gemma 3 existing distillation v14 validation-only asset config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "asset_namespace",
+    "base_git_identity",
+    "upstream_release",
+    "source_root",
+    "source_files",
+    "schemas",
+    "implementation",
+    "fixture_root",
+    "counts",
+    "partition_policy",
+    "evidence_contract",
+    "claims"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "anchor.gemma3-existing-distillation-v14-validation-asset-config.v1"},
+    "asset_namespace": {"const": "gemma3_existing_distillation_v14_validation_asset_v1"},
+    "base_git_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "planner_first_dataset_style_inventory_root_sha256"],
+      "properties": {
+        "commit": {"const": "2fc61d5f8fb3bbbf0730d1c2383ddb5dcef935e3"},
+        "planner_first_dataset_style_inventory_root_sha256": {"const": "54ca984c0110353b4969ef78ce6e479934704ea746207c04aff75c6d54975a08"}
+      }
+    },
+    "upstream_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_candidate_commit", "producer_release_commit", "producer_release_tree", "artifact_manifest_sha256", "artifact_build_receipt_sha256", "release_attestation_sha256", "release_attestation_sidecar_sha256", "release_attestation_schema_sha256", "physical_tree_digest_sha256"],
+      "properties": {
+        "producer_candidate_commit": {"const": "c5080249aa103d6cac09f0a55e51982b68524480"},
+        "producer_release_commit": {"const": "304be2b86f82aad7ddade80fae04528bf2801977"},
+        "producer_release_tree": {"const": "9bf154d481623b696dbc8a4bdf276967710b7214"},
+        "artifact_manifest_sha256": {"const": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499"},
+        "artifact_build_receipt_sha256": {"const": "da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6"},
+        "release_attestation_sha256": {"const": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813"},
+        "release_attestation_sidecar_sha256": {"const": "f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35"},
+        "release_attestation_schema_sha256": {"const": "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9"},
+        "physical_tree_digest_sha256": {"const": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"}
+      }
+    },
+    "source_root": {"const": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000"},
+    "source_files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "manifest", "training_receipt", "failed_attempt_receipt", "source_snapshot_manifest"],
+      "properties": {
+        "dataset": {"$ref": "#/$defs/file"},
+        "manifest": {"$ref": "#/$defs/file"},
+        "training_receipt": {"$ref": "#/$defs/file"},
+        "failed_attempt_receipt": {"$ref": "#/$defs/file"},
+        "source_snapshot_manifest": {"$ref": "#/$defs/file"}
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config", "record", "manifest", "receipt"],
+      "properties": {
+        "config": {"$ref": "#/$defs/file"},
+        "record": {"$ref": "#/$defs/file"},
+        "manifest": {"$ref": "#/$defs/file"},
+        "receipt": {"$ref": "#/$defs/file"}
+      }
+    },
+    "implementation": {"$ref": "#/$defs/file"},
+    "fixture_root": {"const": "fixtures/research/gemma3_existing_distillation_v14_validation_asset_v1"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "train", "calibration", "holdout"],
+      "properties": {
+        "total": {"const": 16632},
+        "train": {"const": 13131},
+        "calibration": {"const": 1923},
+        "holdout": {"const": 1578}
+      }
+    },
+    "partition_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["train", "calibration", "holdout", "sort_key", "holdout_body_persisted"],
+      "properties": {
+        "train": {"const": "seen_train_regression_validation"},
+        "calibration": {"const": "current_validation"},
+        "holdout": {"const": "sealed_single_blind_final_only"},
+        "sort_key": {"const": "sample_id_ascending"},
+        "holdout_body_persisted": {"const": false}
+      }
+    },
+    "evidence_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["training_stage_status", "overall_attempt_status", "attempt_consumed", "failure_stage", "reason_codes"],
+      "properties": {
+        "training_stage_status": {"const": "passed"},
+        "overall_attempt_status": {"const": "failed"},
+        "attempt_consumed": {"const": false},
+        "failure_stage": {"const": "post_training_provenance_gate"},
+        "reason_codes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["conversion_original_paths", "actual_worker_runtime_not_frozen", "handoff_consumed_boolean_inverted"]}
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumable_for_training", "training_authorized", "formal_training_authorized", "production_training_authorized", "deployable"],
+      "properties": {
+        "consumable_for_training": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "production_training_authorized": {"const": false},
+        "deployable": {"const": false}
+      }
+    }
+  }
+}

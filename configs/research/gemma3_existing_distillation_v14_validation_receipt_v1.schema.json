@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://air.local/schemas/gemma3-existing-distillation-v14-validation-receipt-v1.schema.json",
+  "title": "Gemma 3 existing distillation v14 validation-only build receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "config_sha256",
+    "implementation_sha256",
+    "schema_inventory",
+    "manifest_sha256",
+    "manifest_sidecar_physical_sha256",
+    "partition_inventory",
+    "logical_inventory_root_sha256",
+    "checks",
+    "claims",
+    "resource_audit"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "anchor.gemma3-existing-distillation-v14-validation-build-receipt.v1"},
+    "status": {"const": "passed_validation_only"},
+    "config_sha256": {"$ref": "#/$defs/sha256"},
+    "implementation_sha256": {"$ref": "#/$defs/sha256"},
+    "schema_inventory": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"$ref": "#/$defs/file"}
+    },
+    "manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "manifest_sidecar_physical_sha256": {"$ref": "#/$defs/sha256"},
+    "partition_inventory": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["split", "path", "sha256", "sidecar_physical_sha256", "bytes", "records"],
+        "properties": {
+          "split": {"enum": ["train", "calibration", "holdout"]},
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "sidecar_physical_sha256": {"$ref": "#/$defs/sha256"},
+          "bytes": {"type": "integer", "minimum": 1},
+          "records": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "logical_inventory_root_sha256": {"$ref": "#/$defs/sha256"},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_hashes_authenticated", "records_schema_valid", "sample_ids_unique", "partition_order_deterministic", "cross_split_overlap_zero", "sidecars_valid", "single_bytes_snapshots", "toctou_rechecked", "atomic_create_once", "reparse_rejected", "body_fields_absent"],
+      "properties": {
+        "source_hashes_authenticated": {"const": true},
+        "records_schema_valid": {"const": true},
+        "sample_ids_unique": {"const": true},
+        "partition_order_deterministic": {"const": true},
+        "cross_split_overlap_zero": {"const": true},
+        "sidecars_valid": {"const": true},
+        "single_bytes_snapshots": {"const": true},
+        "toctou_rechecked": {"const": true},
+        "atomic_create_once": {"const": true},
+        "reparse_rejected": {"const": true},
+        "body_fields_absent": {"const": true}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumable_for_training", "training_authorized", "formal_training_authorized", "production_training_authorized", "attempt_consumed"],
+      "properties": {
+        "consumable_for_training": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false},
+        "production_training_authorized": {"const": false},
+        "attempt_consumed": {"const": false}
+      }
+    },
+    "resource_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "network_requests", "model_loads", "gpu_requests", "persisted_body_fields", "persisted_raw_token_ids"],
+      "properties": {
+        "provider_requests": {"const": 0},
+        "network_requests": {"const": 0},
+        "model_loads": {"const": 0},
+        "gpu_requests": {"const": 0},
+        "persisted_body_fields": {"const": 0},
+        "persisted_raw_token_ids": {"const": false}
+      }
+    }
+  }
+}

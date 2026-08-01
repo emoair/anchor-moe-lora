@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://air.local/schemas/gemma3-existing-distillation-v14-validation-record-v1.schema.json",
+  "title": "Gemma 3 existing distillation v14 validation-only record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_ordinal",
+    "sample_id",
+    "split",
+    "source_group_sha256",
+    "leakage_family_sha256",
+    "prompt_sha256",
+    "consumable_for_training"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-existing-distillation-v14-validation-record.v1"
+    },
+    "source_ordinal": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16632
+    },
+    "sample_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "split": {
+      "enum": ["train", "calibration", "holdout"]
+    },
+    "source_group_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "leakage_family_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prompt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "consumable_for_training": {
+      "const": false
+    }
+  }
+}

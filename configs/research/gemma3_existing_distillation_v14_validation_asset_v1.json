@@ -1,0 +1,106 @@
+{
+  "schema_version": "anchor.gemma3-existing-distillation-v14-validation-asset-config.v1",
+  "asset_namespace": "gemma3_existing_distillation_v14_validation_asset_v1",
+  "base_git_identity": {
+    "commit": "2fc61d5f8fb3bbbf0730d1c2383ddb5dcef935e3",
+    "planner_first_dataset_style_inventory_root_sha256": "54ca984c0110353b4969ef78ce6e479934704ea746207c04aff75c6d54975a08"
+  },
+  "upstream_release": {
+    "producer_candidate_commit": "c5080249aa103d6cac09f0a55e51982b68524480",
+    "producer_release_commit": "304be2b86f82aad7ddade80fae04528bf2801977",
+    "producer_release_tree": "9bf154d481623b696dbc8a4bdf276967710b7214",
+    "artifact_manifest_sha256": "c99ba5a7f1e247e713a840f1dfe4710886759b98901e068ba1b70e5eacd2a499",
+    "artifact_build_receipt_sha256": "da16c9a9cac9dc11f281ca52217f1bcd1d23afab589ab3d1d4c0f1e322b9b7d6",
+    "release_attestation_sha256": "b8630a90dedd4c685900968b4c06022ea3d7b505bbbce0e666d4adaecdf3d813",
+    "release_attestation_sidecar_sha256": "f64aa73a2968111fb0148ca58993bfaec92f383f736fbd3496c64d9ff776ba35",
+    "release_attestation_schema_sha256": "3c23823e21a4754bef99b7cbbcca217eab617bc313a6b75299a9bd844c7e6eb9",
+    "physical_tree_digest_sha256": "25add529328255f6b36f9929be1851f42abd25deda7a7f69733ac8348cad387c"
+  },
+  "source_root": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000",
+  "source_files": {
+    "dataset": {
+      "path": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000/dataset/route-dataset.jsonl",
+      "sha256": "d536cccce5e8e92385a7ff1cd79e6d4ea7dc3af0373b03a98e2eed0dd4fac611",
+      "bytes": 17894971
+    },
+    "manifest": {
+      "path": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000/dataset/dataset-manifest.json",
+      "sha256": "593a821bc105b9ce61d1970b5c8f95e07bfb20c229857edbb7de577696107857",
+      "bytes": 16070
+    },
+    "training_receipt": {
+      "path": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000/router-adapter/training-receipt.json",
+      "sha256": "40aa25daf0848d802d2a30431c0ce57d7f5f79e5e21693589f42bb8992bdb76b",
+      "bytes": 6227
+    },
+    "failed_attempt_receipt": {
+      "path": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000/failed-attempt-receipt.json",
+      "sha256": "f8ff8204bd3328eb60d01405047e36e8d1d34f9024705780e6ab944703d2ddef",
+      "bytes": 5790
+    },
+    "source_snapshot_manifest": {
+      "path": "D:/LLM/runs/gemma3-existing-distillation/prefill-router-head-v14-20260730-235000/provenance/source-snapshot-manifest.json",
+      "sha256": "3958e96c86de5a4169c5236b599c97eec326a2e87617073f69bc2ba3f17d0f77",
+      "bytes": 15262
+    }
+  },
+  "schemas": {
+    "config": {
+      "path": "configs/research/gemma3_existing_distillation_v14_validation_asset_v1.schema.json",
+      "sha256": "0cad1631be5fbbf8a0b0f723e03cece88c629183c354dc91dd6bbf3e6ac63621",
+      "bytes": 6240
+    },
+    "record": {
+      "path": "configs/research/gemma3_existing_distillation_v14_validation_record_v1.schema.json",
+      "sha256": "d79aa681195db00876a0b5c96a017eb190a8037440c56556dc579e9cf00b83c0",
+      "bytes": 1219
+    },
+    "manifest": {
+      "path": "configs/research/gemma3_existing_distillation_v14_validation_manifest_v1.schema.json",
+      "sha256": "8e98a31fe1754bd75cf6b4553d36c24e0e66a85a683b0531fc641e59e87e6886",
+      "bytes": 6738
+    },
+    "receipt": {
+      "path": "configs/research/gemma3_existing_distillation_v14_validation_receipt_v1.schema.json",
+      "sha256": "a77da57be9a1eab36e6d9573d2724640e38fcbdf7eadb41e2fe16dd9b4d7ec93",
+      "bytes": 4257
+    }
+  },
+  "implementation": {
+    "path": "src/anchor_mvp/research/gemma3_existing_distillation_v14_validation_asset_v1.py",
+    "sha256": "f8ed688931c2e226849afe275a89137a0a6a2b1f7d849a7aae7f17e7d68660cd",
+    "bytes": 31231
+  },
+  "fixture_root": "fixtures/research/gemma3_existing_distillation_v14_validation_asset_v1",
+  "counts": {
+    "total": 16632,
+    "train": 13131,
+    "calibration": 1923,
+    "holdout": 1578
+  },
+  "partition_policy": {
+    "train": "seen_train_regression_validation",
+    "calibration": "current_validation",
+    "holdout": "sealed_single_blind_final_only",
+    "sort_key": "sample_id_ascending",
+    "holdout_body_persisted": false
+  },
+  "evidence_contract": {
+    "training_stage_status": "passed",
+    "overall_attempt_status": "failed",
+    "attempt_consumed": false,
+    "failure_stage": "post_training_provenance_gate",
+    "reason_codes": [
+      "actual_worker_runtime_not_frozen",
+      "conversion_original_paths",
+      "handoff_consumed_boolean_inverted"
+    ]
+  },
+  "claims": {
+    "consumable_for_training": false,
+    "training_authorized": false,
+    "formal_training_authorized": false,
+    "production_training_authorized": false,
+    "deployable": false
+  }
+}
