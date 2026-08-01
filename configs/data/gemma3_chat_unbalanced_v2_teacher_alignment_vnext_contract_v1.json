@@ -1,0 +1,105 @@
+{
+  "schema_version": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.contract.v1",
+  "contract_id": "gemma3-chat-unbalanced-v2-teacher-alignment-vnext-v1",
+  "relationship": {
+    "mode": "additive",
+    "v1_closed": true,
+    "v2_closed": true,
+    "consumer_relaxation": false,
+    "fallback_enabled": false
+  },
+  "online_irreversible_gates": [
+    "memory_only_credential",
+    "kill_switch_stop_after_group",
+    "budget_and_request_caps",
+    "source_and_heldout_identity",
+    "idempotency_uniqueness",
+    "held_sequence_and_chain_tip_hmac",
+    "exclusive_append_and_fsync",
+    "absolute_nonstreaming_chat_deadline",
+    "single_record_closed_grammar",
+    "systematic_rejection_rate_fuse"
+  ],
+  "authentication": {
+    "startup_full_replay": 1,
+    "online_wal_history_replays_per_append": 0,
+    "online_wal_tip_files_verified_per_append": 1,
+    "group_delta_only": true,
+    "final_freeze_full_replay": 1,
+    "wal_entry_format_compatible_with_closed_v1_auditor": true,
+    "cross_process_resume": false,
+    "fresh_exclusive_root_required": true
+  },
+  "transport": {
+    "implementation": "isolated_child_process_httpx_async_client",
+    "blocking_worker_thread": false,
+    "absolute_deadline_includes_retries": true,
+    "noncooperative_cleanup_is_process_terminated": true,
+    "timeout_retry_forbidden": true,
+    "fallback_enabled": false
+  },
+  "runtime_root": {
+    "scope": "external_absolute_parent_from_cli",
+    "repository_internal_runtime_forbidden": true,
+    "release_materialization_root": "fixed_repository_release_v1"
+  },
+  "group_boundary": {
+    "stop_mode": "stop_after_group",
+    "latch_lock_scope": "group_prepare_through_checkpoint_sidecar",
+    "effective_after": [
+      "GROUP_TERMINAL_exclusive_fsync",
+      "delta_checkpoint_exclusive_fsync",
+      "delta_checkpoint_sha256_sidecar_exclusive_fsync"
+    ],
+    "kill_switch_induced_uncertain_dispatch": false
+  },
+  "body_free_stratum": {
+    "required_fields": [
+      "role",
+      "language",
+      "tool_family",
+      "identity_class",
+      "source_record_id_sha256"
+    ],
+    "tool_family_nullable": true,
+    "identity_class_nullable": true,
+    "source_record_id_plaintext_retained": false,
+    "coverage_counts_required": true,
+    "targeted_gap_inventory_required": true
+  },
+  "checkpoint": {
+    "delta_inventory_required": true,
+    "delta_merkle_root_required": true,
+    "prior_and_new_chain_tip_required": true,
+    "counts_and_usage_required": true,
+    "runtime_hmac_required": true,
+    "sha256_sidecar_required": true
+  },
+  "freeze": {
+    "accepted_inventory_required": true,
+    "rejected_inventory_required": true,
+    "quarantine_inventory_required": true,
+    "external_attestation_required": true,
+    "training_authorized_before_external_attestation": false,
+    "consumer_integration_ready": false,
+    "neural_swarm_additive_consumer_commit_and_review_required": true
+  },
+  "producer_release": {
+    "audited_base_to_launch_L_exact_paths": 23,
+    "launch_L_to_payload_P_exact_paths": 32,
+    "payload_P_to_final_R_exact_paths": 4,
+    "all_staged_paths": 59,
+    "payload_P_materialized_while_runtime_slots_and_lease_live": true,
+    "payload_P_atomic_directory_publish_no_replace": true,
+    "post_close_payload_P_materialization_forbidden": true,
+    "unique_direct_child_chain": true
+  },
+  "retention": {
+    "provider_body_in_checkpoint": false,
+    "source_body_in_checkpoint": false,
+    "raw_token_ids": false,
+    "credential": false,
+    "runtime_hmac_key": false,
+    "hidden_reasoning": false
+  }
+}

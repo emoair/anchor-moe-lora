@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.producer-L-to-P-to-R-proof.v1",
+  "title": "Physically derived exact producer B to L to P to R proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "audited_base",
+    "producer_launch_L",
+    "producer_payload_P",
+    "producer_final_R",
+    "release_kind_stage_map",
+    "producer_L_exact_path_set_root_sha256",
+    "producer_P_exact_path_set_root_sha256",
+    "producer_R_exact_path_set_root_sha256",
+    "path_stage_map",
+    "path_stage_map_root_sha256",
+    "global_clean_tree",
+    "unique_direct_children",
+    "exact_raw_diff_allowlist",
+    "release_self_pin_present",
+    "procedurally_independent_review_present",
+    "content_retained"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.producer-L-to-P-to-R-proof.v1"
+    },
+    "audited_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "producer_L_direct_child_sha1",
+        "exact_global_diff_allowlist",
+        "raw_diff_sha256",
+        "path_status_root_sha256",
+        "path_count",
+        "content_retained"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "producer_L_direct_child_sha1": {"$ref": "#/$defs/sha1"},
+        "exact_global_diff_allowlist": {"const": true},
+        "raw_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "path_status_root_sha256": {"$ref": "#/$defs/sha256"},
+        "path_count": {"const": 21},
+        "content_retained": {"const": false}
+      }
+    },
+    "producer_launch_L": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "direct_parent_sha1",
+        "file_inventory",
+        "file_inventory_root_sha256"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "direct_parent_sha1": {"$ref": "#/$defs/sha1"},
+        "file_inventory": {
+          "type": "array",
+          "minItems": 21,
+          "maxItems": 21,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/producerLFile"}
+        },
+        "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "producer_payload_P": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "direct_parent_sha1",
+        "raw_diff_sha256",
+        "file_inventory",
+        "file_inventory_root_sha256"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "direct_parent_sha1": {"$ref": "#/$defs/sha1"},
+        "raw_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "file_inventory": {
+          "type": "array",
+          "minItems": 32,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/producerPFile"}
+        },
+        "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "producer_final_R": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha1",
+        "tree_sha1",
+        "direct_parent_sha1",
+        "raw_diff_sha256",
+        "file_inventory",
+        "file_inventory_root_sha256"
+      ],
+      "properties": {
+        "commit_sha1": {"$ref": "#/$defs/sha1"},
+        "tree_sha1": {"$ref": "#/$defs/sha1"},
+        "direct_parent_sha1": {"$ref": "#/$defs/sha1"},
+        "raw_diff_sha256": {"$ref": "#/$defs/sha256"},
+        "file_inventory": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/producerRFile"}
+        },
+        "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "release_kind_stage_map": {
+      "const": {
+        "producer_launch_L": [
+          "code_components",
+          "schemas",
+          "contracts"
+        ],
+        "producer_payload_P": [
+          "selection_overlay",
+          "selector_preimages",
+          "candidate_inventory",
+          "selected_inventory",
+          "accepted_inventory",
+          "rejected_inventory",
+          "quarantine_inventory",
+          "checkpoints",
+          "committed_shards",
+          "teacher_training_shard",
+          "training_record_inventory"
+        ],
+        "producer_final_R": [
+          "freeze_attestation",
+          "external_attestation"
+        ],
+        "consumer_code_P": [
+          "consumer_code",
+          "consumer_schemas",
+          "consumer_contract"
+        ],
+        "consumer_pin_C": ["consumer_pin_only"]
+      }
+    },
+    "producer_L_exact_path_set_root_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_P_exact_path_set_root_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "producer_R_exact_path_set_root_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "path_stage_map": {
+      "type": "array",
+      "minItems": 57,
+      "maxItems": 57,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/pathStage"}
+    },
+    "path_stage_map_root_sha256": {"$ref": "#/$defs/sha256"},
+    "global_clean_tree": {"const": true},
+    "unique_direct_children": {"const": true},
+    "exact_raw_diff_allowlist": {"const": true},
+    "release_self_pin_present": {"const": false},
+    "procedurally_independent_review_present": {"const": false},
+    "content_retained": {"const": false}
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"
+    },
+    "producerLFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "blob_sha1",
+        "sha256",
+        "bytes",
+        "release_stage"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "blob_sha1": {"$ref": "#/$defs/sha1"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "release_stage": {"const": "producer_launch_L"}
+      }
+    },
+    "producerPFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "blob_sha1",
+        "sha256",
+        "bytes",
+        "release_stage"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "blob_sha1": {"$ref": "#/$defs/sha1"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "release_stage": {"const": "producer_payload_P"}
+      }
+    },
+    "producerRFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "blob_sha1",
+        "sha256",
+        "bytes",
+        "release_stage"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "blob_sha1": {"$ref": "#/$defs/sha1"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "release_stage": {"const": "producer_final_R"}
+      }
+    },
+    "pathStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "release_stage"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "release_stage": {
+          "enum": [
+            "producer_launch_L",
+            "producer_payload_P",
+            "producer_final_R"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -20,8 +20,10 @@ import hmac
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import re
+import stat
 import threading
 import time
 from typing import Iterable, Mapping, Sequence
@@ -73,6 +75,19 @@ SEED_FILE = "seeds.jsonl"
 SEED_REJECTIONS_FILE = "seed_rejections.jsonl"
 ATTEMPTS_FILE = Path("automation") / "attempts.jsonl"
 STATUS_FILE = Path("automation") / "status.json"
+VNEXT_THROUGHPUT_FILE = Path("automation") / "vnext_provider_throughput_v1.json"
+UNBALANCED_STATUS_SCHEMA_VERSION = (
+    "anchor.gemma3-chat-five-expert-qonly-unbalanced-v2.teacher-alignment.status.v1"
+)
+VNEXT_THROUGHPUT_SCHEMA_VERSION = (
+    "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext."
+    "provider-throughput-telemetry.v1"
+)
+VNEXT_THROUGHPUT_SEMANTICS = (
+    "provider_reported_usage_only; terminal_event_time_window; "
+    "idle_reads_do_not_advance_observed_at_or_synthesize_usage; "
+    "any_unknown_row_or_forbidden_restart_makes_rates_UNKNOWN"
+)
 MAX_PARSE_ERRORS = 50
 MAX_LOG_ENTRIES = 160
 MAX_POST_BODY_BYTES = 16_384
@@ -243,8 +258,10 @@ UNBALANCED_STATUS_PATHS: frozenset[PathKey] = frozenset(
         ("hashes", "model"),
         ("hashes", "implementation"),
         ("hashes", "contracts"),
+        ("hashes", "vnext_config"),
         ("resume", "completed"),
         ("resume", "uncertain"),
+        ("resume", "cross_process_resume"),
         ("resume", "group_commits_replayed"),
         ("resume", "duplicate_paid_call_prevention"),
         ("cost_guard", "basis"),
@@ -253,7 +270,28 @@ UNBALANCED_STATUS_PATHS: frozenset[PathKey] = frozenset(
         ("cost_guard", "marginal_currency_cost_known"),
         ("kill_switch", "armed"),
         ("kill_switch", "checked_before_each_dispatch"),
+        ("kill_switch", "stop_after_group"),
+        ("provider_throughput", "schema_version"),
         ("content_free",),
+    }
+)
+VNEXT_THROUGHPUT_PATHS: frozenset[PathKey] = frozenset(
+    {
+        ("schema_version",),
+        ("provider_input_tokens_per_second",),
+        ("provider_output_tokens_per_second",),
+        ("window_seconds",),
+        ("window_limit_seconds",),
+        ("terminal_jobs",),
+        ("observed_at",),
+        ("exact",),
+        ("exact_rows",),
+        ("unknown_rows",),
+        ("error",),
+        ("semantics",),
+        ("content_retained",),
+        ("raw_token_ids_retained",),
+        ("credential_retained",),
     }
 )
 UNBALANCED_EVENT_FILE = Path("automation") / "events.jsonl"
@@ -1160,6 +1198,100 @@ class StatusReader:
         return True
 
 
+def _read_regular_nofollow(path: Path, *, maximum_bytes: int) -> bytes:
+    before = path.lstat()
+    if (
+        path.is_symlink()
+        or bool(int(getattr(before, "st_file_attributes", 0)) & 0x400)
+        or not stat.S_ISREG(before.st_mode)
+        or before.st_size > maximum_bytes
+    ):
+        raise OSError("non-regular telemetry path")
+    flags = os.O_RDONLY | int(getattr(os, "O_BINARY", 0))
+    flags |= int(getattr(os, "O_NOFOLLOW", 0))
+    descriptor = os.open(path, flags)
+    try:
+        opened = os.fstat(descriptor)
+        identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        )
+        if not stat.S_ISREG(opened.st_mode) or identity != (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+            opened.st_mtime_ns,
+        ):
+            raise OSError("telemetry identity drift")
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = os.read(
+                descriptor,
+                min(64 * 1024, maximum_bytes + 1 - total),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > maximum_bytes:
+                raise OSError("telemetry is too large")
+        after = os.fstat(descriptor)
+        if identity != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
+            raise OSError("telemetry changed during read")
+    finally:
+        os.close(descriptor)
+    named = path.lstat()
+    if identity != (
+        named.st_dev,
+        named.st_ino,
+        named.st_size,
+        named.st_mtime_ns,
+    ):
+        raise OSError("telemetry name changed during read")
+    return b"".join(chunks)
+
+
+class VNextThroughputReader(StatusReader):
+    """Selective no-follow reader for the body-free vNext rate snapshot."""
+
+    def __init__(self, path: Path) -> None:
+        super().__init__(path, selected=VNEXT_THROUGHPUT_PATHS)
+
+    def refresh(self) -> bool:
+        try:
+            stat_value = self.path.lstat()
+        except FileNotFoundError:
+            changed = self.signature is not None
+            self.signature = None
+            self.metadata = {}
+            self.last_mtime = None
+            self.invalid_sha256 = None
+            return changed
+        signature = (stat_value.st_mtime_ns, stat_value.st_size)
+        if signature == self.signature:
+            return False
+        self.signature = signature
+        self.last_mtime = stat_value.st_mtime
+        try:
+            raw = _read_regular_nofollow(self.path, maximum_bytes=64 * 1024)
+            self.metadata = scan_metadata(raw, self.selected)
+            self.invalid_sha256 = None
+        except (OSError, MetadataJsonError, ValueError, TypeError):
+            self.metadata = {}
+            self.invalid_sha256 = hashlib.sha256(
+                f"{signature[0]}:{signature[1]}".encode("ascii")
+            ).hexdigest()
+        return True
+
+
 def _sum_token_metric(stages: Sequence[StageAggregate], name: str) -> dict[str, object]:
     value = sum(stage.token_values[name] for stage in stages)
     unknown = sum(stage.token_unknown_rows[name] for stage in stages)
@@ -1237,6 +1369,9 @@ class UnbalancedShardMonitor:
         self.status_reader = StatusReader(
             path / STATUS_FILE, selected=UNBALANCED_STATUS_PATHS
         )
+        self.vnext_throughput_reader = VNextThroughputReader(
+            path / VNEXT_THROUGHPUT_FILE
+        )
         self.event_reader = IncrementalJsonl(
             path / UNBALANCED_EVENT_FILE,
             "unbalanced_events",
@@ -1255,11 +1390,27 @@ class UnbalancedShardMonitor:
 
     def refresh(self, _now_monotonic: float) -> bool:
         status_changed = self.status_reader.refresh()
+        if self._is_vnext_status():
+            return self.vnext_throughput_reader.refresh() or status_changed
         events_changed = self.event_reader.refresh()
         receipts_changed = self.receipt_reader.refresh()
         rejections_changed = self.rejection_receipt_reader.refresh()
         return (
             status_changed or events_changed or receipts_changed or rejections_changed
+        )
+
+    def _is_vnext_status(self) -> bool:
+        metadata = self.status_reader.metadata
+        return (
+            self.status_reader.invalid_sha256 is None
+            and metadata.get(("schema_version",)) == UNBALANCED_STATUS_SCHEMA_VERSION
+            and metadata.get(("dataset_kind",)) == UNBALANCED_DATASET_KIND
+            and _safe_sha256(metadata.get(("hashes", "vnext_config"))) is not None
+            and metadata.get(("resume", "cross_process_resume")) is False
+            and metadata.get(("kill_switch", "stop_after_group")) is True
+            and metadata.get(("provider_throughput", "schema_version"))
+            == VNEXT_THROUGHPUT_SCHEMA_VERSION
+            and metadata.get(("content_free",)) is True
         )
 
     @staticmethod
@@ -1472,16 +1623,125 @@ class UnbalancedShardMonitor:
             "token_throughput_error": None,
         }
 
+    def _vnext_token_throughput(self) -> dict[str, object]:
+        metadata = self.vnext_throughput_reader.metadata
+        source = "vnext_body_free_terminal_telemetry"
+        error = metadata.get(("error",))
+        exact = metadata.get(("exact",))
+        input_rate = metadata.get(("provider_input_tokens_per_second",))
+        output_rate = metadata.get(("provider_output_tokens_per_second",))
+        window = _safe_nonnegative_number(metadata.get(("window_seconds",)))
+        window_limit = _safe_nonnegative_number(metadata.get(("window_limit_seconds",)))
+        jobs = _safe_nonnegative_int(metadata.get(("terminal_jobs",)))
+        exact_rows = _safe_nonnegative_int(metadata.get(("exact_rows",)))
+        unknown_rows = _safe_nonnegative_int(metadata.get(("unknown_rows",)))
+        observed_at = _safe_observed_at(metadata.get(("observed_at",)))
+        numeric_input = _safe_nonnegative_number(input_rate)
+        numeric_output = _safe_nonnegative_number(output_rate)
+        valid = (
+            self.vnext_throughput_reader.invalid_sha256 is None
+            and metadata.get(("schema_version",)) == VNEXT_THROUGHPUT_SCHEMA_VERSION
+            and metadata.get(("semantics",)) == VNEXT_THROUGHPUT_SEMANTICS
+            and metadata.get(("content_retained",)) is False
+            and metadata.get(("raw_token_ids_retained",)) is False
+            and metadata.get(("credential_retained",)) is False
+            and isinstance(exact, bool)
+            and jobs is not None
+            and exact_rows is not None
+            and unknown_rows is not None
+            and exact_rows + unknown_rows == jobs
+            and window is not None
+            and window_limit is not None
+            and window_limit > 0
+            and window <= window_limit
+            and observed_at is not None
+        )
+        if exact is True:
+            valid = (
+                valid
+                and numeric_input is not None
+                and numeric_output is not None
+                and window > 0
+                and jobs > 0
+                and exact_rows == jobs
+                and unknown_rows == 0
+                and error is None
+            )
+        else:
+            valid = (
+                valid
+                and input_rate == "UNKNOWN"
+                and output_rate == "UNKNOWN"
+                and isinstance(error, str)
+                and SAFE_ENUM_RE.fullmatch(error) is not None
+            )
+        if not valid:
+            return {
+                **self._unknown_token_throughput("vnext_telemetry_invalid"),
+                "provider_input_tokens_per_second": _metric(
+                    "UNKNOWN", exact=False, source=source
+                ),
+                "provider_output_tokens_per_second": _metric(
+                    "UNKNOWN", exact=False, source=source
+                ),
+                "token_throughput_semantics": VNEXT_THROUGHPUT_SEMANTICS,
+            }
+        public_input: int | float | str = (
+            round(numeric_input, 6) if exact else "UNKNOWN"
+        )
+        public_output: int | float | str = (
+            round(numeric_output, 6) if exact else "UNKNOWN"
+        )
+        return {
+            "provider_input_tokens_per_second": _metric(
+                public_input,
+                exact=exact,
+                unknown_rows=unknown_rows,
+                source=source,
+            ),
+            "provider_output_tokens_per_second": _metric(
+                public_output,
+                exact=exact,
+                unknown_rows=unknown_rows,
+                source=source,
+            ),
+            "token_throughput_window_seconds": _metric(
+                window,
+                exact=exact,
+                unknown_rows=unknown_rows,
+                source=source,
+            ),
+            "token_throughput_terminal_jobs": _metric(
+                jobs,
+                exact=exact,
+                unknown_rows=unknown_rows,
+                source=source,
+            ),
+            "token_throughput_observed_at": observed_at,
+            "token_throughput_semantics": VNEXT_THROUGHPUT_SEMANTICS,
+            "token_throughput_error": error,
+        }
+
     def public(self, _catalog: CatalogService | None = None) -> dict[str, object]:
         metadata = self.status_reader.metadata
         invalid = self.status_reader.invalid_sha256
+        is_vnext = self._is_vnext_status()
         event_aggregate = self.event_reader.aggregate
         if not isinstance(event_aggregate, UnbalancedEventAggregate):
             raise RuntimeError("unbalanced event aggregate kind drift")
-        event_errors = [item.public() for item in self.event_reader.parse_errors]
-        events_available = self.event_reader.identity is not None
+        event_errors = (
+            []
+            if is_vnext
+            else [item.public() for item in self.event_reader.parse_errors]
+        )
+        events_available = not is_vnext and self.event_reader.identity is not None
         events_exact = events_available and not event_errors
-        usage_by_key, receipt_errors, receipt_integrity_error = self._receipt_usage()
+        if is_vnext:
+            usage_by_key, receipt_errors, receipt_integrity_error = {}, [], None
+        else:
+            usage_by_key, receipt_errors, receipt_integrity_error = (
+                self._receipt_usage()
+            )
         state = (
             _safe_enum(metadata.get(("state",)), fallback_prefix="unknown-state")
             if metadata.get(("state",)) is not None
@@ -1551,14 +1811,18 @@ class UnbalancedShardMonitor:
             metadata.get(("rate", "jobs_per_second"))
         )
         eta_seconds = _safe_nonnegative_number(metadata.get(("rate", "eta_seconds")))
-        token_throughput = self._token_throughput(
-            event_aggregate=event_aggregate,
-            status_succeeded=counters["succeeded"],
-            status_rejected=counters["rejected"],
-            status_total=total,
-            usage_by_key=usage_by_key,
-            receipt_integrity_error=receipt_integrity_error,
-            events_exact=events_exact,
+        token_throughput = (
+            self._vnext_token_throughput()
+            if is_vnext
+            else self._token_throughput(
+                event_aggregate=event_aggregate,
+                status_succeeded=counters["succeeded"],
+                status_rejected=counters["rejected"],
+                status_total=total,
+                usage_by_key=usage_by_key,
+                receipt_integrity_error=receipt_integrity_error,
+                events_exact=events_exact,
+            )
         )
         cooldown_until = _safe_observed_at(metadata.get(("cooldown_until",)))
         updated_at = _safe_observed_at(metadata.get(("updated_at",)))

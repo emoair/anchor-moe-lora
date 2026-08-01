@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.config.v1",
+  "title": "Additive teacher-alignment vNext controller config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "controller_id",
+    "schema_path",
+    "schema_sha256",
+    "contract_path",
+    "contract_sha256",
+    "implementation_path",
+    "implementation_sha256",
+    "checkpoint_schema_path",
+    "checkpoint_schema_sha256",
+    "receipt_schema_path",
+    "receipt_schema_sha256",
+    "selector_contract_path",
+    "selector_contract_sha256",
+    "selector_schema_path",
+    "selector_schema_sha256",
+    "selector_implementation_path",
+    "selector_implementation_sha256",
+    "teacher_record_schema_path",
+    "teacher_record_schema_sha256",
+    "transition_schema_path",
+    "transition_schema_sha256",
+    "launch",
+    "closed_ancestors",
+    "online_authentication",
+    "stop_after_group",
+    "rejection_fuse",
+    "consumer_code_P",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "anchor.gemma3-chat-unbalanced-v2.teacher-alignment-vnext.config.v1"
+    },
+    "controller_id": {
+      "const": "gemma3-chat-unbalanced-v2-teacher-alignment-vnext-v1"
+    },
+    "schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.schema.json"
+    },
+    "schema_sha256": {"$ref": "#/$defs/sha256"},
+    "contract_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_contract_v1.json"
+    },
+    "contract_sha256": {"$ref": "#/$defs/sha256"},
+    "implementation_path": {
+      "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py"
+    },
+    "implementation_sha256": {"$ref": "#/$defs/sha256"},
+    "checkpoint_schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_checkpoint_v1.schema.json"
+    },
+    "checkpoint_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_receipt_v1.schema.json"
+    },
+    "receipt_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "selector_contract_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_contract_v2.json"
+    },
+    "selector_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "selector_schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_selector_v2.schema.json"
+    },
+    "selector_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "selector_implementation_path": {
+      "const": "src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_v2.py"
+    },
+    "selector_implementation_sha256": {"$ref": "#/$defs/sha256"},
+    "teacher_record_schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_final_record_v2.schema.json"
+    },
+    "teacher_record_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "transition_schema_path": {
+      "const": "configs/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_transition_v1.schema.json"
+    },
+    "transition_schema_sha256": {"$ref": "#/$defs/sha256"},
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_profile_path",
+        "base_profile_sha256",
+        "output_root_parent",
+        "runtime_root_scope",
+        "old_canonical_root",
+        "old_archive_parent",
+        "controller_lease_name",
+        "selected_set_count",
+        "credential_channel",
+        "runtime_hmac_scope",
+        "cross_process_resume"
+      ],
+      "properties": {
+        "base_profile_path": {
+          "const": "configs/data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment.bulk_c30.yaml"
+        },
+        "base_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "output_root_parent": {
+          "type": "null"
+        },
+        "runtime_root_scope": {
+          "const": "external_absolute_parent_from_cli"
+        },
+        "old_canonical_root": {
+          "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/shard-0001"
+        },
+        "old_archive_parent": {
+          "const": "data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_v1/archive"
+        },
+        "controller_lease_name": {
+          "const": ".teacher-alignment-vnext-controller-v1.lock"
+        },
+        "selected_set_count": {"const": 320},
+        "credential_channel": {"const": "anonymous_stdin_same_process"},
+        "runtime_hmac_scope": {"const": "same_process_memory_only"},
+        "cross_process_resume": {"const": false}
+      }
+    },
+    "closed_ancestors": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "sha256", "closed"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "batch_implementation",
+              "teacher_transport",
+              "live_controller_v1",
+              "integrated_controller_v2",
+              "integrated_config_v2",
+              "integrated_schema_v2"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "closed": {"const": true}
+        }
+      }
+    },
+    "online_authentication": {
+      "const": {
+        "startup_full_replays": 1,
+        "per_append_history_replays": 0,
+        "per_append_tip_files": 1,
+        "append_mode": "exclusive_create_fsync",
+        "group_validation": "delta_only",
+        "final_freeze_full_replays": 1
+      }
+    },
+    "stop_after_group": {
+      "const": {
+        "enabled": true,
+        "lock_scope": "group_terminal_through_checkpoint_sidecar",
+        "mid_group_kill_switch_action": "latch_without_abort",
+        "effective_after_checkpoint_sidecar": true,
+        "kill_switch_uncertain_reason_forbidden": true
+      }
+    },
+    "rejection_fuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window", "min_samples", "max_rate"],
+      "properties": {
+        "window": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "min_samples": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "max_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "consumer_code_P": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "status",
+            "blocker_reason_code",
+            "commit_sha1",
+            "tree_sha1",
+            "file_inventory_root_sha256",
+            "implementation_sha256",
+            "schema_set_root_sha256",
+            "contract_sha256",
+            "router_record_cells",
+            "independently_audited",
+            "content_retained"
+          ],
+          "properties": {
+            "stage": {"const": "consumer_code_P"},
+            "status": {"const": "blocked_uncommitted_unreviewed"},
+            "blocker_reason_code": {
+              "const": "consumer_code_P_uncommitted_unreviewed"
+            },
+            "commit_sha1": {"type": "null"},
+            "tree_sha1": {"type": "null"},
+            "file_inventory_root_sha256": {"type": "null"},
+            "implementation_sha256": {"type": "null"},
+            "schema_set_root_sha256": {"type": "null"},
+            "contract_sha256": {"type": "null"},
+            "router_record_cells": {
+              "const": {
+                "humor": {"en": 14, "zh": 13},
+                "serious": {"en": 13, "zh": 13},
+                "angry": {"en": 13, "zh": 14}
+              }
+            },
+            "independently_audited": {"const": false},
+            "content_retained": {"const": false}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "status",
+            "blocker_reason_code",
+            "commit_sha1",
+            "tree_sha1",
+            "file_inventory_root_sha256",
+            "implementation_sha256",
+            "schema_set_root_sha256",
+            "contract_sha256",
+            "router_record_cells",
+            "independently_audited",
+            "content_retained"
+          ],
+          "properties": {
+            "stage": {"const": "consumer_code_P"},
+            "status": {"const": "audited_compatible"},
+            "blocker_reason_code": {"type": "null"},
+            "commit_sha1": {"$ref": "#/$defs/sha1"},
+            "tree_sha1": {"$ref": "#/$defs/sha1"},
+            "file_inventory_root_sha256": {"$ref": "#/$defs/sha256"},
+            "implementation_sha256": {"$ref": "#/$defs/sha256"},
+            "schema_set_root_sha256": {"$ref": "#/$defs/sha256"},
+            "contract_sha256": {"$ref": "#/$defs/sha256"},
+            "router_record_cells": {
+              "const": {
+                "humor": {"en": 14, "zh": 13},
+                "serious": {"en": 13, "zh": 13},
+                "angry": {"en": 13, "zh": 14}
+              }
+            },
+            "independently_audited": {"const": true},
+            "content_retained": {"const": false}
+          }
+        }
+      ]
+    },
+    "claims": {
+      "const": {
+        "candidate": true,
+        "live_authorized": true,
+        "training_authorized": false,
+        "formal_training_authorized": false,
+        "external_attestation_required": true,
+        "consumer_relaxed": false,
+        "fallback_enabled": false,
+        "provider_requests_added_by_preflight": 0,
+        "gpu_requests_added_by_preflight": 0
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
