@@ -88,6 +88,7 @@ def _planner_evidence(
     *,
     same_gate_evaluator: bool = False,
     mismatched_tokenization: bool = False,
+    fused_hf_tree_frozen: bool = True,
 ) -> dict[str, Path]:
     original_base = _write(
         tmp_path / "original-hf-base.json",
@@ -172,12 +173,23 @@ def _planner_evidence(
             "token_equivalence_passed": True,
         },
     )
+    fused_hf_tree = _write(
+        tmp_path / "planner-fused-hf-tree.json",
+        {
+            "schema_version": "anchor.planner-fused-qkvo-22200-fused-hf-tree.v1",
+            "stage": "planner_freeze_fused_hf_tree",
+            "merged_hf_base_identity": _identity(merge),
+            "token_equivalence_proof_identity": _identity(token_equivalence_proof),
+            "fused_hf_tree_frozen": fused_hf_tree_frozen,
+            "fused_hf_base_sha256": _sha("fused-hf-base"),
+        },
+    )
     fused = _write(
         tmp_path / "planner-fused-q8.json",
         {
             "schema_version": "anchor.planner-fused-qkvo-22200-fused-q8-artifact.v1",
             "stage": "planner_compile_fused_q8",
-            "token_equivalence_proof_identity": _identity(token_equivalence_proof),
+            "fused_hf_tree_identity": _identity(fused_hf_tree),
             "fused_q8_compiled": True,
             "fused_base_kind": "planner_fused_q8",
             "fused_base_sha256": _sha("fused-base"),
@@ -190,6 +202,7 @@ def _planner_evidence(
         "gate": gate,
         "merge": merge,
         "token_equivalence_proof": token_equivalence_proof,
+        "fused_hf_tree": fused_hf_tree,
         "fused": fused,
     }
 
@@ -200,12 +213,14 @@ def _lineage(
     *,
     same_gate_evaluator: bool = False,
     mismatched_tokenization: bool = False,
+    fused_hf_tree_frozen: bool = True,
 ) -> Path:
     evidence = _planner_evidence(
         tmp_path,
         source,
         same_gate_evaluator=same_gate_evaluator,
         mismatched_tokenization=mismatched_tokenization,
+        fused_hf_tree_frozen=fused_hf_tree_frozen,
     )
     fused_value = json.loads(evidence["fused"].read_text(encoding="utf-8"))
     return _write(
@@ -224,6 +239,7 @@ def _lineage(
             "token_equivalence_proof_identity": _identity(
                 evidence["token_equivalence_proof"]
             ),
+            "fused_hf_tree_identity": _identity(evidence["fused_hf_tree"]),
             "fused_q8_artifact_identity": _identity(evidence["fused"]),
             "planner_arm": "planner_qkvo_rank64",
             "rank": 64,
@@ -233,6 +249,8 @@ def _lineage(
             "merged_into_original_hf_base": True,
             "token_equivalent_overlay_applied": True,
             "original_hf_base_sha256": _sha("original-hf-base"),
+            "fused_hf_tree_frozen": fused_hf_tree_frozen,
+            "fused_hf_base_sha256": _sha("fused-hf-base"),
             "fused_base_kind": "planner_fused_q8",
             "fused_q8_compiled": True,
             "fused_base_sha256": fused_value["fused_base_sha256"],
@@ -261,6 +279,7 @@ def _route(tmp_path: Path, source: Path, lineage: Path) -> Path:
             ),
             "stage": "immutable_question_route_commit",
             "planner_lineage_identity": _identity(lineage),
+            "fused_planner_base_identity": lineage_value["fused_q8_artifact_identity"],
             "fused_base_sha256": lineage_value["fused_base_sha256"],
             "legacy_coding_semantic_root_sha256": source_value["legacy_coding"][
                 "semantic_root_sha256"
@@ -276,6 +295,7 @@ def _route(tmp_path: Path, source: Path, lineage: Path) -> Path:
             "schema_version": adapter.ROUTE_VERSION,
             "stage": "immutable_question_route_commit",
             "planner_lineage_identity": _identity(lineage),
+            "fused_planner_base_identity": lineage_value["fused_q8_artifact_identity"],
             "route_inventory_identity": _identity(route_inventory),
             "fused_base_sha256": lineage_value["fused_base_sha256"],
             "legacy_coding_semantic_root_sha256": source_value["legacy_coding"][
@@ -304,6 +324,9 @@ def _projection(tmp_path: Path, lineage: Path, route: Path) -> Path:
                 ),
                 "stage": "six_expert_data_projection",
                 "route_commit_identity": _identity(route),
+                "fused_planner_base_identity": route_value[
+                    "fused_planner_base_identity"
+                ],
                 "fused_base_sha256": lineage_value["fused_base_sha256"],
                 "expert_id": expert_id,
                 "records": count,
@@ -328,6 +351,7 @@ def _projection(tmp_path: Path, lineage: Path, route: Path) -> Path:
             "schema_version": adapter.PROJECTION_VERSION,
             "stage": "six_expert_data_projection",
             "route_commit_identity": _identity(route),
+            "fused_planner_base_identity": route_value["fused_planner_base_identity"],
             "route_commit_root_sha256": route_value["route_commit_root_sha256"],
             "fused_base_sha256": lineage_value["fused_base_sha256"],
             "projected_record_count": 19000,
@@ -350,6 +374,9 @@ def _packages(tmp_path: Path, lineage: Path, projection: Path) -> Path:
                 "schema_version": "anchor.planner-fused-qkvo-22200-expert-q-plus-o-train-receipt.v1",
                 "stage": "six_expert_q_plus_o_serial_train",
                 "projection_identity": _identity(projection),
+                "fused_planner_base_identity": projection_value[
+                    "fused_planner_base_identity"
+                ],
                 "expert_id": expert_id,
                 "adapter": "q_plus_o_lora",
                 "o_learning_rate_ratio_to_q": 0.1,
@@ -376,6 +403,9 @@ def _packages(tmp_path: Path, lineage: Path, projection: Path) -> Path:
                 "schema_version": "anchor.planner-fused-qkvo-22200-expert-q8-package.v1",
                 "stage": "six_expert_independent_eval_q8_package",
                 "independent_eval_receipt_identity": _identity(evaluation),
+                "fused_planner_base_identity": projection_value[
+                    "fused_planner_base_identity"
+                ],
                 "expert_id": expert_id,
                 "q8_package_sha256": _sha(f"q8-{index}"),
             },
@@ -399,6 +429,9 @@ def _packages(tmp_path: Path, lineage: Path, projection: Path) -> Path:
             "schema_version": adapter.PACKAGE_VERSION,
             "stage": "six_expert_independent_eval_q8_package",
             "projection_identity": _identity(projection),
+            "fused_planner_base_identity": projection_value[
+                "fused_planner_base_identity"
+            ],
             "fused_base_sha256": lineage_value["fused_base_sha256"],
             "packages": rows,
             "final_route_head_base_kind": "planner_fused_q8",
@@ -631,6 +664,45 @@ def test_planner_gate_and_token_equivalence_semantics_fail_closed(
         adapter.load_planner_lineage(
             lineage, source_admission=adapter.load_source_admission(source)
         )
+
+
+def test_frozen_hf_tree_and_expert_base_binding_are_mandatory(
+    tmp_path: Path,
+) -> None:
+    source = _source(tmp_path)
+    unfrozen_lineage = _lineage(tmp_path, source, fused_hf_tree_frozen=False)
+    with pytest.raises(
+        adapter.PlannerFusedSerialError,
+        match="schema_validation_failed:planner_lineage",
+    ):
+        adapter.load_planner_lineage(
+            unfrozen_lineage, source_admission=adapter.load_source_admission(source)
+        )
+
+    lineage = _lineage(tmp_path, source)
+    route = _route(tmp_path, source, lineage)
+    projection = _projection(tmp_path, lineage, route)
+    packages = _packages(tmp_path, lineage, projection)
+    value = json.loads(packages.read_text(encoding="utf-8"))
+    value["fused_planner_base_identity"] = _identity(
+        tmp_path / "planner-fused-hf-tree.json"
+    )
+    _write(packages, value)
+    source_document = adapter.load_source_admission(source)
+    lineage_document = adapter.load_planner_lineage(
+        lineage, source_admission=source_document
+    )
+    route_document = adapter.load_route_commit(
+        route, source_admission=source_document, planner_lineage=lineage_document
+    )
+    projection_document = adapter.load_projection(
+        projection, route_commit=route_document
+    )
+    with pytest.raises(
+        adapter.PlannerFusedSerialError,
+        match="package_fused_planner_base_identity_mismatch",
+    ):
+        adapter.load_packages(packages, projection=projection_document)
 
 
 def test_authenticated_paths_reject_internal_reparse_parent(

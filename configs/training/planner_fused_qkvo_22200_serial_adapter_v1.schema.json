@@ -33,6 +33,7 @@
         "planner_qkvo_train",
         "planner_independent_gate_eval",
         "planner_merge_hf_base_token_equivalent_overlay",
+        "planner_freeze_fused_hf_tree",
         "planner_compile_fused_q8",
         "immutable_question_route_commit",
         "six_expert_data_projection",

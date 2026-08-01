@@ -5,7 +5,7 @@ multi-arm runtime and cannot launch a provider, model, GPU, or training run.
 
 The only authorizing sequence is fixed:
 
-`source admission → Planner rank-64 Q+K+V+O train → independent Planner gate/eval → merge into the original HF base → token-equivalence proof → fused Q8 → immutable question/route commit → six expert projections → six serial Q+O expert leaves → independent Q8 packages → fused-base route head/runtime`.
+`source admission → Planner rank-64 Q+K+V+O train → independent Planner gate/eval → merge into the original HF base → token-equivalence proof → freeze the fused HF tree → compile fused Q8 → immutable question/route commit → six expert projections → six serial Q+O expert leaves on that fused Planner base → independent Q8 packages → fused-base route head/runtime`.
 
 Only `planner_qkvo_rank64` authorizes a route commit. The gate explicitly
 rejects `planner_q_only`, `planner_q_plus_o`, `planner_q_plus_micro_o`,
@@ -17,9 +17,10 @@ concurrency fixed at one.
 The admission chain is physical metadata, not a self-reported status flag. It
 requires sidecar-bound receipts for the original HF base, QKVO adapter, train
 receipt, independently identified gate/evaluation, merged base,
-input/output-tokenization equivalence proof, and fused-Q8 artifact. The route
+input/output-tokenization equivalence proof, frozen fused-HF tree, and fused-Q8 artifact. The route
 commit also requires a physical immutable inventory, while every expert
-projection requires a separate physical inventory leaf. All declared assets
+projection requires a separate physical inventory leaf. Every expert train and
+Q8 package receipt must bind the same fused Planner-base identity. All declared assets
 must remain under one trusted lexical root; link/reparse paths, out-of-root
 paths, byte drift, and sidecar drift fail closed.
 

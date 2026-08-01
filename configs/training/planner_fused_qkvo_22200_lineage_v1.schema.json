@@ -4,9 +4,9 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "stage", "source_admission_identity", "original_hf_base_identity", "planner_adapter_artifact_identity", "planner_qkvo_train_receipt_identity", "planner_independent_gate_receipt_identity", "merged_hf_base_identity", "token_equivalence_proof_identity", "fused_q8_artifact_identity", "planner_arm", "rank", "target_modules",
+    "schema_version", "stage", "source_admission_identity", "original_hf_base_identity", "planner_adapter_artifact_identity", "planner_qkvo_train_receipt_identity", "planner_independent_gate_receipt_identity", "merged_hf_base_identity", "token_equivalence_proof_identity", "fused_hf_tree_identity", "fused_q8_artifact_identity", "planner_arm", "rank", "target_modules",
     "learning_rate_ratio", "independent_gate_eval_passed", "merged_into_original_hf_base",
-    "token_equivalent_overlay_applied", "original_hf_base_sha256", "fused_base_kind", "fused_q8_compiled", "fused_base_sha256",
+    "token_equivalent_overlay_applied", "original_hf_base_sha256", "fused_hf_tree_frozen", "fused_hf_base_sha256", "fused_base_kind", "fused_q8_compiled", "fused_base_sha256",
     "route_authority", "obsolete_authorities_rejected"
   ],
   "properties": {
@@ -19,6 +19,7 @@
     "planner_independent_gate_receipt_identity": {"$ref": "#/$defs/identity"},
     "merged_hf_base_identity": {"$ref": "#/$defs/identity"},
     "token_equivalence_proof_identity": {"$ref": "#/$defs/identity"},
+    "fused_hf_tree_identity": {"$ref": "#/$defs/identity"},
     "fused_q8_artifact_identity": {"$ref": "#/$defs/identity"},
     "planner_arm": {"const": "planner_qkvo_rank64"},
     "rank": {"const": 64},
@@ -28,6 +29,8 @@
     "merged_into_original_hf_base": {"const": true},
     "token_equivalent_overlay_applied": {"const": true},
     "original_hf_base_sha256": {"$ref": "#/$defs/sha"},
+    "fused_hf_tree_frozen": {"const": true},
+    "fused_hf_base_sha256": {"$ref": "#/$defs/sha"},
     "fused_base_kind": {"const": "planner_fused_q8"},
     "fused_q8_compiled": {"const": true},
     "fused_base_sha256": {"$ref": "#/$defs/sha"},

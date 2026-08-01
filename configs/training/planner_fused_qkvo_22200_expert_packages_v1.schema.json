@@ -3,11 +3,12 @@
   "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-expert-packages-v1.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "stage", "projection_identity", "fused_base_sha256", "packages", "final_route_head_base_kind"],
+  "required": ["schema_version", "stage", "projection_identity", "fused_planner_base_identity", "fused_base_sha256", "packages", "final_route_head_base_kind"],
   "properties": {
     "schema_version": {"const": "anchor.planner-fused-qkvo-22200-expert-packages.v1"},
     "stage": {"const": "six_expert_independent_eval_q8_package"},
     "projection_identity": {"$ref": "#/$defs/identity"},
+    "fused_planner_base_identity": {"$ref": "#/$defs/identity"},
     "fused_base_sha256": {"$ref": "#/$defs/sha"},
     "packages": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/package"}},
     "final_route_head_base_kind": {"const": "planner_fused_q8"}

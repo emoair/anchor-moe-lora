@@ -3,11 +3,12 @@
   "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-six-expert-projection-v1.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "stage", "route_commit_identity", "route_commit_root_sha256", "fused_base_sha256", "projected_record_count", "projections"],
+  "required": ["schema_version", "stage", "route_commit_identity", "fused_planner_base_identity", "route_commit_root_sha256", "fused_base_sha256", "projected_record_count", "projections"],
   "properties": {
     "schema_version": {"const": "anchor.planner-fused-qkvo-22200-six-expert-projection.v1"},
     "stage": {"const": "six_expert_data_projection"},
     "route_commit_identity": {"$ref": "#/$defs/identity"},
+    "fused_planner_base_identity": {"$ref": "#/$defs/identity"},
     "route_commit_root_sha256": {"$ref": "#/$defs/sha"},
     "fused_base_sha256": {"$ref": "#/$defs/sha"},
     "projected_record_count": {"const": 19000},

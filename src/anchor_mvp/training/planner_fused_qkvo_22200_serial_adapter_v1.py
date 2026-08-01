@@ -65,6 +65,7 @@ STAGE_ORDER: Final = (
     "planner_qkvo_train",
     "planner_independent_gate_eval",
     "planner_merge_hf_base_token_equivalent_overlay",
+    "planner_freeze_fused_hf_tree",
     "planner_compile_fused_q8",
     "immutable_question_route_commit",
     "six_expert_data_projection",
@@ -628,6 +629,39 @@ def load_planner_lineage(path: str | Path, *, source_admission: Document) -> Doc
         )
     ):
         _fail("token_equivalent_overlay_not_applied")
+    fused_hf_tree = _stage_artifact(
+        document.value.get("fused_hf_tree_identity"),
+        label="planner_fused_hf_tree",
+        schema_version="anchor.planner-fused-qkvo-22200-fused-hf-tree.v1",
+        stage="planner_freeze_fused_hf_tree",
+        expected_keys={
+            "schema_version",
+            "stage",
+            "merged_hf_base_identity",
+            "token_equivalence_proof_identity",
+            "fused_hf_tree_frozen",
+            "fused_hf_base_sha256",
+        },
+        trusted_root=trusted_root,
+    )
+    _require_identity(
+        merge,
+        fused_hf_tree.value.get("merged_hf_base_identity"),
+        label="planner_fused_hf_tree_merge",
+        trusted_root=trusted_root,
+    )
+    _require_identity(
+        overlay,
+        fused_hf_tree.value.get("token_equivalence_proof_identity"),
+        label="planner_fused_hf_tree_token_equivalence_proof",
+        trusted_root=trusted_root,
+    )
+    if fused_hf_tree.value.get(
+        "fused_hf_tree_frozen"
+    ) is not True or fused_hf_tree.value.get(
+        "fused_hf_base_sha256"
+    ) != document.value.get("fused_hf_base_sha256"):
+        _fail("planner_fused_hf_tree_semantics_invalid")
     fused = _stage_artifact(
         document.value.get("fused_q8_artifact_identity"),
         label="planner_fused_q8",
@@ -636,7 +670,7 @@ def load_planner_lineage(path: str | Path, *, source_admission: Document) -> Doc
         expected_keys={
             "schema_version",
             "stage",
-            "token_equivalence_proof_identity",
+            "fused_hf_tree_identity",
             "fused_q8_compiled",
             "fused_base_kind",
             "fused_base_sha256",
@@ -644,9 +678,9 @@ def load_planner_lineage(path: str | Path, *, source_admission: Document) -> Doc
         trusted_root=trusted_root,
     )
     _require_identity(
-        overlay,
-        fused.value.get("token_equivalence_proof_identity"),
-        label="planner_fused_token_equivalence_proof",
+        fused_hf_tree,
+        fused.value.get("fused_hf_tree_identity"),
+        label="planner_fused_q8_hf_tree",
         trusted_root=trusted_root,
     )
     if (
@@ -676,6 +710,10 @@ def load_route_commit(
         label="planner_lineage",
         trusted_root=trusted_root,
     )
+    if document.value.get("fused_planner_base_identity") != planner_lineage.value.get(
+        "fused_q8_artifact_identity"
+    ):
+        _fail("route_fused_planner_base_identity_mismatch")
     route_inventory = _stage_artifact(
         document.value.get("route_inventory_identity"),
         label="immutable_route_inventory",
@@ -685,6 +723,7 @@ def load_route_commit(
             "schema_version",
             "stage",
             "planner_lineage_identity",
+            "fused_planner_base_identity",
             "fused_base_sha256",
             "legacy_coding_semantic_root_sha256",
             "question_commit_count",
@@ -699,6 +738,10 @@ def load_route_commit(
         label="route_inventory_planner_lineage",
         trusted_root=trusted_root,
     )
+    if route_inventory.value.get("fused_planner_base_identity") != document.value.get(
+        "fused_planner_base_identity"
+    ):
+        _fail("route_inventory_fused_planner_base_identity_mismatch")
     legacy = _mapping(
         source_admission.value.get("legacy_coding"), "legacy_asset_invalid"
     )
@@ -737,6 +780,10 @@ def load_projection(path: str | Path, *, route_commit: Document) -> Document:
         label="route_commit",
         trusted_root=trusted_root,
     )
+    if document.value.get("fused_planner_base_identity") != route_commit.value.get(
+        "fused_planner_base_identity"
+    ):
+        _fail("projection_fused_planner_base_identity_mismatch")
     if document.value.get("route_commit_root_sha256") != route_commit.value.get(
         "route_commit_root_sha256"
     ) or document.value.get("fused_base_sha256") != route_commit.value.get(
@@ -767,6 +814,7 @@ def load_projection(path: str | Path, *, route_commit: Document) -> Document:
                 "schema_version",
                 "stage",
                 "route_commit_identity",
+                "fused_planner_base_identity",
                 "fused_base_sha256",
                 "expert_id",
                 "records",
@@ -782,6 +830,10 @@ def load_projection(path: str | Path, *, route_commit: Document) -> Document:
             label=f"expert_projection_route_commit:{expert_id}",
             trusted_root=trusted_root,
         )
+        if inventory.value.get("fused_planner_base_identity") != document.value.get(
+            "fused_planner_base_identity"
+        ):
+            _fail(f"expert_projection_fused_base_identity_mismatch:{expert_id}")
         for field in (
             "fused_base_sha256",
             "expert_id",
@@ -813,6 +865,10 @@ def load_packages(path: str | Path, *, projection: Document) -> Document:
         label="expert_projection",
         trusted_root=trusted_root,
     )
+    if document.value.get("fused_planner_base_identity") != projection.value.get(
+        "fused_planner_base_identity"
+    ):
+        _fail("package_fused_planner_base_identity_mismatch")
     if document.value.get("fused_base_sha256") != projection.value.get(
         "fused_base_sha256"
     ):
@@ -844,6 +900,7 @@ def load_packages(path: str | Path, *, projection: Document) -> Document:
                 "schema_version",
                 "stage",
                 "projection_identity",
+                "fused_planner_base_identity",
                 "expert_id",
                 "adapter",
                 "o_learning_rate_ratio_to_q",
@@ -858,6 +915,10 @@ def load_packages(path: str | Path, *, projection: Document) -> Document:
             label=f"expert_train_projection:{expert_id}",
             trusted_root=trusted_root,
         )
+        if train.value.get("fused_planner_base_identity") != projection.value.get(
+            "fused_planner_base_identity"
+        ):
+            _fail(f"expert_train_fused_planner_base_identity_mismatch:{expert_id}")
         if (
             train.value.get("expert_id") != expert_id
             or train.value.get("adapter") != "q_plus_o_lora"
@@ -919,6 +980,7 @@ def load_packages(path: str | Path, *, projection: Document) -> Document:
                 "schema_version",
                 "stage",
                 "independent_eval_receipt_identity",
+                "fused_planner_base_identity",
                 "expert_id",
                 "q8_package_sha256",
             },
@@ -930,6 +992,10 @@ def load_packages(path: str | Path, *, projection: Document) -> Document:
             label=f"expert_q8_eval:{expert_id}",
             trusted_root=trusted_root,
         )
+        if q8_package.value.get("fused_planner_base_identity") != projection.value.get(
+            "fused_planner_base_identity"
+        ):
+            _fail(f"expert_q8_fused_planner_base_identity_mismatch:{expert_id}")
         if q8_package.value.get("expert_id") != expert_id:
             _fail(f"expert_q8_package_semantics_invalid:{expert_id}")
         previous_q8 = q8_package

@@ -5,7 +5,7 @@
 
 唯一可授权的顺序固定为：
 
-`source admission → rank64 Planner Q+K+V+O 训练 → 独立 Planner gate/eval → merge 到原始 HF base → token-equivalence 证明 → fused Q8 → 不可变 question/route commit → 六专家投影 → 六个串行 Q+O 专家叶子 → 各自独立 Q8 package → fused-base route head/runtime`。
+`source admission → rank64 Planner Q+K+V+O 训练 → 独立 Planner gate/eval → merge 到原始 HF base → token-equivalence 证明 → 冻结 fused HF tree → 编译 fused Q8 → 不可变 question/route commit → 六专家投影 → 在该 fused Planner base 上训练六个串行 Q+O 专家叶子 → 各自独立 Q8 package → fused-base route head/runtime`。
 
 只有 `planner_qkvo_rank64` 可以授权 route commit。门控会显式拒绝
 `planner_q_only`、`planner_q_plus_o`、`planner_q_plus_micro_o`、
@@ -16,9 +16,10 @@
 
 该链路认证的是物理元数据，而不是自报布尔值。它要求原始 HF base、
 QKVO adapter、训练 receipt、带独立身份的 gate/eval、merged base、
-输入/输出 tokenization 等价证明和 fused-Q8 artifact 都具有 sidecar
+输入/输出 tokenization 等价证明、冻结的 fused-HF tree 和 fused-Q8 artifact 都具有 sidecar
 绑定的物理 identity。route commit 还必须有不可变 inventory；每个专家
-投影也必须有独立的物理 inventory leaf。所有声明的资产必须位于同一个
+投影也必须有独立的物理 inventory leaf。每个专家训练与 Q8 package receipt
+都必须绑定同一个 fused Planner-base identity。所有声明的资产必须位于同一个
 受信任词法根目录下；链接/reparse 路径、越根路径、字节漂移和 sidecar
 漂移均会 fail-closed。
 
