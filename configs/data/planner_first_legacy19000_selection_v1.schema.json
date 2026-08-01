@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-legacy19000-selection.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_pool_manifest_sha256",
+    "candidate_pool_semantic_root_sha256",
+    "candidate_pool_count",
+    "selected_object_count",
+    "excluded_object_count",
+    "selection_rule",
+    "selected_object_ids",
+    "excluded_object_ids",
+    "selected_root_sha256",
+    "excluded_root_sha256",
+    "selection_evidence",
+    "training_authorized"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-legacy19000-selection.v1"},
+    "candidate_pool_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_pool_semantic_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_pool_count": {"const": 19008},
+    "selected_object_count": {"const": 19000},
+    "excluded_object_count": {"const": 8},
+    "selection_rule": {"const": "lexicographic_source_object_id_sha256_take_first"},
+    "selected_object_ids": {"type": "array", "minItems": 19000, "maxItems": 19000, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "excluded_object_ids": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "selected_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "excluded_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "selection_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_authorization", "source_terms_acceptance"],
+      "properties": {
+        "operation_authorization": {"$ref": "#/$defs/evidence_pair"},
+        "source_terms_acceptance": {"$ref": "#/$defs/evidence_pair"}
+      }
+    },
+    "training_authorized": {"const": true}
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "pattern": "^[^/\\\\:.]+$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "evidence_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "sidecar"],
+      "properties": {
+        "artifact": {"$ref": "#/$defs/identity"},
+        "sidecar": {"$ref": "#/$defs/identity"}
+      }
+    }
+  }
+}

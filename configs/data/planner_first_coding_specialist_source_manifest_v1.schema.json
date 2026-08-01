@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-source-manifest.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_kind", "content_access", "training_authorized", "object_count", "semantic_root_sha256", "evidence", "objects"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-source-manifest.v1"},
+    "source_kind": {"enum": ["legacy_coding_candidate_pool", "legacy_coding_19000", "planner_bootstrap_3200"]},
+    "content_access": {"const": "metadata_only"},
+    "training_authorized": {"type": "boolean"},
+    "object_count": {"type": "integer", "minimum": 1},
+    "semantic_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["real_tool_trajectory_inventory", "source_terms_acceptance", "translation_evidence"],
+      "properties": {
+        "real_tool_trajectory_inventory": {"$ref": "#/$defs/evidence_pair"},
+        "source_terms_acceptance": {"$ref": "#/$defs/evidence_pair"},
+        "translation_evidence": {"$ref": "#/$defs/evidence_pair"}
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["language", "source_object_id_sha256", "source_payload_sha256", "split"],
+        "properties": {
+          "language": {"enum": ["en", "zh-CN"]},
+          "source_object_id_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "split": {"enum": ["train", "eval_proxy"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "pattern": "^[^/\\\\:.]+$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "evidence_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "sidecar"],
+      "properties": {
+        "artifact": {"$ref": "#/$defs/identity"},
+        "sidecar": {"$ref": "#/$defs/identity"}
+      }
+    }
+  }
+}

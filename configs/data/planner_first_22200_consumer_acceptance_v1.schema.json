@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-22200-consumer-acceptance.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "final", "consumed", "training_authorized", "teacher_final_identity", "producer_attestation_identity", "teacher_final_semantic_root_sha256", "allowed_assets"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-22200-consumer-acceptance.v1"},
+    "stage": {"const": "consumer_acceptance"},
+    "final": {"const": true},
+    "consumed": {"const": false},
+    "training_authorized": {"const": true},
+    "teacher_final_identity": {"$ref": "#/$defs/identity"},
+    "producer_attestation_identity": {"$ref": "#/$defs/identity"},
+    "teacher_final_semantic_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "allowed_assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chat_shards", "router_records"],
+      "properties": {
+        "chat_shards": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/asset"}},
+        "router_records": {"$ref": "#/$defs/asset"}
+      }
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "records", "sha256"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "minLength": 1},
+        "records": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-22200-producer-attestation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "teacher_final_identity", "teacher_final_semantic_root_sha256", "review_procedure", "training_authorized"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-22200-producer-attestation.v1"},
+    "stage": {"const": "producer_attestation"},
+    "teacher_final_identity": {"$ref": "#/$defs/identity"},
+    "teacher_final_semantic_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "review_procedure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_identity_sha256", "reviewer_identity_sha256", "reviewer_independent_procedurally", "reviewed_tree_sha256"],
+      "properties": {
+        "producer_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "reviewer_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "reviewer_independent_procedurally": {"const": true},
+        "reviewed_tree_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "training_authorized": {"const": false}
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

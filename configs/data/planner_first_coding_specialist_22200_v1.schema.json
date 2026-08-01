@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-coding-specialist-22200.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "replaces_existing",
+    "strictly_serial",
+    "max_concurrency",
+    "stage_order",
+    "problem_object_count",
+    "legacy_coding_object_count",
+    "legacy_candidate_pool_count",
+    "planner_bootstrap_object_count",
+    "legacy_source_is_training_data",
+    "legacy_selection_rule",
+    "planner_bootstrap_source_rule",
+    "source_authority_requirements",
+    "planner_primary_arm",
+    "planner_diagnostic_arms_non_authorizing",
+    "route_commit_rule",
+    "expert_reentry_to_planner",
+    "release_hash_dag",
+    "provider_launch_authorized",
+    "training_authorized",
+    "formal_training_authorized",
+    "body_reads",
+    "raw_token_ids_read",
+    "provider_requests",
+    "model_loads",
+    "gpu_runs"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-coding-specialist-22200.v1"},
+    "namespace": {"const": "planner_first_coding_specialist_22200_v1"},
+    "replaces_existing": {"const": false},
+    "strictly_serial": {"const": true},
+    "max_concurrency": {"const": 1},
+    "stage_order": {
+      "const": ["source_registration", "planner_train", "planner_freeze", "planner_question_commit", "expert_dataset_projection", "expert_leaf_release"]
+    },
+    "problem_object_count": {"const": 22200},
+    "legacy_coding_object_count": {"const": 19000},
+    "legacy_candidate_pool_count": {"const": 19008},
+    "planner_bootstrap_object_count": {"const": 3200},
+    "legacy_source_is_training_data": {"const": false},
+    "legacy_selection_rule": {"type": "string", "minLength": 1},
+    "planner_bootstrap_source_rule": {"type": "string", "minLength": 1},
+    "source_authority_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["legacy_selection_manifest_required", "planner_bootstrap_manifest_required", "real_tool_trajectory_required", "source_terms_acceptance_required", "translation_evidence_required"],
+      "properties": {
+        "legacy_selection_manifest_required": {"const": true},
+        "planner_bootstrap_manifest_required": {"const": true},
+        "real_tool_trajectory_required": {"const": true},
+        "source_terms_acceptance_required": {"const": true},
+        "translation_evidence_required": {"const": true}
+      }
+    },
+    "planner_primary_arm": {"const": "planner_q_only"},
+    "planner_diagnostic_arms_non_authorizing": {"const": ["planner_o_only", "planner_q_plus_micro_o"]},
+    "route_commit_rule": {"type": "string", "minLength": 1},
+    "expert_reentry_to_planner": {"const": false},
+    "release_hash_dag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "physical_sha_backlinks_forbidden", "teacher_final_may_contain_later_attestation_sha", "normalized_semantic_root_backlink_only"],
+      "properties": {
+        "order": {"const": ["teacher_final", "producer_attestation", "consumer_acceptance", "training_input_authority"]},
+        "physical_sha_backlinks_forbidden": {"const": true},
+        "teacher_final_may_contain_later_attestation_sha": {"const": false},
+        "normalized_semantic_root_backlink_only": {"const": true}
+      }
+    },
+    "provider_launch_authorized": {"const": false},
+    "training_authorized": {"const": false},
+    "formal_training_authorized": {"const": false},
+    "body_reads": {"const": 0},
+    "raw_token_ids_read": {"const": 0},
+    "provider_requests": {"const": 0},
+    "model_loads": {"const": 0},
+    "gpu_runs": {"const": 0}
+  }
+}

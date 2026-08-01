@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-source-evidence.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_kind", "subject_semantic_root_sha256"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-source-evidence.v1"},
+    "evidence_kind": {"enum": ["operation_authorization", "real_tool_trajectory_inventory", "source_terms_acceptance", "translation_evidence"]},
+    "subject_semantic_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-coding-specialist-fastpath.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "namespace", "replaces_existing", "online_authority", "terminal_release_authority", "claims"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-coding-specialist-fastpath.v1"},
+    "namespace": {"const": "planner_first_coding_specialist_22200_fastpath_v1"},
+    "replaces_existing": {"const": false},
+    "online_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain_tip_hmac", "current_group_delta_only", "full_wal_replay_per_job", "group_size", "provider_client_included"],
+      "properties": {
+        "chain_tip_hmac": {"const": true},
+        "current_group_delta_only": {"const": true},
+        "full_wal_replay_per_job": {"const": false},
+        "group_size": {"const": 30},
+        "provider_client_included": {"const": false}
+      }
+    },
+    "terminal_release_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["full_replay_count_required", "teacher_final_precedes_producer_attestation", "physical_sha_backlinks_forbidden"],
+      "properties": {
+        "full_replay_count_required": {"const": 1},
+        "teacher_final_precedes_producer_attestation": {"const": true},
+        "physical_sha_backlinks_forbidden": {"const": true}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_benchmark_completed", "provider_launch_authorized", "training_authorized", "formal_training_authorized"],
+      "properties": {
+        "provider_benchmark_completed": {"const": false},
+        "provider_launch_authorized": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false}
+      }
+    }
+  }
+}

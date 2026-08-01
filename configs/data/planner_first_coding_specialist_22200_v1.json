@@ -1,0 +1,55 @@
+{
+  "schema_version": "anchor.planner-first-coding-specialist-22200.v1",
+  "namespace": "planner_first_coding_specialist_22200_v1",
+  "replaces_existing": false,
+  "strictly_serial": true,
+  "max_concurrency": 1,
+  "stage_order": [
+    "source_registration",
+    "planner_train",
+    "planner_freeze",
+    "planner_question_commit",
+    "expert_dataset_projection",
+    "expert_leaf_release"
+  ],
+  "problem_object_count": 22200,
+  "legacy_coding_object_count": 19000,
+  "legacy_candidate_pool_count": 19008,
+  "planner_bootstrap_object_count": 3200,
+  "legacy_source_is_training_data": false,
+  "legacy_selection_rule": "requires a separately authenticated, authorized 19000-object source manifest; the 8 unselected candidate IDs must be recorded explicitly",
+  "planner_bootstrap_source_rule": "requires a separately authenticated, authorized 3200-object source manifest; existing 320/1000 fixtures are not substitutes",
+  "source_authority_requirements": {
+    "legacy_selection_manifest_required": true,
+    "planner_bootstrap_manifest_required": true,
+    "real_tool_trajectory_required": true,
+    "source_terms_acceptance_required": true,
+    "translation_evidence_required": true
+  },
+  "planner_primary_arm": "planner_q_only",
+  "planner_diagnostic_arms_non_authorizing": [
+    "planner_o_only",
+    "planner_q_plus_micro_o"
+  ],
+  "route_commit_rule": "every downstream expert projection must reference a route commit emitted after the authenticated planner freeze",
+  "expert_reentry_to_planner": false,
+  "release_hash_dag": {
+    "order": [
+      "teacher_final",
+      "producer_attestation",
+      "consumer_acceptance",
+      "training_input_authority"
+    ],
+    "physical_sha_backlinks_forbidden": true,
+    "teacher_final_may_contain_later_attestation_sha": false,
+    "normalized_semantic_root_backlink_only": true
+  },
+  "provider_launch_authorized": false,
+  "training_authorized": false,
+  "formal_training_authorized": false,
+  "body_reads": 0,
+  "raw_token_ids_read": 0,
+  "provider_requests": 0,
+  "model_loads": 0,
+  "gpu_runs": 0
+}

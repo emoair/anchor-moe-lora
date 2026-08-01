@@ -1,0 +1,23 @@
+{
+  "schema_version": "anchor.planner-first-coding-specialist-fastpath.v1",
+  "namespace": "planner_first_coding_specialist_22200_fastpath_v1",
+  "replaces_existing": false,
+  "online_authority": {
+    "chain_tip_hmac": true,
+    "current_group_delta_only": true,
+    "full_wal_replay_per_job": false,
+    "group_size": 30,
+    "provider_client_included": false
+  },
+  "terminal_release_authority": {
+    "full_replay_count_required": 1,
+    "teacher_final_precedes_producer_attestation": true,
+    "physical_sha_backlinks_forbidden": true
+  },
+  "claims": {
+    "provider_benchmark_completed": false,
+    "provider_launch_authorized": false,
+    "training_authorized": false,
+    "formal_training_authorized": false
+  }
+}

@@ -251,3 +251,23 @@ src/anchor_mvp/data/gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py text
 tests/test_gemma3_chat_unbalanced_v2_teacher_alignment_minimal320_v2.py text eol=lf
 tests/test_gemma3_chat_unbalanced_v2_teacher_alignment_vnext_v1.py text eol=lf
 data/gemma3_chat_five_expert_qonly_unbalanced_v2_teacher_alignment_vnext_v1/release_v1/** text eol=lf
+
+# Planner-first 22,200 coding-specialist migration. These paths are additive
+# and must remain byte-stable in Windows clean checkouts.
+configs/data/planner_first_coding_specialist_22200_v1*.json text eol=lf
+configs/data/planner_first_coding_specialist_22200_decision_v1.schema.json text eol=lf
+configs/data/planner_first_coding_specialist_source_manifest_v1.schema.json text eol=lf
+configs/data/planner_first_coding_specialist_source_evidence_v1.schema.json text eol=lf
+src/anchor_mvp/data/planner_first_coding_specialist_22200_v1.py text eol=lf
+scripts/data/validate_planner_first_coding_specialist_22200_v1.py text eol=lf
+tests/test_planner_first_coding_specialist_22200_v1.py text eol=lf
+docs/research/planner_first_coding_specialist_22200_v1*.md text eol=lf
+configs/data/planner_first_coding_specialist_22200_fastpath_v1*.json text eol=lf
+src/anchor_mvp/data/planner_first_coding_specialist_22200_fastpath_v1.py text eol=lf
+tests/test_planner_first_coding_specialist_22200_fastpath_v1.py text eol=lf
+configs/data/planner_first_22200_*_v1.schema.json text eol=lf
+configs/data/planner_first_legacy19000_selection_v1.schema.json text eol=lf
+src/anchor_mvp/data/planner_first_coding_specialist_22200_release_v1.py text eol=lf
+tests/test_planner_first_coding_specialist_22200_release_v1.py text eol=lf
+scripts/research/benchmark_planner_first_coding_specialist_22200_fastpath_v1.py text eol=lf
+tests/test_benchmark_planner_first_coding_specialist_22200_fastpath_v1.py text eol=lf

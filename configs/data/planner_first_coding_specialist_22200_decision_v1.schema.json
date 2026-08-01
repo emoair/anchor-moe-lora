@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "anchor.planner-first-coding-specialist-decision.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "campaign_schema_version", "status", "next_required_stage", "blockers", "problem_object_count", "legacy_coding_object_count", "planner_bootstrap_object_count", "expert_projection_permitted", "provider_launch_permitted", "training_authorized", "formal_training_authorized", "body_reads", "raw_token_ids_read", "provider_requests", "model_loads", "gpu_runs"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-first-coding-specialist-decision.v1"},
+    "campaign_schema_version": {"const": "anchor.planner-first-coding-specialist-22200.v1"},
+    "status": {"enum": ["blocked", "ready_for_planner_question_commit"]},
+    "next_required_stage": {"enum": ["source_registration", "planner_train", "planner_question_commit"]},
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "problem_object_count": {"const": 22200},
+    "legacy_coding_object_count": {"const": 19000},
+    "planner_bootstrap_object_count": {"const": 3200},
+    "expert_projection_permitted": {"type": "boolean"},
+    "provider_launch_permitted": {"const": false},
+    "training_authorized": {"const": false},
+    "formal_training_authorized": {"const": false},
+    "body_reads": {"const": 0},
+    "raw_token_ids_read": {"const": 0},
+    "provider_requests": {"const": 0},
+    "model_loads": {"const": 0},
+    "gpu_runs": {"const": 0}
+  }
+}
