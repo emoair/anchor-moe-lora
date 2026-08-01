@@ -413,6 +413,95 @@ def test_vnext_dashboard_maps_exact_body_free_terminal_telemetry(
     assert "DO-NOT-RETURN-VNEXT-TELEMETRY-BODY" not in json.dumps(snapshot)
 
 
+def test_vnext_dashboard_accepts_provider_rolling_window_semantics(
+    tmp_path: Path,
+) -> None:
+    """The live vNext producer reports terminal usage divided by a rolling window."""
+    shard, telemetry_path = _vnext_dashboard_fixture(tmp_path, exact=True)
+    telemetry = json.loads(telemetry_path.read_text(encoding="utf-8"))
+    telemetry["semantics"] = (
+        "provider_terminal_usage_rolling_window; provider_reported_usage_only; "
+        "not_committed_or_accepted_counts; "
+        "idle_reads_do_not_advance_observed_at_or_synthesize_usage; "
+        "any_unknown_row_or_forbidden_restart_makes_rates_UNKNOWN"
+    )
+    telemetry_path.write_text(
+        json.dumps(telemetry, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    rate = dashboard.DashboardEngine([("vnext", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]["rate"]
+
+    assert rate["provider_input_tokens_per_second"]["value"] == 31.25
+    assert rate["provider_output_tokens_per_second"]["value"] == 1.75
+    assert rate["token_throughput_error"] is None
+
+
+def test_vnext_dashboard_accepts_legacy_terminal_window_semantics(
+    tmp_path: Path,
+) -> None:
+    shard, telemetry_path = _vnext_dashboard_fixture(tmp_path, exact=True)
+    telemetry = json.loads(telemetry_path.read_text(encoding="utf-8"))
+    telemetry["semantics"] = dashboard.LEGACY_VNEXT_THROUGHPUT_SEMANTICS
+    telemetry_path.write_text(
+        json.dumps(telemetry, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    rate = dashboard.DashboardEngine([("vnext", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]["rate"]
+
+    assert rate["provider_input_tokens_per_second"]["value"] == 31.25
+    assert rate["token_throughput_semantics"] == (
+        dashboard.LEGACY_VNEXT_THROUGHPUT_SEMANTICS
+    )
+
+
+def test_vnext_dashboard_rejects_unknown_throughput_semantics(
+    tmp_path: Path,
+) -> None:
+    shard, telemetry_path = _vnext_dashboard_fixture(tmp_path, exact=True)
+    telemetry = json.loads(telemetry_path.read_text(encoding="utf-8"))
+    telemetry["semantics"] = "unreviewed_throughput_semantics"
+    telemetry_path.write_text(
+        json.dumps(telemetry, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    rate = dashboard.DashboardEngine([("vnext", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]["rate"]
+
+    assert rate["provider_input_tokens_per_second"]["value"] == "UNKNOWN"
+    assert rate["token_throughput_error"] == "vnext_telemetry_invalid"
+
+
+def test_vnext_dashboard_rejects_non_string_throughput_semantics(
+    tmp_path: Path,
+) -> None:
+    shard, telemetry_path = _vnext_dashboard_fixture(tmp_path, exact=True)
+    telemetry = json.loads(telemetry_path.read_text(encoding="utf-8"))
+    telemetry["semantics"] = ["unreviewed"]
+    telemetry_path.write_text(
+        json.dumps(telemetry, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    rate = dashboard.DashboardEngine([("vnext", shard)]).snapshot()[
+        "unbalanced_shards"
+    ][0]["rate"]
+
+    assert rate["provider_input_tokens_per_second"]["value"] == "UNKNOWN"
+    assert rate["token_throughput_error"] == "vnext_telemetry_invalid"
+
+
 def test_vnext_dashboard_preserves_provider_unknown_rates(
     tmp_path: Path,
 ) -> None:

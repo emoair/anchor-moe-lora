@@ -84,9 +84,21 @@ VNEXT_THROUGHPUT_SCHEMA_VERSION = (
     "provider-throughput-telemetry.v1"
 )
 VNEXT_THROUGHPUT_SEMANTICS = (
+    "provider_terminal_usage_rolling_window; provider_reported_usage_only; "
+    "not_committed_or_accepted_counts; "
+    "idle_reads_do_not_advance_observed_at_or_synthesize_usage; "
+    "any_unknown_row_or_forbidden_restart_makes_rates_UNKNOWN"
+)
+LEGACY_VNEXT_THROUGHPUT_SEMANTICS = (
     "provider_reported_usage_only; terminal_event_time_window; "
     "idle_reads_do_not_advance_observed_at_or_synthesize_usage; "
     "any_unknown_row_or_forbidden_restart_makes_rates_UNKNOWN"
+)
+ACCEPTED_VNEXT_THROUGHPUT_SEMANTICS = frozenset(
+    {
+        VNEXT_THROUGHPUT_SEMANTICS,
+        LEGACY_VNEXT_THROUGHPUT_SEMANTICS,
+    }
 )
 MAX_PARSE_ERRORS = 50
 MAX_LOG_ENTRIES = 160
@@ -1627,6 +1639,7 @@ class UnbalancedShardMonitor:
         metadata = self.vnext_throughput_reader.metadata
         source = "vnext_body_free_terminal_telemetry"
         error = metadata.get(("error",))
+        semantics = metadata.get(("semantics",))
         exact = metadata.get(("exact",))
         input_rate = metadata.get(("provider_input_tokens_per_second",))
         output_rate = metadata.get(("provider_output_tokens_per_second",))
@@ -1641,7 +1654,8 @@ class UnbalancedShardMonitor:
         valid = (
             self.vnext_throughput_reader.invalid_sha256 is None
             and metadata.get(("schema_version",)) == VNEXT_THROUGHPUT_SCHEMA_VERSION
-            and metadata.get(("semantics",)) == VNEXT_THROUGHPUT_SEMANTICS
+            and isinstance(semantics, str)
+            and semantics in ACCEPTED_VNEXT_THROUGHPUT_SEMANTICS
             and metadata.get(("content_retained",)) is False
             and metadata.get(("raw_token_ids_retained",)) is False
             and metadata.get(("credential_retained",)) is False
@@ -1718,7 +1732,7 @@ class UnbalancedShardMonitor:
                 source=source,
             ),
             "token_throughput_observed_at": observed_at,
-            "token_throughput_semantics": VNEXT_THROUGHPUT_SEMANTICS,
+            "token_throughput_semantics": semantics,
             "token_throughput_error": error,
         }
 
