@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-lineage-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "stage", "source_admission_identity", "original_hf_base_identity", "planner_adapter_artifact_identity", "planner_qkvo_train_receipt_identity", "planner_independent_gate_receipt_identity", "merged_hf_base_identity", "token_equivalence_proof_identity", "fused_q8_artifact_identity", "planner_arm", "rank", "target_modules",
+    "learning_rate_ratio", "independent_gate_eval_passed", "merged_into_original_hf_base",
+    "token_equivalent_overlay_applied", "original_hf_base_sha256", "fused_base_kind", "fused_q8_compiled", "fused_base_sha256",
+    "route_authority", "obsolete_authorities_rejected"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-lineage.v1"},
+    "stage": {"const": "planner_fused_lineage"},
+    "source_admission_identity": {"$ref": "#/$defs/identity"},
+    "original_hf_base_identity": {"$ref": "#/$defs/identity"},
+    "planner_adapter_artifact_identity": {"$ref": "#/$defs/identity"},
+    "planner_qkvo_train_receipt_identity": {"$ref": "#/$defs/identity"},
+    "planner_independent_gate_receipt_identity": {"$ref": "#/$defs/identity"},
+    "merged_hf_base_identity": {"$ref": "#/$defs/identity"},
+    "token_equivalence_proof_identity": {"$ref": "#/$defs/identity"},
+    "fused_q8_artifact_identity": {"$ref": "#/$defs/identity"},
+    "planner_arm": {"const": "planner_qkvo_rank64"},
+    "rank": {"const": 64},
+    "target_modules": {"const": ["q_proj", "k_proj", "v_proj", "o_proj"]},
+    "learning_rate_ratio": {"const": {"q": 1.0, "k": 0.2, "v": 0.1, "o": 0.01}},
+    "independent_gate_eval_passed": {"const": true},
+    "merged_into_original_hf_base": {"const": true},
+    "token_equivalent_overlay_applied": {"const": true},
+    "original_hf_base_sha256": {"$ref": "#/$defs/sha"},
+    "fused_base_kind": {"const": "planner_fused_q8"},
+    "fused_q8_compiled": {"const": true},
+    "fused_base_sha256": {"$ref": "#/$defs/sha"},
+    "route_authority": {"const": true},
+    "obsolete_authorities_rejected": {"const": ["planner_q_only", "planner_q_plus_o", "planner_q_plus_micro_o", "original_base", "v14", "quarantine"]}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256", "sidecar_path", "sidecar_bytes", "sidecar_sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}, "sidecar_path": {"type": "string", "minLength": 1}, "sidecar_bytes": {"type": "integer", "minimum": 1}, "sidecar_sha256": {"$ref": "#/$defs/sha"}}
+    }
+  }
+}

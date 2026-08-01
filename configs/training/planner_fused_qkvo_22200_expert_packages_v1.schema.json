@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-expert-packages-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "projection_identity", "fused_base_sha256", "packages", "final_route_head_base_kind"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-expert-packages.v1"},
+    "stage": {"const": "six_expert_independent_eval_q8_package"},
+    "projection_identity": {"$ref": "#/$defs/identity"},
+    "fused_base_sha256": {"$ref": "#/$defs/sha"},
+    "packages": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/package"}},
+    "final_route_head_base_kind": {"const": "planner_fused_q8"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256", "sidecar_path", "sidecar_bytes", "sidecar_sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}, "sidecar_path": {"type": "string", "minLength": 1}, "sidecar_bytes": {"type": "integer", "minimum": 1}, "sidecar_sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "package": {
+      "type": "object", "additionalProperties": false,
+      "required": ["serial_index", "expert_id", "adapter", "o_learning_rate_ratio_to_q", "train_receipt_identity", "independent_eval_receipt_identity", "q8_package_identity", "previous_q8_package_identity"],
+      "properties": {
+        "serial_index": {"type": "integer", "minimum": 1, "maximum": 6},
+        "expert_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+        "adapter": {"const": "q_plus_o_lora"},
+        "o_learning_rate_ratio_to_q": {"const": 0.1},
+        "train_receipt_identity": {"$ref": "#/$defs/identity"},
+        "independent_eval_receipt_identity": {"$ref": "#/$defs/identity"},
+        "q8_package_identity": {"$ref": "#/$defs/identity"},
+        "previous_q8_package_identity": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identity"}]}
+      }
+    }
+  }
+}

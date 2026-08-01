@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-route-commit-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "planner_lineage_identity", "route_inventory_identity", "fused_base_sha256", "legacy_coding_semantic_root_sha256", "question_commit_count", "route_commit_count", "route_commit_root_sha256"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-route-commit.v1"},
+    "stage": {"const": "immutable_question_route_commit"},
+    "planner_lineage_identity": {"$ref": "#/$defs/identity"},
+    "route_inventory_identity": {"$ref": "#/$defs/identity"},
+    "fused_base_sha256": {"$ref": "#/$defs/sha"},
+    "legacy_coding_semantic_root_sha256": {"$ref": "#/$defs/sha"},
+    "question_commit_count": {"const": 19000},
+    "route_commit_count": {"const": 19000},
+    "route_commit_root_sha256": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256", "sidecar_path", "sidecar_bytes", "sidecar_sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}, "sidecar_path": {"type": "string", "minLength": 1}, "sidecar_bytes": {"type": "integer", "minimum": 1}, "sidecar_sha256": {"$ref": "#/$defs/sha"}}
+    }
+  }
+}

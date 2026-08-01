@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-serial-adapter-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "replaces_existing",
+    "input_counts",
+    "serial_stage_order",
+    "planner",
+    "experts",
+    "claims"
+  ],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-serial-adapter-config.v1"},
+    "status": {"const": "model_free_source_admission_required"},
+    "replaces_existing": {"const": false},
+    "input_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner_bootstrap", "legacy_coding", "total"],
+      "properties": {
+        "planner_bootstrap": {"const": 3200},
+        "legacy_coding": {"const": 19000},
+        "total": {"const": 22200}
+      }
+    },
+    "serial_stage_order": {
+      "const": [
+        "source_admission",
+        "planner_qkvo_train",
+        "planner_independent_gate_eval",
+        "planner_merge_hf_base_token_equivalent_overlay",
+        "planner_compile_fused_q8",
+        "immutable_question_route_commit",
+        "six_expert_data_projection",
+        "six_expert_q_plus_o_serial_train",
+        "six_expert_independent_eval_q8_package",
+        "fused_base_route_head_final_runtime"
+      ]
+    },
+    "planner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_adapter",
+        "rank",
+        "target_modules",
+        "learning_rate_ratio",
+        "only_authorizing_arm",
+        "obsolete_arms_rejected"
+      ],
+      "properties": {
+        "primary_adapter": {"const": "qkvo_lora"},
+        "rank": {"const": 64},
+        "target_modules": {"const": ["q_proj", "k_proj", "v_proj", "o_proj"]},
+        "learning_rate_ratio": {
+          "const": {"q": 1.0, "k": 0.2, "v": 0.1, "o": 0.01}
+        },
+        "only_authorizing_arm": {"const": "planner_qkvo_rank64"},
+        "obsolete_arms_rejected": {
+          "const": ["planner_q_only", "planner_q_plus_o", "planner_q_plus_micro_o", "original_base", "v14", "quarantine"]
+        }
+      }
+    },
+    "experts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "adapter", "o_learning_rate_ratio_to_q", "serial_concurrency"],
+      "properties": {
+        "count": {"const": 6},
+        "adapter": {"const": "q_plus_o_lora"},
+        "o_learning_rate_ratio_to_q": {"const": 0.1},
+        "serial_concurrency": {"const": 1}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_client_included", "gpu_execution_included", "training_authorized", "formal_training_authorized"],
+      "properties": {
+        "provider_client_included": {"const": false},
+        "gpu_execution_included": {"const": false},
+        "training_authorized": {"const": false},
+        "formal_training_authorized": {"const": false}
+      }
+    }
+  }
+}

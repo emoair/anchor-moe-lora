@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-source-admission-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "final", "authorized_for_planner_fused", "planner_bootstrap", "legacy_coding"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-source-admission.v1"},
+    "stage": {"const": "source_admission"},
+    "final": {"const": true},
+    "authorized_for_planner_fused": {"const": true},
+    "planner_bootstrap": {"$ref": "#/$defs/planner"},
+    "legacy_coding": {"$ref": "#/$defs/legacy"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "sidecar_path", "sidecar_bytes", "sidecar_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha"},
+        "sidecar_path": {"type": "string", "minLength": 1},
+        "sidecar_bytes": {"type": "integer", "minimum": 1},
+        "sidecar_sha256": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records", "semantic_root_sha256", "manifest_identity"],
+      "properties": {
+        "records": {"type": "integer", "minimum": 1},
+        "semantic_root_sha256": {"$ref": "#/$defs/sha"},
+        "manifest_identity": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "planner": {"allOf": [{"$ref": "#/$defs/asset"}, {"properties": {"records": {"const": 3200}}}]},
+    "legacy": {"allOf": [{"$ref": "#/$defs/asset"}, {"properties": {"records": {"const": 19000}}}]}
+  }
+}

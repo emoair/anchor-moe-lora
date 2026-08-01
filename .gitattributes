@@ -185,3 +185,17 @@ tests/test_gemma3_chat_unbalanced_v2_* text eol=lf
 docs/research/gemma3_chat_unbalanced_v2_* text eol=lf
 fixtures/research/gemma3_chat_unbalanced_v2_consumer_preflight_sharded_v1/** text eol=lf
 fixtures/research/gemma3_chat_unbalanced_v2_teacher_release_implementation_preflight_v2/** text eol=lf
+
+# Planner-fused QKVO 22,200 serial adapter. These exact files are additive;
+# old Q-only planner contracts must not be selected by this namespace.
+configs/training/planner_fused_qkvo_22200_serial_adapter_v1.json text eol=lf
+configs/training/planner_fused_qkvo_22200_serial_adapter_v1.schema.json text eol=lf
+configs/training/planner_fused_qkvo_22200_source_admission_v1.schema.json text eol=lf
+configs/training/planner_fused_qkvo_22200_lineage_v1.schema.json text eol=lf
+configs/training/planner_fused_qkvo_22200_route_commit_v1.schema.json text eol=lf
+configs/training/planner_fused_qkvo_22200_six_expert_projection_v1.schema.json text eol=lf
+configs/training/planner_fused_qkvo_22200_expert_packages_v1.schema.json text eol=lf
+src/anchor_mvp/training/planner_fused_qkvo_22200_serial_adapter_v1.py text eol=lf
+scripts/train/validate_planner_fused_qkvo_22200_serial_adapter_v1.py text eol=lf
+tests/test_planner_fused_qkvo_22200_serial_adapter_v1.py text eol=lf
+docs/research/planner_fused_qkvo_22200_serial_adapter_v1*.md text eol=lf

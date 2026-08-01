@@ -1,0 +1,38 @@
+{
+  "schema_version": "anchor.planner-fused-qkvo-22200-serial-adapter-config.v1",
+  "status": "model_free_source_admission_required",
+  "replaces_existing": false,
+  "input_counts": {"planner_bootstrap": 3200, "legacy_coding": 19000, "total": 22200},
+  "serial_stage_order": [
+    "source_admission",
+    "planner_qkvo_train",
+    "planner_independent_gate_eval",
+    "planner_merge_hf_base_token_equivalent_overlay",
+    "planner_compile_fused_q8",
+    "immutable_question_route_commit",
+    "six_expert_data_projection",
+    "six_expert_q_plus_o_serial_train",
+    "six_expert_independent_eval_q8_package",
+    "fused_base_route_head_final_runtime"
+  ],
+  "planner": {
+    "primary_adapter": "qkvo_lora",
+    "rank": 64,
+    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
+    "learning_rate_ratio": {"q": 1.0, "k": 0.2, "v": 0.1, "o": 0.01},
+    "only_authorizing_arm": "planner_qkvo_rank64",
+    "obsolete_arms_rejected": ["planner_q_only", "planner_q_plus_o", "planner_q_plus_micro_o", "original_base", "v14", "quarantine"]
+  },
+  "experts": {
+    "count": 6,
+    "adapter": "q_plus_o_lora",
+    "o_learning_rate_ratio_to_q": 0.1,
+    "serial_concurrency": 1
+  },
+  "claims": {
+    "provider_client_included": false,
+    "gpu_execution_included": false,
+    "training_authorized": false,
+    "formal_training_authorized": false
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anchor.local/schemas/planner-fused-qkvo-22200-six-expert-projection-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "route_commit_identity", "route_commit_root_sha256", "fused_base_sha256", "projected_record_count", "projections"],
+  "properties": {
+    "schema_version": {"const": "anchor.planner-fused-qkvo-22200-six-expert-projection.v1"},
+    "stage": {"const": "six_expert_data_projection"},
+    "route_commit_identity": {"$ref": "#/$defs/identity"},
+    "route_commit_root_sha256": {"$ref": "#/$defs/sha"},
+    "fused_base_sha256": {"$ref": "#/$defs/sha"},
+    "projected_record_count": {"const": 19000},
+    "projections": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/projection"}}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256", "sidecar_path", "sidecar_bytes", "sidecar_sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}, "sidecar_path": {"type": "string", "minLength": 1}, "sidecar_bytes": {"type": "integer", "minimum": 1}, "sidecar_sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "projection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["expert_id", "records", "projection_root_sha256", "projection_inventory_identity", "adapter", "o_learning_rate_ratio_to_q"],
+      "properties": {
+        "expert_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+        "records": {"type": "integer", "minimum": 1, "maximum": 19000},
+        "projection_root_sha256": {"$ref": "#/$defs/sha"},
+        "projection_inventory_identity": {"$ref": "#/$defs/identity"},
+        "adapter": {"const": "q_plus_o_lora"},
+        "o_learning_rate_ratio_to_q": {"const": 0.1}
+      }
+    }
+  }
+}
